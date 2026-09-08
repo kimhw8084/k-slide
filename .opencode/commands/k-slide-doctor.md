@@ -1,13 +1,7 @@
 ---
-description: Diagnose K-Slide v6 install and file-tool capability.
+description: Diagnose K-Slide runtime, model, file, and privacy capabilities.
 agent: k-slide
 subtask: false
 ---
 
-Do not use Task/subagents. Run this helper with bash and print only its output:
-
-```bash
-.opencode/skills/k-slide/bin/doctor.sh
-```
-
-If bash is denied, tell the user to run it manually from project root.
+Call `kslide_doctor` and print its human-readable result. Do not dump raw diagnostic JSON unless requested.

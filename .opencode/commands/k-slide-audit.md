@@ -4,6 +4,6 @@ agent: k-slide
 subtask: false
 ---
 
-Generate detailed audit artifacts for: `$ARGUMENTS`
+Generate detailed audit artifacts for the current K-Slide run: `$ARGUMENTS`
 
-Do not use Task/subagents. Preserve table rows/columns and source item counts. Use existing run artifacts when a run folder is provided; otherwise run setup in strict mode first.
+Use `kslide_status`, `kslide_evidence`, and `kslide_verify`. Resolve the current session when no run ID is provided. Preserve table rows/columns and source item counts.

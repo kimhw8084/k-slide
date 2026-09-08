@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kimhw8084/agent-skills/blob/main/k-slide/schemas/slide-ir.schema.json",
+  "title": "K-Slide SlideIR",
+  "type": "object",
+  "required": ["schema_version", "slide_id", "regions", "tables", "visual_relations", "numeric_facts", "coverage"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "slide_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+    "source": {"type": "object"},
+    "regions": {"type": "array", "items": {"type": "object", "required": ["region_id"]}},
+    "tables": {"type": "array", "items": {"type": "object", "required": ["table_id", "row_count", "column_count", "cells"]}},
+    "visual_elements": {"type": "array"},
+    "visual_relations": {"type": "array"},
+    "numeric_facts": {"type": "array"},
+    "entities": {"type": "array"},
+    "terms": {"type": "array"},
+    "unresolved": {"type": "array"},
+    "coverage": {"type": "array", "items": {"type": "object", "required": ["source_id", "status"]}},
+    "executive_semantics": {"type": "object"}
+  },
+  "additionalProperties": true
+}

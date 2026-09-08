@@ -1,21 +1,15 @@
 ---
-description: Strict single-agent Korean slide comprehension with detailed table/item handling.
+description: Strict single-agent Korean slide comprehension with detailed evidence and verification.
 agent: k-slide
 subtask: false
 ---
 
-You are running K-Slide v6 in `strict` mode.
+You are running K-Slide in `strict` mode.
 
 User arguments: `$ARGUMENTS`
 
-Do not use Task/subagents.
+Do not use shell, edit, write, web, or Task/subagent tools. Use the typed `kslide_*` tools only.
 
-First, ensure setup exists. Your first tool action should be to run this with the bash tool unless a valid RUN_DIR is already available:
+First call `kslide_prepare` with mode `strict`. Pass explicit input paths only when the user supplied them. Use the returned run metadata exactly.
 
-```bash
-.opencode/skills/k-slide/bin/prepare_run.sh strict $ARGUMENTS
-```
-
-After setup succeeds, use the printed `RUN_DIR` exactly. If setup fails or bash is denied, do not analyze images. Print friendly manual setup instructions and end `FAILED`.
-
-Then follow the v6 workflow: reconstruct tables, preserve item counts, write compact artifacts, verify before DONE, and write `RUN_COMPLETE.md` only after verification passes.
+Then call `kslide_next`, `kslide_evidence`, `kslide_submit`, `kslide_verify`, and finally `kslide_finalize`. Reconstruct tables, preserve item counts, and never claim DONE before the finalizer passes.

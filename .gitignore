@@ -1,3 +1,8 @@
 .DS_Store
 .k-slide-input/
 .k-slide-runs/
+.k-slide-config/
+.k-slide-engine/
+*.py[cod]
+__pycache__/
+.venv/
