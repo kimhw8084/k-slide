@@ -1,0 +1,12 @@
+{
+  "추진": {"preferred": "drive / execute / implement", "avoid": "promote"},
+  "고도화": {"preferred": "enhance / mature / upgrade / improve capability", "avoid": "heighten"},
+  "전사": {"preferred": "company-wide", "avoid": "warrior"},
+  "검토": {"preferred": "review / assess"},
+  "대응 방안": {"preferred": "response strategy / mitigation plan"},
+  "확보": {"preferred": "secure / ensure / obtain / establish"},
+  "현황": {"preferred": "current status / current state"},
+  "개선": {"preferred": "improvement"},
+  "과제": {"preferred": "task / initiative / challenge"},
+  "유관부서": {"preferred": "related departments / relevant teams"}
+}
