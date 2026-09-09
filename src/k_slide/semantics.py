@@ -62,6 +62,31 @@ class Uncertainty(str, Enum):
     HIGH = "high"
 
 
+class RelationType(str, Enum):
+    NEXT = "next"
+    DEPENDS_ON = "depends_on"
+    CONTAINS = "contains"
+    BEFORE = "before"
+    AFTER = "after"
+    CAUSES = "causes"
+    MITIGATES = "mitigates"
+    COMPARES_TO = "compares_to"
+    PART_OF = "part_of"
+    FLOWS_TO = "flows_to"
+    HIGHLIGHTS = "highlights"
+    OTHER = "other"
+
+
+class RelationDirection(str, Enum):
+    LEFT_TO_RIGHT = "left_to_right"
+    RIGHT_TO_LEFT = "right_to_left"
+    TOP_TO_BOTTOM = "top_to_bottom"
+    BOTTOM_TO_TOP = "bottom_to_top"
+    BIDIRECTIONAL = "bidirectional"
+    NONE = "none"
+    UNKNOWN = "unknown"
+
+
 class CoverageStatus(str, Enum):
     TRANSLATED = "translated"
     UNRESOLVED = "unresolved"

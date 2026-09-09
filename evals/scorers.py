@@ -14,6 +14,7 @@ from typing import Any, Iterable
 _ENGINE_FAILURE_CLASSES = {
     "KSLIDE_PPTX_RENDER_UNAVAILABLE": "CAPABILITY_BLOCK",
     "KSLIDE_OCR_UNAVAILABLE": "CAPABILITY_BLOCK",
+    "KSLIDE_OCR_PROVIDER_UNAVAILABLE": "CAPABILITY_BLOCK",
     "KSLIDE_PDF_RENDER_UNAVAILABLE": "CAPABILITY_BLOCK",
     "ENGINE_NORMALIZATION": "NORMALIZATION_FAILURE",
     "ENGINE_WORK_UNIT_COUNT": "LAYOUT_FAILURE",
@@ -130,6 +131,20 @@ def score_engine_case(scenario: Any, *, artifact_result: dict[str, Any], normali
     """Score one scenario/format case after its own engine run."""
 
     evidence = evidence or []
+    ocr_metadata: dict[str, Any] = {}
+    if run_dir is not None:
+        try:
+            metrics = json.loads((run_dir / "metrics.json").read_text(encoding="utf-8"))
+            ocr_metadata = {key: metrics.get(key) for key in ("ocr_policy_requested", "ocr_provider_effective", "ocr_provider_version", "ocr_reason")}
+            if not any(value is not None for value in ocr_metadata.values()):
+                metadata = json.loads((run_dir / "OCR_METADATA.json").read_text(encoding="utf-8"))
+                ocr_metadata = {key: metadata.get(key) for key in ("ocr_policy_requested", "ocr_provider_effective", "ocr_provider_version", "ocr_reason")}
+        except (OSError, json.JSONDecodeError):
+            try:
+                metadata = json.loads((run_dir / "OCR_METADATA.json").read_text(encoding="utf-8"))
+                ocr_metadata = {key: metadata.get(key) for key in ("ocr_policy_requested", "ocr_provider_effective", "ocr_provider_version", "ocr_reason")}
+            except (OSError, json.JSONDecodeError):
+                pass
     expected_regions = int(scenario.gold.get("expected_region_min", scenario.gold.get("visible_items", 1)))
     actual_regions = sum(len(item.regions) for item in evidence)
     work_units = sum(len(document.units) for document in normalized.documents) if normalized is not None else 0
@@ -141,13 +156,7 @@ def score_engine_case(scenario: Any, *, artifact_result: dict[str, Any], normali
         matching = next((table for table in actual_tables if table.row_count == expected_table["row_count"] and table.column_count == expected_table["column_count"]), None)
         if matching is None:
             capability_error = bool(error and _ENGINE_FAILURE_CLASSES.get(error) == "CAPABILITY_BLOCK")
-            ocr_provider = None
-            if run_dir is not None:
-                try:
-                    metrics = json.loads((run_dir / "metrics.json").read_text(encoding="utf-8"))
-                    ocr_provider = metrics.get("ocr_provider")
-                except (OSError, json.JSONDecodeError):
-                    pass
+            ocr_provider = ocr_metadata.get("ocr_provider_effective")
             table_pass = False
             if capability_error:
                 # A failed normalization capability already explains why the
@@ -218,6 +227,7 @@ def score_engine_case(scenario: Any, *, artifact_result: dict[str, Any], normali
         "failure_classes": failure_classes,
         "error": error,
         "run_id": run_dir.name if run_dir is not None else None,
+        "ocr": ocr_metadata,
     }
 
 

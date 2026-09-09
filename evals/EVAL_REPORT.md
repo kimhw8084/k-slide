@@ -127,3 +127,37 @@ all succeed. Authoritative semantic failures become `CERTIFICATION_FAIL`.
 
 `evals/champion.json` remains `UNSET`; Qwen protocol output cannot become a
 champion and no target Gemma validation experiment has passed promotion policy.
+
+## Phase 3.4 runtime-contract and OCR execution update
+
+The 0.3.4 pass closes the model-facing contract and production-routing gaps:
+
+```text
+TranslationPatch JSON/Python/OpenCode field parity: PASS
+Source-bound visual relation validation: PASS
+Configured OCR policy metadata: PASS
+Per-attempt media trace retention: PASS
+3/5-slide evaluator inputs: PASS (protocol path exercised)
+```
+
+The pinned engine smoke with `--ocr-provider none` completed successfully. The
+same smoke with `--ocr-provider paddle` failed closed as a capability block
+because PaddlePaddle/PaddleOCR are not installed locally; it did not silently
+fall back to `NoneOCRProvider`.
+
+The OpenCode diagnostic ladder was rerun against OpenCode `1.3.9` and the
+configured `ollama/qwen3:14b` runtime with short bounded timeouts:
+
+```text
+Provider health: BLOCKED (ollama executable unavailable)
+Plain OpenCode: TIMEOUT, zero structured events
+Explicit Qwen: TIMEOUT, zero structured events
+K-Slide agent: TIMEOUT, zero structured events
+Real /k-slide: TIMEOUT before run creation, zero structured events
+```
+
+These results are protocol/runtime diagnostics, not translation measurements.
+The dominant blocker is the provider/runtime path before K-Slide can receive a
+model event. A complete OpenCode K-Slide run and target Gemma evaluation remain
+unmeasured. The project therefore remains `DEVELOPMENT`, with champion
+`UNSET` and `GEMMA_EVAL_READY` not reached.

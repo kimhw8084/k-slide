@@ -11,7 +11,7 @@ from . import TRANSLATION_PATCH_SCHEMA_VERSION
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import EvidenceIR, stable_revision
 from .ir import CoverageEntry, NumericFact, SlideIR, TableCell, TableIR, TextRegion, VisualRelation
-from .semantics import ClaimKind, CommitmentStatus, CoverageStatus, SpeechAct, Uncertainty, enum_value
+from .semantics import ClaimKind, CommitmentStatus, CoverageStatus, RelationDirection, RelationType, SpeechAct, Uncertainty, enum_value
 
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _MODEL_REGION_FIELDS = {"region_id", "english", "commitment_status", "speech_act", "term_ids", "unresolved", "unresolved_reason", "hangul_retention"}
@@ -136,6 +136,12 @@ class TranslationPatch:
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "TranslationPatch evidence_revision must be a SHA-256 hex revision.")
         region_map = {region.region_id: region for region in evidence.regions}
         table_map = {table.table_id: table for table in evidence.tables}
+        valid_source_ids = (
+            set(region_map)
+            | set(table_map)
+            | {cell.cell_id for table in evidence.tables for cell in table.cells}
+            | {str(item.get("element_id")) for item in evidence.visual_elements if isinstance(item, dict) and item.get("element_id")}
+        )
         seen_regions: set[str] = set()
         for patch in self.regions:
             _id(patch.region_id, "region_id")
@@ -152,8 +158,8 @@ class TranslationPatch:
                 enum_value(patch.commitment_status, CommitmentStatus, "commitment_status")
             if patch.speech_act is not None:
                 enum_value(patch.speech_act, SpeechAct, "speech_act")
-            if patch.hangul_retention is not None and patch.hangul_retention.get("evidence_id") not in evidence.required_source_ids:
-                raise KSlideError(ErrorCode.UNKNOWN_REGION, "Hangul retention references unknown evidence.", {"region_id": patch.region_id})
+            if patch.hangul_retention is not None and patch.hangul_retention.get("evidence_id") not in valid_source_ids:
+                raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Hangul retention references unknown evidence.", {"region_id": patch.region_id})
         required_regions = {region.region_id for region in evidence.regions if region.required_for_translation}
         missing_regions = sorted(required_regions - seen_regions)
         if missing_regions:
@@ -178,8 +184,8 @@ class TranslationPatch:
                     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Every translated table cell needs non-empty English.", {"cell_id": cell_patch.cell_id})
                 if cell_patch.unresolved and not cell_patch.unresolved_reason:
                     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Unresolved table cells require an explicit reason.", {"cell_id": cell_patch.cell_id})
-                if cell_patch.hangul_retention is not None and cell_patch.hangul_retention.get("evidence_id") not in evidence.required_source_ids:
-                    raise KSlideError(ErrorCode.UNKNOWN_REGION, "Hangul retention references unknown evidence.", {"cell_id": cell_patch.cell_id})
+                if cell_patch.hangul_retention is not None and cell_patch.hangul_retention.get("evidence_id") not in valid_source_ids:
+                    raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Hangul retention references unknown evidence.", {"cell_id": cell_patch.cell_id})
             missing_cells = sorted(cell_id for cell_id, cell in cells.items() if cell.required_for_translation and cell_id not in seen_cells)
             if missing_cells:
                 raise KSlideError(ErrorCode.EVIDENCE_INCOMPLETE, "TranslationPatch omitted required table cells.", {"cell_ids": missing_cells})
@@ -193,9 +199,17 @@ class TranslationPatch:
                 raise KSlideError(ErrorCode.SCHEMA_INVALID, "Visual interpretation evidence_ids must be an array.")
             if not set(relation.get("evidence_ids", [])).issubset(set(evidence.required_source_ids)):
                 raise KSlideError(ErrorCode.UNKNOWN_REGION, "Visual interpretation references unknown evidence.")
+            source_element_ids = _string_list(relation.get("source_element_ids", []), "visual interpretation source_element_ids")
+            unknown_elements = sorted(set(source_element_ids) - valid_source_ids)
+            if unknown_elements:
+                raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Visual interpretation references unknown source elements.", {"source_element_ids": unknown_elements})
+            if relation.get("relation_type") is not None:
+                enum_value(relation.get("relation_type"), RelationType, "relation_type")
+            if relation.get("direction") is not None:
+                enum_value(relation.get("direction"), RelationDirection, "direction")
             retention = relation.get("hangul_retention")
-            if retention is not None and (not isinstance(retention, dict) or retention.get("evidence_id") not in evidence.required_source_ids):
-                raise KSlideError(ErrorCode.UNKNOWN_REGION, "Hangul retention references unknown evidence.")
+            if retention is not None and (not isinstance(retention, dict) or retention.get("evidence_id") not in valid_source_ids):
+                raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Hangul retention references unknown evidence.")
         seen_claims: set[str] = set()
         for claim in self.executive_claims:
             _only_fields(claim, _MODEL_CLAIM_FIELDS, "executive claim")
@@ -213,8 +227,8 @@ class TranslationPatch:
             if not set(evidence_ids).issubset(set(evidence.required_source_ids)):
                 raise KSlideError(ErrorCode.UNKNOWN_REGION, "Executive claim references unknown evidence.", {"claim_id": claim_id})
             retention = claim.get("hangul_retention")
-            if retention is not None and (not isinstance(retention, dict) or retention.get("evidence_id") not in evidence.required_source_ids):
-                raise KSlideError(ErrorCode.UNKNOWN_REGION, "Hangul retention references unknown evidence.", {"claim_id": claim_id})
+            if retention is not None and (not isinstance(retention, dict) or retention.get("evidence_id") not in valid_source_ids):
+                raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Hangul retention references unknown evidence.", {"claim_id": claim_id})
 
 
 def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
@@ -271,6 +285,11 @@ def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
         if not isinstance(relation.get("interpretation"), str):
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "visual interpretation must be a string.")
         _string_list(relation.get("evidence_ids", []), "visual interpretation evidence_ids")
+        _string_list(relation.get("source_element_ids", []), "visual interpretation source_element_ids")
+        if relation.get("relation_type") is not None:
+            enum_value(relation.get("relation_type"), RelationType, "relation_type")
+        if relation.get("direction") is not None:
+            enum_value(relation.get("direction"), RelationDirection, "direction")
         _hangul_retention(relation.get("hangul_retention"), "visual interpretation hangul_retention")
     executive_claims = value.get("executive_claims", [])
     if not isinstance(executive_claims, list) or any(not isinstance(item, dict) for item in executive_claims):

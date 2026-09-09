@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "work_unit_id": "doc-001-slide-0001",
+  "evidence_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "regions": [
+    {
+      "region_id": "doc-001-slide-0001-r001",
+      "english": "Requires review",
+      "commitment_status": "under_review",
+      "speech_act": "plan",
+      "term_ids": ["term-review"],
+      "unresolved": false,
+      "unresolved_reason": null,
+      "hangul_retention": {"reason": "official proper name", "evidence_id": "doc-001-slide-0001-r001"}
+    }
+  ],
+  "tables": [
+    {
+      "table_id": "doc-001-slide-0001-table-001",
+      "cells": [
+        {
+          "cell_id": "doc-001-slide-0001-table-001-r01-c01",
+          "english": "Revenue",
+          "unresolved": false,
+          "unresolved_reason": null,
+          "hangul_retention": {"reason": "source quote", "evidence_id": "doc-001-slide-0001-table-001-r01-c01"}
+        }
+      ]
+    }
+  ],
+  "visual_interpretations": [
+    {
+      "relation_id": "rel-001",
+      "interpretation": "The process flows from review to execution.",
+      "evidence_ids": ["doc-001-slide-0001-r001"],
+      "source_element_ids": ["doc-001-slide-0001-r001", "doc-001-slide-0001-visual-001"],
+      "relation_type": "next",
+      "direction": "left_to_right",
+      "hangul_retention": {"reason": "do not translate", "evidence_id": "doc-001-slide-0001-r001"}
+    }
+  ],
+  "executive_claims": [
+    {
+      "claim_id": "claim-001",
+      "kind": "decision_status",
+      "text": "The item remains under review.",
+      "evidence_ids": ["doc-001-slide-0001-r001"],
+      "uncertainty": "low",
+      "hangul_retention": {"reason": "approved proper name", "evidence_id": "doc-001-slide-0001-r001"}
+    }
+  ]
+}

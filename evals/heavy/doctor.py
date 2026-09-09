@@ -58,12 +58,13 @@ def _libreoffice_roundtrip() -> dict[str, object]:
 
 
 def _paddle_ocr_roundtrip() -> dict[str, object]:
-    if not importlib.util.find_spec("paddleocr") or not importlib.util.find_spec("paddle"):
-        return {"status": "BLOCKED", "reason": "PaddlePaddle and PaddleOCR are unavailable."}
+    missing = [name for name, module in (("PaddleOCR", "paddleocr"), ("PaddlePaddle", "paddle"), ("Pillow", "PIL")) if importlib.util.find_spec(module) is None]
+    if missing:
+        return {"status": "BLOCKED", "reason": f"Unavailable: {', '.join(missing)}."}
     try:
         from PIL import Image, ImageDraw
         from evals.fonts import discover_korean_font, load_font
-        from k_slide.ocr.paddle import PaddleOCRProvider
+        from k_slide.ocr.policy import OCRProviderPolicy, create_ocr_provider
 
         font_info = discover_korean_font()
         with tempfile.TemporaryDirectory(prefix="k-slide-heavy-ocr-") as directory:
@@ -74,12 +75,13 @@ def _paddle_ocr_roundtrip() -> dict[str, object]:
             for index, text in enumerate(("운영 검토 필요", "3.2조원", "+2.3%p", "검토 후 추진 예정")):
                 draw.text((80, 100 + index * 150), text, fill="black", font=font)
             image.save(image_path)
-            result = PaddleOCRProvider().extract(image_path)
+            selection = create_ocr_provider(OCRProviderPolicy.PADDLE)
+            result = selection.provider.extract(image_path)
             texts = " ".join(region.text for region in result.regions)
             expected = ("검토", "3.2", "%p")
             found = sum(term in texts for term in expected)
             boxes_valid = all(region.bbox_px[2] > region.bbox_px[0] and region.bbox_px[3] > region.bbox_px[1] for region in result.regions)
-            return {"status": "PASS" if result.regions and found >= 1 and boxes_valid else "FAIL", "region_count": len(result.regions), "expected_key_recall": found / len(expected), "boxes_valid": boxes_valid, "provider": result.provider, "version": result.provider_version}
+            return {"status": "PASS" if result.regions and found >= 1 and boxes_valid else "FAIL", "region_count": len(result.regions), "expected_key_recall": found / len(expected), "boxes_valid": boxes_valid, "provider": result.provider, "version": result.provider_version, "requested_policy": selection.requested, "effective_provider": selection.effective}
     except Exception as exc:
         return {"status": "FAIL", "reason": str(exc)}
 
@@ -98,14 +100,15 @@ def main() -> int:
     # A small real OCR load check is intentionally separate from package import.
     if checks["paddleocr"].get("status") == "PASS" and checks["pillow"].get("status") == "PASS":
         try:
-            from k_slide.ocr.paddle import PaddleOCRProvider
+            from k_slide.ocr.policy import OCRProviderPolicy, create_ocr_provider
 
-            provider = PaddleOCRProvider()
-            checks["paddle_load"] = {"status": "PASS", "provider": provider.name, "version": provider.version}
+            selection = create_ocr_provider(OCRProviderPolicy.PADDLE)
+            checks["paddle_load"] = {"status": "PASS", "provider": selection.effective, "version": selection.version, "requested_policy": selection.requested}
         except Exception as exc:
             checks["paddle_load"] = {"status": "FAIL", "reason": str(exc)}
     else:
-        checks["paddle_load"] = {"status": "BLOCKED", "reason": "PaddleOCR/Pillow unavailable"}
+        missing = [name for name, module in (("PaddleOCR", "paddleocr"), ("Pillow", "PIL")) if importlib.util.find_spec(module) is None]
+        checks["paddle_load"] = {"status": "BLOCKED", "reason": f"Unavailable: {', '.join(missing)}."}
     checks["libreoffice_roundtrip"] = _libreoffice_roundtrip()
     checks["paddle_ocr_roundtrip"] = _paddle_ocr_roundtrip()
     print(json.dumps(checks, ensure_ascii=False, indent=2))

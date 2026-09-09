@@ -107,7 +107,7 @@ def _work_unit_contract(run: Path | None, artifacts: list[dict[str, Any]]) -> tu
 
 
 class ModelEvaluationRunner:
-    def __init__(self, *, model: str, output: Path, split: str = "development", formats: tuple[str, ...] = ("png",), repeats: int = 1, timeout: int = 180, mode: str = "quality", limit: int | None = None, categories: tuple[str, ...] = (), scenario_ids: tuple[str, ...] = (), configuration: dict[str, Any] | None = None):
+    def __init__(self, *, model: str, output: Path, split: str = "development", formats: tuple[str, ...] = ("png",), repeats: int = 1, timeout: int = 180, mode: str = "quality", limit: int | None = None, categories: tuple[str, ...] = (), scenario_ids: tuple[str, ...] = (), configuration: dict[str, Any] | None = None, ocr_provider: str = "none"):
         self.model = model
         self.output = output
         self.split = split
@@ -118,7 +118,8 @@ class ModelEvaluationRunner:
         self.limit = limit
         self.categories = set(categories)
         self.scenario_ids = set(scenario_ids)
-        self.configuration = configuration or {"formats": self.formats, "repeats": repeats, "timeout": timeout, "mode": mode}
+        self.ocr_provider = ocr_provider
+        self.configuration = {"formats": self.formats, "repeats": repeats, "timeout": timeout, "mode": mode, "ocr_provider": ocr_provider, **(configuration or {})}
 
     def selected_scenarios(self) -> list[Scenario]:
         selected = scenario_specs()
@@ -139,7 +140,7 @@ class ModelEvaluationRunner:
             "experiment_id": self.output.name,
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "git_commit": None,
-            "k_slide_version": "0.3.3",
+            "k_slide_version": "0.3.4",
             "corpus_version": DATASET_VERSION,
             "split": self.split,
             "scenario_ids": [item.scenario_id for item in scenarios],
@@ -168,7 +169,7 @@ class ModelEvaluationRunner:
             write_results(self.output, [], {**record, "case_count": 0}, "# K-Slide Model Evaluation\n\n`CAPABILITY_BLOCK`\n\n" + str(exc) + "\n")
             return record
         results: list[dict[str, Any]] = []
-        runner = OpenCodeEvalRunner(model=self.model, timeout_seconds=self.timeout)
+        runner = OpenCodeEvalRunner(model=self.model, timeout_seconds=self.timeout, ocr_policy=self.ocr_provider)
         for scenario in scenarios:
             for format_name in self.formats:
                 artifact = _artifact_path(corpus_root, scenario.scenario_id, format_name)

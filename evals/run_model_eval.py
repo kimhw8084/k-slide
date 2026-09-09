@@ -21,8 +21,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--limit", type=int)
     parser.add_argument("--category", action="append", default=[])
     parser.add_argument("--scenario-id", action="append", default=[])
+    parser.add_argument("--deck-id")
     parser.add_argument("--config", type=Path)
+    parser.add_argument("--ocr-provider", choices=("none", "paddle", "auto"), default="none")
     args = parser.parse_args(argv)
+    if args.deck_id:
+        from .run_deck_eval import main as run_deck_main
+
+        return run_deck_main(["--output", str(args.output), "--deck-id", args.deck_id, "--model", args.model, "--mode", args.mode, "--timeout", str(max(1, args.timeout)), "--ocr-provider", args.ocr_provider])
     configuration = {}
     if args.config:
         configuration = json.loads(args.config.read_text(encoding="utf-8"))
@@ -38,6 +44,7 @@ def main(argv: list[str] | None = None) -> int:
         categories=tuple(args.category),
         scenario_ids=tuple(args.scenario_id),
         configuration=configuration or None,
+        ocr_provider=args.ocr_provider,
     ).run()
     print(json.dumps(result, ensure_ascii=False))
     if result.get("status") in {"GEMMA_QUALITY_EVALUATION_BLOCKED", "CAPABILITY_BLOCK", "NON_AUTHORITATIVE", "PROTOCOL_SMOKE_ONLY", "CAPABILITY_BLOCKED"}:

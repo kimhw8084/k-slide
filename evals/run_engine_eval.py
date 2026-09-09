@@ -38,6 +38,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--limit", type=int)
     parser.add_argument("--split", choices=("development", "validation", "held_out", "all"), default="development")
     parser.add_argument("--formats", nargs="+", default=["png"])
+    parser.add_argument("--ocr-provider", choices=("none", "paddle", "auto"), default="none")
     parser.add_argument("--fail-on-critical", action="store_true")
     args = parser.parse_args(argv)
     scenarios = scenario_specs()
@@ -72,7 +73,7 @@ def main(argv: list[str] | None = None) -> int:
                 case_workspace.mkdir(parents=True, exist_ok=True)
                 run_dir = prepare_run(case_workspace, explicit_paths=[str(artifact)])
                 normalized = normalize_run(run_dir)
-                evidence = extract_run(run_dir)
+                evidence = extract_run(run_dir, ocr_policy=args.ocr_provider)
             except Exception as exc:  # the scorer records capability failures without hiding them
                 error = exc.code.value if hasattr(exc, "code") else "ENGINE_RUNTIME_ERROR"
                 if isinstance(exc, OSError):
@@ -88,6 +89,8 @@ def main(argv: list[str] | None = None) -> int:
         "scenarios_selected": len(selected),
         "case_count": len(results),
         "formats_requested": [item.lower() for item in args.formats],
+        "ocr_policy_requested": args.ocr_provider,
+        "ocr_providers_effective": sorted({str(item.get("ocr", {}).get("ocr_provider_effective")) for item in results if item.get("ocr", {}).get("ocr_provider_effective")}),
         "generated_artifacts": counts,
         "engine": aggregate,
         "generated_at": datetime.now(timezone.utc).isoformat(),

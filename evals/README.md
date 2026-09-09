@@ -35,6 +35,10 @@ PYTHONPATH=src python -m evals.run_engine_eval \
   --formats png pdf
 ```
 
+Certification runs pin `--ocr-provider none` or `--ocr-provider paddle` so the
+benchmark uses the same configured provider as `/k-slide`; summaries record the
+requested and effective provider.
+
 The report separates:
 
 ```text

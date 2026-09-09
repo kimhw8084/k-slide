@@ -17,18 +17,21 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run OpenCode K-Slide against a real linked deck")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--deck-size", type=int, choices=(3, 5, 10, 20, 50), default=3)
+    parser.add_argument("--deck-id")
     parser.add_argument("--model", required=True)
     parser.add_argument("--mode", choices=("protocol", "quality"), default="protocol")
     parser.add_argument("--timeout", type=int, default=180)
+    parser.add_argument("--ocr-provider", choices=("none", "paddle", "auto"), default="none")
     args = parser.parse_args(argv)
-    deck = next(item for item in deck_scenarios() if item.slide_count == args.deck_size)
+    deck = next((item for item in deck_scenarios() if item.deck_id == args.deck_id), None) if args.deck_id else None
+    deck = deck or next(item for item in deck_scenarios() if item.slide_count == args.deck_size)
     args.output.mkdir(parents=True, exist_ok=True)
     source = args.output / f"{deck.deck_id}.pptx"
     if not generate_deck_pptx(deck.slides, source):
         print(json.dumps({"status": "CAPABILITY_BLOCKED", "reason": "python-pptx is unavailable"}))
         return 0
     workspace = args.output / "workspace"
-    result = OpenCodeEvalRunner(model=args.model, timeout_seconds=args.timeout).run(source=source, workspace=workspace, mode=args.mode)
+    result = OpenCodeEvalRunner(model=args.model, timeout_seconds=args.timeout, ocr_policy=args.ocr_provider).run(source=source, workspace=workspace, mode=args.mode)
     run = _latest_run(workspace)
     artifacts = collect_run_artifacts(run)
     payload = {

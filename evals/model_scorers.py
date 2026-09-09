@@ -144,8 +144,12 @@ def _chart_semantic_score(scenario: Any, patch: dict[str, Any]) -> tuple[float, 
     return (0.0 if failures else 1.0), failures
 
 
-def _process_relation_score(scenario: Any, patch: dict[str, Any]) -> tuple[float, list[str]]:
-    expected = (scenario.gold.get("process") or {}).get("relations", [])
+def _process_relation_score(scenario: Any, evidence: Any, patch: dict[str, Any]) -> tuple[float, list[str]]:
+    from .gold_binding import bind_process_relations
+
+    expected, binding = bind_process_relations(scenario, evidence)
+    if binding.failures:
+        return 0.0, [*binding.failures, "PROCESS_RELATION_MISMATCH"]
     if not expected:
         return 1.0, []
     observed = [item for item in patch.get("visual_interpretations", []) if isinstance(item, dict)]
@@ -205,7 +209,7 @@ def score_translation_patch(scenario: Any, evidence: Any, patch: dict[str, Any])
             table_failures.extend(f"MISSING_CELL:{cell_id}" for cell_id in sorted(expected - actual))
     table_header_failures, table_header_checked = _table_semantic_failures(scenario, evidence, patch)
     chart_score, chart_failures = _chart_semantic_score(scenario, patch)
-    process_score, process_failures = _process_relation_score(scenario, patch)
+    process_score, process_failures = _process_relation_score(scenario, evidence, patch)
     unresolved_count = sum(1 for item in patch.get("regions", []) if isinstance(item, dict) and item.get("unresolved"))
     unresolved_count += sum(1 for table in patch.get("tables", []) if isinstance(table, dict) for item in table.get("cells", []) if isinstance(item, dict) and item.get("unresolved"))
     required_count = len(source_regions) + sum(len(table.cells) for table in evidence.tables if table.required_for_translation)

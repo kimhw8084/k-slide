@@ -12,7 +12,7 @@
     "repair_revision": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "regions": {"type": "array", "items": {"$ref": "#/$defs/region"}},
     "tables": {"type": "array", "items": {"$ref": "#/$defs/table"}},
-    "visual_interpretations": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["relation_id", "interpretation", "evidence_ids"], "properties": {"relation_id": {"type": "string"}, "interpretation": {"type": "string"}, "evidence_ids": {"type": "array", "items": {"type": "string"}}, "source_element_ids": {"type": "array", "items": {"type": "string"}}, "relation_type": {"type": "string"}, "direction": {"type": ["string", "null"]}, "hangul_retention": {"$ref": "#/$defs/hangul_retention"}}}},
+    "visual_interpretations": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["relation_id", "interpretation", "evidence_ids"], "properties": {"relation_id": {"type": "string"}, "interpretation": {"type": "string"}, "evidence_ids": {"type": "array", "items": {"type": "string"}}, "source_element_ids": {"type": "array", "items": {"type": "string"}}, "relation_type": {"enum": ["next", "depends_on", "contains", "before", "after", "causes", "mitigates", "compares_to", "part_of", "flows_to", "highlights", "other"]}, "direction": {"enum": ["left_to_right", "right_to_left", "top_to_bottom", "bottom_to_top", "bidirectional", "none", "unknown", null]}, "hangul_retention": {"$ref": "#/$defs/hangul_retention"}}}},
     "executive_claims": {"type": "array", "items": {"$ref": "#/$defs/claim"}}
   },
   "$defs": {

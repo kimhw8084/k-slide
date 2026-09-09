@@ -9,12 +9,12 @@ from typing import Any
 from .documents import NormalizationResult
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import EvidenceIR, EvidenceRegion, EvidenceTable, EvidenceTableCell, save_evidence
-from .io import atomic_write_json, read_json
+from .io import atomic_write_json, atomic_write_text, read_json
 from .locking import run_lock
 from .normalization import _load_normalization_result
 from .numeric import extract_numeric_facts
 from .fusion import fuse_literal_evidence
-from .ocr.none import NoneOCRProvider
+from .ocr.policy import OCRProviderPolicy, OCRProviderSelection, create_ocr_provider, load_ocr_policy
 from .queue import WorkUnitStatus, load_queue, save_queue
 from .runtime import discover_runtime
 from .state import RunPhase, load_state, save_state
@@ -111,7 +111,7 @@ def _tables(unit: Any, native_items: list[dict[str, Any]]) -> tuple[tuple[Eviden
     return tuple(tables), facts
 
 
-def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None) -> list[EvidenceIR]:
+def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None, ocr_policy: OCRProviderPolicy | str | None = None) -> list[EvidenceIR]:
     with run_lock(run_dir):
         state = load_state(run_dir)
         if state.phase not in {RunPhase.NORMALIZED, RunPhase.EXTRACTING, RunPhase.EXTRACTED}:
@@ -130,7 +130,31 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None) -> li
             state.transition(RunPhase.EXTRACTING, next_action="Generate immutable source EvidenceIR")
             save_state(run_dir, state)
         normalized = _load_normalization_result(run_dir)
-        provider = ocr_provider or NoneOCRProvider()
+        if ocr_provider is not None:
+            selection = OCRProviderSelection(
+                requested="explicit",
+                effective=getattr(ocr_provider, "name", "custom"),
+                version=str(getattr(ocr_provider, "version", "unknown")),
+                provider=ocr_provider,
+            )
+        else:
+            requested_policy = ocr_policy or load_ocr_policy(run_dir.parents[1])
+            try:
+                selection = create_ocr_provider(requested_policy)
+            except KSlideError as exc:
+                atomic_write_json(
+                    run_dir / "OCR_METADATA.json",
+                    {
+                        "ocr_policy_requested": str(getattr(requested_policy, "value", requested_policy)),
+                        "ocr_provider_effective": None,
+                        "ocr_provider_version": None,
+                        "ocr_reason": exc.code.value,
+                    },
+                    mode=0o600,
+                )
+                raise
+        provider = selection.provider
+        atomic_write_json(run_dir / "OCR_METADATA.json", selection.as_dict(), mode=0o600)
         evidence_values: list[EvidenceIR] = []
         queue = load_queue(run_dir)
         for document in normalized.documents:
@@ -178,9 +202,14 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None) -> li
                 required_source_ids.extend(table.table_id for table in tables)
                 required_source_ids.extend(cell.cell_id for table in tables for cell in table.cells if cell.required_for_translation)
                 context_id = f"{unit.work_unit_id}-visual-context"
-                visual_elements = ({"element_id": context_id, "kind": "context_image", "path": unit.canonical_render_path, "sha256": unit.render_sha256, "bbox_px": [0, 0, unit.width_px, unit.height_px], "required": True},)
+                visual_values: list[dict[str, Any]] = [{"element_id": context_id, "kind": "context_image", "path": unit.canonical_render_path, "sha256": unit.render_sha256, "bbox_px": [0, 0, unit.width_px, unit.height_px], "required": True}]
+                for native_item in native_items:
+                    chart = native_item.get("chart") if isinstance(native_item, dict) else None
+                    if isinstance(chart, dict) and native_item.get("source_id"):
+                        visual_values.append({"element_id": f"{native_item['source_id']}-chart", "kind": "chart", "source_id": native_item["source_id"], "chart": chart, "bbox_px": list(native_item.get("bbox_px", [0, 0, unit.width_px, unit.height_px])), "required": True})
+                visual_elements = tuple(visual_values)
                 required_source_ids.append(context_id)
-                source = {"input_id": unit.input_id, "document_id": document.document_id, "input_sha256": document.source_sha256, "page_or_slide_index": unit.source_index, "width_px": unit.width_px, "height_px": unit.height_px, "canonical_render_sha256": unit.render_sha256, "canonical_render_path": unit.canonical_render_path, "context_image_path": unit.canonical_render_path, "context_image_sha256": unit.render_sha256}
+                source = {"input_id": unit.input_id, "document_id": document.document_id, "input_sha256": document.source_sha256, "page_or_slide_index": unit.source_index, "width_px": unit.width_px, "height_px": unit.height_px, "canonical_render_sha256": unit.render_sha256, "canonical_render_path": unit.canonical_render_path, "context_image_path": unit.canonical_render_path, "context_image_sha256": unit.render_sha256, "ocr_policy_requested": selection.requested, "ocr_provider_effective": selection.effective, "ocr_provider_version": selection.version}
                 evidence = EvidenceIR(document.document_id, unit.work_unit_id, source, tuple(regions), tables, tuple(facts), visual_elements, tuple(unit.native_evidence), tuple(required_source_ids)).with_revision()
                 save_evidence(run_dir, evidence)
                 evidence_values.append(evidence)
@@ -194,15 +223,15 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None) -> li
         state.current_work_unit = None
         state.transition(RunPhase.EXTRACTED, next_action="Schedule the next bounded translation work unit")
         save_state(run_dir, state)
-        atomic_write_json(run_dir / "metrics.json", {"work_unit_count": len(evidence_values), "regions_detected": sum(len(item.regions) for item in evidence_values), "native_regions": sum(sum(1 for region in item.regions if region.native_text_candidates) for item in evidence_values), "numeric_facts": sum(len(item.numeric_facts) for item in evidence_values), "ocr_provider": provider.name}, mode=0o600)
+        atomic_write_json(run_dir / "metrics.json", {"work_unit_count": len(evidence_values), "regions_detected": sum(len(item.regions) for item in evidence_values), "native_regions": sum(sum(1 for region in item.regions if region.native_text_candidates) for item in evidence_values), "numeric_facts": sum(len(item.numeric_facts) for item in evidence_values), "ocr_policy_requested": selection.requested, "ocr_provider": provider.name, "ocr_provider_effective": selection.effective, "ocr_provider_version": selection.version, "ocr_reason": selection.reason}, mode=0o600)
         return evidence_values
 
 
-def extract_run(run_dir: Path, *, ocr_provider: Any | None = None) -> list[EvidenceIR]:
+def extract_run(run_dir: Path, *, ocr_provider: Any | None = None, ocr_policy: OCRProviderPolicy | str | None = None) -> list[EvidenceIR]:
     """Run extraction and leave a resumable, fail-closed failure record."""
 
     try:
-        return _extract_run_locked(run_dir, ocr_provider=ocr_provider)
+        return _extract_run_locked(run_dir, ocr_provider=ocr_provider, ocr_policy=ocr_policy)
     except Exception as exc:
         try:
             with run_lock(run_dir):

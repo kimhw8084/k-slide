@@ -172,10 +172,11 @@ def _read_policy_violations(root: Path, normalized: tuple[Any, ...]) -> list[str
 class OpenCodeEvalRunner:
     """Run the actual OpenCode CLI slash-command surface in isolation."""
 
-    def __init__(self, *, model: str, timeout_seconds: int = 180, opencode: str | None = None):
+    def __init__(self, *, model: str, timeout_seconds: int = 180, opencode: str | None = None, ocr_policy: str | None = None):
         self.model = model
         self.timeout_seconds = timeout_seconds
         self.opencode = opencode or shutil.which("opencode")
+        self.ocr_policy = ocr_policy
 
     @property
     def runtime_version(self) -> str | None:
@@ -193,6 +194,10 @@ class OpenCodeEvalRunner:
         root_context = tempfile.TemporaryDirectory(prefix="k-slide-opencode-eval-") if created else None
         root = Path(root_context.name) if root_context else Path(workspace)
         root.mkdir(parents=True, exist_ok=True)
+        if self.ocr_policy:
+            config_dir = root / ".k-slide-config"
+            config_dir.mkdir(parents=True, exist_ok=True)
+            (config_dir / "ocr.local.json").write_text(json.dumps({"ocr_provider": self.ocr_policy}) + "\n", encoding="utf-8")
         input_dir = root / ".k-slide-input"
         input_dir.mkdir(parents=True, exist_ok=True)
         if source is not None:
@@ -209,8 +214,26 @@ class OpenCodeEvalRunner:
         env["KSLIDE_MODEL"] = self.model
         started = time.monotonic()
         try:
-            completed = subprocess.run(self.command(root), cwd=root, env=env, capture_output=True, text=True, timeout=self.timeout_seconds, check=False)
-            stdout, stderr = completed.stdout, completed.stderr
+            process = subprocess.Popen(self.command(root), cwd=root, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+            timed_out = False
+            try:
+                stdout, stderr = process.communicate(timeout=self.timeout_seconds)
+            except subprocess.TimeoutExpired as exc:
+                os.killpg(process.pid, 15)
+                stdout, stderr = process.communicate(timeout=5)
+                timed_out = True
+            completed_returncode = process.returncode
+            if timed_out:
+                partial = stdout or ""
+                partial_stderr = stderr or ""
+                raw_events = parse_json_events(f"{partial}\n{partial_stderr}")
+                normalized = normalize_events(raw_events)
+                diagnostics = _diagnostics(root, events=raw_events, timeout=True)
+                diagnostics.update({"process_state": "TIMEOUT", "event_count": len(raw_events), "last_tool_call": normalized[-1].tool_name if normalized else None, "elapsed_seconds": time.monotonic() - started})
+                (root / "opencode-timeout-stdout.log").write_text(partial, encoding="utf-8")
+                (root / "opencode-timeout-stderr.log").write_text(partial_stderr, encoding="utf-8")
+                (root / "opencode-timeout-diagnostics.json").write_text(json.dumps(diagnostics, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                return OpenCodeRunResult("TIMEOUT", mode, self.model, self.runtime_version, str(root), time.monotonic() - started, tuple(raw_events), tool_calls(normalized), forbidden_tool_attempts(normalized), None, None, reason="OpenCode command exceeded the evaluation timeout.", normalized_events=tuple(event.as_dict() for event in normalized), diagnostics=diagnostics)
             combined = f"{stdout}\n{stderr}"
             raw_events = parse_json_events(combined)
             normalized = normalize_events(raw_events)
@@ -230,9 +253,9 @@ class OpenCodeEvalRunner:
             kslide_complete, contract = _completion_contract(latest_run)
             final_text = next((event.text for event in reversed(normalized) if event.text), None)
             artifact_count = sum(1 for item in (root / ".k-slide-runs").rglob("*") if item.is_file()) if (root / ".k-slide-runs").is_dir() else 0
-            if completed.returncode != 0:
+            if completed_returncode != 0:
                 status = "FAILED"
-                reason = f"opencode exit code {completed.returncode}"
+                reason = f"opencode exit code {completed_returncode}"
             elif error_events:
                 status = "FAILED"
                 reason = f"OpenCode reported {len(error_events)} structured error event(s)."
@@ -263,24 +286,6 @@ class OpenCodeEvalRunner:
                 "model_identity_proven": effective_model is not None,
             }
             return OpenCodeRunResult(status, mode, self.model, self.runtime_version, str(root), time.monotonic() - started, tuple(raw_events), tool_calls(normalized), forbidden, bool(media.get("read_count")) if media.get("planned") else None, final_text, artifact_count, reason, tuple(event.as_dict() for event in normalized), media, kslide_complete, False, diagnostics)
-        except subprocess.TimeoutExpired as exc:
-            partial = exc.stdout.decode(errors="replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
-            partial_stderr = exc.stderr.decode(errors="replace") if isinstance(exc.stderr, bytes) else (exc.stderr or "")
-            raw_events = parse_json_events(partial)
-            normalized = normalize_events(raw_events)
-            diagnostics = _diagnostics(root, events=raw_events, timeout=True)
-            diagnostics.update(
-                {
-                    "process_state": "TIMEOUT",
-                    "event_count": len(raw_events),
-                    "last_tool_call": normalized[-1].tool_name if normalized else None,
-                    "elapsed_seconds": time.monotonic() - started,
-                }
-            )
-            (root / "opencode-timeout-stdout.log").write_text(partial, encoding="utf-8")
-            (root / "opencode-timeout-stderr.log").write_text(partial_stderr, encoding="utf-8")
-            (root / "opencode-timeout-diagnostics.json").write_text(json.dumps(diagnostics, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-            return OpenCodeRunResult("TIMEOUT", mode, self.model, self.runtime_version, str(root), time.monotonic() - started, tuple(raw_events), tool_calls(normalized), forbidden_tool_attempts(normalized), None, None, reason="OpenCode command exceeded the evaluation timeout.", normalized_events=tuple(event.as_dict() for event in normalized), diagnostics=diagnostics)
         finally:
             if root_context is not None:
                 root_context.cleanup()

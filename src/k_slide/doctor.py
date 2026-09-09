@@ -12,6 +12,7 @@ from typing import Any
 from . import __version__
 from .runtime import discover_runtime
 from .security import validate_input
+from .ocr.policy import create_ocr_provider, load_ocr_policy
 
 
 def _check(label: str, status: str, detail: str) -> dict[str, str]:
@@ -67,8 +68,14 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
     if not importlib.util.find_spec("fitz"):
         pptx_render_detail += "; PyMuPDF is required for rendered pages"
     checks.append(_check("PPTX rendering", pptx_render_status, pptx_render_detail))
-    paddle_status = "PASS" if importlib.util.find_spec("paddleocr") and importlib.util.find_spec("paddle") else "WARN"
-    checks.append(_check("Korean OCR", paddle_status, "PaddleOCR/PaddlePaddle 3.x available" if paddle_status == "PASS" else "optional PaddleOCR 3.x backend not installed"))
+    try:
+        ocr_policy = load_ocr_policy(root)
+        selection = create_ocr_provider(ocr_policy)
+        ocr_status = "PASS" if selection.effective != "none" or ocr_policy.value == "none" else "WARN"
+        checks.append(_check("OCR policy", ocr_status, f"requested={selection.requested}; effective={selection.effective}; version={selection.version}; {selection.reason or 'provider initialized'}"))
+        checks.append(_check("Korean OCR", "PASS" if selection.effective == "paddle" else "WARN", f"effective provider: {selection.effective}"))
+    except Exception as exc:
+        checks.append(_check("OCR policy", "FAIL", str(exc)))
     try:
         root.joinpath(".k-slide-runs").mkdir(parents=True, exist_ok=True, mode=0o700)
         with tempfile.NamedTemporaryFile(prefix=".doctor-", dir=root / ".k-slide-runs", delete=True) as handle:

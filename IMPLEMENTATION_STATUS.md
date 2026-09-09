@@ -2,9 +2,9 @@
 
 ## Current boundary
 
-**K-Slide 0.3.3 — Phase 3.3 certification-semantics and multi-work-unit E2E boundary.**
+**K-Slide 0.3.4 — Phase 3.4 runtime-contract and OCR-activation boundary.**
 
-The repository now has a coherent, tested boundary from validated immutable input through normalized document units, native evidence, deterministic crops, bounded multimodal packets, deterministic reports, and synthetic evaluation artifacts. It remains `DEVELOPMENT`: the local runtime is `ollama/qwen3:14b`, not the target `google/gemma-4-31b-it`, and no production translation gate has been certified.
+The repository now has a coherent, tested boundary from validated immutable input through normalized document units, native evidence, configured OCR routing, deterministic crops, bounded multimodal packets, deterministic reports, and synthetic evaluation artifacts. It remains `DEVELOPMENT`: the local runtime is `ollama/qwen3:14b`, not the target `google/gemma-4-31b-it`, and no production translation gate has been certified.
 
 ## Implemented and tested
 
@@ -16,12 +16,14 @@ The repository now has a coherent, tested boundary from validated immutable inpu
 - Finalization that re-runs verification against current artifacts before creating `RUN_COMPLETE.md`.
 - Central completion policy in `src/k_slide/policy.py`, used by manifests, verification, and finalization.
 - Typed OpenCode `kslide_submit` payload schema; no model-facing JSON-in-a-string contract.
+- JSON schema, Python parser, and OpenCode TypeScript TranslationPatch parity for rich semantic fields, including Hangul retention and source-bound visual relations.
 - Narrow OpenCode permissions: normal K-Slide execution has no bash, edit, write, subagent, webfetch, or websearch access.
 - Image normalization with decode, EXIF orientation, dimension, pixel-count, and decompression-safety limits.
 - PDF page rendering and native text-span extraction through PyMuPDF.
 - PPTX native shape/table extraction through python-pptx and capability-gated headless LibreOffice rendering.
 - Deterministic render-region crops, model-ready non-generative resizing, numeric evidence extraction, and native/OCR evidence-fusion states.
 - OCR provider protocol with `none` and optional PaddleOCR 3.x adapter.
+- Managed OCR provider policy/factory wired into normal `/k-slide` extraction; requested/effective provider and version persist in EvidenceIR/run metrics. Explicit `paddle` fails closed when unavailable.
 - Closed commitment/speech/claim/uncertainty enums, engine-owned numeric linkage, Korean scale and `%p` semantic checks, residual-Hangul and locked-term verification foundations.
 - Deterministic final report, executive brief, and unresolved-item renderers generated from SlideIR.
 - Explicit whole-unit context-image/risk-crop media plan and bounded model prompt contract.
@@ -35,6 +37,9 @@ The repository now has a coherent, tested boundary from validated immutable inpu
 - Certification state semantics separate measurement from quality outcome (`NOT_MEASURED`, `CAPABILITY_BLOCKED`, `PROTOCOL_SMOKE_ONLY`, `MEASURED`, `CERTIFICATION_FAIL`, and candidate/certified states); `champion.json` remains intentionally `UNSET`.
 - Approved-model policy requires exact requested/effective identity or an explicitly configured private alias; certification manifests persist corpus, held-out, configuration, and certification fingerprints.
 - Per-work-unit media traces bind each `kslide_evidence`/read/`kslide_submit` sequence to its own work-unit ID, including context-image and crop recall.
+- Per-attempt media history retains initial and repair attempts without overwriting prior compliance evidence.
+- Source-bound visual gold binding rejects ambiguous process/chart role mappings instead of scoring invented model IDs.
+- OpenCode diagnostic ladder separates provider, plain-run, explicit-model, agent, and real `/k-slide` failures with process-group timeout cleanup.
 - Model result collection loads every persisted work-unit TranslationPatch/EvidenceIR/SlideIR triple, aggregates unit/deck metrics, and computes repeated-run critical frequency, review rate, and category/format summaries.
 - Source-local table-header, chart-trend, process-edge, modality, terminology, Hangul-retention, unresolved-usefulness, and executive-claim semantic gates are covered by automated tests.
 - Semantic TranslationPatch scorers, private gold-set protocol, and zero-Korean comprehension-study protocol.
@@ -45,7 +50,7 @@ The repository now has a coherent, tested boundary from validated immutable inpu
 ## Verification performed locally
 
 ```text
-Dependency-backed unit/integration suite: PASS (74 tests)
+Dependency-backed unit/integration suite: PASS (84 tests; the base interpreter skips dependency-gated cases as reported by the runner)
 Dependency-backed compile/import checks: PASS
 TranslationPatch JSON schema parse: PASS
 Stratified split manifest: PASS (100 specs; 60/20/20; protected categories in held-out)
@@ -56,7 +61,7 @@ Full lightweight engine suite: EXECUTED (500 cases; 100 each PNG/JPEG/WebP/PDF/P
 Artifact generation: 500/500 PASS
 PNG/JPEG/WebP/PDF normalization + EvidenceIR: 400/400 PASS
 PPTX visual normalization: 100 CAPABILITY_BLOCKED (LibreOffice unavailable)
-OpenCode 1.3.9 protocol smoke: TIMEOUT before structured events/run creation
+OpenCode 1.3.9 diagnostic ladder: Level 1 plain OpenCode TIMEOUT with zero structured events; Level 4 real `/k-slide` also TIMEOUT before K-Slide run creation
 Gemma quality evaluation: CAPABILITY_BLOCKED — target endpoint unavailable
 ```
 
@@ -70,7 +75,7 @@ The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pp
 
 | Capability | Status | Evidence |
 | --- | --- | --- |
-| Unit/integration tests | PASS | 72 tests in the dependency-backed environment |
+| Unit/integration tests | PASS | 84 tests; optional document/OCR tests are dependency-gated |
 | Artifact generation | PASS | 500/500 generated across five formats |
 | Lightweight engine | PASS with capability-separated findings | 500 cases executed; raster/PDF paths completed |
 | LibreOffice real roundtrip | BLOCKED | `soffice` unavailable; Docker daemon unavailable |
@@ -82,6 +87,25 @@ The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pp
 | Internal bilingual evaluation | NOT RUN | Private dataset not present |
 | Zero-Korean comprehension study | NOT RUN | Study has protocol only |
 | Production certification | DEVELOPMENT | No target-model or human gates passed |
+
+## Phase 3.4 execution matrix
+
+| Capability | State | Evidence |
+| --- | --- | --- |
+| TranslationPatch JSON/Python/OpenCode parity | PASS | Rich fixture validated by Python and JSON schema when available; TypeScript field parity assertions pass |
+| OCR production routing | PASS | `none` and explicit unavailable `paddle` paths exercised; metadata records requested/effective provider |
+| Raster/PDF engine with pinned `none` OCR | PASS | Dependency-backed one-case engine run completed |
+| PPTX heavy roundtrip | BLOCKED | LibreOffice unavailable locally; Docker daemon unavailable |
+| Paddle real Korean OCR | BLOCKED | PaddlePaddle/PaddleOCR unavailable locally |
+| Heavy engine subset with `paddle` | BLOCKED | Correctly classified as `CAPABILITY_BLOCK` locally |
+| OpenCode Level 0 provider | BLOCKED | Ollama executable unavailable |
+| OpenCode Level 1 plain run | BLOCKED | OpenCode 1.3.9 timed out with zero structured events |
+| OpenCode Level 2 explicit model | BLOCKED | Qwen run timed out with zero structured events |
+| OpenCode Level 3 k-slide agent | BLOCKED | Timed out after agent installation; no structured events |
+| OpenCode Level 4 `/k-slide` | BLOCKED | Timed out before K-Slide run creation |
+| Gemma target | BLOCKED | `google/gemma-4-31b-it` unavailable; effective runtime is Qwen |
+| Champion | UNSET | No authoritative target-Gemma validation result |
+| Release | DEVELOPMENT | `GEMMA_EVAL_READY` not reached |
 
 ## Known limitations
 
@@ -98,7 +122,7 @@ The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pp
 ## Next phase
 
 1. Run the heavy container/doctor with a working Docker daemon or approved heavy runner; resolve any real OCR/layout failures before model scoring.
-2. Resolve the simple OpenCode protocol smoke timeout and prove a complete one-slide run.
+2. Resolve the provider-level OpenCode timeout and prove a complete one-slide run.
 3. Connect the approved Gemma 4 31B-it endpoint through the bounded OpenCode workflow.
 4. Run development, validation, ablation, repeated high-risk, and finally frozen held-out evaluations.
 5. Promote a configuration only when hard critical-error gates and protected-category regression rules pass.
@@ -135,3 +159,6 @@ The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pp
 - [ADR 0028 — Corpus fingerprints](docs/adr/0028-corpus-fingerprints.md)
 - [ADR 0029 — Approved model policy](docs/adr/0029-approved-model-policy.md)
 - [ADR 0030 — Review-rate governance](docs/adr/0030-review-rate-governance.md)
+- [ADR 0031 — OCR provider activation](docs/adr/0031-ocr-provider-activation.md)
+- [ADR 0032 — Source-bound visual evidence](docs/adr/0032-source-bound-visual-evidence.md)
+- [ADR 0033 — OpenCode diagnostic ladder](docs/adr/0033-opencode-diagnostic-ladder.md)

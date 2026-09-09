@@ -9,6 +9,11 @@ type ToolContext = {
   worktree: string
 }
 
+const hangulRetention = tool.schema.object({
+  reason: tool.schema.string(),
+  evidence_id: tool.schema.string(),
+})
+
 const translationRegion = tool.schema.object({
   region_id: tool.schema.string(),
   english: tool.schema.string(),
@@ -17,6 +22,7 @@ const translationRegion = tool.schema.object({
   term_ids: tool.schema.array(tool.schema.string()).default([]),
   unresolved: tool.schema.boolean().default(false),
   unresolved_reason: tool.schema.string().optional(),
+  hangul_retention: hangulRetention.optional(),
 })
 
 const translationCell = tool.schema.object({
@@ -24,6 +30,7 @@ const translationCell = tool.schema.object({
   english: tool.schema.string(),
   unresolved: tool.schema.boolean().default(false),
   unresolved_reason: tool.schema.string().optional(),
+  hangul_retention: hangulRetention.optional(),
 })
 
 const translationTable = tool.schema.object({
@@ -35,6 +42,10 @@ const visualInterpretation = tool.schema.object({
   relation_id: tool.schema.string(),
   interpretation: tool.schema.string(),
   evidence_ids: tool.schema.array(tool.schema.string()).default([]),
+  source_element_ids: tool.schema.array(tool.schema.string()).default([]),
+  relation_type: tool.schema.enum(["next", "depends_on", "contains", "before", "after", "causes", "mitigates", "compares_to", "part_of", "flows_to", "highlights", "other"]).optional(),
+  direction: tool.schema.enum(["left_to_right", "right_to_left", "top_to_bottom", "bottom_to_top", "bidirectional", "none", "unknown"]).optional(),
+  hangul_retention: hangulRetention.optional(),
 })
 
 const executiveClaim = tool.schema.object({
@@ -43,6 +54,7 @@ const executiveClaim = tool.schema.object({
   text: tool.schema.string(),
   evidence_ids: tool.schema.array(tool.schema.string()),
   uncertainty: tool.schema.enum(["low", "medium", "high"]),
+  hangul_retention: hangulRetention.optional(),
 })
 
 const translationPatch = tool.schema.object({
