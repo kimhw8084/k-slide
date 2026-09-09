@@ -12,7 +12,7 @@
 
 ## Engine evolution
 
-- K-Slide engine: `0.3.4` Phase 3.4 runtime-contract and OCR-activation boundary; translation certification remains unclaimed
+- K-Slide engine: `0.3.5` Phase 3.5 execution-isolation and heavy-runtime-proof boundary; translation certification remains unclaimed
 - Implementation date: 2026-09-09
 - Runtime inspected: OpenCode `1.3.9`; local configured model `ollama/qwen3:14b`
 - Target model: `google/gemma-4-31b-it`; local runtime is recorded as a compatibility warning and is not certified

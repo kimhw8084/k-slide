@@ -5,12 +5,33 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
 from .deck_scenarios import deck_scenarios
 from .generator import generate_deck_pptx
 from .model_eval import collect_run_artifacts
 from .model_scorers import score_deck_consistency
 from .opencode_runner import OpenCodeEvalRunner, _latest_run
+
+
+def deck_completion_contract(result: Any, *, expected_units: int, artifact_units: int) -> dict[str, Any]:
+    media_units = result.media_compliance.get("work_units", {}) if isinstance(result.media_compliance, dict) else {}
+    media_pass = len(media_units) == expected_units and all(
+        isinstance(item, dict) and item.get("media_sequence_valid") is True
+        for item in media_units.values()
+    )
+    failures: list[str] = []
+    if result.status not in {"PASS", "PROTOCOL_SMOKE_ONLY"}:
+        failures.append(f"OPENCODE_{result.status}")
+    if not result.kslide_complete:
+        failures.append("KSLIDE_NOT_COMPLETE")
+    if artifact_units != expected_units:
+        failures.append("DECK_INCOMPLETE")
+    if len(media_units) != expected_units:
+        failures.append("MEDIA_WORK_UNIT_COUNT_MISMATCH")
+    if not media_pass:
+        failures.append("MEDIA_COMPLIANCE_FAILURE")
+    return {"pass": not failures, "failures": sorted(set(failures)), "expected_units": expected_units, "artifact_units": artifact_units, "media_unit_count": len(media_units), "media_pass": media_pass}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -47,9 +68,12 @@ def main(argv: list[str] | None = None) -> int:
         "tool_calls": list(result.tool_calls),
         "diagnostics": result.diagnostics,
     }
+    payload["completion_contract"] = deck_completion_contract(result, expected_units=deck.slide_count, artifact_units=len(artifacts))
+    if not payload["completion_contract"]["pass"]:
+        payload["status"] = "DECK_INCOMPLETE" if "DECK_INCOMPLETE" in payload["completion_contract"]["failures"] else result.status
     (args.output / "deck-result.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(payload, ensure_ascii=False))
-    return 0 if result.status in {"PASS", "PROTOCOL_SMOKE_ONLY"} else 2
+    return 0 if payload["completion_contract"]["pass"] else 2
 
 
 if __name__ == "__main__":

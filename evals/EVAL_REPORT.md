@@ -145,15 +145,14 @@ same smoke with `--ocr-provider paddle` failed closed as a capability block
 because PaddlePaddle/PaddleOCR are not installed locally; it did not silently
 fall back to `NoneOCRProvider`.
 
-The OpenCode diagnostic ladder was rerun against OpenCode `1.3.9` and the
-configured `ollama/qwen3:14b` runtime with short bounded timeouts:
+The earlier OpenCode diagnostic ladder was rerun against OpenCode `1.3.9` and
+the configured `ollama/qwen3:14b` runtime with short bounded timeouts:
 
 ```text
-Provider health: BLOCKED (ollama executable unavailable)
-Plain OpenCode: TIMEOUT, zero structured events
-Explicit Qwen: TIMEOUT, zero structured events
-K-Slide agent: TIMEOUT, zero structured events
-Real /k-slide: TIMEOUT before run creation, zero structured events
+Provider health: NOT_AVAILABLE (ollama executable unavailable; OpenCode remains authoritative)
+Plain OpenCode in clean workspace: TIMEOUT, zero structured events
+Explicit Qwen in clean workspace: TIMEOUT, zero structured events
+K-Slide agent / real /k-slide: not reached because the clean provider gate failed
 ```
 
 These results are protocol/runtime diagnostics, not translation measurements.
@@ -161,3 +160,19 @@ The dominant blocker is the provider/runtime path before K-Slide can receive a
 model event. A complete OpenCode K-Slide run and target Gemma evaluation remain
 unmeasured. The project therefore remains `DEVELOPMENT`, with champion
 `UNSET` and `GEMMA_EVAL_READY` not reached.
+
+## Phase 3.5 execution-isolation update
+
+The 0.3.5 changes make the diagnostic ladder authoritative about where a
+runtime fails. Levels 1 and 2 use a clean workspace before K-Slide is
+installed; Levels 3 and 4 use a separately installed project workspace. All
+level output, structured events, timeout cleanup, and process-group status are
+persisted by the diagnostic runner.
+
+The heavy workflow now builds OCR assets during image creation, runs the
+required doctor and representative PNG/PDF/PPTX subset with `--network none`,
+mounts output to the host runner, and uploads the host directory. Local normal
+doctor mode passes with explicit `BLOCKED` statuses for unavailable heavy
+capabilities; required mode correctly fails closed. The local machine still
+cannot execute the container tier because its Docker daemon, LibreOffice,
+PaddlePaddle, and PaddleOCR are unavailable. No heavy PASS is claimed.

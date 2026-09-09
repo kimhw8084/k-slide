@@ -37,6 +37,26 @@ update them only after the self-test and record the resulting versions in the
 evaluation report. The current development machine has not built this image,
 so this repository does not claim that heavy integration has executed locally.
 
+The image build runs `evals.heavy.prefetch_ocr_models`, exports a local
+PaddleX pipeline configuration, and writes an OCR asset manifest. The managed
+runtime then sets `KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS=1`; it will fail instead
+of downloading model weights during document processing. The configured
+recognizer is the Korean `korean_PP-OCRv5_mobile_rec` model and the detector
+is `PP-OCRv5_mobile_det`, subject to the pinned PaddleOCR runtime.
+
+Required-image checks use:
+
+```bash
+docker run --rm --network none \
+  -v "$PWD/heavy-out:/out" \
+  k-slide-heavy --required --networkless
+```
+
+The manual GitHub workflow mounts its engine output under `${RUNNER_TEMP}` and
+uploads that host directory, so results remain available after the container
+exits. Local/development doctor mode reports missing heavy capabilities as
+`BLOCKED`; required image mode reports them as `FAIL`.
+
 Suggested bootstrap on Ubuntu:
 
 ```bash

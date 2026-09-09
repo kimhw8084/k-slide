@@ -31,11 +31,11 @@ def _font_check() -> dict[str, object]:
         return {"status": "FAIL", "reason": str(exc)}
 
 
-def _libreoffice_roundtrip() -> dict[str, object]:
+def _libreoffice_roundtrip(*, required: bool = False) -> dict[str, object]:
     if not (_command_version("libreoffice") or _command_version("soffice")):
-        return {"status": "BLOCKED", "reason": "LibreOffice/soffice is unavailable."}
+        return {"status": "FAIL" if required else "BLOCKED", "reason": "LibreOffice/soffice is unavailable."}
     if not all(importlib.util.find_spec(name) for name in ("fitz", "pptx", "PIL")):
-        return {"status": "BLOCKED", "reason": "PyMuPDF, python-pptx, and Pillow are required."}
+        return {"status": "FAIL" if required else "BLOCKED", "reason": "PyMuPDF, python-pptx, and Pillow are required."}
     try:
         from evals.deck_scenarios import deck_scenarios
         from evals.generator import generate_deck_pptx
@@ -57,10 +57,10 @@ def _libreoffice_roundtrip() -> dict[str, object]:
         return {"status": "FAIL", "reason": str(exc)}
 
 
-def _paddle_ocr_roundtrip() -> dict[str, object]:
+def _paddle_ocr_roundtrip(*, required: bool = False) -> dict[str, object]:
     missing = [name for name, module in (("PaddleOCR", "paddleocr"), ("PaddlePaddle", "paddle"), ("Pillow", "PIL")) if importlib.util.find_spec(module) is None]
     if missing:
-        return {"status": "BLOCKED", "reason": f"Unavailable: {', '.join(missing)}."}
+        return {"status": "FAIL" if required else "BLOCKED", "reason": f"Unavailable: {', '.join(missing)}."}
     try:
         from PIL import Image, ImageDraw
         from evals.fonts import discover_korean_font, load_font
@@ -86,15 +86,18 @@ def _paddle_ocr_roundtrip() -> dict[str, object]:
         return {"status": "FAIL", "reason": str(exc)}
 
 
-def main() -> int:
+def main(*, required: bool = False, networkless: bool = False) -> int:
+    def available(module: str) -> str:
+        return "PASS" if importlib.util.find_spec(module) else ("FAIL" if required else "BLOCKED")
+
     checks: dict[str, object] = {
         "python": {"status": "PASS"},
-        "libreoffice": {"status": "PASS" if _command_version("libreoffice") or _command_version("soffice") else "FAIL"},
-        "pillow": {"status": "PASS" if importlib.util.find_spec("PIL") else "FAIL"},
-        "pymupdf": {"status": "PASS" if importlib.util.find_spec("fitz") else "FAIL"},
-        "python_pptx": {"status": "PASS" if importlib.util.find_spec("pptx") else "FAIL"},
-        "paddleocr": {"status": "PASS" if importlib.util.find_spec("paddleocr") else "FAIL"},
-        "paddlepaddle": {"status": "PASS" if importlib.util.find_spec("paddle") else "FAIL"},
+        "libreoffice": {"status": "PASS" if _command_version("libreoffice") or _command_version("soffice") else ("FAIL" if required else "BLOCKED")},
+        "pillow": {"status": available("PIL")},
+        "pymupdf": {"status": available("fitz")},
+        "python_pptx": {"status": available("pptx")},
+        "paddleocr": {"status": available("paddleocr")},
+        "paddlepaddle": {"status": available("paddle")},
         "korean_font": _font_check(),
     }
     # A small real OCR load check is intentionally separate from package import.
@@ -108,12 +111,23 @@ def main() -> int:
             checks["paddle_load"] = {"status": "FAIL", "reason": str(exc)}
     else:
         missing = [name for name, module in (("PaddleOCR", "paddleocr"), ("Pillow", "PIL")) if importlib.util.find_spec(module) is None]
-        checks["paddle_load"] = {"status": "BLOCKED", "reason": f"Unavailable: {', '.join(missing)}."}
-    checks["libreoffice_roundtrip"] = _libreoffice_roundtrip()
-    checks["paddle_ocr_roundtrip"] = _paddle_ocr_roundtrip()
+        checks["paddle_load"] = {"status": "FAIL" if required else "BLOCKED", "reason": f"Unavailable: {', '.join(missing)}."}
+    checks["libreoffice_roundtrip"] = _libreoffice_roundtrip(required=required)
+    checks["paddle_ocr_roundtrip"] = _paddle_ocr_roundtrip(required=required)
+    checks["network"] = {"network_required": not networkless, "networkless_asserted": networkless}
     print(json.dumps(checks, ensure_ascii=False, indent=2))
-    return 0 if all(value.get("status") in {"PASS", "BLOCKED"} for value in checks.values() if isinstance(value, dict)) else 1
+    if required:
+        required_checks = ("libreoffice", "paddleocr", "paddlepaddle", "korean_font", "paddle_load", "libreoffice_roundtrip", "paddle_ocr_roundtrip")
+        return 0 if all(checks.get(name, {}).get("status") == "PASS" for name in required_checks) else 1
+    status_values = [value.get("status") for value in checks.values() if isinstance(value, dict) and "status" in value]
+    return 0 if all(status in {"PASS", "BLOCKED"} for status in status_values) else 1
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    import argparse
+
+    parser = argparse.ArgumentParser(description="K-Slide heavy runtime doctor")
+    parser.add_argument("--required", action="store_true", help="fail when heavy dependencies or round trips are unavailable")
+    parser.add_argument("--networkless", action="store_true", help="record that this check is expected to run without network; the container boundary enforces this")
+    args = parser.parse_args()
+    raise SystemExit(main(required=args.required, networkless=args.networkless))

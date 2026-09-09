@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -14,13 +15,47 @@ from .base import OCRRegion, OCRResult
 class PaddleOCRProvider:
     name = "paddle"
 
-    def __init__(self, *, lang: str = "korean") -> None:
+    def __init__(self, *, lang: str = "korean", ocr_version: str = "PP-OCRv5", det_model_dir: str | None = None, rec_model_dir: str | None = None, paddlex_config: str | None = None) -> None:
         if importlib.util.find_spec("paddleocr") is None:
             raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "PaddleOCR is not installed.")
-        self.lang = lang
+        self.lang = os.environ.get("KSLIDE_PADDLE_LANG", lang)
         import paddleocr
-        self.version = str(getattr(paddleocr, "__version__", "unknown"))
-        self._engine = paddleocr.PaddleOCR(use_doc_orientation_classify=False, use_doc_unwarping=False, use_textline_orientation=False, lang=lang)
+        paddle_version = "unknown"
+        try:
+            import paddle
+
+            paddle_version = str(getattr(paddle, "__version__", "unknown"))
+        except ImportError:
+            raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "PaddlePaddle is not installed.")
+        self.paddleocr_version = str(getattr(paddleocr, "__version__", "unknown"))
+        self.paddle_version = paddle_version
+        self.ocr_version = os.environ.get("KSLIDE_PADDLE_OCR_VERSION", ocr_version)
+        self.det_model_name = os.environ.get("KSLIDE_PADDLE_DET_MODEL_NAME", "PP-OCRv5_mobile_det")
+        self.rec_model_name = os.environ.get("KSLIDE_PADDLE_REC_MODEL_NAME", "korean_PP-OCRv5_mobile_rec")
+        configured_config = paddlex_config or os.environ.get("KSLIDE_PADDLEX_CONFIG")
+        configured_det = det_model_dir or os.environ.get("KSLIDE_PADDLE_DET_MODEL_DIR")
+        configured_rec = rec_model_dir or os.environ.get("KSLIDE_PADDLE_REC_MODEL_DIR")
+        require_local = os.environ.get("KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS", "0").lower() in {"1", "true", "yes"}
+        if require_local and not configured_config and not (configured_det and configured_rec):
+            raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "Offline PaddleOCR requires a local paddlex config or detector/recognizer model directories.")
+        kwargs: dict[str, Any] = {"use_doc_orientation_classify": False, "use_doc_unwarping": False, "use_textline_orientation": False}
+        if configured_config:
+            config_path = Path(configured_config)
+            if not config_path.is_file():
+                raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "Configured PaddleX OCR pipeline file is missing.", {"path": str(config_path)})
+            kwargs["paddlex_config"] = str(config_path)
+        else:
+            kwargs.update({"lang": self.lang, "ocr_version": self.ocr_version, "text_detection_model_name": self.det_model_name, "text_recognition_model_name": self.rec_model_name})
+            if configured_det:
+                kwargs["text_detection_model_dir"] = configured_det
+            if configured_rec:
+                kwargs["text_recognition_model_dir"] = configured_rec
+        self.asset_config = {"ocr_version": self.ocr_version, "language": self.lang, "detector_model": self.det_model_name, "recognizer_model": self.rec_model_name, "paddlex_config": configured_config, "detector_model_dir": configured_det, "recognizer_model_dir": configured_rec, "offline_assets_required": require_local}
+        self.version = f"paddleocr={self.paddleocr_version};paddle={self.paddle_version};ocr={self.ocr_version};rec={self.rec_model_name}"
+        try:
+            self._engine = paddleocr.PaddleOCR(**kwargs)
+        except Exception as exc:
+            raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "PaddleOCR could not be initialized with the configured local assets.", {"reason": str(exc), "asset_config": self.asset_config}) from exc
 
     def extract(self, image: Path, *, language_hints: tuple[str, ...] = ("ko", "en")) -> OCRResult:
         try:

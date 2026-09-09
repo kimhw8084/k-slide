@@ -18,10 +18,13 @@ from .scenarios import scenario_specs, write_specs
 from .scorers import aggregate_engine_scores, score_artifact, score_engine_case
 
 
-def _selected_scenarios(split: str, limit: int | None):
+def _selected_scenarios(split: str, limit: int | None, scenario_ids: tuple[str, ...] = ()):
     scenarios = scenario_specs()
     if split != "all":
         scenarios = [item for item in scenarios if item.split == split]
+    if scenario_ids:
+        requested = set(scenario_ids)
+        scenarios = [item for item in scenarios if item.scenario_id in requested]
     if limit is not None:
         scenarios = scenarios[:limit]
     return scenarios
@@ -39,10 +42,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--split", choices=("development", "validation", "held_out", "all"), default="development")
     parser.add_argument("--formats", nargs="+", default=["png"])
     parser.add_argument("--ocr-provider", choices=("none", "paddle", "auto"), default="none")
+    parser.add_argument("--scenario-ids", nargs="*", default=())
     parser.add_argument("--fail-on-critical", action="store_true")
     args = parser.parse_args(argv)
     scenarios = scenario_specs()
-    selected = _selected_scenarios(args.split, args.limit)
+    selected = _selected_scenarios(args.split, args.limit, tuple(args.scenario_ids))
     args.output.mkdir(parents=True, exist_ok=True)
     write_specs(args.output / "specs")
     try:

@@ -28,6 +28,7 @@ from .opencode_events import (
     tool_calls,
 )
 from .certification import load_model_policy
+from .process_control import terminate_process_group
 
 
 @dataclass(frozen=True)
@@ -219,7 +220,7 @@ class OpenCodeEvalRunner:
             try:
                 stdout, stderr = process.communicate(timeout=self.timeout_seconds)
             except subprocess.TimeoutExpired as exc:
-                os.killpg(process.pid, 15)
+                cleanup = terminate_process_group(process, grace_seconds=5)
                 stdout, stderr = process.communicate(timeout=5)
                 timed_out = True
             completed_returncode = process.returncode
@@ -229,7 +230,7 @@ class OpenCodeEvalRunner:
                 raw_events = parse_json_events(f"{partial}\n{partial_stderr}")
                 normalized = normalize_events(raw_events)
                 diagnostics = _diagnostics(root, events=raw_events, timeout=True)
-                diagnostics.update({"process_state": "TIMEOUT", "event_count": len(raw_events), "last_tool_call": normalized[-1].tool_name if normalized else None, "elapsed_seconds": time.monotonic() - started})
+                diagnostics.update({"process_state": "TIMEOUT", "event_count": len(raw_events), "last_tool_call": normalized[-1].tool_name if normalized else None, "elapsed_seconds": time.monotonic() - started, "process_cleanup": cleanup})
                 (root / "opencode-timeout-stdout.log").write_text(partial, encoding="utf-8")
                 (root / "opencode-timeout-stderr.log").write_text(partial_stderr, encoding="utf-8")
                 (root / "opencode-timeout-diagnostics.json").write_text(json.dumps(diagnostics, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

@@ -15,6 +15,7 @@ from typing import Any
 
 from k_slide.evidence_ir import load_evidence
 from k_slide.ir import SlideIR
+from k_slide import __version__
 
 from .experiments import configuration_hash
 from .certification import EvaluationState, certification_fingerprint, load_model_policy
@@ -140,7 +141,7 @@ class ModelEvaluationRunner:
             "experiment_id": self.output.name,
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "git_commit": None,
-            "k_slide_version": "0.3.4",
+            "k_slide_version": __version__,
             "corpus_version": DATASET_VERSION,
             "split": self.split,
             "scenario_ids": [item.scenario_id for item in scenarios],

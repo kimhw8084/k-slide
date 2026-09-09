@@ -2,7 +2,7 @@
 
 K-Slide turns Korean or mixed Korean-English business artifacts into evidence-backed English comprehension for readers who do not know Korean. It is designed for slides, screenshots, PDFs, PPTX files, tables, charts, diagrams, and dense business-review visuals.
 
-The current implementation is K-Slide `0.3.4`, a Phase 3.4 runtime-contract and OCR-activation build. It provides immutable engine-owned source evidence, a narrow structured TranslationPatch, globally unique multi-document work units, deterministic reports, source-local semantic scorers, stratified frozen splits with fingerprints, per-attempt OpenCode media assertions, and a heavyweight LibreOffice/PaddleOCR evaluation definition. Full Gemma translation certification is not claimed until the target model and evaluation gates are exercised.
+The current implementation is K-Slide `0.3.5`, a Phase 3.5 execution-isolation and heavy-runtime-proof build. It provides immutable engine-owned source evidence, a narrow structured TranslationPatch, globally unique multi-document work units, deterministic reports, source-local semantic scorers, stratified frozen splits with fingerprints, per-attempt OpenCode media assertions, isolated OpenCode diagnostics, fail-closed OCR configuration, and a host-persisted LibreOffice/PaddleOCR evaluation workflow. Full Gemma translation certification is not claimed until the target model and evaluation gates are exercised.
 
 ## Quick start
 

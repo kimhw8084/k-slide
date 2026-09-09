@@ -10,7 +10,6 @@
       "speech_act": "plan",
       "term_ids": ["term-review"],
       "unresolved": false,
-      "unresolved_reason": null,
       "hangul_retention": {"reason": "official proper name", "evidence_id": "doc-001-slide-0001-r001"}
     }
   ],
@@ -22,7 +21,6 @@
           "cell_id": "doc-001-slide-0001-table-001-r01-c01",
           "english": "Revenue",
           "unresolved": false,
-          "unresolved_reason": null,
           "hangul_retention": {"reason": "source quote", "evidence_id": "doc-001-slide-0001-table-001-r01-c01"}
         }
       ]

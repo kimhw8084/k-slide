@@ -2,7 +2,7 @@
 
 ## Current boundary
 
-**K-Slide 0.3.4 — Phase 3.4 runtime-contract and OCR-activation boundary.**
+**K-Slide 0.3.5 — Phase 3.5 execution-isolation and heavy-runtime-proof boundary.**
 
 The repository now has a coherent, tested boundary from validated immutable input through normalized document units, native evidence, configured OCR routing, deterministic crops, bounded multimodal packets, deterministic reports, and synthetic evaluation artifacts. It remains `DEVELOPMENT`: the local runtime is `ollama/qwen3:14b`, not the target `google/gemma-4-31b-it`, and no production translation gate has been certified.
 
@@ -40,6 +40,12 @@ The repository now has a coherent, tested boundary from validated immutable inpu
 - Per-attempt media history retains initial and repair attempts without overwriting prior compliance evidence.
 - Source-bound visual gold binding rejects ambiguous process/chart role mappings instead of scoring invented model IDs.
 - OpenCode diagnostic ladder separates provider, plain-run, explicit-model, agent, and real `/k-slide` failures with process-group timeout cleanup.
+- OpenCode diagnostics isolate clean provider workspaces from separately installed K-Slide workspaces, persist per-level stdout/stderr/events, and classify the first failed layer.
+- Shared process-group termination uses bounded SIGTERM/SIGKILL cleanup and reports whether timed-out evaluation processes were reaped.
+- OCR policy configuration fails closed on malformed/unknown files; `auto` fallback preserves its original capability error and explicit certification policies remain reproducible.
+- PaddleOCR configuration supports PP-OCRv5 Korean recognition, local `paddlex_config`/model paths, build-time asset prefetch, and an asset manifest for networkless managed images.
+- Heavy doctor distinguishes local capability `BLOCKED` from required-image `FAIL`; the manual heavy workflow mounts host output, enforces `--network none`, and uploads diagnostics/evaluation results.
+- Deck protocol PASS requires complete expected-unit artifacts, per-unit media compliance, K-Slide completion, and a deck consistency score.
 - Model result collection loads every persisted work-unit TranslationPatch/EvidenceIR/SlideIR triple, aggregates unit/deck metrics, and computes repeated-run critical frequency, review rate, and category/format summaries.
 - Source-local table-header, chart-trend, process-edge, modality, terminology, Hangul-retention, unresolved-usefulness, and executive-claim semantic gates are covered by automated tests.
 - Semantic TranslationPatch scorers, private gold-set protocol, and zero-Korean comprehension-study protocol.
@@ -50,7 +56,7 @@ The repository now has a coherent, tested boundary from validated immutable inpu
 ## Verification performed locally
 
 ```text
-Dependency-backed unit/integration suite: PASS (84 tests; the base interpreter skips dependency-gated cases as reported by the runner)
+Dependency-backed unit/integration suite: PASS (`python -m unittest discover -s tests -q`; exact count is emitted by the test runner)
 Dependency-backed compile/import checks: PASS
 TranslationPatch JSON schema parse: PASS
 Stratified split manifest: PASS (100 specs; 60/20/20; protected categories in held-out)
@@ -61,7 +67,7 @@ Full lightweight engine suite: EXECUTED (500 cases; 100 each PNG/JPEG/WebP/PDF/P
 Artifact generation: 500/500 PASS
 PNG/JPEG/WebP/PDF normalization + EvidenceIR: 400/400 PASS
 PPTX visual normalization: 100 CAPABILITY_BLOCKED (LibreOffice unavailable)
-OpenCode 1.3.9 diagnostic ladder: Level 1 plain OpenCode TIMEOUT with zero structured events; Level 4 real `/k-slide` also TIMEOUT before K-Slide run creation
+OpenCode 1.3.9 isolated diagnostic ladder: Level 1 clean plain OpenCode TIMEOUT with zero structured events; Levels 3/4 intentionally not reached after the provider-level failure
 Gemma quality evaluation: CAPABILITY_BLOCKED — target endpoint unavailable
 ```
 
@@ -75,7 +81,7 @@ The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pp
 
 | Capability | Status | Evidence |
 | --- | --- | --- |
-| Unit/integration tests | PASS | 84 tests; optional document/OCR tests are dependency-gated |
+| Unit/integration tests | PASS | Full unittest command passes; optional document/OCR tests are dependency-gated in the base interpreter |
 | Artifact generation | PASS | 500/500 generated across five formats |
 | Lightweight engine | PASS with capability-separated findings | 500 cases executed; raster/PDF paths completed |
 | LibreOffice real roundtrip | BLOCKED | `soffice` unavailable; Docker daemon unavailable |
@@ -88,22 +94,29 @@ The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pp
 | Zero-Korean comprehension study | NOT RUN | Study has protocol only |
 | Production certification | DEVELOPMENT | No target-model or human gates passed |
 
-## Phase 3.4 execution matrix
+## Phase 3.5 execution matrix
 
 | Capability | State | Evidence |
 | --- | --- | --- |
 | TranslationPatch JSON/Python/OpenCode parity | PASS | Rich fixture validated by Python and JSON schema when available; TypeScript field parity assertions pass |
+| TranslationPatch optional/null parity | PASS | Optional fields are omitted; JSON, Python, and TypeScript reject explicit nulls |
 | OCR production routing | PASS | `none` and explicit unavailable `paddle` paths exercised; metadata records requested/effective provider |
+| OCR malformed-config handling | PASS | Malformed JSON/YAML and unknown providers return `KSLIDE_CONFIG_INVALID`; auto fallback retains cause |
 | Raster/PDF engine with pinned `none` OCR | PASS | Dependency-backed one-case engine run completed |
 | PPTX heavy roundtrip | BLOCKED | LibreOffice unavailable locally; Docker daemon unavailable |
 | Paddle real Korean OCR | BLOCKED | PaddlePaddle/PaddleOCR unavailable locally |
 | Heavy engine subset with `paddle` | BLOCKED | Correctly classified as `CAPABILITY_BLOCK` locally |
+| Timeout process cleanup | PASS | Process-group helper tests SIGTERM/SIGKILL fallback and reaping |
+| Host-persisted heavy output | PASS (workflow) | Runner-temp mount and `if: always()` artifact upload are tested statically |
 | OpenCode Level 0 provider | BLOCKED | Ollama executable unavailable |
+| OpenCode clean workspace isolation | PASS (harness) | Clean checks precede project installation; project workspace is separate |
 | OpenCode Level 1 plain run | BLOCKED | OpenCode 1.3.9 timed out with zero structured events |
 | OpenCode Level 2 explicit model | BLOCKED | Qwen run timed out with zero structured events |
-| OpenCode Level 3 k-slide agent | BLOCKED | Timed out after agent installation; no structured events |
-| OpenCode Level 4 `/k-slide` | BLOCKED | Timed out before K-Slide run creation |
+| OpenCode Level 3 k-slide agent | NOT REACHED | Clean provider Level 1 failed first; installation was intentionally skipped |
+| OpenCode Level 4 `/k-slide` | NOT REACHED | Clean provider Level 1 failed first; no K-Slide process was started |
 | Gemma target | BLOCKED | `google/gemma-4-31b-it` unavailable; effective runtime is Qwen |
+| 3-slide protocol deck | BLOCKED | Real OpenCode path attempted; provider timed out before run creation |
+| 5-slide protocol deck | BLOCKED | Real OpenCode path attempted; provider timed out before run creation |
 | Champion | UNSET | No authoritative target-Gemma validation result |
 | Release | DEVELOPMENT | `GEMMA_EVAL_READY` not reached |
 
@@ -112,7 +125,7 @@ The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pp
 - Full target Gemma translation, repair quality, and zero-Korean comprehension evaluation are not yet measured.
 - The base local interpreter does not have all optional document/OCR runtimes; doctor reports proven capabilities rather than pretending they pass.
 - LibreOffice-rendered PPTX and PaddleOCR 3 integration are not exercised in this workspace; `evals/heavy/Dockerfile` is reproducible but its build could not start because the local Docker daemon is unavailable. Use it and `python -m evals.heavy.doctor` in an approved environment.
-- The model-facing OpenCode flow is contract-ready, but the local Qwen protocol smoke timed out before emitting structured events. No Gemma accuracy or comprehension result is reported; this remains a protocol blocker to resolve in an environment where the configured local model responds.
+- The model-facing OpenCode flow is contract-ready, but the isolated clean-workspace Qwen protocol smoke timed out before emitting structured events. Levels 3/4 were intentionally not run after that provider-level failure. No Gemma accuracy or comprehension result is reported; this remains a provider/runtime blocker to resolve in an environment where the configured model responds.
 - Numeric/modality/terminology verifiers are deterministic foundations, not a substitute for bilingual gold review.
 - Current-message attachment materialization is not advertised because OpenCode 1.3.9 does not expose a proven safe bridge in this repository.
 - The local OpenCode server `/doc` surface exposed only global routes during inspection; the runner therefore uses the supported CLI JSON-event path for protocol execution and records structured server API work as a separate capability.
@@ -162,3 +175,4 @@ The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pp
 - [ADR 0031 — OCR provider activation](docs/adr/0031-ocr-provider-activation.md)
 - [ADR 0032 — Source-bound visual evidence](docs/adr/0032-source-bound-visual-evidence.md)
 - [ADR 0033 — OpenCode diagnostic ladder](docs/adr/0033-opencode-diagnostic-ladder.md)
+- [ADR 0034 — Execution isolation and heavy proof](docs/adr/0034-execution-isolation-and-heavy-proof.md)

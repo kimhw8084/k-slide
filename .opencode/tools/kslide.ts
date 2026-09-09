@@ -19,8 +19,8 @@ const translationRegion = tool.schema.object({
   english: tool.schema.string(),
   commitment_status: tool.schema.enum(["decided", "committed", "planned", "scheduled", "target", "proposed", "under_review", "needs_review", "discussion_required", "expected", "forecast", "possible", "tentative", "not_decided", "completed", "in_progress", "unknown"]).optional(),
   speech_act: tool.schema.enum(["fact", "status", "decision", "plan", "request", "recommendation", "risk", "dependency", "forecast", "question", "unknown"]).optional(),
-  term_ids: tool.schema.array(tool.schema.string()).default([]),
-  unresolved: tool.schema.boolean().default(false),
+  term_ids: tool.schema.array(tool.schema.string()),
+  unresolved: tool.schema.boolean(),
   unresolved_reason: tool.schema.string().optional(),
   hangul_retention: hangulRetention.optional(),
 })
@@ -28,7 +28,7 @@ const translationRegion = tool.schema.object({
 const translationCell = tool.schema.object({
   cell_id: tool.schema.string(),
   english: tool.schema.string(),
-  unresolved: tool.schema.boolean().default(false),
+  unresolved: tool.schema.boolean(),
   unresolved_reason: tool.schema.string().optional(),
   hangul_retention: hangulRetention.optional(),
 })
@@ -41,8 +41,8 @@ const translationTable = tool.schema.object({
 const visualInterpretation = tool.schema.object({
   relation_id: tool.schema.string(),
   interpretation: tool.schema.string(),
-  evidence_ids: tool.schema.array(tool.schema.string()).default([]),
-  source_element_ids: tool.schema.array(tool.schema.string()).default([]),
+  evidence_ids: tool.schema.array(tool.schema.string()),
+  source_element_ids: tool.schema.array(tool.schema.string()).optional(),
   relation_type: tool.schema.enum(["next", "depends_on", "contains", "before", "after", "causes", "mitigates", "compares_to", "part_of", "flows_to", "highlights", "other"]).optional(),
   direction: tool.schema.enum(["left_to_right", "right_to_left", "top_to_bottom", "bottom_to_top", "bidirectional", "none", "unknown"]).optional(),
   hangul_retention: hangulRetention.optional(),
@@ -58,13 +58,13 @@ const executiveClaim = tool.schema.object({
 })
 
 const translationPatch = tool.schema.object({
-  schema_version: tool.schema.string(),
+  schema_version: tool.schema.enum(["1.0"]),
   work_unit_id: tool.schema.string(),
   evidence_revision: tool.schema.string(),
   regions: tool.schema.array(translationRegion),
   tables: tool.schema.array(translationTable),
-  visual_interpretations: tool.schema.array(visualInterpretation).default([]),
-  executive_claims: tool.schema.array(executiveClaim).default([]),
+  visual_interpretations: tool.schema.array(visualInterpretation),
+  executive_claims: tool.schema.array(executiveClaim),
   repair_revision: tool.schema.string().optional(),
 })
 

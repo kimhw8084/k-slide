@@ -18,6 +18,32 @@ from .locking import run_lock
 from .queue import WorkUnit, WorkUnitStatus, WorkQueue, load_queue, save_queue
 from .security import sha256_file
 from .state import RunPhase, load_state, save_state
+def _terminate_subprocess_group(process: subprocess.Popen[str], grace_seconds: float = 5.0) -> None:
+    """Keep document conversion cleanup local to the core runtime."""
+
+    import signal
+
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except (OSError, ProcessLookupError):
+        try:
+            process.terminate()
+        except OSError:
+            return
+    try:
+        process.wait(timeout=grace_seconds)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except (OSError, ProcessLookupError):
+            try:
+                process.kill()
+            except OSError:
+                pass
+        try:
+            process.wait(timeout=grace_seconds)
+        except subprocess.TimeoutExpired:
+            pass
 
 RENDER_DPI = 220.0
 MAX_IMAGE_PIXELS = 120_000_000
@@ -230,11 +256,16 @@ def _render_pptx(source: Path, run_dir: Path, document_id: str) -> list[Path]:
         profile.mkdir()
         command = [binary, "--headless", f"-env:UserInstallation=file://{profile}", "--convert-to", "pdf", "--outdir", str(output), str(source)]
         try:
-            subprocess.run(command, cwd=temporary, env={"PATH": os.environ.get("PATH", ""), "HOME": temporary, "LANG": "C.UTF-8"}, capture_output=True, text=True, timeout=120, check=True)
+            process = subprocess.Popen(command, cwd=temporary, env={"PATH": os.environ.get("PATH", ""), "HOME": temporary, "LANG": "C.UTF-8"}, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+        except OSError as exc:
+            raise KSlideError(ErrorCode.PPTX_RENDER_UNAVAILABLE, "PPTX converter could not be started.", {"input": source.name, "reason": str(exc)}) from exc
+        try:
+            stdout, stderr = process.communicate(timeout=120)
         except subprocess.TimeoutExpired as exc:
+            _terminate_subprocess_group(process)
             raise KSlideError(ErrorCode.PPTX_CONVERSION_TIMEOUT, "PPTX rendering timed out.", {"input": source.name}) from exc
-        except (OSError, subprocess.CalledProcessError) as exc:
-            raise KSlideError(ErrorCode.PPTX_RENDER_UNAVAILABLE, "PPTX could not be rendered by the available Office converter.", {"input": source.name, "reason": str(exc)}) from exc
+        if process.returncode != 0:
+            raise KSlideError(ErrorCode.PPTX_RENDER_UNAVAILABLE, "PPTX could not be rendered by the available Office converter.", {"input": source.name, "reason": (stderr or stdout)[-1000:]})
         pdf = output / f"{source.stem}.pdf"
         if not pdf.is_file():
             raise KSlideError(ErrorCode.PPTX_RENDER_UNAVAILABLE, "PPTX converter produced no PDF output.", {"input": source.name})

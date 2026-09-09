@@ -7,18 +7,25 @@ import re
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from . import TRANSLATION_PATCH_SCHEMA_VERSION
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import EvidenceIR, stable_revision
 from .ir import CoverageEntry, NumericFact, SlideIR, TableCell, TableIR, TextRegion, VisualRelation
 from .semantics import ClaimKind, CommitmentStatus, CoverageStatus, RelationDirection, RelationType, SpeechAct, Uncertainty, enum_value
+from .translation_contract import (
+    CELL_OPTIONAL_FIELDS,
+    CLAIM_OPTIONAL_FIELDS,
+    REGION_OPTIONAL_FIELDS,
+    RELATION_OPTIONAL_FIELDS,
+    ROOT_OPTIONAL_FIELDS,
+    TRANSLATION_PATCH_SCHEMA_VERSION,
+)
 
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
-_MODEL_REGION_FIELDS = {"region_id", "english", "commitment_status", "speech_act", "term_ids", "unresolved", "unresolved_reason", "hangul_retention"}
-_MODEL_CELL_FIELDS = {"cell_id", "english", "unresolved", "unresolved_reason", "hangul_retention"}
+_MODEL_REGION_FIELDS = set(REGION_OPTIONAL_FIELDS) | {"region_id", "english", "term_ids", "unresolved"}
+_MODEL_CELL_FIELDS = set(CELL_OPTIONAL_FIELDS) | {"cell_id", "english", "unresolved"}
 _MODEL_TABLE_FIELDS = {"table_id", "cells"}
-_MODEL_RELATION_FIELDS = {"relation_id", "interpretation", "evidence_ids", "source_element_ids", "relation_type", "direction", "hangul_retention"}
-_MODEL_CLAIM_FIELDS = {"claim_id", "kind", "text", "evidence_ids", "uncertainty", "hangul_retention"}
+_MODEL_RELATION_FIELDS = set(RELATION_OPTIONAL_FIELDS) | {"relation_id", "interpretation", "evidence_ids"}
+_MODEL_CLAIM_FIELDS = set(CLAIM_OPTIONAL_FIELDS) | {"claim_id", "kind", "text", "evidence_ids", "uncertainty"}
 
 
 def _id(value: Any, label: str) -> str:
@@ -40,17 +47,25 @@ def _string_list(value: Any, label: str) -> tuple[str, ...]:
 
 
 def _optional_string(value: Any, label: str) -> str | None:
-    if value is not None and not isinstance(value, str):
-        raise KSlideError(ErrorCode.SCHEMA_INVALID, f"{label} must be a string or null.")
+    if not isinstance(value, str):
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, f"{label} must be a string when present.")
     return value
+
+
+def _optional_present(value: dict[str, Any], key: str, label: str) -> str | None:
+    return _optional_string(value[key], label) if key in value else None
 
 
 def _boolean(value: Any, label: str, default: bool = False) -> bool:
-    if value is None:
-        return default
     if not isinstance(value, bool):
         raise KSlideError(ErrorCode.SCHEMA_INVALID, f"{label} must be a boolean.")
     return value
+
+
+def _require_fields(value: dict[str, Any], required: set[str], label: str) -> None:
+    missing = sorted(required - set(value))
+    if missing:
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, f"TranslationPatch {label} is missing required fields.", {"fields": missing})
 
 
 def _hangul_retention(value: Any, label: str) -> dict[str, Any] | None:
@@ -73,7 +88,7 @@ class TranslationRegionPatch:
     hangul_retention: dict[str, Any] | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        value = asdict(self)
+        value = {key: item for key, item in asdict(self).items() if item is not None}
         value["term_ids"] = list(self.term_ids)
         return value
 
@@ -87,7 +102,7 @@ class TranslationCellPatch:
     hangul_retention: dict[str, Any] | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return {key: item for key, item in asdict(self).items() if item is not None}
 
 
 @dataclass(frozen=True)
@@ -111,7 +126,7 @@ class TranslationPatch:
     schema_version: str = TRANSLATION_PATCH_SCHEMA_VERSION
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "schema_version": self.schema_version,
             "work_unit_id": self.work_unit_id,
             "evidence_revision": self.evidence_revision,
@@ -119,8 +134,10 @@ class TranslationPatch:
             "tables": [table.as_dict() for table in self.tables],
             "visual_interpretations": list(self.visual_interpretations),
             "executive_claims": list(self.executive_claims),
-            "repair_revision": self.repair_revision,
         }
+        if self.repair_revision is not None:
+            value["repair_revision"] = self.repair_revision
+        return value
 
     def revision(self) -> str:
         return stable_revision(self.as_dict(), excluded={"repair_revision"})
@@ -236,6 +253,7 @@ def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
         raise KSlideError(ErrorCode.SCHEMA_INVALID, "TranslationPatch must be an object.")
     allowed = {"schema_version", "work_unit_id", "evidence_revision", "regions", "tables", "visual_interpretations", "executive_claims", "repair_revision"}
     _only_fields(value, allowed, "payload")
+    _require_fields(value, {"schema_version", "work_unit_id", "evidence_revision", "regions", "tables", "visual_interpretations", "executive_claims"}, "payload")
     regions_value = value.get("regions", [])
     tables_value = value.get("tables", [])
     if not isinstance(regions_value, list) or not isinstance(tables_value, list):
@@ -244,6 +262,7 @@ def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
     for item in regions_value:
         if not isinstance(item, dict):
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "TranslationPatch region must be an object.")
+        _require_fields(item, {"region_id", "english", "term_ids", "unresolved"}, "region")
         _only_fields(item, _MODEL_REGION_FIELDS, "region")
         english = item.get("english", "")
         if not isinstance(english, str):
@@ -251,11 +270,11 @@ def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
         regions.append(TranslationRegionPatch(
             region_id=_id(item.get("region_id"), "region_id"),
             english=english,
-            commitment_status=_optional_string(item.get("commitment_status"), "commitment_status"),
-            speech_act=_optional_string(item.get("speech_act"), "speech_act"),
+            commitment_status=_optional_present(item, "commitment_status", "commitment_status"),
+            speech_act=_optional_present(item, "speech_act", "speech_act"),
             term_ids=_string_list(item.get("term_ids", []), "term_ids"),
             unresolved=_boolean(item.get("unresolved"), "unresolved"),
-            unresolved_reason=_optional_string(item.get("unresolved_reason"), "unresolved_reason"),
+            unresolved_reason=_optional_present(item, "unresolved_reason", "unresolved_reason"),
             hangul_retention=_hangul_retention(item.get("hangul_retention"), "region hangul_retention"),
         ))
     tables: list[TranslationTablePatch] = []
@@ -270,16 +289,18 @@ def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
         for cell in cells_value:
             if not isinstance(cell, dict):
                 raise KSlideError(ErrorCode.SCHEMA_INVALID, "TranslationPatch cell must be an object.")
+            _require_fields(cell, {"cell_id", "english", "unresolved"}, "table cell")
             _only_fields(cell, _MODEL_CELL_FIELDS, "table cell")
             english = cell.get("english", "")
             if not isinstance(english, str):
                 raise KSlideError(ErrorCode.SCHEMA_INVALID, "table cell english must be a string.")
-            cells.append(TranslationCellPatch(cell_id=_id(cell.get("cell_id"), "cell_id"), english=english, unresolved=_boolean(cell.get("unresolved"), "unresolved"), unresolved_reason=_optional_string(cell.get("unresolved_reason"), "unresolved_reason"), hangul_retention=_hangul_retention(cell.get("hangul_retention"), "table cell hangul_retention")))
+            cells.append(TranslationCellPatch(cell_id=_id(cell.get("cell_id"), "cell_id"), english=english, unresolved=_boolean(cell.get("unresolved"), "unresolved"), unresolved_reason=_optional_present(cell, "unresolved_reason", "unresolved_reason"), hangul_retention=_hangul_retention(cell.get("hangul_retention"), "table cell hangul_retention")))
         tables.append(TranslationTablePatch(table_id=_id(item.get("table_id"), "table_id"), cells=tuple(cells)))
     visual = value.get("visual_interpretations", [])
     if not isinstance(visual, list) or any(not isinstance(item, dict) for item in visual):
         raise KSlideError(ErrorCode.SCHEMA_INVALID, "visual_interpretations must be an array of objects.")
     for relation in visual:
+        _require_fields(relation, {"relation_id", "interpretation", "evidence_ids"}, "visual interpretation")
         _only_fields(relation, _MODEL_RELATION_FIELDS, "visual interpretation")
         _id(relation.get("relation_id"), "relation_id")
         if not isinstance(relation.get("interpretation"), str):
@@ -295,6 +316,7 @@ def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
     if not isinstance(executive_claims, list) or any(not isinstance(item, dict) for item in executive_claims):
         raise KSlideError(ErrorCode.SCHEMA_INVALID, "executive_claims must be an array of objects.")
     for claim in executive_claims:
+        _require_fields(claim, {"claim_id", "kind", "text", "evidence_ids", "uncertainty"}, "executive claim")
         _only_fields(claim, _MODEL_CLAIM_FIELDS, "executive claim")
         _hangul_retention(claim.get("hangul_retention"), "executive claim hangul_retention")
     evidence_revision = value.get("evidence_revision")
@@ -310,7 +332,7 @@ def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
         tables=tuple(tables),
         visual_interpretations=tuple(visual),
         executive_claims=tuple(executive_claims),
-        repair_revision=_optional_string(value.get("repair_revision"), "repair_revision"),
+        repair_revision=_optional_present(value, "repair_revision", "repair_revision"),
         schema_version=schema_version,
     )
 

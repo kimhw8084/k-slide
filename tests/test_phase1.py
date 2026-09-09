@@ -143,8 +143,10 @@ class Phase1Tests(unittest.TestCase):
                 "schema_version": "1.0",
                 "work_unit_id": work_unit_id,
                 "evidence_revision": evidence.evidence_revision,
-                "regions": [{"region_id": region_id, "english": "A faithful reconstruction."}],
+                "regions": [{"region_id": region_id, "english": "A faithful reconstruction.", "term_ids": [], "unresolved": False}],
                 "tables": [],
+                "visual_interpretations": [],
+                "executive_claims": [],
             }
             self.assertEqual(_next(root, run_dir.name, None)["status"], "READY")
             accepted = _submit(root, run_dir.name, json.dumps(payload), None)
