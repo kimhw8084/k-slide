@@ -41,9 +41,13 @@ def _cmap_supports(path: Path) -> bool:
     try:
         from fontTools.ttLib import TTCollection, TTFont
 
-        fonts = TTCollection(str(path)).fonts if path.suffix.lower() in {".ttc", ".otc"} else [TTFont(str(path))]
         required = {ord(character) for character in _REPRESENTATIVE if not character.isspace()}
-        return any(required.issubset({code for table in font["cmap"].tables for code in table.cmap}) for font in fonts)
+        with path.open("rb") as stream:
+            if path.suffix.lower() in {".ttc", ".otc"}:
+                with TTCollection(stream) as collection:
+                    return any(required.issubset({code for table in font["cmap"].tables for code in table.cmap}) for font in collection.fonts)
+            with TTFont(stream) as font:
+                return required.issubset({code for table in font["cmap"].tables for code in table.cmap})
     except (ImportError, OSError, KeyError, ValueError):
         return False
 
@@ -62,11 +66,19 @@ def _family_and_version(path: Path) -> tuple[str, str | None]:
     try:
         from fontTools.ttLib import TTCollection, TTFont
 
-        font = TTCollection(str(path)).fonts[0] if path.suffix.lower() in {".ttc", ".otc"} else TTFont(str(path))
-        names = font["name"].names
-        family = next((item.toUnicode() for item in names if item.nameID == 1), path.stem)
-        version = next((item.toUnicode() for item in names if item.nameID == 5), None)
-        return family, version
+        with path.open("rb") as stream:
+            if path.suffix.lower() in {".ttc", ".otc"}:
+                with TTCollection(stream) as collection:
+                    font = collection.fonts[0]
+                    names = font["name"].names
+                    family = next((item.toUnicode() for item in names if item.nameID == 1), path.stem)
+                    version = next((item.toUnicode() for item in names if item.nameID == 5), None)
+                    return family, version
+            with TTFont(stream) as font:
+                names = font["name"].names
+                family = next((item.toUnicode() for item in names if item.nameID == 1), path.stem)
+                version = next((item.toUnicode() for item in names if item.nameID == 5), None)
+                return family, version
     except (ImportError, OSError, KeyError, ValueError):
         return path.stem, None
 

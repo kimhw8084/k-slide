@@ -8,7 +8,9 @@ permission:
     "*": deny
     ".k-slide-runs/**": allow
     ".opencode/skills/k-slide/**": allow
-  question: allow
+  question: deny
+  external_directory: deny
+  doom_loop: deny
   skill: allow
   kslide_*: allow
   task: deny

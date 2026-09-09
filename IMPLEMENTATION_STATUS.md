@@ -6,6 +6,8 @@
 
 The repository now has a coherent, tested boundary from validated immutable input through normalized document units, native evidence, configured OCR routing, deterministic crops, bounded multimodal packets, deterministic reports, and synthetic evaluation artifacts. It remains `DEVELOPMENT`: the local runtime is `ollama/qwen3:14b`, not the target `google/gemma-4-31b-it`, and no production translation gate has been certified.
 
+The current production-certification hardening pass also adds explicit noninteractive permissions, centralized diagnostic redaction, restrictive artifact permissions, fail-closed retention cleanup, a source-free admin support bundle, a production profile/doctor gate, provisional production constraints/SLO metadata, and offline release-manifest/SBOM generation. These controls are implemented and unit-tested; they are not evidence that their external runtime, model, internal-data, human-study, or pilot gates have passed.
+
 ## Implemented and tested
 
 - Engine-owned, versioned `EvidenceIR` with deterministic SHA-256 revisions.
@@ -52,6 +54,12 @@ The repository now has a coherent, tested boundary from validated immutable inpu
 - Reproducible heavyweight Docker definition/self-test for LibreOffice, PaddleOCR 3.x, PyMuPDF, python-pptx, Pillow, and Korean fonts.
 - Black-box CLI, installer regression, trust-model, queue/resume, concurrency, stale-evidence, stale-finalization, and normalization fixture tests.
 - GitHub Actions workflow for Python 3.11/3.12, unit tests, compile checks, CLI/installer checks, and doctor.
+- Explicit production permission denials for interactive/headless-dangerous operations, including question, external-directory, and doom-loop controls.
+- Centralized redaction for credentials, home paths, source-content fields, and support/diagnostic output.
+- Restrictive run/artifact permissions plus an admin-only retention cleanup command with symlink and outside-root refusal.
+- Sanitized `support-bundle` command that excludes source snapshots, renders, crops, evidence, translations, reports, and raw transcripts.
+- Fail-closed production profile checks for target model identity, OCR assets/provider initialization, OpenCode, retention, tenancy, egress, permissions, and certification fingerprint.
+- Provisional pinned production constraints, SLO configuration, deployment profile template, and offline release manifest/SBOM generator.
 
 ## Verification performed locally
 
@@ -63,11 +71,12 @@ Stratified split manifest: PASS (100 specs; 60/20/20; protected categories in he
 Corpus fingerprint: `698b471fa9dffe9f79af40a61c3546d6455889b90063a02bc2e270b90402f7ac`
 Held-out fingerprint: `c2dee1ba1b03fead1a6641cfa8c7ceea27eb51b0ed80c0879c07bc3ee29bcc4e`
 Corpus/held-out fingerprint governance tests: PASS
-Full lightweight engine suite: EXECUTED (500 cases; 100 each PNG/JPEG/WebP/PDF/PPTX)
+Full lightweight engine suite: EXECUTED (500 cases; 100 each PNG/JPEG/WebP/PDF/PPTX, dependency-backed environment)
 Artifact generation: 500/500 PASS
-PNG/JPEG/WebP/PDF normalization + EvidenceIR: 400/400 PASS
+PNG/JPEG/WebP/PDF normalization + EvidenceIR: 320/400 PASS; 80 CAPABILITY_BLOCKED because image-only financial-table cases require OCR when explicitly pinned to `none`
 PPTX visual normalization: 100 CAPABILITY_BLOCKED (LibreOffice unavailable)
-OpenCode 1.3.9 isolated diagnostic ladder: Level 1 clean plain OpenCode TIMEOUT with zero structured events; Levels 3/4 intentionally not reached after the provider-level failure
+Lightweight engine algorithmic failures: 0; all 180 findings were capability blocks in this run
+OpenCode 1.3.9 isolated diagnostic ladder: pure and normal clean OpenCode TIMEOUT with zero structured events; Levels 3/4 intentionally not reached after the provider-level failure
 Gemma quality evaluation: CAPABILITY_BLOCKED — target endpoint unavailable
 ```
 
@@ -83,16 +92,19 @@ The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pp
 | --- | --- | --- |
 | Unit/integration tests | PASS | Full unittest command passes; optional document/OCR tests are dependency-gated in the base interpreter |
 | Artifact generation | PASS | 500/500 generated across five formats |
-| Lightweight engine | PASS with capability-separated findings | 500 cases executed; raster/PDF paths completed |
+| Lightweight engine | PASS with capability-separated findings | 500 cases executed; 320 raster/PDF cases completed, 80 raster/PDF financial OCR cases and 100 PPTX cases capability-blocked |
 | LibreOffice real roundtrip | BLOCKED | `soffice` unavailable; Docker daemon unavailable |
 | PaddleOCR real Korean roundtrip | BLOCKED | PaddlePaddle/PaddleOCR unavailable |
-| OpenCode protocol | BLOCKED | OpenCode 1.3.9 Qwen smoke timed out before events |
+| OpenCode protocol | BLOCKED | OpenCode 1.3.9 pure and normal clean Qwen smoke both timed out before events |
 | Gemma development | BLOCKED | `google/gemma-4-31b-it` unavailable in effective runtime |
 | Gemma validation | NOT RUN | Target endpoint unavailable |
 | Held-out quality evaluation | NOT RUN | Champion remains `UNSET` |
 | Internal bilingual evaluation | NOT RUN | Private dataset not present |
 | Zero-Korean comprehension study | NOT RUN | Study has protocol only |
 | Production certification | DEVELOPMENT | No target-model or human gates passed |
+| Production doctor/profile | BLOCKED as expected | No certified profile; target model, Paddle/LibreOffice, retention attestation, and fingerprint are not proven locally |
+| Support bundle/redaction/retention controls | PASS (unit-tested) | Metadata-only support bundle and fail-closed cleanup are implemented; deployment enforcement remains required |
+| Release manifest/SBOM tooling | PASS (offline smoke) | Generates DEVELOPMENT metadata and explicitly refuses certified release state without evidence |
 
 ## Phase 3.5 execution matrix
 
@@ -110,7 +122,7 @@ The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pp
 | Host-persisted heavy output | PASS (workflow) | Runner-temp mount and `if: always()` artifact upload are tested statically |
 | OpenCode Level 0 provider | BLOCKED | Ollama executable unavailable |
 | OpenCode clean workspace isolation | PASS (harness) | Clean checks precede project installation; project workspace is separate |
-| OpenCode Level 1 plain run | BLOCKED | OpenCode 1.3.9 timed out with zero structured events |
+| OpenCode Level 1 pure/normal runs | BLOCKED | OpenCode 1.3.9 timed out with zero structured events in both modes |
 | OpenCode Level 2 explicit model | BLOCKED | Qwen run timed out with zero structured events |
 | OpenCode Level 3 k-slide agent | NOT REACHED | Clean provider Level 1 failed first; installation was intentionally skipped |
 | OpenCode Level 4 `/k-slide` | NOT REACHED | Clean provider Level 1 failed first; no K-Slide process was started |
@@ -131,6 +143,8 @@ The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pp
 - The local OpenCode server `/doc` surface exposed only global routes during inspection; the runner therefore uses the supported CLI JSON-event path for protocol execution and records structured server API work as a separate capability.
 - Locally generated visual corpus cases are available with the verified macOS system Korean font. LibreOffice and PaddleOCR are still unavailable locally, so PPTX visual normalization and real OCR remain heavy-tier capability blocks.
 - The PaddleOCR adapter follows the current 3.x API shape but is not installed or benchmarked in this workspace.
+- Production mode is intentionally fail-closed until an approved profile contains a real certification fingerprint, approved model-data attestation, local OCR assets, and proven heavy/runtime capabilities.
+- The support-bundle path is source-free by construction, but administrative access control for invoking it must be supplied by the managed deployment.
 
 ## Next phase
 
@@ -138,7 +152,8 @@ The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pp
 2. Resolve the provider-level OpenCode timeout and prove a complete one-slide run.
 3. Connect the approved Gemma 4 31B-it endpoint through the bounded OpenCode workflow.
 4. Run development, validation, ablation, repeated high-risk, and finally frozen held-out evaluations.
-5. Promote a configuration only when hard critical-error gates and protected-category regression rules pass.
+5. Complete private bilingual, zero-Korean comprehension, security/reliability, governance, and canary evidence.
+6. Promote a configuration only when hard critical-error gates and protected-category regression rules pass; do not create 1.0.0 before every required gate is evidenced.
 
 ## Architecture decisions
 

@@ -19,6 +19,7 @@
 - Compatibility: v6 commands and single-agent behavior retained; lifecycle internals now use typed tools, immutable snapshots, a validated multi-work-unit state machine, engine-owned EvidenceIR, structured TranslationPatch submission, document normalization, and deterministic completion
 - Evidence boundary: image/PDF/PPTX normalization, native extraction, globally unique work units, deterministic region crops, numeric evidence, semantic enums, deterministic report rendering, source-local semantic scoring, stratified split governance with corpus/held-out fingerprints, per-work-unit structured OpenCode event/media assertions, multi-slide deck scenarios, a reproducible heavy environment definition, and an optional OCR provider abstraction are implemented; full target-model translation certification is not claimed
 - No confidential slide content was added to the repository
+- Production hardening metadata is evidence-only. `constraints-production.txt` is a candidate lock for the heavy CPU image, not a claim that the listed OCR/LibreOffice/OpenCode versions passed certification in this workspace. OCR model assets are not bundled in the public repository; a managed heavy build must generate and hash its local asset manifest before production use.
 
 ## Why v6 is the active baseline
 

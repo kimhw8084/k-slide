@@ -112,11 +112,16 @@ def prepare_run(root: Path, *, mode: str = "smart", explicit_paths: Iterable[str
     input_dir = root / ".k-slide-input"
     run_root.mkdir(parents=True, exist_ok=True, mode=0o700)
     input_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    run_root.chmod(0o700)
+    input_dir.chmod(0o700)
     run_id = _run_id()
     run_dir = run_root / run_id
     run_dir.mkdir(mode=0o700)
+    run_dir.chmod(0o700)
     for name in ("inputs", "normalized", "native", "regions", "evidence", "ir", "translations", "verification"):
-        (run_dir / name).mkdir(mode=0o700)
+        directory = run_dir / name
+        directory.mkdir(mode=0o700)
+        directory.chmod(0o700)
 
     state = RunState(run_id=run_id, mode=mode, session_key=bind_session(run_root, session_id, run_id), next_action="Validate inputs")
     save_state(run_dir, state)

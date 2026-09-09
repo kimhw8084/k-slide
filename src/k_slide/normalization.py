@@ -99,6 +99,7 @@ def _normalize_image(run_dir: Path, input_id: str, source: Path, index: int, doc
             work_unit_id = f"{document_id}-image-0001"
             render = run_dir / "normalized" / f"{work_unit_id}.png"
             image.save(render, format="PNG", optimize=True)
+            render.chmod(0o600)
     except KSlideError:
         raise
     except (OSError, UnidentifiedImageError, DecompressionBombError, ValueError) as exc:
@@ -137,6 +138,7 @@ def _pdf_units(run_dir: Path, input_id: str, source: Path, document_id: str, sou
             work_unit_id = f"{document_id}-page-{page_index + 1:04d}"
             render = run_dir / "normalized" / f"{work_unit_id}.png"
             pixmap.save(str(render))
+            render.chmod(0o600)
             native = page.get_text("dict")
             native_path = run_dir / "native" / f"{work_unit_id}.json"
             safe_blocks = _json_safe(native.get("blocks", []))
@@ -278,6 +280,7 @@ def _render_pptx(source: Path, run_dir: Path, document_id: str) -> list[Path]:
             for index, page in enumerate(document):
                 render = run_dir / "normalized" / f"{document_id}-slide-{index + 1:04d}.png"
                 page.get_pixmap(matrix=fitz.Matrix(RENDER_DPI / 72, RENDER_DPI / 72), alpha=False).save(str(render))
+                render.chmod(0o600)
                 renders.append(render)
             return renders
         finally:

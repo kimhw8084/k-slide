@@ -13,14 +13,16 @@ from typing import Any
 
 from .opencode_events import normalize_events, parse_json_events
 from .process_control import terminate_process_group
+from k_slide.redaction import redact_text, redact_value
 
 
 def _persist_level(output: Path, name: str, result: dict[str, Any]) -> None:
     output.mkdir(parents=True, exist_ok=True)
-    (output / f"{name}.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    (output / f"{name}.stdout").write_text(str(result.get("stdout", "")), encoding="utf-8")
-    (output / f"{name}.stderr").write_text(str(result.get("stderr", "")), encoding="utf-8")
-    (output / f"{name}.events.json").write_text(json.dumps(result.get("events", []), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    safe = redact_value(result, roots=(output,))
+    (output / f"{name}.json").write_text(json.dumps(safe, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (output / f"{name}.stdout").write_text(redact_text(str(result.get("stdout", "")), roots=(output,)), encoding="utf-8")
+    (output / f"{name}.stderr").write_text(redact_text(str(result.get("stderr", "")), roots=(output,)), encoding="utf-8")
+    (output / f"{name}.events.json").write_text(json.dumps(redact_value(result.get("events", []), roots=(output,)), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def _run_command(name: str, command: list[str], workspace: Path, output: Path, timeout: int, *, parse_events: bool = False) -> dict[str, Any]:
@@ -65,6 +67,7 @@ def _classification(levels: list[dict[str, Any]]) -> tuple[str | None, str]:
         "level0_opencode": "OPENCODE_EXECUTABLE_UNAVAILABLE",
         "level0a_config": "OPENCODE_CONFIG_BLOCKED",
         "level0b_models": "OPENCODE_MODEL_INVENTORY_BLOCKED",
+        "level1a_pure_opencode": "OPENCODE_PROVIDER_RUNTIME_BLOCKED",
         "level1_plain_opencode": "OPENCODE_PROVIDER_RUNTIME_BLOCKED",
         "level2_explicit_model": "REQUESTED_MODEL_OR_PROVIDER_BLOCKED",
         "level3_k_slide_agent": "KSLIDE_PROJECT_LAYER_BLOCKED",
@@ -122,14 +125,21 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
             levels.append(config)
             provider_result = _provider_health(model, config, clean_workspace, output)
             help_result = _run_command("level0b_help", [executable, "--help"], clean_workspace, output, 30)
-            models_supported = "models" in (str(help_result.get("stdout", "")) + str(help_result.get("stderr", ""))).lower()
+            help_text = (str(help_result.get("stdout", "")) + str(help_result.get("stderr", ""))).lower()
+            models_supported = "models" in help_text
             if models_supported:
                 models = _run_command("level0b_models", [executable, "models"], clean_workspace, output, 60)
             else:
                 models = {"level": "level0b_models", "command": [executable, "models"], "status": "NOT_SUPPORTED", "exit_code": None, "duration_seconds": help_result.get("duration_seconds", 0), "event_count": 0, "last_event": None, "last_tool": None, "stdout": "", "stderr": "OpenCode help does not advertise a models command.", "events": [], "process_cleanup": {"sigterm_sent": False, "sigkill_sent": False, "reaped": True}}
                 _persist_level(output, "level0b_models", models)
             levels.append(models)
-            levels.append(_run_command("level1_plain_opencode", [executable, "run", "--format", "json", "--dir", str(clean_workspace), "Reply only with OK."], clean_workspace, output, cold_timeout, parse_events=True))
+            if "--pure" in help_text:
+                levels.append(_run_command("level1a_pure_opencode", [executable, "--pure", "--print-logs", "--log-level", "DEBUG", "run", "--format", "json", "--dir", str(clean_workspace), "Reply only with OK."], clean_workspace, output, cold_timeout, parse_events=True))
+            else:
+                unsupported = {"level": "level1a_pure_opencode", "command": [executable, "--pure", "run"], "status": "NOT_SUPPORTED", "exit_code": None, "duration_seconds": 0, "event_count": 0, "last_event": None, "last_tool": None, "stdout": "", "stderr": "OpenCode help does not advertise --pure.", "events": [], "process_cleanup": {"sigterm_sent": False, "sigkill_sent": False, "reaped": True}}
+                _persist_level(output, "level1a_pure_opencode", unsupported)
+                levels.append(unsupported)
+            levels.append(_run_command("level1_plain_opencode", [executable, "--print-logs", "--log-level", "DEBUG", "run", "--format", "json", "--dir", str(clean_workspace), "Reply only with OK."], clean_workspace, output, cold_timeout, parse_events=True))
             levels.append(_run_command("level2_explicit_model", [executable, "run", "--format", "json", "--dir", str(clean_workspace), "--model", model, "Reply only with OK."], clean_workspace, output, cold_timeout, parse_events=True))
 
         install_result: dict[str, Any] = {"status": "SKIPPED_UPSTREAM_BLOCKED"}
@@ -176,7 +186,7 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
                 "kslide_has_engine": (kslide_workspace / ".k-slide-engine").exists(),
             },
             "install": install_result,
-            "levels": levels,
+            "levels": redact_value(levels, roots=(output,)),
             "first_failed_level": first_failed,
             "conclusion": conclusion,
         }

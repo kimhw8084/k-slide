@@ -1,0 +1,17 @@
+schema_version: "1.0"
+status: provisional
+hardware_profile: "managed-cpu-heavy-runtime"
+correctness_precedes_latency: true
+limits:
+  single_work_unit_p95_seconds: 180
+  ten_slide_deck_p95_seconds: 900
+  fifty_slide_deck_p95_seconds: 3600
+  resume_p95_seconds: 300
+  max_process_timeout_seconds: 600
+regression_tolerance_percent: 20
+measurement_required:
+  - target_model
+  - opencode_version
+  - ocr_provider
+  - hardware_profile
+  - corpus_version

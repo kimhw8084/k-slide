@@ -18,6 +18,8 @@ from .normalization import normalize_run
 from .extraction import extract_run
 from .doctor import diagnose
 from .policy import COMPLETION_POLICY, MAX_AUTO_REPAIRS_PER_UNIT
+from .retention import cleanup_expired_runs
+from .support import build_support_bundle
 from .queue import WorkUnitStatus, load_queue, save_queue
 from .runtime import discover_runtime
 from .security import sha256_file
@@ -289,7 +291,17 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--root", type=Path, default=Path.cwd())
     doctor.add_argument("--engine-root", type=Path)
     doctor.add_argument("--opencode-root", type=Path)
+    doctor.add_argument("--production", action="store_true")
     doctor.add_argument("--json", action="store_true")
+    retention = sub.add_parser("retention-cleanup", help="Admin-only cleanup of expired terminal run artifacts")
+    retention.add_argument("--root", type=Path, default=Path.cwd())
+    retention.add_argument("--retention-days", type=int, required=True)
+    retention.add_argument("--dry-run", action="store_true")
+    retention.add_argument("--json", action="store_true")
+    support = sub.add_parser("support-bundle", help="Admin-only sanitized operational support bundle")
+    support.add_argument("--root", type=Path, default=Path.cwd())
+    support.add_argument("--output", type=Path, required=True)
+    support.add_argument("--json", action="store_true")
     runtime = sub.add_parser("runtime")
     runtime.add_argument("--json", action="store_true")
     install_parser = sub.add_parser("install")
@@ -329,7 +341,11 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "finalize":
             value = finalize_run(_find_run(args.root, args.run, args.session_id)).as_dict()
         elif args.command == "doctor":
-            value = diagnose(args.root, engine_root=args.engine_root, opencode_root=args.opencode_root)
+            value = diagnose(args.root, engine_root=args.engine_root, opencode_root=args.opencode_root, production=args.production)
+        elif args.command == "retention-cleanup":
+            value = cleanup_expired_runs(args.root, args.retention_days, dry_run=args.dry_run)
+        elif args.command == "support-bundle":
+            value = build_support_bundle(args.root, args.output)
         elif args.command == "install":
             value = {"status": "INSTALLED", "manifest": str(install(args.source_root, args.target, scope=args.scope))}
         elif args.command == "verify-install":

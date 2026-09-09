@@ -7,16 +7,23 @@ import sys
 import tempfile
 import time
 import unittest
+import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from evals.opencode_diagnostics import run_diagnostic_ladder
 from evals.process_control import terminate_process_group
+from evals.release import build_release_manifest, build_sbom
 from evals.run_deck_eval import deck_completion_contract
 from evals.heavy.doctor import _libreoffice_roundtrip, main as heavy_doctor_main
 from k_slide.errors import ErrorCode, KSlideError
 from k_slide.ocr.policy import OCRProviderPolicy, create_ocr_provider, load_ocr_policy
+from k_slide.doctor import diagnose
+from k_slide.production import production_checks
+from k_slide.redaction import redact_text, redact_value
+from k_slide.retention import cleanup_expired_runs
+from k_slide.support import build_support_bundle
 from k_slide.translation_contract import (
     CLAIM_KIND_VALUES,
     COMMITMENT_VALUES,
@@ -165,6 +172,95 @@ class Phase35Tests(unittest.TestCase):
     def test_normal_doctor_allows_capability_blocks(self):
         with patch("evals.heavy.doctor._command_version", return_value=None), patch("evals.heavy.doctor.importlib.util.find_spec", return_value=None), patch("evals.heavy.doctor._font_check", return_value={"status": "PASS"}), patch("builtins.print"):
             self.assertEqual(heavy_doctor_main(required=False), 0)
+
+    def test_agent_denies_headless_interactive_and_dangerous_permissions(self):
+        agent = (ROOT / ".opencode" / "agents" / "k-slide.md").read_text(encoding="utf-8")
+        for permission in ("question: deny", "external_directory: deny", "doom_loop: deny", "bash: deny", "edit: deny", "write: deny", "task: deny", "webfetch: deny", "websearch: deny"):
+            self.assertIn(permission, agent)
+
+    def test_redaction_removes_secrets_content_and_home_paths(self):
+        text = f"Authorization: Bearer abc123 password=secret file={Path.home()}/private"
+        safe = redact_text(text)
+        self.assertNotIn("abc123", safe)
+        self.assertNotIn("secret", safe)
+        self.assertNotIn(str(Path.home()), safe)
+        self.assertEqual(redact_value({"text": "검토", "api_key": "secret"}), {"text": "[REDACTED_CONTENT]", "api_key": "[REDACTED_SECRET]"})
+
+    def test_retention_removes_only_expired_terminal_runs(self):
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime(2026, 9, 9, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run_root = root / ".k-slide-runs"
+            run_root.mkdir(mode=0o700)
+            for run_id, phase, updated in (("active", "TRANSLATING", now - timedelta(days=100)), ("recent", "COMPLETE", now - timedelta(days=1)), ("expired", "COMPLETE", now - timedelta(days=100)), ("failed", "FAILED_RUNTIME", now - timedelta(days=100))):
+                run = run_root / run_id
+                run.mkdir(mode=0o700)
+                (run / "RUN_STATE.json").write_text(json.dumps({"phase": phase, "updated_at": updated.isoformat()}), encoding="utf-8")
+            result = cleanup_expired_runs(root, 30, now=now)
+            self.assertEqual({item["run_id"] for item in result["removed"]}, {"expired", "failed"})
+            self.assertTrue((run_root / "active").is_dir())
+            self.assertTrue((run_root / "recent").is_dir())
+
+    def test_retention_symlink_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            root = Path(directory)
+            run_root = root / ".k-slide-runs"
+            run_root.mkdir(mode=0o700)
+            (run_root / "link").symlink_to(Path(outside), target_is_directory=True)
+            with self.assertRaises(KSlideError) as raised:
+                cleanup_expired_runs(root, 1)
+            self.assertEqual(raised.exception.code, ErrorCode.RETENTION_REFUSED)
+            self.assertTrue(Path(outside).is_dir())
+
+    def test_production_checks_fail_closed_without_profile(self):
+        runtime = SimpleNamespace(opencode_version="1.3.9", reported_model_id="ollama/qwen3:14b", vision_support=None)
+        with tempfile.TemporaryDirectory() as directory:
+            checks = production_checks(Path(directory), runtime)
+        self.assertTrue(any(item["status"] == "FAIL" for item in checks))
+
+    def test_production_doctor_redacts_local_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = diagnose(Path(directory), production=True)
+        serialized = json.dumps(result, ensure_ascii=False)
+        self.assertNotIn(str(Path.home()), serialized)
+
+    def test_support_bundle_excludes_source_content(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / ".k-slide-runs" / "run-001"
+            run.mkdir(parents=True, mode=0o700)
+            (run / "RUN_STATE.json").write_text(json.dumps({"phase": "COMPLETE", "run_id": "run-001"}), encoding="utf-8")
+            (run / "RUN_MANIFEST.json").write_text(json.dumps({"run_id": "run-001", "input_count": 1}), encoding="utf-8")
+            (run / "WORK_QUEUE.json").write_text(json.dumps({"queue_revision": "q1", "work_units": [{"status": "VERIFIED", "translation_attempts": 1}]}), encoding="utf-8")
+            (run / "05_final_report.md").write_text("confidential Korean 검토 text", encoding="utf-8")
+            output = root / "support.zip"
+            result = build_support_bundle(root, output)
+            self.assertFalse(result["source_content_included"])
+            with zipfile.ZipFile(output) as archive:
+                content = archive.read("support-metadata.json").decode("utf-8")
+            self.assertNotIn("검토", content)
+            self.assertNotIn("05_final_report", content)
+            self.assertEqual(output.stat().st_mode & 0o777, 0o600)
+
+    def test_release_metadata_is_explicitly_development_without_attestations(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = build_release_manifest(root)
+            self.assertEqual(manifest["release_state"], "DEVELOPMENT")
+            self.assertEqual(manifest["attestations"]["internal_bilingual"], "UNSET")
+            self.assertEqual(manifest["attestations"]["zero_korean_comprehension"], "UNSET")
+            sbom = build_sbom(root)
+            self.assertEqual(sbom["bomFormat"], "CycloneDX")
+            self.assertTrue(any("does not claim" in note for note in sbom["notes"]))
+
+    def test_release_workflow_is_manual_and_certification_gated(self):
+        workflow = (ROOT.parent / ".github" / "workflows" / "k-slide-release.yml").read_text(encoding="utf-8")
+        self.assertIn("workflow_dispatch", workflow)
+        self.assertNotIn("on:\n  push:", workflow)
+        self.assertIn("--require-certified", workflow)
+        self.assertIn("SBOM.json", workflow)
 
 
 if __name__ == "__main__":

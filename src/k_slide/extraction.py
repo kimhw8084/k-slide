@@ -52,11 +52,13 @@ def _crop_regions(run_dir: Path, unit: Any, native_items: list[dict[str, Any]]) 
         original_path.parent.mkdir(parents=True, exist_ok=True)
         crop = image.crop(crop_box)
         crop.save(original_path, format="PNG")
+        original_path.chmod(0o600)
         model_crop = crop
         if max(crop.size) < 900:
             scale = 900 / max(crop.size)
             model_crop = crop.resize((max(1, int(crop.width * scale)), max(1, int(crop.height * scale))), Image.Resampling.LANCZOS)
         model_crop.save(model_path, format="PNG")
+        model_path.chmod(0o600)
         text = item.get("text")
         native_source = item.get("evidence_source", "native") == "native"
         native_candidates = ({"text": str(text), "confidence": 1.0, "source": "native"},) if text and native_source else ()

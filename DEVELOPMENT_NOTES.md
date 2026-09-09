@@ -30,3 +30,20 @@ Every change should be evaluated against these reader outcomes:
 | Unreadable or ambiguous region | Explicit `[unreadable]` or unresolved notation instead of invented content |
 
 The package is a prepared development baseline, not a claim that every visual case has already been benchmarked. The public corpus has 100 deterministic synthetic specifications and an artifact smoke runner. Target Gemma evaluation, internal bilingual review, and production certification remain future work.
+
+## Production-certification hardening boundary
+
+The 0.3.5 hardening pass keeps the release in `DEVELOPMENT`. It adds explicit
+headless-dangerous permission denials, redacted diagnostics, restrictive run
+artifact modes, fail-closed retention cleanup, a source-free support bundle,
+production profile/doctor checks, provisional SLO/constraints metadata, and a
+manual release-evidence workflow. These controls do not substitute for the
+unavailable local OpenCode provider, LibreOffice/Paddle heavy runtime, target
+Gemma endpoint, private bilingual gold, human comprehension study, tenant
+isolation attestation, or canary evidence.
+
+Current dominant blocker: `OPENCODE_PROVIDER_RUNTIME_BLOCKED`. OpenCode 1.3.9
+passes executable/config/model-inventory discovery but pure and normal clean
+Qwen runs time out with zero structured events. Docker is also unavailable in
+the local environment, so heavy runtime results remain unexecuted rather than
+being inferred from the Dockerfile.

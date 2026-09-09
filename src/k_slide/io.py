@@ -30,7 +30,7 @@ def atomic_write_bytes(path: Path, data: bytes, *, mode: int | None = None) -> N
         temporary.unlink(missing_ok=True)
 
 
-def atomic_write_text(path: Path, text: str, *, mode: int | None = None) -> None:
+def atomic_write_text(path: Path, text: str, *, mode: int | None = 0o600) -> None:
     atomic_write_bytes(path, text.encode("utf-8"), mode=mode)
 
 

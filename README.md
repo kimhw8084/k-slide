@@ -81,6 +81,8 @@ The public evaluation laboratory generates 100 synthetic scenario specifications
 
 The implementation status, known limitations, and next concrete tasks are tracked in [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md). Historical source-pack lineage remains in [`SOURCE_PROVENANCE.md`](SOURCE_PROVENANCE.md). The exact completion artifact contract is code-owned by `src/k_slide/policy.py`.
 
+Administrators can run `k-slide doctor --production` against a managed deployment profile. It fails closed until the approved model, OCR assets/provider, OpenCode runtime, retention policy, tenant isolation, egress policy, and certification fingerprint are proven. The non-model-facing `k-slide retention-cleanup` and `k-slide support-bundle` commands are intended for an administrator or deployment wrapper; support bundles contain operational metadata only and exclude source content.
+
 The corpus runner is available for approved OpenCode environments:
 
 ```bash

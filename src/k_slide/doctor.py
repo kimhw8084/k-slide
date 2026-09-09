@@ -13,13 +13,15 @@ from . import __version__
 from .runtime import discover_runtime
 from .security import validate_input
 from .ocr.policy import create_ocr_provider, load_ocr_policy
+from .production import production_checks
+from .redaction import redact_value
 
 
 def _check(label: str, status: str, detail: str) -> dict[str, str]:
     return {"label": label, "status": status, "detail": detail}
 
 
-def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path | None = None) -> dict[str, Any]:
+def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path | None = None, production: bool = False) -> dict[str, Any]:
     root = root.resolve()
     default_engine = root / ".k-slide-engine" if (root / ".k-slide-engine").is_dir() else root
     engine_root = (engine_root or default_engine).resolve()
@@ -100,5 +102,8 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
             checks.append(_check("Input validation", "WARN", "Pillow unavailable; header-only validation is not treated as a capability pass"))
     except Exception as exc:
         checks.append(_check("Input validation", "FAIL", str(exc)))
+    if production:
+        checks.extend(production_checks(root, runtime))
     overall = "FAIL" if any(item["status"] == "FAIL" for item in checks) else ("WARN" if any(item["status"] == "WARN" for item in checks) else "PASS")
-    return {"k_slide_version": __version__, "overall": overall, "runtime": runtime.as_dict(), "checks": checks}
+    result = {"k_slide_version": __version__, "mode": "production" if production else "development", "overall": overall, "runtime": runtime.as_dict(), "checks": checks}
+    return redact_value(result, roots=(root,)) if production else result
