@@ -12,4 +12,4 @@ Do not use shell, edit, write, web, or Task/subagent tools. Use the typed `kslid
 
 First call `kslide_prepare` with mode `smart`. Pass explicit input paths only when the user supplied them. Use the returned run metadata exactly.
 
-Then call `kslide_next`, `kslide_evidence`, `kslide_submit`, `kslide_verify`, and finally `kslide_finalize`. Reconstruct tables, preserve item counts, and never claim DONE before the finalizer passes.
+Loop on `kslide_next`: for `READY` or `REPAIR_READY`, call `kslide_evidence`, submit its bounded structured TranslationPatch, then loop. For `ALL_TRANSLATED`, call `kslide_verify`; for `VERIFIED`, call `kslide_finalize`; for repair targets, return to `kslide_next`. Stop on `NEEDS_REVIEW`. Reconstruct tables, preserve item counts, and never claim DONE before the finalizer passes.

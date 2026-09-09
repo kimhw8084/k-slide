@@ -6,6 +6,7 @@ import hashlib
 import re
 from pathlib import Path
 
+from .errors import KSlideError
 from .io import atomic_write_json, read_json
 from .state import RunPhase, load_state
 
@@ -36,6 +37,18 @@ def _run_dirs(run_root: Path) -> list[Path]:
     )
 
 
+def incomplete_runs(run_root: Path) -> list[Path]:
+    values: list[Path] = []
+    for candidate in _run_dirs(run_root):
+        try:
+            state = load_state(candidate)
+        except (KSlideError, KeyError, TypeError, ValueError, OSError):
+            continue
+        if not state.terminal:
+            values.append(candidate)
+    return values
+
+
 def resolve_run(run_root: Path, *, explicit: str | None = None, session_id: str | None = None) -> Path | None:
     """Resolve explicit, current-session, then latest incomplete/latest run."""
 
@@ -46,12 +59,6 @@ def resolve_run(run_root: Path, *, explicit: str | None = None, session_id: str 
         for candidate_path in candidates:
             candidate_path = candidate_path.resolve()
             if candidate_path.is_dir() and candidate_path.parent == run_root:
-                if session_id:
-                    try:
-                        if load_state(candidate_path).session_key != session_key(session_id):
-                            return None
-                    except Exception:
-                        return None
                 return candidate_path
         return None
 
@@ -64,16 +71,13 @@ def resolve_run(run_root: Path, *, explicit: str | None = None, session_id: str 
                 candidate = run_root / run_id
                 if candidate.is_dir():
                     return candidate
-            except Exception:
+            except (KSlideError, KeyError, TypeError, ValueError, OSError):
                 pass
 
     runs = _run_dirs(run_root)
-    incomplete: list[Path] = []
-    for candidate in runs:
-        try:
-            state = load_state(candidate)
-        except Exception:
-            continue
-        if state.phase not in {RunPhase.COMPLETE, RunPhase.NEEDS_REVIEW, RunPhase.FAILED_INPUT, RunPhase.FAILED_RUNTIME, RunPhase.FAILED_NORMALIZATION, RunPhase.FAILED_EXTRACTION, RunPhase.FAILED_SCHEMA, RunPhase.FAILED_INTERNAL}:
-            incomplete.append(candidate)
-    return (incomplete or runs or [None])[0]
+    incomplete = incomplete_runs(run_root)
+    if len(incomplete) == 1:
+        return incomplete[0]
+    if len(incomplete) > 1:
+        return None
+    return (runs or [None])[0]

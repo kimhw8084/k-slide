@@ -70,6 +70,11 @@ def _inspect_zip(path: Path, *, extension: str) -> None:
                     raise KSlideError(ErrorCode.INPUT_CORRUPT, "PPTX archive is missing presentation structure.")
                 if any(name.lower().endswith("vbaproject.bin") for name in names):
                     raise KSlideError(ErrorCode.INPUT_ARCHIVE_UNSAFE, "Macro-enabled PowerPoint content is not accepted.")
+                relationship_files = [info for info in infos if info.filename.lower().endswith(".rels")]
+                for info in relationship_files:
+                    relationships = archive.read(info)
+                    if b"TargetMode=\"External\"" in relationships or b"TargetMode='External'" in relationships:
+                        raise KSlideError(ErrorCode.INPUT_ARCHIVE_UNSAFE, "Office document contains an external relationship that could fetch remote content.", {"entry": info.filename})
     except KSlideError:
         raise
     except (OSError, zipfile.BadZipFile) as exc:

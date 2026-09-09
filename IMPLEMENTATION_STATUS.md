@@ -1,55 +1,60 @@
 # K-Slide Implementation Status
 
-## Current phase
+## Current boundary
 
-**Phase 1 — P0 platform hardening: coherent development boundary complete.**
+**K-Slide 0.2.0 — Phase 1.1 trust-model hardening and Phase 2 evidence boundary.**
 
-The repository now has a real Python core and a typed OpenCode lifecycle. The next phase is document normalization and evidence extraction. This status is intentionally conservative: the runtime foundation is implemented, but the project is not yet claiming full visual translation or production certification.
+The repository now has a coherent, tested boundary from validated immutable input through normalized document units, native evidence, deterministic crops, and bounded evidence packets. It does not claim production translation certification: the local runtime is `ollama/qwen3:14b`, not the target `google/gemma-4-31b-it`, and the release gates have not been measured on a gold corpus.
 
-## Completed in this boundary
+## Implemented and tested
 
-- Added a portable `k_slide` Python package with stable error codes and a versioned `SlideIR` foundation.
-- Added content-aware input validation for PNG/JPEG/WebP/PDF/PPTX, including size, archive-expansion, unsafe-path, macro, and symlink checks.
-- Added immutable run snapshots, SHA-256 manifests, restrictive run permissions, and atomic JSON/text writes.
-- Added a validated run state machine with explicit failure and repair states.
-- Added session-to-run binding and current-session/latest-run fallback without requiring users to remember run IDs.
-- Added collision-safe project/global installation that never copies or overwrites a host `AGENTS.md`.
-- Added the typed OpenCode tool surface: `kslide_prepare`, `kslide_next`, `kslide_evidence`, `kslide_submit`, `kslide_verify`, `kslide_finalize`, `kslide_status`, and `kslide_doctor`.
-- Added structured translation validation and canonicalization before persistence.
-- Made `RUN_COMPLETE.md` deterministic-verifier-owned; report presence alone cannot complete a run.
-- Added runtime/model discovery and a doctor that distinguishes missing capabilities from warnings.
-- Condensed the skill entrypoint so stable laws remain in the skill while lifecycle complexity stays in code.
-- Confirmed OpenCode discovery for the `k-slide` agent, all eight `kslide_*` tools, commands, and skill under OpenCode `1.3.9`.
+- Engine-owned, versioned `EvidenceIR` with deterministic SHA-256 revisions.
+- Strict model-owned `TranslationPatch`; source geometry, native text, OCR candidates, numeric facts, required IDs, and coverage baselines cannot be supplied by the model.
+- Engine-controlled `EvidenceIR + TranslationPatch → SlideIR` merge with explicit provenance.
+- Evidence revision, work-unit identity, table/cell identity, required-region coverage, and source-field injection checks.
+- Persisted multi-work-unit queue with sequential scheduling, repair states, optimistic revisions, run locking, and resumable `NEEDS_REVIEW`.
+- Finalization that re-runs verification against current artifacts before creating `RUN_COMPLETE.md`.
+- Central completion policy in `src/k_slide/policy.py`, used by manifests, verification, and finalization.
+- Typed OpenCode `kslide_submit` payload schema; no model-facing JSON-in-a-string contract.
+- Narrow OpenCode permissions: normal K-Slide execution has no bash, edit, write, subagent, webfetch, or websearch access.
+- Image normalization with decode, EXIF orientation, dimension, pixel-count, and decompression-safety limits.
+- PDF page rendering and native text-span extraction through PyMuPDF.
+- PPTX native shape/table extraction through python-pptx and capability-gated headless LibreOffice rendering.
+- Deterministic render-region crops, model-ready non-generative resizing, numeric evidence extraction, and native/OCR evidence-fusion states.
+- OCR provider protocol with `none` and optional PaddleOCR 3.x adapter.
+- Black-box CLI, installer regression, trust-model, queue/resume, concurrency, stale-evidence, stale-finalization, and normalization fixture tests.
+- GitHub Actions workflow for Python 3.11/3.12, unit tests, compile checks, CLI/installer checks, and doctor.
 
-## Verification performed
+## Verification performed locally
 
 ```text
-11 unittest tests: PASS
+PYTHONPATH=src python3 -m unittest discover -s tests -v: PASS (26 tests, 3 optional skips)
+PYTHONPATH=src /tmp/k-slide-verify/bin/python -m unittest discover -s tests -v: PASS (26 tests, optional image/PDF/PPTX fixtures exercised)
 OpenCode: 1.3.9
-Resolved local model: ollama/qwen3:14b
+Configured model: ollama/qwen3:14b
 Model compatibility: different_model_warning
 ```
 
-The local runtime is not the target `google/gemma-4-31b-it`, so no Gemma production claim is made. PDF/PPTX/OCR optional dependencies are not installed in this workspace and are reported by doctor rather than silently treated as available.
+The three skipped tests require optional local Pillow, PyMuPDF, and python-pptx availability in the base interpreter. The temporary verification environment exercised those fixtures successfully. The CI workflow installs the project development extras, while PPTX rendering and PaddleOCR remain capability-gated integration paths. No target-model session or Gemma production evaluation was available locally.
 
 ## Known limitations
 
-- Phase 2 normalization is not implemented yet: PDF text/render extraction, PPTX native/render extraction, region crops, OCR adapters, and evidence fusion remain.
-- `kslide_evidence` currently returns lifecycle metadata and an explicit “not yet built” deck-context note; it does not yet expose native/OCR evidence.
-- `kslide_next` and `kslide_evidence` fail closed with `NOT_READY` until Phase 2 normalization/extraction exists; the project does not pretend to translate from an unbuilt evidence pipeline.
-- The verifier currently proves schema, coverage-ledger presence, table shape, and unresolved disclosure. Numeric equivalence, date/unit integrity, modality, residual Hangul, terminology, and visual-relation checks remain Phase 5 work.
-- Full report/executive/review renderers are not yet generated by the core; compatibility artifact requirements are guarded for the translation boundary.
-- OpenCode custom-tool loading is wired to the documented `.opencode/tools` mechanism but has not been exercised end-to-end against a model session in this workspace because the configured model/provider is not the Gemma target and no OpenCode credentials are configured.
-- Current-message attachment materialization is explicitly not advertised; use `.k-slide-input/` or explicit paths.
-- The bundled skill-creator quick validator could not run because the environment lacks its `PyYAML` dependency; OpenCode’s own skill discovery successfully parsed the frontmatter and content.
+- Full target Gemma translation, repair quality, and zero-Korean comprehension evaluation are not yet measured.
+- The current local interpreter does not have Pillow, PyMuPDF, python-pptx, LibreOffice, or PaddleOCR installed; doctor reports those capabilities rather than pretending they pass.
+- PDF/PPTX normalization code is implemented but needs runtime fixture execution in an environment with those dependencies.
+- Numeric extraction is an evidence foundation, not yet the complete semantic equivalence verifier for Korean scale units, dates, direction, `%` versus `%p`, or currency conversion.
+- Modality, terminology, residual Hangul, visual-relation, and executive-claim verifiers remain to be expanded for the translation phase.
+- Deterministic final report/executive-brief content generation is currently a completion-contract boundary; richer renderers are next.
+- Current-message attachment materialization is not advertised because OpenCode 1.3.9 does not expose a proven safe bridge in this repository.
+- The PaddleOCR adapter follows the current 3.x API shape but is not installed or benchmarked in this workspace.
 
-## Next concrete work
+## Next phase
 
-1. Implement Phase 2 canonical document normalization for image/PDF/PPTX with capability-aware doctor checks.
-2. Add native extraction and deterministic slide/page render outputs.
-3. Add region generation and OCR-provider abstraction, then populate evidence packets for `kslide_evidence`.
-4. Add deck context, terminology, modality, and numeric fact models before model-facing translation work.
-5. Expand integration/failure-injection tests around normalization and resume behavior.
+1. Install/execute the optional normalization stack in CI or a managed cloud image and add rendered PDF/PPTX fixture coverage.
+2. Complete deck context, terminology, modality, and numeric semantic models.
+3. Add the Gemma bounded work-packet prompts and deterministic repair loop.
+4. Expand numeric, table, residual-Korean, modality, evidence-linkage, and executive-claim verification.
+5. Run v6 baseline, ablations, target-model configuration experiments, bilingual review, and zero-Korean comprehension evaluation.
 
 ## Architecture decisions
 
@@ -58,3 +63,8 @@ The local runtime is not the target `google/gemma-4-31b-it`, so no Gemma product
 - [ADR 0003 — Deterministic completion](docs/adr/0003-deterministic-completion.md)
 - [ADR 0004 — Local-first privacy](docs/adr/0004-local-first-privacy.md)
 - [ADR 0005 — OpenCode compatibility](docs/adr/0005-opencode-compatibility.md)
+- [ADR 0006 — Engine-owned evidence](docs/adr/0006-engine-owned-evidence.md)
+- [ADR 0007 — Multi-work-unit state](docs/adr/0007-multi-work-unit-state.md)
+- [ADR 0008 — Evidence revisions](docs/adr/0008-evidence-revision.md)
+- [ADR 0009 — Document normalization](docs/adr/0009-document-normalization.md)
+- [ADR 0010 — OCR provider abstraction](docs/adr/0010-ocr-provider-abstraction.md)

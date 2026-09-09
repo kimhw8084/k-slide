@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import tempfile
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -39,10 +40,35 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
     checks.append(_check("Model identity", model_status, runtime.reported_model_id or "not discovered"))
     checks.append(_check("Model compatibility", model_status, runtime.model_compatibility))
     checks.append(_check("Vision support", "PASS" if runtime.vision_support is True else "WARN", "feature-detected" if runtime.vision_support is not None else "not proven"))
+    image_status = "FAIL"
+    image_detail = "install K-Slide core dependencies for image normalization"
+    if importlib.util.find_spec("PIL"):
+        try:
+            from PIL import Image
+
+            with tempfile.NamedTemporaryFile(suffix=".png", dir=root, delete=False) as handle:
+                image_path = Path(handle.name)
+            try:
+                Image.new("RGB", (8, 8), "white").save(image_path, format="PNG")
+                with Image.open(image_path) as image:
+                    image.load()
+                image_status = "PASS"
+                image_detail = "Pillow decode smoke test passed"
+            finally:
+                image_path.unlink(missing_ok=True)
+        except (ImportError, OSError, ValueError) as exc:
+            image_detail = f"Pillow is installed but decode smoke test failed: {exc}"
+    checks.append(_check("Image decoder", image_status, image_detail))
     checks.append(_check("PDF extraction/rendering", "PASS" if importlib.util.find_spec("fitz") else "WARN", "PyMuPDF available" if importlib.util.find_spec("fitz") else "install k-slide[pdf] for PDF normalization"))
     checks.append(_check("PPTX extraction", "PASS" if importlib.util.find_spec("pptx") else "WARN", "python-pptx available" if importlib.util.find_spec("pptx") else "install k-slide[pptx] for native PPTX extraction"))
-    checks.append(_check("PPTX rendering", "WARN", "headless office renderer is not yet configured"))
-    checks.append(_check("Korean OCR", "PASS" if importlib.util.find_spec("paddleocr") else "WARN", "PaddleOCR available" if importlib.util.find_spec("paddleocr") else "optional OCR backend not installed"))
+    office_binary = shutil.which("libreoffice") or shutil.which("soffice")
+    pptx_render_status = "PASS" if office_binary and importlib.util.find_spec("fitz") else "WARN"
+    pptx_render_detail = office_binary or "LibreOffice/soffice not discovered"
+    if not importlib.util.find_spec("fitz"):
+        pptx_render_detail += "; PyMuPDF is required for rendered pages"
+    checks.append(_check("PPTX rendering", pptx_render_status, pptx_render_detail))
+    paddle_status = "PASS" if importlib.util.find_spec("paddleocr") and importlib.util.find_spec("paddle") else "WARN"
+    checks.append(_check("Korean OCR", paddle_status, "PaddleOCR/PaddlePaddle 3.x available" if paddle_status == "PASS" else "optional PaddleOCR 3.x backend not installed"))
     try:
         root.joinpath(".k-slide-runs").mkdir(parents=True, exist_ok=True, mode=0o700)
         with tempfile.NamedTemporaryFile(prefix=".doctor-", dir=root / ".k-slide-runs", delete=True) as handle:

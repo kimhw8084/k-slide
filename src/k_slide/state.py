@@ -8,7 +8,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from . import SCHEMA_VERSION
+from . import RUN_STATE_SCHEMA_VERSION
 from .errors import ErrorCode, KSlideError
 from .io import atomic_write_json, read_json
 
@@ -16,7 +16,9 @@ from .io import atomic_write_json, read_json
 class RunPhase(str, Enum):
     CREATED = "CREATED"
     INPUT_VALIDATED = "INPUT_VALIDATED"
+    NORMALIZING = "NORMALIZING"
     NORMALIZED = "NORMALIZED"
+    EXTRACTING = "EXTRACTING"
     EXTRACTED = "EXTRACTED"
     TRANSLATING = "TRANSLATING"
     TRANSLATED = "TRANSLATED"
@@ -36,20 +38,23 @@ class RunPhase(str, Enum):
 
 _ALLOWED: dict[RunPhase, set[RunPhase]] = {
     RunPhase.CREATED: {RunPhase.INPUT_VALIDATED, RunPhase.FAILED_INPUT, RunPhase.FAILED_RUNTIME},
-    RunPhase.INPUT_VALIDATED: {RunPhase.NORMALIZED, RunPhase.FAILED_NORMALIZATION, RunPhase.FAILED_RUNTIME},
-    RunPhase.NORMALIZED: {RunPhase.EXTRACTED, RunPhase.FAILED_EXTRACTION, RunPhase.FAILED_RUNTIME},
+    RunPhase.INPUT_VALIDATED: {RunPhase.NORMALIZING, RunPhase.NORMALIZED, RunPhase.FAILED_NORMALIZATION, RunPhase.FAILED_RUNTIME},
+    RunPhase.NORMALIZING: {RunPhase.NORMALIZED, RunPhase.FAILED_NORMALIZATION, RunPhase.FAILED_RUNTIME},
+    RunPhase.NORMALIZED: {RunPhase.EXTRACTING, RunPhase.EXTRACTED, RunPhase.FAILED_EXTRACTION, RunPhase.FAILED_RUNTIME},
+    RunPhase.EXTRACTING: {RunPhase.EXTRACTED, RunPhase.FAILED_EXTRACTION, RunPhase.FAILED_RUNTIME},
     RunPhase.EXTRACTED: {RunPhase.TRANSLATING, RunPhase.FAILED_RUNTIME},
-    RunPhase.TRANSLATING: {RunPhase.TRANSLATED, RunPhase.FAIL_REPAIRABLE, RunPhase.NEEDS_REVIEW, RunPhase.FAILED_SCHEMA},
-    RunPhase.TRANSLATED: {RunPhase.VERIFYING, RunPhase.FAILED_SCHEMA},
+    RunPhase.TRANSLATING: {RunPhase.TRANSLATING, RunPhase.TRANSLATED, RunPhase.VERIFYING, RunPhase.REPAIRING, RunPhase.FAIL_REPAIRABLE, RunPhase.NEEDS_REVIEW, RunPhase.FAILED_SCHEMA},
+    RunPhase.TRANSLATED: {RunPhase.TRANSLATING, RunPhase.VERIFYING, RunPhase.FAILED_SCHEMA},
     RunPhase.VERIFYING: {RunPhase.VERIFIED, RunPhase.FAIL_REPAIRABLE, RunPhase.NEEDS_REVIEW, RunPhase.FAILED_INTERNAL},
     RunPhase.FAIL_REPAIRABLE: {RunPhase.REPAIRING, RunPhase.NEEDS_REVIEW},
-    RunPhase.REPAIRING: {RunPhase.VERIFYING, RunPhase.NEEDS_REVIEW, RunPhase.FAILED_SCHEMA},
-    RunPhase.VERIFIED: {RunPhase.COMPLETE, RunPhase.REPAIRING, RunPhase.NEEDS_REVIEW},
+    RunPhase.REPAIRING: {RunPhase.TRANSLATING, RunPhase.VERIFYING, RunPhase.NEEDS_REVIEW, RunPhase.FAILED_SCHEMA},
+    RunPhase.NEEDS_REVIEW: {RunPhase.REPAIRING, RunPhase.VERIFYING, RunPhase.FAILED_SCHEMA},
+    RunPhase.VERIFIED: {RunPhase.COMPLETE, RunPhase.REPAIRING, RunPhase.VERIFYING, RunPhase.NEEDS_REVIEW},
+    RunPhase.COMPLETE: {RunPhase.VERIFYING, RunPhase.REPAIRING, RunPhase.COMPLETE},
 }
 
 _TERMINAL = {
     RunPhase.COMPLETE,
-    RunPhase.NEEDS_REVIEW,
     RunPhase.FAILED_INPUT,
     RunPhase.FAILED_RUNTIME,
     RunPhase.FAILED_NORMALIZATION,
@@ -75,7 +80,8 @@ class RunState:
     error_code: str | None = None
     error_message: str | None = None
     repair_attempts: int = 0
-    schema_version: str = SCHEMA_VERSION
+    revision: int = 0
+    schema_version: str = RUN_STATE_SCHEMA_VERSION
     created_at: str = field(default_factory=now_utc)
     updated_at: str = field(default_factory=now_utc)
 
@@ -120,6 +126,7 @@ class RunState:
             "error_code": self.error_code,
             "error_message": self.error_message,
             "repair_attempts": self.repair_attempts,
+            "revision": self.revision,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -138,7 +145,8 @@ class RunState:
                 error_code=data.get("error_code"),
                 error_message=data.get("error_message"),
                 repair_attempts=int(data.get("repair_attempts", 0)),
-                schema_version=str(data.get("schema_version", SCHEMA_VERSION)),
+                revision=int(data.get("revision", 0)),
+                schema_version=str(data.get("schema_version", RUN_STATE_SCHEMA_VERSION)),
                 created_at=str(data.get("created_at", now_utc())),
                 updated_at=str(data.get("updated_at", now_utc())),
             )
@@ -151,6 +159,7 @@ def state_path(run_dir: Path) -> Path:
 
 
 def save_state(run_dir: Path, state: RunState) -> None:
+    state.revision += 1
     atomic_write_json(state_path(run_dir), state.as_dict(), mode=0o600)
 
 

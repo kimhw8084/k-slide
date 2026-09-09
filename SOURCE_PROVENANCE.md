@@ -12,11 +12,12 @@
 
 ## Engine evolution
 
-- K-Slide engine: `0.1.0` Phase 1 platform-hardening implementation
+- K-Slide engine: `0.2.0` Phase 1.1 + Phase 2 evidence-boundary implementation
 - Implementation date: 2026-09-08
 - Runtime inspected: OpenCode `1.3.9`; local configured model `ollama/qwen3:14b`
 - Target model: `google/gemma-4-31b-it`; local runtime is recorded as a compatibility warning and is not certified
-- Compatibility: v6 commands and single-agent behavior retained; lifecycle internals now use typed tools, immutable snapshots, a validated state machine, and deterministic completion
+- Compatibility: v6 commands and single-agent behavior retained; lifecycle internals now use typed tools, immutable snapshots, a validated multi-work-unit state machine, engine-owned EvidenceIR, structured TranslationPatch submission, document normalization, and deterministic completion
+- Evidence boundary: image/PDF/PPTX normalization, native extraction, deterministic region crops, numeric evidence, and an optional OCR provider abstraction are implemented; full translation certification is not claimed
 - No confidential slide content was added to the repository
 
 ## Why v6 is the active baseline

@@ -12,6 +12,8 @@ from typing import Any, Iterable
 from . import SCHEMA_VERSION
 from .errors import ErrorCode, KSlideError
 from .io import atomic_write_json, atomic_write_text
+from .queue import create_queue, save_queue
+from .policy import COMPLETION_POLICY
 from .runtime import discover_runtime
 from .security import InputArtifact, SUPPORTED_EXTENSIONS, sha256_file, validate_input
 from .session import bind_session
@@ -92,7 +94,7 @@ def _write_compatibility_artifacts(run_dir: Path, run_id: str, artifacts: list[I
         run_dir / "ARTIFACT_MANIFEST.json",
         {
             "schema_version": SCHEMA_VERSION,
-            "required_for_complete": ["05_executive_brief.md", "05_final_report.md", "06_verification.md", "07_unresolved_items.md", "RUN_COMPLETE.md"],
+            "required_for_complete": list(COMPLETION_POLICY.required_artifacts),
             "canonical_directories": ["inputs", "normalized", "native", "regions", "evidence", "ir", "verification"],
             "compatibility_artifacts": ["00_run_manifest.md", "00_input_inventory.json", "RUN_STATE.json", "RUN_RECOVERY_GUIDE.md"],
         },
@@ -101,7 +103,7 @@ def _write_compatibility_artifacts(run_dir: Path, run_id: str, artifacts: list[I
     atomic_write_json(run_dir / "metrics.json", {"slides_processed": 0, "tables_processed": 0, "regions_processed": 0, "numbers_verified": 0, "unresolved_count": 0, "repair_count": 0, "phase": "INPUT_VALIDATED"}, mode=0o600)
 
 
-def prepare_run(root: Path, *, mode: str = "smart", explicit_paths: Iterable[str] = (), session_id: str | None = None) -> Path:
+def prepare_run(root: Path, *, mode: str = "smart", explicit_paths: Iterable[str] = (), session_id: str | None = None, perform_processing: bool = False) -> Path:
     """Create an immutable run, returning its directory even for a failed input run."""
 
     root = root.expanduser().resolve()
@@ -113,7 +115,7 @@ def prepare_run(root: Path, *, mode: str = "smart", explicit_paths: Iterable[str
     run_id = _run_id()
     run_dir = run_root / run_id
     run_dir.mkdir(mode=0o700)
-    for name in ("inputs", "normalized", "native", "regions", "evidence", "ir", "verification"):
+    for name in ("inputs", "normalized", "native", "regions", "evidence", "ir", "translations", "verification"):
         (run_dir / name).mkdir(mode=0o700)
 
     state = RunState(run_id=run_id, mode=mode, session_key=bind_session(run_root, session_id, run_id), next_action="Validate inputs")
@@ -155,8 +157,16 @@ def prepare_run(root: Path, *, mode: str = "smart", explicit_paths: Iterable[str
     runtime = discover_runtime()
     atomic_write_json(run_dir / "RUNTIME_METADATA.json", runtime.as_dict(), mode=0o600)
     state.input_count = len(artifacts)
-    state.current_work_unit = "slide-001"
+    queue = create_queue(run_id, input_count=len(artifacts), now=state.updated_at)
+    save_queue(run_dir, queue)
+    state.current_work_unit = None
     state.transition(RunPhase.INPUT_VALIDATED, next_action="Normalize documents and create evidence work units.")
     save_state(run_dir, state)
     bind_session(run_root, session_id, run_id)
+    if perform_processing:
+        from .extraction import extract_run
+        from .normalization import normalize_run
+
+        normalize_run(run_dir)
+        extract_run(run_dir)
     return run_dir

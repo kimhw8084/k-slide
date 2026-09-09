@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kimhw8084/agent-skills/blob/main/k-slide/schemas/evidence-ir.schema.json",
+  "title": "K-Slide Engine EvidenceIR",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "evidence_revision", "document_id", "work_unit_id", "source", "regions", "tables", "numeric_facts", "visual_elements", "native_evidence", "required_source_ids"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "evidence_revision": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "document_id": {"type": "string"},
+    "work_unit_id": {"type": "string"},
+    "source": {"type": "object"},
+    "regions": {"type": "array", "items": {"type": "object", "required": ["region_id", "bbox_px", "bbox_normalized", "reading_order", "region_type", "required_for_translation"]}},
+    "tables": {"type": "array", "items": {"type": "object", "required": ["table_id", "row_count", "column_count", "cells"]}},
+    "numeric_facts": {"type": "array"},
+    "visual_elements": {"type": "array"},
+    "native_evidence": {"type": "array"},
+    "required_source_ids": {"type": "array", "items": {"type": "string"}}
+  }
+}

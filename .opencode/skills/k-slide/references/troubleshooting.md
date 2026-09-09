@@ -1,6 +1,6 @@
-# K-Slide v6 Troubleshooting
+# K-Slide Troubleshooting
 
-Run folder not created: approve bash setup or manually run `prepare_run.sh smart <image>`.
+Run folder not created: run `/k-slide-doctor`, then retry `/k-slide`. Normal users should not run setup scripts manually.
 Skill says missing: check `SKILL.md` frontmatter.
 Raw tool-call text appears: run `/k-slide-doctor`, then `/k-slide-safe`.
 Table summarized: run `/k-slide-strict`; this is a verification failure.

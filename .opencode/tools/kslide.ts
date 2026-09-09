@@ -4,9 +4,61 @@ import { existsSync } from "node:fs"
 
 type ToolContext = {
   sessionID: string
+  messageID?: string
   directory: string
   worktree: string
 }
+
+const translationRegion = tool.schema.object({
+  region_id: tool.schema.string(),
+  english: tool.schema.string(),
+  commitment_status: tool.schema.string().optional(),
+  speech_act: tool.schema.string().optional(),
+  term_ids: tool.schema.array(tool.schema.string()).default([]),
+  numeric_fact_ids: tool.schema.array(tool.schema.string()).default([]),
+  unresolved: tool.schema.boolean().default(false),
+  unresolved_reason: tool.schema.string().optional(),
+})
+
+const translationCell = tool.schema.object({
+  cell_id: tool.schema.string(),
+  english: tool.schema.string(),
+  unresolved: tool.schema.boolean().default(false),
+  unresolved_reason: tool.schema.string().optional(),
+})
+
+const translationTable = tool.schema.object({
+  table_id: tool.schema.string(),
+  cells: tool.schema.array(translationCell),
+})
+
+const visualInterpretation = tool.schema.object({
+  relation_id: tool.schema.string(),
+  interpretation: tool.schema.string(),
+  evidence_ids: tool.schema.array(tool.schema.string()).default([]),
+})
+
+const executiveSemantics = tool.schema.object({
+  source_faithful: tool.schema.string().optional(),
+  takeaway: tool.schema.string().optional(),
+  decision_or_ask: tool.schema.string().optional(),
+  status: tool.schema.string().optional(),
+  risk: tool.schema.string().optional(),
+  dependency: tool.schema.string().optional(),
+  timing: tool.schema.string().optional(),
+  evidence_ids: tool.schema.array(tool.schema.string()).default([]),
+})
+
+const translationPatch = tool.schema.object({
+  schema_version: tool.schema.string(),
+  work_unit_id: tool.schema.string(),
+  evidence_revision: tool.schema.string(),
+  regions: tool.schema.array(translationRegion),
+  tables: tool.schema.array(translationTable),
+  visual_interpretations: tool.schema.array(visualInterpretation).default([]),
+  executive_semantics: executiveSemantics.default({}),
+  repair_revision: tool.schema.string().optional(),
+})
 
 function projectAndEngine(context: ToolContext): { root: string; engine: string; opencodeRoot: string } {
   const candidates = [context.directory, context.worktree]
@@ -71,13 +123,13 @@ export const evidence = tool({
 })
 
 export const submit = tool({
-  description: "Validate and atomically store one structured K-Slide translation output for the current work unit.",
+  description: "Validate and atomically merge one structured TranslationPatch against immutable engine evidence.",
   args: {
     run_id: tool.schema.string(),
-    payload_json: tool.schema.string().describe("JSON object matching the K-Slide translation schema."),
+    payload: translationPatch,
   },
   async execute(args, context) {
-    return runCore(context, "submit", ["--run", args.run_id, "--session-id", context.sessionID, "--payload-json", args.payload_json])
+    return runCore(context, "submit", ["--run", args.run_id, "--session-id", context.sessionID, "--payload-json", JSON.stringify(args.payload)])
   },
 })
 

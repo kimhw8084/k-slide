@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from . import SCHEMA_VERSION
+from . import SLIDE_IR_SCHEMA_VERSION
 
 
 @dataclass
@@ -97,13 +97,17 @@ class SlideIR:
     numeric_facts: list[NumericFact] = field(default_factory=list)
     entities: list[dict[str, Any]] = field(default_factory=list)
     terms: list[dict[str, Any]] = field(default_factory=list)
+    native_evidence: list[dict[str, Any]] = field(default_factory=list)
     unresolved: list[dict[str, Any]] = field(default_factory=list)
     coverage: list[CoverageEntry] = field(default_factory=list)
     executive_semantics: dict[str, Any] = field(default_factory=dict)
+    evidence_revision: str | None = None
+    translation_revision: str | None = None
+    model_runtime: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
         value = asdict(self)
-        value["schema_version"] = SCHEMA_VERSION
+        value["schema_version"] = SLIDE_IR_SCHEMA_VERSION
         return value
 
     @classmethod
@@ -126,7 +130,11 @@ class SlideIR:
             numeric_facts=facts,
             entities=list(value.get("entities", [])),
             terms=list(value.get("terms", [])),
+            native_evidence=list(value.get("native_evidence", [])),
             unresolved=list(value.get("unresolved", [])),
             coverage=coverage,
             executive_semantics=dict(value.get("executive_semantics", {})),
+            evidence_revision=value.get("evidence_revision") or value.get("source", {}).get("evidence_revision"),
+            translation_revision=value.get("translation_revision"),
+            model_runtime=dict(value.get("model_runtime", value.get("executive_semantics", {}).get("model_runtime", {}))),
         )

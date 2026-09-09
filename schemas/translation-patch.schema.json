@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kimhw8084/agent-skills/blob/main/k-slide/schemas/translation-patch.schema.json",
+  "title": "K-Slide Gemma TranslationPatch",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "work_unit_id", "evidence_revision", "regions", "tables", "visual_interpretations", "executive_semantics"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "work_unit_id": {"type": "string"},
+    "evidence_revision": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "repair_revision": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "regions": {"type": "array", "items": {"$ref": "#/$defs/region"}},
+    "tables": {"type": "array", "items": {"$ref": "#/$defs/table"}},
+    "visual_interpretations": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["relation_id", "interpretation", "evidence_ids"], "properties": {"relation_id": {"type": "string"}, "interpretation": {"type": "string"}, "evidence_ids": {"type": "array", "items": {"type": "string"}}}}},
+    "executive_semantics": {"type": "object", "additionalProperties": false, "properties": {"source_faithful": {"type": "string"}, "takeaway": {"type": "string"}, "decision_or_ask": {"type": "string"}, "status": {"type": "string"}, "risk": {"type": "string"}, "dependency": {"type": "string"}, "timing": {"type": "string"}, "evidence_ids": {"type": "array", "items": {"type": "string"}}}}
+  },
+  "$defs": {
+    "region": {"type": "object", "additionalProperties": false, "required": ["region_id", "english", "term_ids", "numeric_fact_ids", "unresolved"], "properties": {"region_id": {"type": "string"}, "english": {"type": "string"}, "commitment_status": {"type": ["string", "null"]}, "speech_act": {"type": ["string", "null"]}, "term_ids": {"type": "array", "items": {"type": "string"}}, "numeric_fact_ids": {"type": "array", "items": {"type": "string"}}, "unresolved": {"type": "boolean"}, "unresolved_reason": {"type": ["string", "null"]}}},
+    "table": {"type": "object", "additionalProperties": false, "required": ["table_id", "cells"], "properties": {"table_id": {"type": "string"}, "cells": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["cell_id", "english", "unresolved"], "properties": {"cell_id": {"type": "string"}, "english": {"type": "string"}, "unresolved": {"type": "boolean"}, "unresolved_reason": {"type": ["string", "null"]}}}}}}
+  }
+}

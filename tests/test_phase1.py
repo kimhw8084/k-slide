@@ -3,17 +3,20 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 from k_slide.errors import ErrorCode, KSlideError
 from k_slide.ingest import prepare_run
 from k_slide.installer import install, verify_install
 from k_slide.doctor import diagnose
+from k_slide.evidence_ir import EvidenceIR, EvidenceRegion, save_evidence
+from k_slide.queue import WorkUnitStatus, load_queue, save_queue
 from k_slide.runtime import discover_runtime
 from k_slide.session import resolve_run
 from k_slide.state import RunPhase, load_state, save_state
-from k_slide.verify import canonicalize_translation_payload, finalize_run, verify_run
-from k_slide.cli import _next
+from k_slide.verify import finalize_run, verify_run
+from k_slide.cli import _next, _submit
 
 
 PNG_HEADER = b"\x89PNG\r\n\x1a\nminimal-test-fixture"
@@ -29,6 +32,19 @@ class Phase1Tests(unittest.TestCase):
             with self.assertRaises(KSlideError) as raised:
                 validate_input(path)
             self.assertEqual(raised.exception.code, ErrorCode.INPUT_TYPE_MISMATCH)
+
+    def test_pptx_external_relationship_is_rejected(self) -> None:
+        from k_slide.security import validate_input
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "remote.pptx"
+            with zipfile.ZipFile(path, "w") as archive:
+                archive.writestr("[Content_Types].xml", "<Types/>")
+                archive.writestr("ppt/presentation.xml", "<presentation/>")
+                archive.writestr("ppt/_rels/presentation.xml.rels", '<Relationship TargetMode="External" Target="https://example.com"/>')
+            with self.assertRaises(KSlideError) as raised:
+                validate_input(path)
+            self.assertEqual(raised.exception.code, ErrorCode.INPUT_ARCHIVE_UNSAFE)
 
     def test_prepare_creates_immutable_hashed_snapshot_and_session_binding(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -105,22 +121,33 @@ class Phase1Tests(unittest.TestCase):
             self.assertFalse(blocked.passed)
             self.assertFalse((run_dir / "RUN_COMPLETE.md").exists())
 
+            evidence = EvidenceIR(
+                "doc-001",
+                "slide-001",
+                {"input_id": "source-001", "width_px": 100, "height_px": 100},
+                (EvidenceRegion("r001", (0, 0, 100, 100), (0, 0, 1, 1), selected_literal_candidate="원문", literal_confidence=1.0),),
+                required_source_ids=("r001",),
+            ).with_revision()
+            save_evidence(run_dir, evidence)
+            queue = load_queue(run_dir)
+            queue.work_units[0].status = WorkUnitStatus.READY
+            queue.work_units[0].evidence_revision = evidence.evidence_revision
+            save_queue(run_dir, queue)
             state = load_state(run_dir)
             state.transition(RunPhase.NORMALIZED)
             state.transition(RunPhase.EXTRACTED)
-            state.transition(RunPhase.TRANSLATING)
-            state.transition(RunPhase.TRANSLATED)
             save_state(run_dir, state)
             payload = {
                 "schema_version": "1.0",
-                "slide_id": "slide-001",
-                "regions": [{"region_id": "r001", "english": "A faithful reconstruction."}],
+                "work_unit_id": "slide-001",
+                "evidence_revision": evidence.evidence_revision,
+                "regions": [{"region_id": "r001", "english": "A faithful reconstruction.", "numeric_fact_ids": []}],
                 "tables": [],
-                "visual_relations": [],
-                "numeric_facts": [],
-                "coverage": [{"source_id": "r001", "status": "translated", "evidence_ids": ["r001"]}],
             }
-            (run_dir / "ir" / "slide-001.json").write_text(json.dumps(canonicalize_translation_payload(payload)))
+            self.assertEqual(_next(root, run_dir.name, None)["status"], "READY")
+            accepted = _submit(root, run_dir.name, json.dumps(payload), None)
+            self.assertEqual(accepted["status"], "ACCEPTED")
+            (run_dir / "05_executive_brief.md").write_text("# Executive brief\n")
             (run_dir / "05_final_report.md").write_text("# Source-faithful reconstruction\n")
             (run_dir / "07_unresolved_items.md").write_text("No unresolved items.\n")
             result = verify_run(run_dir)
