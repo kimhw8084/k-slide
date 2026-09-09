@@ -31,6 +31,18 @@ MAX_TOTAL_RENDER_PIXELS = 500_000_000
 MAX_NORMALIZED_BYTES = 2_000_000_000
 
 
+def _json_safe(value: Any) -> Any:
+    """Keep PDF layout metadata serializable without persisting image bytes."""
+
+    if isinstance(value, bytes):
+        return {"byte_length": len(value), "omitted": True}
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items() if key not in {"image", "mask"}}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return value
+
+
 def _snapshot_inputs(run_dir: Path) -> list[tuple[str, Path, dict[str, Any]]]:
     manifest = read_json(run_dir / "RUN_MANIFEST.json")
     values = manifest.get("inputs", []) if isinstance(manifest, dict) else []
@@ -101,8 +113,9 @@ def _pdf_units(run_dir: Path, input_id: str, source: Path, document_id: str, sou
             pixmap.save(str(render))
             native = page.get_text("dict")
             native_path = run_dir / "native" / f"{work_unit_id}.json"
-            atomic_write_json(native_path, {"provider": "pymupdf", "page_index": page_index, "blocks": native.get("blocks", [])}, mode=0o600)
-            units.append(DocumentUnit(work_unit_id, document_id, input_id, page_index, "page", pixmap.width, pixmap.height, str(render.relative_to(run_dir)), sha256_file(render), str(native_path.relative_to(run_dir)), tuple(native.get("blocks", [])), RENDER_DPI))
+            safe_blocks = _json_safe(native.get("blocks", []))
+            atomic_write_json(native_path, {"provider": "pymupdf", "page_index": page_index, "blocks": safe_blocks}, mode=0o600)
+            units.append(DocumentUnit(work_unit_id, document_id, input_id, page_index, "page", pixmap.width, pixmap.height, str(render.relative_to(run_dir)), sha256_file(render), str(native_path.relative_to(run_dir)), tuple(safe_blocks), RENDER_DPI))
     finally:
         document.close()
     return units

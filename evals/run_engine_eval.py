@@ -1,7 +1,8 @@
-"""Run the dependency-free synthetic artifact/evidence boundary evaluation.
+"""Run format-independent deterministic ingestion/evidence evaluation.
 
-This runner does not call a language model. It measures generated-artifact and
-engine-fixture health only; target Gemma certification remains a separate tier.
+This tier never calls a language model. It proves which source facts the
+engine can extract from each actual artifact format and reports optional
+capability blocks separately from artifact generation.
 """
 
 from __future__ import annotations
@@ -11,41 +12,102 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .generator import generate_artifacts
+from .generator import DEFAULT_VARIANT, generate_artifacts
 from .scenarios import scenario_specs, write_specs
-from .scorers import score_artifact
+from .scorers import aggregate_engine_scores, score_artifact, score_engine_case
+
+
+def _selected_scenarios(split: str, limit: int | None):
+    scenarios = scenario_specs()
+    if split != "all":
+        scenarios = [item for item in scenarios if item.split == split]
+    if limit is not None:
+        scenarios = scenarios[:limit]
+    return scenarios
+
+
+def _case_artifact(root: Path, scenario_id: str, format_name: str) -> Path:
+    suffix = format_name.lower()
+    return root / scenario_id / DEFAULT_VARIANT.name / suffix / f"source.{suffix}"
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Run K-Slide engine/evidence evaluation without a model")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--split", choices=("development", "validation", "held_out", "all"), default="development")
     parser.add_argument("--formats", nargs="+", default=["png"])
+    parser.add_argument("--fail-on-critical", action="store_true")
     args = parser.parse_args(argv)
     scenarios = scenario_specs()
-    selected = scenarios[: args.limit] if args.limit else scenarios
+    selected = _selected_scenarios(args.split, args.limit)
     args.output.mkdir(parents=True, exist_ok=True)
     write_specs(args.output / "specs")
-    counts = generate_artifacts(selected, args.output / "artifacts", formats=tuple(args.formats))
-    results = [score_artifact(args.output / "artifacts" / scenario.scenario_id / "source.png", scenario) for scenario in selected if "png" in args.formats]
-    engine_summary: dict[str, object] = {"status": "NOT_RUN"}
-    if results:
-        from k_slide.extraction import extract_run
-        from k_slide.ingest import prepare_run
-        from k_slide.normalization import normalize_run
+    counts = generate_artifacts(selected, args.output / "artifacts", formats=tuple(args.formats), variants=(DEFAULT_VARIANT,))
+    results: list[dict[str, object]] = []
+    for scenario in selected:
+        for format_name in args.formats:
+            artifact = _case_artifact(args.output / "artifacts", scenario.scenario_id, format_name)
+            artifact_result = score_artifact(artifact, scenario)
+            normalized = None
+            evidence = None
+            run_dir = None
+            error = None
+            try:
+                from k_slide.errors import KSlideError
+                from k_slide.extraction import extract_run
+                from k_slide.ingest import prepare_run
+                from k_slide.normalization import normalize_run
 
-        workspace = args.output / "engine_workspace"
-        source_paths = [str(args.output / "artifacts" / scenario.scenario_id / "source.png") for scenario in selected]
-        run = prepare_run(workspace, explicit_paths=source_paths)
-        normalized = normalize_run(run)
-        evidence = extract_run(run)
-        engine_summary = {"status": "PASS", "run_id": run.name, "normalized_documents": len(normalized.documents), "normalized_units": sum(len(document.units) for document in normalized.documents), "evidence_units": len(evidence), "regions_detected": sum(len(item.regions) for item in evidence), "numeric_facts": sum(len(item.numeric_facts) for item in evidence)}
-    summary = {"evaluation_tier": "synthetic_engine_boundary", "model_evaluated": False, "scenario_specs": len(scenarios), "scenarios_run": len(selected), "formats": counts, "hard_pass_rate": (sum(bool(item["hard_pass"]) for item in results) / len(results) if results else 0.0), "engine": engine_summary, "generated_at": datetime.now(timezone.utc).isoformat(), "results": results}
+                case_workspace = args.output / "runs" / scenario.scenario_id / format_name.lower()
+                case_workspace.mkdir(parents=True, exist_ok=True)
+                run_dir = prepare_run(case_workspace, explicit_paths=[str(artifact)])
+                normalized = normalize_run(run_dir)
+                evidence = extract_run(run_dir)
+            except Exception as exc:  # the scorer records capability failures without hiding them
+                error = exc.code.value if hasattr(exc, "code") else "ENGINE_RUNTIME_ERROR"
+                if isinstance(exc, OSError):
+                    error = "ENGINE_IO_ERROR"
+            results.append({"format": format_name.lower(), **score_engine_case(scenario, artifact_result=artifact_result, normalized=normalized, evidence=evidence, run_dir=run_dir, error=error)})
+    aggregate = aggregate_engine_scores(results)
+    summary = {
+        "evaluation_tier": "synthetic_engine_evidence",
+        "model_evaluated": False,
+        "semantic_translation_scored": False,
+        "scenario_specs": len(scenarios),
+        "split": args.split,
+        "scenarios_selected": len(selected),
+        "case_count": len(results),
+        "formats_requested": [item.lower() for item in args.formats],
+        "generated_artifacts": counts,
+        "engine": aggregate,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "results": results,
+    }
     (args.output / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    lines = ["# K-Slide Synthetic Evaluation", "", "Tier: `synthetic_engine_boundary`", "", f"Scenario specifications: `{len(scenarios)}`", f"Scenarios run: `{len(selected)}`", f"Artifact hard-pass rate: `{summary['hard_pass_rate']:.3f}`", f"Engine evidence status: `{engine_summary.get('status')}`", "", "This evaluation exercises generated artifacts through normalization and EvidenceIR extraction. It does not call Gemma and is not a translation-quality or production-certification result.", ""]
+    lines = [
+        "# K-Slide Engine Evidence Evaluation",
+        "",
+        "Tier: `synthetic_engine_evidence`",
+        "",
+        f"Scenario specifications: `{len(scenarios)}`",
+        f"Split: `{args.split}`",
+        f"Cases run: `{len(results)}`",
+        f"Artifact generation pass rate: `{aggregate['artifact_generation_pass_rate']:.3f}`",
+        f"Engine normalization pass rate: `{aggregate['engine_normalization_pass_rate']:.3f}`",
+        f"Evidence generation pass rate: `{aggregate['evidence_generation_pass_rate']:.3f}`",
+        f"Critical engine failure count: `{aggregate['critical_failure_count']}`",
+        "",
+        "This tier measures actual artifact generation, normalization, and engine-owned EvidenceIR extraction. It does not call Gemma and is not a semantic translation or production-certification result.",
+        "",
+    ]
     (args.output / "EVAL_REPORT.md").write_text("\n".join(lines), encoding="utf-8")
-    print(json.dumps({key: summary[key] for key in ("evaluation_tier", "scenario_specs", "scenarios_run", "formats", "hard_pass_rate")}, ensure_ascii=False))
-    return 0 if summary["hard_pass_rate"] == 1.0 else 1
+    print(json.dumps({"evaluation_tier": summary["evaluation_tier"], "split": args.split, "case_count": len(results), "generated_artifacts": counts, "engine": aggregate}, ensure_ascii=False))
+    if any(not item["artifact"].get("artifact_generation_pass") for item in results):
+        return 1
+    if args.fail_on_critical and aggregate["critical_failure_count"]:
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

@@ -16,6 +16,8 @@ from k_slide.normalization import normalize_run
 from k_slide.extraction import extract_run
 from k_slide.cli import _evidence, _next
 from evals.scenarios import scenario_specs
+from evals.model_scorers import score_translation_patch
+from evals.opencode_runner import OpenCodeEvalRunner
 from k_slide.queue import WorkQueue, WorkUnit, save_queue
 from k_slide.semantics import CommitmentStatus, SpeechAct, enum_value
 
@@ -25,6 +27,22 @@ class Phase21ContractTests(unittest.TestCase):
         scenarios = scenario_specs()
         self.assertEqual(len(scenarios), 100)
         self.assertEqual(len({scenario.scenario_id for scenario in scenarios}), 100)
+        self.assertEqual({scenario.split for scenario in scenarios}, {"development", "validation", "held_out"})
+        self.assertEqual(sum(scenario.split == "development" for scenario in scenarios), 60)
+        self.assertEqual(sum(scenario.split == "validation" for scenario in scenarios), 20)
+        self.assertEqual(sum(scenario.split == "held_out" for scenario in scenarios), 20)
+        self.assertGreaterEqual(sum(scenario.compound for scenario in scenarios if scenario.split == "held_out"), 5)
+
+    def test_visual_categories_have_visual_gold_not_only_labels(self) -> None:
+        scenarios = scenario_specs()
+        table = next(item for item in scenarios if item.category == "financial_table")
+        chart = next(item for item in scenarios if item.category == "chart")
+        process = next(item for item in scenarios if item.category == "process_diagram")
+        self.assertEqual(table.visual_kind, "table")
+        self.assertEqual(table.gold["table"]["row_count"], 4)
+        self.assertEqual(chart.gold["chart"]["chart_type"], "line")
+        self.assertEqual(len(chart.gold["chart"]["categories"]), 4)
+        self.assertEqual(len(process.gold["process"]["relations"]), 4)
 
     def test_duplicate_work_unit_ids_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -51,11 +69,59 @@ class Phase21ContractTests(unittest.TestCase):
         self.assertEqual(_bbox(mapping["dt_polys"][0]), (1, 2, 11, 12))
         self.assertEqual(_result_mapping({"rec_texts": ["계획"]})["rec_texts"], ["계획"])
 
+    def test_semantic_scorer_does_not_accept_unsupported_claims(self) -> None:
+        class Region:
+            region_id = "r1"
+            required_for_translation = True
+
+        class Evidence:
+            regions = (Region(),)
+            numeric_facts = ()
+            tables = ()
+            visual_elements = ({"element_id": "ctx"},)
+
+        scenario = next(item for item in scenario_specs() if item.category == "cross_slide_consistency")
+        score = score_translation_patch(scenario, Evidence(), {"regions": [{"region_id": "r1", "english": "AI Platform", "commitment_status": "under_review"}], "executive_claims": [{"claim_id": "c1", "text": "Unsupported", "evidence_ids": ["missing"]}]})
+        self.assertEqual(score["unsupported_executive_claims"], 1)
+
+    def test_opencode_runner_uses_real_slash_command_surface(self) -> None:
+        runner = OpenCodeEvalRunner(model="ollama/qwen3:14b")
+        command = runner.command(Path("/tmp/k-slide-e2e-workspace"))
+        if command:
+            self.assertIn("run", command)
+            self.assertIn("--format", command)
+            self.assertIn("json", command)
+            self.assertIn("--command", command)
+            self.assertIn("k-slide", command)
+
     def test_semantic_enums_reject_freeform_values(self) -> None:
         self.assertEqual(enum_value("under_review", CommitmentStatus, "status"), "under_review")
         self.assertEqual(enum_value("dependency", SpeechAct, "speech"), "dependency")
         with self.assertRaises(KSlideError):
             enum_value("confirmed-ish", CommitmentStatus, "status")
+
+    def test_corpus_generator_requires_verified_korean_font_and_makes_real_visuals(self) -> None:
+        import importlib.util
+
+        if importlib.util.find_spec("PIL") is None:
+            self.skipTest("Pillow is optional")
+        try:
+            from evals.fonts import discover_korean_font
+            from evals.generator import generate_artifacts
+        except ImportError:
+            self.skipTest("Pillow is optional")
+        scenario_set = [item for item in scenario_specs() if item.category in {"financial_table", "chart", "process_diagram"}][:3]
+        with tempfile.TemporaryDirectory() as directory:
+            try:
+                font = discover_korean_font()
+            except RuntimeError as exc:
+                self.fail(f"evaluation environment lacks a verified Korean font: {exc}")
+            self.assertTrue(font.path)
+            counts = generate_artifacts(scenario_set, Path(directory), formats=("png", "pptx"))
+            self.assertEqual(counts["png"], 3)
+            png_paths = list(Path(directory).glob("scenario-*/default/png/source.png"))
+            self.assertEqual(len(png_paths), 3)
+            self.assertTrue(all(path.stat().st_size > 0 for path in png_paths))
 
     def test_installer_refuses_modified_owned_file(self) -> None:
         source_root = Path(__file__).resolve().parents[1]

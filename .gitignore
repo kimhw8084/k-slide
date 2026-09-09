@@ -9,3 +9,8 @@ __pycache__/
 evals/artifacts/
 evals/runs/
 evals/reports/
+evals/corpus/
+evals/failure-bundles/
+private-evals/source/
+private-evals/gold/
+private-evals/results/

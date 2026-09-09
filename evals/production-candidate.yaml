@@ -1,0 +1,15 @@
+status: DEVELOPMENT
+model: google/gemma-4-31b-it
+prompt_version: translation/v1
+ocr_provider: not_benchmarked
+normalization:
+  render_dpi: 220
+  context_max_dimension: 1600
+  crop_padding: 0.10
+repair:
+  max_auto_repairs_per_unit: 2
+certification:
+  target_model_required: true
+  internal_bilingual_gold_required: true
+  zero_korean_comprehension_required: true
+  critical_error_gate: 0

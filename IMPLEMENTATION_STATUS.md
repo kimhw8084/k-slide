@@ -2,7 +2,7 @@
 
 ## Current boundary
 
-**K-Slide 0.3.0 — Phase 2.1 translation-ready evidence boundary and Phase 3 development infrastructure.**
+**K-Slide 0.3.1 — Phase 3.1 multimodal evaluation laboratory.**
 
 The repository now has a coherent, tested boundary from validated immutable input through normalized document units, native evidence, deterministic crops, bounded multimodal packets, deterministic reports, and synthetic evaluation artifacts. It remains `DEVELOPMENT`: the local runtime is `ollama/qwen3:14b`, not the target `google/gemma-4-31b-it`, and no production translation gate has been certified.
 
@@ -25,16 +25,37 @@ The repository now has a coherent, tested boundary from validated immutable inpu
 - Closed commitment/speech/claim/uncertainty enums, engine-owned numeric linkage, Korean scale and `%p` semantic checks, residual-Hangul and locked-term verification foundations.
 - Deterministic final report, executive brief, and unresolved-item renderers generated from SlideIR.
 - Explicit whole-unit context-image/risk-crop media plan and bounded model prompt contract.
-- 100 synthetic scenario specifications and a real-image artifact smoke runner; no model-quality claim is made from this tier.
+- 100 fixed development/validation/held-out specifications with actual raster/PPTX tables, charts, process diagrams, screenshots, and compound executive compositions.
+- Independent PNG/JPEG/WebP/PDF/PPTX artifact cases and qualified engine scores for normalization, EvidenceIR coverage, table/numeric/visual/media invariants.
+- Verified Korean-font discovery that fails corpus generation instead of falling back to tofu/default glyphs.
+- OpenCode protocol runner using the real `opencode run --format json` command surface; non-Gemma runs are protocol smoke only.
+- Semantic TranslationPatch scorers, champion/challenger comparison utilities, private gold-set protocol, and zero-Korean comprehension-study protocol.
 - Black-box CLI, installer regression, trust-model, queue/resume, concurrency, stale-evidence, stale-finalization, and normalization fixture tests.
 - GitHub Actions workflow for Python 3.11/3.12, unit tests, compile checks, CLI/installer checks, and doctor.
 
 ## Verification performed locally
 
 ```text
-PYTHONPATH=src python3 -m unittest discover -s tests -v: PASS (33 tests, 5 optional skips in the base interpreter)
-PYTHONPATH=src /tmp/k-slide-verify/bin/python -m unittest discover -s tests -v: PASS (33 tests; image/PDF/PPTX fixtures and multi-input evidence exercised)
-PYTHONPATH=src /tmp/k-slide-verify/bin/python -m evals.run_engine_eval --output /tmp/k-slide-eval --limit 5 --formats png jpg webp pdf pptx: PASS (100 specs available; 5 cases generated in all five formats; normalization + EvidenceIR extraction passed; artifact hard-pass rate 1.0)
+Latest local verification:
+
+```text
+PYTHONPATH=src /tmp/k-slide-verify/bin/python -m unittest discover -s tests -v: PASS (38 tests)
+PYTHONPATH=src python3 -m unittest discover -s tests -v: PASS (38 tests, 6 optional skips)
+generate_corpus --formats png jpg webp pdf pptx: PASS (500 artifact cases)
+generate_corpus --split held_out --formats png --all-variants: PASS (100 artifact cases)
+run_engine_eval --split all --formats png pdf pptx: PASS command; 300 cases evaluated
+  artifact_generation_pass_rate: 1.000
+  engine_normalization_pass_rate: 0.667
+  evidence_generation_pass_rate: 0.667
+  critical engine failures: 260 (local LibreOffice/OCR capability boundary is visible)
+run_engine_eval --split all --formats jpg webp: PASS command; 200 cases evaluated
+  artifact/normalization/evidence pass rates: 1.000 / 1.000 / 1.000
+  critical engine failures: 40 (local OCR/layout boundary is visible)
+OpenCode protocol smoke: TIMEOUT with ollama/qwen3:14b; no quality metrics recorded
+Gemma quality evaluation: BLOCKED — target endpoint unavailable
+```
+
+Test totals are not repeated as a standing contract; CI and the commands above are authoritative as the suite evolves.
 OpenCode: 1.3.9
 Configured model: ollama/qwen3:14b
 Model compatibility: different_model_warning
@@ -50,11 +71,13 @@ The optional skips require image/PDF/PPTX packages in the base interpreter; the 
 - The model-facing OpenCode flow is contract-ready, but no Gemma endpoint is available locally; no Gemma accuracy or comprehension result is reported.
 - Numeric/modality/terminology verifiers are deterministic foundations, not a substitute for bilingual gold review.
 - Current-message attachment materialization is not advertised because OpenCode 1.3.9 does not expose a proven safe bridge in this repository.
+- The local OpenCode server `/doc` surface exposed only global routes during inspection; the runner therefore uses the supported CLI JSON-event path for protocol execution and records structured server API work as a separate capability.
+- Locally generated visual corpus cases are available with the verified macOS system Korean font. LibreOffice and PaddleOCR are still unavailable locally, so PPTX visual normalization and real OCR remain heavy-tier capability blocks.
 - The PaddleOCR adapter follows the current 3.x API shape but is not installed or benchmarked in this workspace.
 
 ## Next phase
 
-1. Execute LibreOffice/PaddleOCR integration in a managed environment.
+1. Execute LibreOffice/PaddleOCR integration in the documented managed environment.
 2. Connect the approved Gemma 4 31B-it endpoint through the bounded OpenCode workflow.
 3. Run v6 baseline, ablations, repeated target-model tests, bilingual review, and zero-Korean comprehension evaluation.
 4. Promote a configuration only when hard critical-error gates and regression rules pass.

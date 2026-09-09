@@ -2,7 +2,7 @@
 
 K-Slide turns Korean or mixed Korean-English business artifacts into evidence-backed English comprehension for readers who do not know Korean. It is designed for slides, screenshots, PDFs, PPTX files, tables, charts, diagrams, and dense business-review visuals.
 
-The current implementation is K-Slide `0.3.0`, a Phase 2.1 translation-ready evidence boundary and Phase 3 development build. It provides immutable engine-owned source evidence, a narrow structured TranslationPatch, globally unique multi-document work units, deterministic reports, semantic enums, numeric verification foundations, image/PDF/PPTX normalization, native extraction, deterministic crops, OCR-provider contracts, and a 100-spec synthetic evaluation corpus. Full Gemma translation certification is not claimed until the target model and evaluation gates are exercised.
+The current implementation is K-Slide `0.3.1`, a Phase 3.1 multimodal evaluation-lab build. It provides immutable engine-owned source evidence, a narrow structured TranslationPatch, globally unique multi-document work units, deterministic reports, semantic enums, numeric verification foundations, image/PDF/PPTX normalization, native extraction, deterministic crops, OCR-provider contracts, and a visually structured 100-spec corpus with fixed splits. Full Gemma translation certification is not claimed until the target model and evaluation gates are exercised.
 
 ## Quick start
 
@@ -77,6 +77,6 @@ rtk opencode debug config
 rtk env PYTHONPATH=src python3 -m evals.run_engine_eval --output /tmp/k-slide-eval --limit 5
 ```
 
-The public evaluation runner generates 100 synthetic scenario specifications and real image artifacts. It is an engine/artifact smoke tier, not a Gemma quality benchmark. Target-model results must be produced in an approved environment and recorded with the exact model, provider, prompt, OCR, and preprocessing configuration.
+The public evaluation laboratory generates 100 synthetic scenario specifications and independent PNG/JPEG/WebP/PDF/PPTX cases. Run `PYTHONPATH=src python -m evals.generate_corpus --output /tmp/k-slide-corpus --formats png jpg webp pdf pptx` for the 500-case default corpus, then use `evals.run_engine_eval` to score each format through the real engine. This remains an engine/evidence tier, not a Gemma quality benchmark. Target-model results must be produced through the OpenCode runner in an approved environment and recorded with the exact model, provider, prompt, OCR, and preprocessing configuration.
 
 The implementation status, known limitations, and next concrete tasks are tracked in [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md). Historical source-pack lineage remains in [`SOURCE_PROVENANCE.md`](SOURCE_PROVENANCE.md). The exact completion artifact contract is code-owned by `src/k_slide/policy.py`.

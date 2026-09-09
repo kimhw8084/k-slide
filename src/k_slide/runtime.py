@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+from functools import lru_cache
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,7 @@ class RuntimeMetadata:
         return asdict(self)
 
 
+@lru_cache(maxsize=4)
 def _version(executable: str | None) -> str | None:
     if not executable:
         return None
@@ -74,6 +76,7 @@ def _read_config(path: Path | None) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+@lru_cache(maxsize=4)
 def _effective_config(executable: str | None) -> dict[str, Any]:
     """Prefer OpenCode's effective config report over one guessed config file."""
 
