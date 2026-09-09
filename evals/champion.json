@@ -1,8 +1,5 @@
 {
   "schema_version": "1.0",
   "status": "UNSET",
-  "reason": "No target Gemma 4 31B-it quality benchmark has been completed.",
-  "model": null,
-  "prompt_version": null,
-  "configuration": null
+  "reason": "No authoritative target-Gemma validation experiment has passed promotion policy."
 }

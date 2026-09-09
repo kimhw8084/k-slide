@@ -106,6 +106,8 @@ def main(argv: list[str] | None = None) -> int:
         f"Engine normalization pass rate: `{aggregate['engine_normalization_pass_rate']:.3f}`",
         f"Evidence generation pass rate: `{aggregate['evidence_generation_pass_rate']:.3f}`",
         f"Critical engine failure count: `{aggregate['critical_failure_count']}`",
+        f"Capability-blocked findings: `{aggregate['capability_block_count']}`",
+        f"Algorithmic/evidence findings: `{aggregate['algorithmic_failure_count']}`",
         f"Failure classes: `{json.dumps(aggregate['failure_classes'], sort_keys=True)}`",
         "",
         "This tier measures actual artifact generation, normalization, and engine-owned EvidenceIR extraction. It does not call Gemma and is not a semantic translation or production-certification result.",

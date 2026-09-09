@@ -25,6 +25,13 @@ docker build -f evals/heavy/Dockerfile -t k-slide-heavy .
 docker run --rm k-slide-heavy
 ```
 
+The doctor performs real round-trip checks when those dependencies are
+available: a generated Korean PPTX is rendered through the K-Slide conversion
+path, and a generated Korean image is passed through the actual PaddleOCR
+adapter. Package import success alone is not sufficient. After OCR assets are
+prefetched in an approved image, run the doctor with `--network none` where
+the deployment permits it to verify local-only runtime behavior.
+
 The Dockerfile pins the initial CPU-tested target versions as build arguments;
 update them only after the self-test and record the resulting versions in the
 evaluation report. The current development machine has not built this image,

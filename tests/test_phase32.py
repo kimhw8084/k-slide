@@ -146,11 +146,11 @@ class Phase32HarnessTests(unittest.TestCase):
         self.assertIn("WRONG_DECISION_STATUS_SEMANTICS", score_translation_patch(scenario, evidence, patch)["executive_claim_failures"])
 
     def test_champion_rejects_protected_regression_and_new_critical_type(self) -> None:
-        baseline = {"critical_failure_count": 0, "critical_failure_types": [], "mean_scores": {"numeric_fidelity": 1.0}, "by_category": {"financial": {"hard_score": 1.0}}}
-        candidate = {"critical_failure_count": 0, "critical_failure_types": ["NEW_CRITICAL"], "mean_scores": {"numeric_fidelity": 1.1}, "by_category": {"financial": {"hard_score": 0.9}}}
+        baseline = {"critical_failure_count": 0, "critical_failure_types": [], "mean_scores": {"numeric_fidelity": 1.0}, "by_category": {"financial_table": {"numeric_fidelity": 1.0, "table_cell_fidelity": 1.0, "coverage": 1.0}}}
+        candidate = {"critical_failure_count": 0, "critical_failure_types": ["NEW_CRITICAL"], "mean_scores": {"numeric_fidelity": 1.1}, "by_category": {"financial_table": {"numeric_fidelity": 0.9, "table_cell_fidelity": 1.0, "coverage": 1.0}}}
         comparison = compare_aggregate(baseline, candidate)
         self.assertFalse(comparison["accepted"])
-        self.assertIn("financial", comparison["protected_regressions"])
+        self.assertIn("financial_table", comparison["protected_regressions"])
         self.assertEqual(comparison["new_critical_types"], ["NEW_CRITICAL"])
 
     def test_multislide_deck_scenarios_cover_resume_sizes(self) -> None:

@@ -76,3 +76,27 @@ OpenCode, media, artifact, and semantic scoring contract.
 Heavy LibreOffice/PaddleOCR setup and the secure internal bilingual gold
 protocol are documented in `evals/heavy/README.md` and
 `private-evals/README.md`. No public CI job sends source material to a model.
+
+## Certification states and governance
+
+The model evaluator distinguishes measurement from quality outcome:
+
+```text
+NOT_MEASURED
+CAPABILITY_BLOCKED
+PROTOCOL_SMOKE_ONLY
+MEASURED
+CERTIFICATION_FAIL
+PRODUCTION_CANDIDATE
+PRODUCTION_CERTIFIED
+```
+
+Only an approved requested/effective model identity, a complete OpenCode
+`/k-slide` run, all work-unit artifacts, per-work-unit media compliance, and
+semantic scoring can produce an authoritative `MEASURED` or
+`CERTIFICATION_FAIL` result. `evals/champion.json` must remain `UNSET` until a
+target Gemma validation result satisfies protected-category promotion rules.
+
+The corpus is dataset version `1.0`. `write_specs` emits `splits.json` with
+stratified membership, `corpus_fingerprint`, and `held_out_fingerprint`.
+Changing held-out membership or gold requires a dataset version bump.

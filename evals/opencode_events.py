@@ -238,41 +238,135 @@ def _same_media_path(actual: str, required: str) -> bool:
 
 
 def media_compliance(events: Iterable[NormalizedOpenCodeEvent]) -> dict[str, Any]:
-    """Prove image reads from structured ``read`` tool calls only."""
+    """Prove image reads from structured ``read`` calls, per work unit."""
+
+    traces = work_unit_media_traces(events)
+    units = list(traces.values())
+    items = [item for trace in units for item in trace["items"]]
+    return {
+        "planned": bool(units),
+        "required_count": len(items),
+        "read_count": sum(bool(item["read_observed"]) for item in items),
+        "required_context_image_read": all(trace["required_context_image_read"] for trace in units) if units else False,
+        "required_crop_recall": sum(trace["required_crop_recall"] for trace in units) / len(units) if units else 0.0,
+        "media_sequence_valid": bool(units) and all(trace["media_sequence_valid"] for trace in units),
+        "items": items,
+        "evidence_event_count": sum(1 for trace in units if trace["evidence_event_index"] is not None),
+        "work_units": traces,
+    }
+
+
+@dataclass
+class WorkUnitEventTrace:
+    work_unit_id: str
+    evidence_event_index: int | None = None
+    evidence_revision: str | None = None
+    planned_context_path: str | None = None
+    planned_crop_paths: tuple[str, ...] = ()
+    observed_read_paths: tuple[str, ...] = ()
+    submit_event_index: int | None = None
+    submit_observed: bool = False
+    items: tuple[dict[str, Any], ...] = ()
+    forbidden_tool_attempts: tuple[str, ...] = ()
+
+    def as_dict(self) -> dict[str, Any]:
+        values = asdict(self)
+        values["planned_crop_paths"] = list(self.planned_crop_paths)
+        values["observed_read_paths"] = list(self.observed_read_paths)
+        values["items"] = list(self.items)
+        values["forbidden_tool_attempts"] = list(self.forbidden_tool_attempts)
+        required_crops = [item for item in self.items if item["id"] != "context_image"]
+        return {
+            **values,
+            "required_context_image_read": next((item["read_observed"] for item in self.items if item["id"] == "context_image"), False),
+            "required_crop_recall": sum(item["read_observed"] for item in required_crops) / max(1, len(required_crops)),
+            "media_sequence_valid": bool(self.items) and self.submit_observed and all(item["read_observed"] and item["read_before_submit"] for item in self.items),
+        }
+
+
+def _object_payload(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, dict) else {}
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+
+def _payload_field(event: NormalizedOpenCodeEvent, key: str) -> Any:
+    for payload in (_object_payload(event.tool_arguments), _object_payload(event.tool_result)):
+        if key in payload:
+            return payload[key]
+    return None
+
+
+def _unit_from_event(event: NormalizedOpenCodeEvent) -> str | None:
+    value = _payload_field(event, "work_unit_id")
+    return str(value) if isinstance(value, str) and value else None
+
+
+def work_unit_media_traces(events: Iterable[NormalizedOpenCodeEvent]) -> dict[str, dict[str, Any]]:
+    """Bind each evidence/read/submit sequence to its structured work-unit ID."""
 
     normalized = list(events)
-    plan: dict[str, Any] | None = None
-    evidence_indexes: list[int] = []
+    traces: dict[str, WorkUnitEventTrace] = {}
+    current_unit: str | None = None
+    read_events: list[tuple[int, str]] = []
     for index, event in enumerate(normalized):
+        event_unit = _unit_from_event(event)
+        if event.tool_name == "kslide_next" and event_unit:
+            current_unit = event_unit
         if event.tool_name == "kslide_evidence":
-            candidate = _media_plan_from_result(event.tool_result)
-            if candidate:
-                plan = candidate
-                evidence_indexes.append(index)
-    context = (plan or {}).get("context_image") or {}
-    required: list[dict[str, Any]] = []
-    if context.get("required") and context.get("path"):
-        required.append({"id": "context_image", "path": str(context["path"]), "required": True})
-    for crop in (plan or {}).get("required_crops", []):
-        if isinstance(crop, dict) and crop.get("path"):
-            required.append({"id": str(crop.get("region_id", crop["path"])), "path": str(crop["path"]), "required": True})
-    reads = [(index, path) for index, event in enumerate(normalized) if event.tool_name == "read" for path in _media_paths(event.tool_arguments)]
-    submits = [index for index, event in enumerate(normalized) if event.tool_name == "kslide_submit"]
-    items: list[dict[str, Any]] = []
-    for item in required:
-        matching = [index for index, actual in reads if _same_media_path(actual, item["path"])]
-        read_index = min(matching) if matching else None
-        items.append({"id": item["id"], "path": item["path"], "planned": True, "read_observed": read_index is not None, "read_before_submit": read_index is not None and (not submits or read_index < min(submits))})
-    return {
-        "planned": bool(plan),
-        "required_count": len(required),
-        "read_count": sum(item["read_observed"] for item in items),
-        "required_context_image_read": next((item["read_observed"] for item in items if item["id"] == "context_image"), False),
-        "required_crop_recall": (sum(item["read_observed"] for item in items if item["id"] != "context_image") / max(1, sum(item["id"] != "context_image" for item in items))),
-        "media_sequence_valid": bool(items) and all(item["read_observed"] and item["read_before_submit"] for item in items),
-        "items": items,
-        "evidence_event_count": len(evidence_indexes),
-    }
+            current_unit = event_unit or current_unit or "__unbound__"
+            plan = _media_plan_from_result(event.tool_result) or {}
+            context = plan.get("context_image") or {}
+            crops = tuple(str(item["path"]) for item in plan.get("required_crops", []) if isinstance(item, dict) and item.get("path"))
+            required: list[dict[str, Any]] = []
+            if context.get("required") and context.get("path"):
+                required.append({"id": "context_image", "path": str(context["path"])})
+            required.extend({"id": str(item.get("region_id", item["path"])), "path": str(item["path"])} for item in plan.get("required_crops", []) if isinstance(item, dict) and item.get("path"))
+            traces[current_unit] = WorkUnitEventTrace(
+                work_unit_id=current_unit,
+                evidence_event_index=index,
+                evidence_revision=_payload_field(event, "evidence_revision"),
+                planned_context_path=str(context["path"]) if context.get("path") else None,
+                planned_crop_paths=crops,
+                items=tuple({"id": item["id"], "path": item["path"], "planned": True, "read_observed": False, "read_before_submit": False} for item in required),
+            )
+        if event.tool_name == "read":
+            read_events.extend((index, path) for path in _media_paths(event.tool_arguments))
+        if event.tool_name == "kslide_submit":
+            current_unit = event_unit or current_unit or "__unbound__"
+            prior = traces.get(current_unit)
+            if prior:
+                traces[current_unit] = WorkUnitEventTrace(**{**asdict(prior), "submit_event_index": index, "submit_observed": True})
+    result: dict[str, dict[str, Any]] = {}
+    for unit_id, trace in traces.items():
+        evidence_index = trace.evidence_event_index
+        submit_index = trace.submit_event_index
+        scoped_reads = [(index, path) for index, path in read_events if evidence_index is not None and index > evidence_index and (submit_index is None or index < submit_index)]
+        items: list[dict[str, Any]] = []
+        for item in trace.items:
+            matching = [index for index, actual in scoped_reads if _same_media_path(actual, item["path"])]
+            read_index = min(matching) if matching else None
+            items.append({**item, "read_observed": read_index is not None, "read_before_submit": read_index is not None and submit_index is not None and read_index < submit_index})
+        observed = tuple(path for _, path in scoped_reads)
+        scope_start = evidence_index if evidence_index is not None else 0
+        scope_end = submit_index + 1 if submit_index is not None else len(normalized)
+        scoped_events = normalized[scope_start:scope_end]
+        completed = WorkUnitEventTrace(
+            **{
+                **asdict(trace),
+                "observed_read_paths": observed,
+                "items": tuple(items),
+                "forbidden_tool_attempts": tuple(sorted(set(forbidden_tool_attempts(scoped_events)))),
+            }
+        )
+        result[unit_id] = completed.as_dict()
+    return result
 
 
 def is_error_event(event: NormalizedOpenCodeEvent, raw: dict[str, Any] | None = None) -> bool:

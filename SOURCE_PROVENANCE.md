@@ -12,12 +12,12 @@
 
 ## Engine evolution
 
-- K-Slide engine: `0.3.2` Phase 3.2 certification-harness integrity boundary; translation certification remains unclaimed
+- K-Slide engine: `0.3.3` Phase 3.3 certification-semantics and multi-work-unit E2E boundary; translation certification remains unclaimed
 - Implementation date: 2026-09-09
 - Runtime inspected: OpenCode `1.3.9`; local configured model `ollama/qwen3:14b`
 - Target model: `google/gemma-4-31b-it`; local runtime is recorded as a compatibility warning and is not certified
 - Compatibility: v6 commands and single-agent behavior retained; lifecycle internals now use typed tools, immutable snapshots, a validated multi-work-unit state machine, engine-owned EvidenceIR, structured TranslationPatch submission, document normalization, and deterministic completion
-- Evidence boundary: image/PDF/PPTX normalization, native extraction, globally unique work units, deterministic region crops, numeric evidence, semantic enums, deterministic report rendering, source-local semantic scoring, stratified split governance, structured OpenCode event/media assertions, multi-slide deck scenarios, a reproducible heavy environment definition, and an optional OCR provider abstraction are implemented; full target-model translation certification is not claimed
+- Evidence boundary: image/PDF/PPTX normalization, native extraction, globally unique work units, deterministic region crops, numeric evidence, semantic enums, deterministic report rendering, source-local semantic scoring, stratified split governance with corpus/held-out fingerprints, per-work-unit structured OpenCode event/media assertions, multi-slide deck scenarios, a reproducible heavy environment definition, and an optional OCR provider abstraction are implemented; full target-model translation certification is not claimed
 - No confidential slide content was added to the repository
 
 ## Why v6 is the active baseline

@@ -14,11 +14,11 @@ from .ir import CoverageEntry, NumericFact, SlideIR, TableCell, TableIR, TextReg
 from .semantics import ClaimKind, CommitmentStatus, CoverageStatus, SpeechAct, Uncertainty, enum_value
 
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
-_MODEL_REGION_FIELDS = {"region_id", "english", "commitment_status", "speech_act", "term_ids", "unresolved", "unresolved_reason"}
-_MODEL_CELL_FIELDS = {"cell_id", "english", "unresolved", "unresolved_reason"}
+_MODEL_REGION_FIELDS = {"region_id", "english", "commitment_status", "speech_act", "term_ids", "unresolved", "unresolved_reason", "hangul_retention"}
+_MODEL_CELL_FIELDS = {"cell_id", "english", "unresolved", "unresolved_reason", "hangul_retention"}
 _MODEL_TABLE_FIELDS = {"table_id", "cells"}
-_MODEL_RELATION_FIELDS = {"relation_id", "interpretation", "evidence_ids"}
-_MODEL_CLAIM_FIELDS = {"claim_id", "kind", "text", "evidence_ids", "uncertainty"}
+_MODEL_RELATION_FIELDS = {"relation_id", "interpretation", "evidence_ids", "source_element_ids", "relation_type", "direction", "hangul_retention"}
+_MODEL_CLAIM_FIELDS = {"claim_id", "kind", "text", "evidence_ids", "uncertainty", "hangul_retention"}
 
 
 def _id(value: Any, label: str) -> str:
@@ -53,6 +53,14 @@ def _boolean(value: Any, label: str, default: bool = False) -> bool:
     return value
 
 
+def _hangul_retention(value: Any, label: str) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict) or not isinstance(value.get("reason"), str) or not value.get("reason", "").strip() or not isinstance(value.get("evidence_id"), str):
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, f"{label} must contain a reason and evidence_id.")
+    return dict(value)
+
+
 @dataclass(frozen=True)
 class TranslationRegionPatch:
     region_id: str
@@ -62,6 +70,7 @@ class TranslationRegionPatch:
     term_ids: tuple[str, ...] = ()
     unresolved: bool = False
     unresolved_reason: str | None = None
+    hangul_retention: dict[str, Any] | None = None
 
     def as_dict(self) -> dict[str, Any]:
         value = asdict(self)
@@ -75,6 +84,7 @@ class TranslationCellPatch:
     english: str
     unresolved: bool = False
     unresolved_reason: str | None = None
+    hangul_retention: dict[str, Any] | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -142,6 +152,8 @@ class TranslationPatch:
                 enum_value(patch.commitment_status, CommitmentStatus, "commitment_status")
             if patch.speech_act is not None:
                 enum_value(patch.speech_act, SpeechAct, "speech_act")
+            if patch.hangul_retention is not None and patch.hangul_retention.get("evidence_id") not in evidence.required_source_ids:
+                raise KSlideError(ErrorCode.UNKNOWN_REGION, "Hangul retention references unknown evidence.", {"region_id": patch.region_id})
         required_regions = {region.region_id for region in evidence.regions if region.required_for_translation}
         missing_regions = sorted(required_regions - seen_regions)
         if missing_regions:
@@ -166,6 +178,8 @@ class TranslationPatch:
                     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Every translated table cell needs non-empty English.", {"cell_id": cell_patch.cell_id})
                 if cell_patch.unresolved and not cell_patch.unresolved_reason:
                     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Unresolved table cells require an explicit reason.", {"cell_id": cell_patch.cell_id})
+                if cell_patch.hangul_retention is not None and cell_patch.hangul_retention.get("evidence_id") not in evidence.required_source_ids:
+                    raise KSlideError(ErrorCode.UNKNOWN_REGION, "Hangul retention references unknown evidence.", {"cell_id": cell_patch.cell_id})
             missing_cells = sorted(cell_id for cell_id, cell in cells.items() if cell.required_for_translation and cell_id not in seen_cells)
             if missing_cells:
                 raise KSlideError(ErrorCode.EVIDENCE_INCOMPLETE, "TranslationPatch omitted required table cells.", {"cell_ids": missing_cells})
@@ -179,6 +193,9 @@ class TranslationPatch:
                 raise KSlideError(ErrorCode.SCHEMA_INVALID, "Visual interpretation evidence_ids must be an array.")
             if not set(relation.get("evidence_ids", [])).issubset(set(evidence.required_source_ids)):
                 raise KSlideError(ErrorCode.UNKNOWN_REGION, "Visual interpretation references unknown evidence.")
+            retention = relation.get("hangul_retention")
+            if retention is not None and (not isinstance(retention, dict) or retention.get("evidence_id") not in evidence.required_source_ids):
+                raise KSlideError(ErrorCode.UNKNOWN_REGION, "Hangul retention references unknown evidence.")
         seen_claims: set[str] = set()
         for claim in self.executive_claims:
             _only_fields(claim, _MODEL_CLAIM_FIELDS, "executive claim")
@@ -195,6 +212,9 @@ class TranslationPatch:
                 raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Every executive claim must cite at least one evidence ID.", {"claim_id": claim_id})
             if not set(evidence_ids).issubset(set(evidence.required_source_ids)):
                 raise KSlideError(ErrorCode.UNKNOWN_REGION, "Executive claim references unknown evidence.", {"claim_id": claim_id})
+            retention = claim.get("hangul_retention")
+            if retention is not None and (not isinstance(retention, dict) or retention.get("evidence_id") not in evidence.required_source_ids):
+                raise KSlideError(ErrorCode.UNKNOWN_REGION, "Hangul retention references unknown evidence.", {"claim_id": claim_id})
 
 
 def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
@@ -222,6 +242,7 @@ def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
             term_ids=_string_list(item.get("term_ids", []), "term_ids"),
             unresolved=_boolean(item.get("unresolved"), "unresolved"),
             unresolved_reason=_optional_string(item.get("unresolved_reason"), "unresolved_reason"),
+            hangul_retention=_hangul_retention(item.get("hangul_retention"), "region hangul_retention"),
         ))
     tables: list[TranslationTablePatch] = []
     for item in tables_value:
@@ -239,7 +260,7 @@ def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
             english = cell.get("english", "")
             if not isinstance(english, str):
                 raise KSlideError(ErrorCode.SCHEMA_INVALID, "table cell english must be a string.")
-            cells.append(TranslationCellPatch(cell_id=_id(cell.get("cell_id"), "cell_id"), english=english, unresolved=_boolean(cell.get("unresolved"), "unresolved"), unresolved_reason=_optional_string(cell.get("unresolved_reason"), "unresolved_reason")))
+            cells.append(TranslationCellPatch(cell_id=_id(cell.get("cell_id"), "cell_id"), english=english, unresolved=_boolean(cell.get("unresolved"), "unresolved"), unresolved_reason=_optional_string(cell.get("unresolved_reason"), "unresolved_reason"), hangul_retention=_hangul_retention(cell.get("hangul_retention"), "table cell hangul_retention")))
         tables.append(TranslationTablePatch(table_id=_id(item.get("table_id"), "table_id"), cells=tuple(cells)))
     visual = value.get("visual_interpretations", [])
     if not isinstance(visual, list) or any(not isinstance(item, dict) for item in visual):
@@ -250,9 +271,13 @@ def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
         if not isinstance(relation.get("interpretation"), str):
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "visual interpretation must be a string.")
         _string_list(relation.get("evidence_ids", []), "visual interpretation evidence_ids")
+        _hangul_retention(relation.get("hangul_retention"), "visual interpretation hangul_retention")
     executive_claims = value.get("executive_claims", [])
     if not isinstance(executive_claims, list) or any(not isinstance(item, dict) for item in executive_claims):
         raise KSlideError(ErrorCode.SCHEMA_INVALID, "executive_claims must be an array of objects.")
+    for claim in executive_claims:
+        _only_fields(claim, _MODEL_CLAIM_FIELDS, "executive claim")
+        _hangul_retention(claim.get("hangul_retention"), "executive claim hangul_retention")
     evidence_revision = value.get("evidence_revision")
     schema_version = value.get("schema_version")
     if not isinstance(evidence_revision, str):
@@ -303,7 +328,7 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
         cells = [TableCell(row=cell.row, column=cell.column, source_text=cell.source_text, translation=cell_patches[cell.cell_id].english, rowspan=cell.rowspan, colspan=cell.colspan, evidence_region_ids=list(cell.evidence_region_ids), numeric_fact_ids=list(cell.numeric_fact_ids), unresolved=cell_patches[cell.cell_id].unresolved) for cell in source_table.cells]
         tables.append(TableIR(table_id=source_table.table_id, bbox=list(source_table.bbox_px), row_count=source_table.row_count, column_count=source_table.column_count, headers=list(source_table.headers), cells=cells))
     numeric_facts = [NumericFact(**item) for item in evidence.numeric_facts if isinstance(item, dict)]
-    relations = [VisualRelation(relation_id=str(item["relation_id"]), interpretation=item.get("interpretation"), evidence=list(item.get("evidence_ids", []))) for item in patch.visual_interpretations]
+    relations = [VisualRelation(relation_id=str(item["relation_id"]), source_element_ids=list(item.get("source_element_ids", [])), relation_type=str(item.get("relation_type", "unknown")), direction=item.get("direction"), interpretation=item.get("interpretation"), evidence=list(item.get("evidence_ids", []))) for item in patch.visual_interpretations]
     coverage: list[CoverageEntry] = []
     for source_id in evidence.required_source_ids:
         status = CoverageStatus.TRANSLATED.value

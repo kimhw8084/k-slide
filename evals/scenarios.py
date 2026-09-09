@@ -11,6 +11,10 @@ import hashlib
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from .certification import CORPUS_GENERATOR_VERSION
+from .certification import corpus_fingerprint as _corpus_fingerprint
+from .certification import held_out_fingerprint as _held_out_fingerprint
+
 
 @dataclass(frozen=True)
 class Scenario:
@@ -42,6 +46,8 @@ _DISTRIBUTION = (
 
 DATASET_VERSION = "1.0"
 SPLIT_SEED = 3202
+EXPECTED_CORPUS_FINGERPRINT_V1 = "698b471fa9dffe9f79af40a61c3546d6455889b90063a02bc2e270b90402f7ac"
+EXPECTED_HELD_OUT_FINGERPRINT_V1 = "c2dee1ba1b03fead1a6641cfa8c7ceea27eb51b0ed80c0879c07bc3ee29bcc4e"
 SPLITS = ("development", "validation", "held_out")
 PROTECTED_CATEGORIES = (
     "financial_table",
@@ -103,6 +109,15 @@ def _table_gold(index: int) -> dict[str, Any]:
                 for row in range(len(rows))
                 for column in range(len(rows[row]))
             ],
+            "header_roles": [
+                {"row": 0, "column": 0, "source": "항목", "acceptable": ["item", "category", "metric"]},
+                {"row": 0, "column": 1, "source": "2025년", "acceptable": ["2025"]},
+                {"row": 0, "column": 2, "source": "2026년", "acceptable": ["2026"]},
+                {"row": 0, "column": 3, "source": "증감", "acceptable": ["change", "variance", "increase", "decrease"]},
+                {"row": 1, "column": 0, "source": "매출", "acceptable": ["revenue", "sales"]},
+                {"row": 2, "column": 0, "source": "영업이익", "acceptable": ["operating profit", "operating income"]},
+                {"row": 3, "column": 0, "source": "투자", "acceptable": ["investment"]},
+            ],
         },
         "numeric_facts": ["3.2조원", "3.7조원", "+15%", "500억원", "620억원", "+2.3%p", "800억원", "1,000억원"],
         "visible_items": len(rows),
@@ -150,7 +165,7 @@ def _content(category: str, index: int) -> tuple[str, tuple[str, ...], str, bool
         phrase = phrases[index % len(phrases)]
         expected = {"검토": "under_review", "예정": "scheduled", "확정": "decided", "완료": "completed", "미정": "not_decided"}
         state = next(value for key, value in expected.items() if key in phrase)
-        return "적용 계획 및 상태", (phrase, "관련 부서 협의 후 추진 예정", "리스크: 예산 승인 필요"), "modality", False, {"commitment": state, "speech_act": "plan", "modality": {"source_text": phrase, "commitment": state, "speech_act": "plan"}, "visible_items": 3, "expected_region_min": 4, "visual_elements": ["status_badge", "risk_callout"]}
+        return "적용 계획 및 상태", (phrase, "관련 부서 협의 후 추진 예정", "리스크: 예산 승인 필요"), "modality", False, {"commitment": state, "speech_act": "plan", "modality": {"source_text": phrase, "source_object_role": "deployment_status", "commitment": state, "speech_act": "plan"}, "visible_items": 3, "expected_region_min": 4, "visual_elements": ["status_badge", "risk_callout"]}
     if category == "financial_table":
         gold = _table_gold(index)
         return "실적 현황", ("전년 대비 핵심 지표", "투자 여부는 검토 중"), "table", index % 5 == 0, gold
@@ -209,12 +224,15 @@ def split_manifest(scenarios: list[Scenario] | None = None) -> dict[str, Any]:
     return {
         "schema_version": "1.0",
         "dataset_version": DATASET_VERSION,
+        "generator_version": CORPUS_GENERATOR_VERSION,
         "split_seed": SPLIT_SEED,
         "scenario_count": len(entries),
         "splits": by_split,
         "by_category": by_category,
         "protected_categories": list(PROTECTED_CATEGORIES),
         "compound": {"total": sum(item["compound"] for item in entries), "held_out": sum(item["compound"] and item["split"] == "held_out" for item in entries)},
+        "corpus_fingerprint": _corpus_fingerprint(selected),
+        "held_out_fingerprint": _held_out_fingerprint(selected),
         "scenarios": entries,
     }
 

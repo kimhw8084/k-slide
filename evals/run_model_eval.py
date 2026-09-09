@@ -40,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
         configuration=configuration or None,
     ).run()
     print(json.dumps(result, ensure_ascii=False))
-    if result.get("status") in {"GEMMA_QUALITY_EVALUATION_BLOCKED", "CAPABILITY_BLOCK", "NON_AUTHORITATIVE", "PROTOCOL_SMOKE_ONLY"}:
+    if result.get("status") in {"GEMMA_QUALITY_EVALUATION_BLOCKED", "CAPABILITY_BLOCK", "NON_AUTHORITATIVE", "PROTOCOL_SMOKE_ONLY", "CAPABILITY_BLOCKED"}:
         return 0
     return 0 if result.get("status") == "PASS" else 2
 

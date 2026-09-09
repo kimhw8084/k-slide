@@ -78,12 +78,20 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
     except OSError as exc:
         checks.append(_check("Writable run directory", "FAIL", str(exc)))
     try:
-        with tempfile.NamedTemporaryFile(suffix=".png", dir=root, delete=True) as handle:
-            handle.write(b"\x89PNG\r\n\x1a\nsynthetic")
-            handle.flush()
-            validate_input(Path(handle.name))
-        checks.append(_check("Input magic validation", "PASS", "synthetic PNG header accepted"))
+        if importlib.util.find_spec("PIL"):
+            from PIL import Image
+
+            with tempfile.NamedTemporaryFile(suffix=".png", dir=root, delete=False) as handle:
+                image_path = Path(handle.name)
+            try:
+                Image.new("RGB", (8, 8), "white").save(image_path, format="PNG")
+                validate_input(image_path)
+            finally:
+                image_path.unlink(missing_ok=True)
+            checks.append(_check("Input validation", "PASS", "valid PNG decode and content validation smoke test passed"))
+        else:
+            checks.append(_check("Input validation", "WARN", "Pillow unavailable; header-only validation is not treated as a capability pass"))
     except Exception as exc:
-        checks.append(_check("Input magic validation", "FAIL", str(exc)))
+        checks.append(_check("Input validation", "FAIL", str(exc)))
     overall = "FAIL" if any(item["status"] == "FAIL" for item in checks) else ("WARN" if any(item["status"] == "WARN" for item in checks) else "PASS")
     return {"k_slide_version": __version__, "overall": overall, "runtime": runtime.as_dict(), "checks": checks}

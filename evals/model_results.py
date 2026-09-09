@@ -7,6 +7,8 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Iterable
 
+from .certification import EvaluationState, certification_status
+
 
 def aggregate_model_results(results: Iterable[dict[str, Any]], *, model: str, split: str) -> dict[str, Any]:
     cases = list(results)
@@ -15,10 +17,12 @@ def aggregate_model_results(results: Iterable[dict[str, Any]], *, model: str, sp
     mean_scores = {name: sum(float(item.get("semantic", {}).get(name, 0.0)) for item in scored) / len(scored) if scored else 0.0 for name in metric_names}
     category_values: dict[str, list[dict[str, Any]]] = defaultdict(list)
     format_values: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    repeated_groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     critical_types: Counter[str] = Counter()
     for item in scored:
         category_values[str(item.get("category"))].append(item)
         format_values[str(item.get("format"))].append(item)
+        repeated_groups[(str(item.get("scenario_id")), str(item.get("format")))].append(item)
         critical_types.update(item.get("semantic", {}).get("critical_failures", []))
 
     def summarize(values: list[dict[str, Any]]) -> dict[str, Any]:
@@ -42,6 +46,31 @@ def aggregate_model_results(results: Iterable[dict[str, Any]], *, model: str, sp
         )
         for item in cases
     )
+    review_case_count = sum(1 for item in scored if float(item.get("semantic", {}).get("unresolved_region_rate", 0.0)) > 0)
+    stability_groups = {
+        f"{scenario}/{format_name}": {
+            "repetitions": len(group),
+            "critical_failure_runs": sum(bool(item.get("semantic", {}).get("critical_failures")) for item in group),
+            "critical_frequency": sum(bool(item.get("semantic", {}).get("critical_failures")) for item in group) / len(group),
+            "mean_hard_score": sum(not item.get("semantic", {}).get("critical_failures") for item in group) / len(group),
+            "minimum_hard_score": min((float(item.get("semantic", {}).get("coverage", 0.0)) for item in group), default=0.0),
+            "maximum_hard_score": max((float(item.get("semantic", {}).get("coverage", 0.0)) for item in group), default=0.0),
+        }
+        for (scenario, format_name), group in sorted(repeated_groups.items())
+    }
+    worst_case_frequency = max((item["critical_frequency"] for item in stability_groups.values()), default=0.0)
+    protocol_smoke = any(item.get("status") == "PROTOCOL_SMOKE_ONLY" or item.get("opencode", {}).get("mode") == "protocol" for item in cases)
+    if quality_authoritative:
+        evaluation_state = certification_status(
+            authoritative=True,
+            critical_failures=sum(len(item.get("semantic", {}).get("critical_failures", [])) for item in scored),
+        ).value
+    elif protocol_smoke:
+        evaluation_state = EvaluationState.PROTOCOL_SMOKE_ONLY.value
+    elif endpoint_blocked:
+        evaluation_state = EvaluationState.CAPABILITY_BLOCKED.value
+    else:
+        evaluation_state = EvaluationState.NOT_MEASURED.value
     return {
         "model": model,
         "split": split,
@@ -50,12 +79,17 @@ def aggregate_model_results(results: Iterable[dict[str, Any]], *, model: str, sp
         "model_given_valid_evidence_case_count": sum(item.get("engine_gate") == "PASS" for item in cases),
         "total_system_end_to_end_failures": end_to_end_failures,
         "quality_metrics_authoritative": quality_authoritative,
+        "evaluation_state": evaluation_state,
         "target_endpoint_blocked": endpoint_blocked,
         "effective_model_identity_proven_count": sum(1 for item in cases if item.get("opencode", {}).get("diagnostics", {}).get("model_identity_proven") is True),
         "mean_scores": mean_scores,
         "critical_failure_count": sum(len(item.get("semantic", {}).get("critical_failures", [])) for item in scored),
         "critical_failure_types": sorted(critical_types),
-        "worst_case_critical_frequency": max((1.0 if item.get("semantic", {}).get("critical_failures") else 0.0 for item in scored), default=0.0),
+        "worst_case_critical_frequency": worst_case_frequency,
+        "review_case_count": review_case_count,
+        "review_rate": review_case_count / len(scored) if scored else 0.0,
+        "unresolved_region_rate": sum(float(item.get("semantic", {}).get("unresolved_region_rate", 0.0)) for item in scored) / len(scored) if scored else 0.0,
+        "stability_groups": stability_groups,
         "by_category": {key: summarize(value) for key, value in sorted(category_values.items())},
         "by_format": {key: summarize(value) for key, value in sorted(format_values.items())},
     }

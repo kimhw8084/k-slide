@@ -6,6 +6,7 @@ the deterministic ingestion pipeline can prove about a generated artifact.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -139,8 +140,24 @@ def score_engine_case(scenario: Any, *, artifact_result: dict[str, Any], normali
     if expected_table:
         matching = next((table for table in actual_tables if table.row_count == expected_table["row_count"] and table.column_count == expected_table["column_count"]), None)
         if matching is None:
+            capability_error = bool(error and _ENGINE_FAILURE_CLASSES.get(error) == "CAPABILITY_BLOCK")
+            ocr_provider = None
+            if run_dir is not None:
+                try:
+                    metrics = json.loads((run_dir / "metrics.json").read_text(encoding="utf-8"))
+                    ocr_provider = metrics.get("ocr_provider")
+                except (OSError, json.JSONDecodeError):
+                    pass
             table_pass = False
-            table_failures.append("table_missing_or_dimensions_mismatch")
+            if capability_error:
+                # A failed normalization capability already explains why the
+                # table cannot be observed; do not double-count it as a table
+                # algorithm failure.
+                pass
+            elif ocr_provider == "none":
+                table_failures.append("KSLIDE_OCR_UNAVAILABLE")
+            else:
+                table_failures.append("table_missing_or_dimensions_mismatch")
         else:
             actual_cells = {(cell.row, cell.column, cell.source_text) for cell in matching.cells}
             expected_cells = {(cell["row"], cell["column"], cell["source"]) for cell in expected_table.get("required_cells", [])}
@@ -178,7 +195,7 @@ def score_engine_case(scenario: Any, *, artifact_result: dict[str, Any], normali
         critical_failures.append("ARTIFACT_GENERATION")
     if error:
         critical_failures.append(error)
-    if normalized is None:
+    if normalized is None and not (error and _ENGINE_FAILURE_CLASSES.get(error) == "CAPABILITY_BLOCK"):
         critical_failures.append("ENGINE_NORMALIZATION")
     if normalized is not None and scores["work_unit_count"] < 1:
         critical_failures.append("ENGINE_WORK_UNIT_COUNT")
@@ -209,12 +226,15 @@ def aggregate_engine_scores(results: list[dict[str, Any]]) -> dict[str, Any]:
     from collections import Counter
 
     failure_classes = Counter(classification for item in results for classification in item.get("failure_classes", []))
+    capability_blocks = failure_classes.get("CAPABILITY_BLOCK", 0)
     return {
         "case_count": len(results),
         "artifact_generation_pass_rate": sum(bool(item["artifact"].get("artifact_generation_pass")) for item in results) / len(results) if results else 0.0,
         "engine_normalization_pass_rate": sum(bool(item.get("normalization_pass")) for item in results) / len(results) if results else 0.0,
         "evidence_generation_pass_rate": sum(bool(item.get("evidence_generation_pass")) for item in results) / len(results) if results else 0.0,
         "critical_failure_count": sum(len(item.get("critical_failures", [])) for item in results),
+        "capability_block_count": capability_blocks,
+        "algorithmic_failure_count": sum(len(item.get("critical_failures", [])) for item in results) - capability_blocks,
         "failure_classes": dict(sorted(failure_classes.items())),
         "mean_scores": {key: sum(float(item["scores"].get(key, 0.0)) for item in results) / len(results) if results else 0.0 for key in keys},
     }

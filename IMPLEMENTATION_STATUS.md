@@ -2,7 +2,7 @@
 
 ## Current boundary
 
-**K-Slide 0.3.2 — Phase 3.2 certification-harness integrity boundary.**
+**K-Slide 0.3.3 — Phase 3.3 certification-semantics and multi-work-unit E2E boundary.**
 
 The repository now has a coherent, tested boundary from validated immutable input through normalized document units, native evidence, deterministic crops, bounded multimodal packets, deterministic reports, and synthetic evaluation artifacts. It remains `DEVELOPMENT`: the local runtime is `ollama/qwen3:14b`, not the target `google/gemma-4-31b-it`, and no production translation gate has been certified.
 
@@ -32,6 +32,11 @@ The repository now has a coherent, tested boundary from validated immutable inpu
 - Structured OpenCode event normalization that does not infer tool use from prompt/log substrings; actual forbidden-tool and media-read assertions, timeout diagnostics, and a complete-run success contract.
 - Corpus-level `ModelEvaluationRunner` with split/category/format/repetition controls, persisted experiment manifests, TranslationPatch/SlideIR loading, source-local semantic scoring, and non-authoritative gating for non-target models.
 - Stratified deterministic split manifest generation, held-out governance, five linked multi-slide deck scenarios, and stricter champion/challenger protected-category rules.
+- Certification state semantics separate measurement from quality outcome (`NOT_MEASURED`, `CAPABILITY_BLOCKED`, `PROTOCOL_SMOKE_ONLY`, `MEASURED`, `CERTIFICATION_FAIL`, and candidate/certified states); `champion.json` remains intentionally `UNSET`.
+- Approved-model policy requires exact requested/effective identity or an explicitly configured private alias; certification manifests persist corpus, held-out, configuration, and certification fingerprints.
+- Per-work-unit media traces bind each `kslide_evidence`/read/`kslide_submit` sequence to its own work-unit ID, including context-image and crop recall.
+- Model result collection loads every persisted work-unit TranslationPatch/EvidenceIR/SlideIR triple, aggregates unit/deck metrics, and computes repeated-run critical frequency, review rate, and category/format summaries.
+- Source-local table-header, chart-trend, process-edge, modality, terminology, Hangul-retention, unresolved-usefulness, and executive-claim semantic gates are covered by automated tests.
 - Semantic TranslationPatch scorers, private gold-set protocol, and zero-Korean comprehension-study protocol.
 - Reproducible heavyweight Docker definition/self-test for LibreOffice, PaddleOCR 3.x, PyMuPDF, python-pptx, Pillow, and Korean fonts.
 - Black-box CLI, installer regression, trust-model, queue/resume, concurrency, stale-evidence, stale-finalization, and normalization fixture tests.
@@ -40,29 +45,50 @@ The repository now has a coherent, tested boundary from validated immutable inpu
 ## Verification performed locally
 
 ```text
-Latest local verification:
-
-PYTHONPATH=src python3 -m unittest discover -s tests -q: PASS (55 tests, 7 optional skips in the base interpreter)
-PYTHONPATH=src python3 -m compileall -q src evals tests: PASS
-scenario split manifest: PASS (100 specs; 60/20/20; protected categories in held-out)
-OpenCode 1.3.9 event parser contract tests: PASS
-heavy Docker self-test: not run locally; image definition is present
-PNG/PDF/PPTX corpus generation: BLOCKED locally because verified Korean font/document extras are absent
-Gemma quality evaluation: BLOCKED — target endpoint unavailable
+Dependency-backed unit/integration suite: PASS (74 tests)
+Dependency-backed compile/import checks: PASS
+TranslationPatch JSON schema parse: PASS
+Stratified split manifest: PASS (100 specs; 60/20/20; protected categories in held-out)
+Corpus fingerprint: `698b471fa9dffe9f79af40a61c3546d6455889b90063a02bc2e270b90402f7ac`
+Held-out fingerprint: `c2dee1ba1b03fead1a6641cfa8c7ceea27eb51b0ed80c0879c07bc3ee29bcc4e`
+Corpus/held-out fingerprint governance tests: PASS
+Full lightweight engine suite: EXECUTED (500 cases; 100 each PNG/JPEG/WebP/PDF/PPTX)
+Artifact generation: 500/500 PASS
+PNG/JPEG/WebP/PDF normalization + EvidenceIR: 400/400 PASS
+PPTX visual normalization: 100 CAPABILITY_BLOCKED (LibreOffice unavailable)
+OpenCode 1.3.9 protocol smoke: TIMEOUT before structured events/run creation
+Gemma quality evaluation: CAPABILITY_BLOCKED — target endpoint unavailable
 ```
 
-Test totals are not repeated as a standing contract; CI and the commands above are authoritative as the suite evolves.
+Test totals are not a standing contract; the commands above and CI are authoritative as the suite evolves.
 
 Runtime snapshot: OpenCode `1.3.9`; configured model `ollama/qwen3:14b`; model compatibility `different_model_warning`.
 
-The optional skips require image/PDF/PPTX packages in the base interpreter; the temporary verification environment exercised them. The CI workflow installs the development/document extras, while LibreOffice and PaddleOCR remain capability-gated integration paths. No target-model session or Gemma production evaluation was available locally.
+The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pptx, and verified Korean-font support. LibreOffice, PaddlePaddle, PaddleOCR, and the approved Gemma endpoint were unavailable locally. The OpenCode runner retained timeout diagnostics and did not treat the zero-event timeout as a protocol pass.
+
+## Certification capability matrix
+
+| Capability | Status | Evidence |
+| --- | --- | --- |
+| Unit/integration tests | PASS | 72 tests in the dependency-backed environment |
+| Artifact generation | PASS | 500/500 generated across five formats |
+| Lightweight engine | PASS with capability-separated findings | 500 cases executed; raster/PDF paths completed |
+| LibreOffice real roundtrip | BLOCKED | `soffice` unavailable; Docker daemon unavailable |
+| PaddleOCR real Korean roundtrip | BLOCKED | PaddlePaddle/PaddleOCR unavailable |
+| OpenCode protocol | BLOCKED | OpenCode 1.3.9 Qwen smoke timed out before events |
+| Gemma development | BLOCKED | `google/gemma-4-31b-it` unavailable in effective runtime |
+| Gemma validation | NOT RUN | Target endpoint unavailable |
+| Held-out quality evaluation | NOT RUN | Champion remains `UNSET` |
+| Internal bilingual evaluation | NOT RUN | Private dataset not present |
+| Zero-Korean comprehension study | NOT RUN | Study has protocol only |
+| Production certification | DEVELOPMENT | No target-model or human gates passed |
 
 ## Known limitations
 
 - Full target Gemma translation, repair quality, and zero-Korean comprehension evaluation are not yet measured.
 - The base local interpreter does not have all optional document/OCR runtimes; doctor reports proven capabilities rather than pretending they pass.
-- LibreOffice-rendered PPTX and PaddleOCR 3 integration are not exercised in this workspace; use `evals/heavy/Dockerfile` and `python -m evals.heavy.doctor` in an approved environment.
-- The model-facing OpenCode flow is contract-ready, but no Gemma endpoint is available locally; no Gemma accuracy or comprehension result is reported.
+- LibreOffice-rendered PPTX and PaddleOCR 3 integration are not exercised in this workspace; `evals/heavy/Dockerfile` is reproducible but its build could not start because the local Docker daemon is unavailable. Use it and `python -m evals.heavy.doctor` in an approved environment.
+- The model-facing OpenCode flow is contract-ready, but the local Qwen protocol smoke timed out before emitting structured events. No Gemma accuracy or comprehension result is reported; this remains a protocol blocker to resolve in an environment where the configured local model responds.
 - Numeric/modality/terminology verifiers are deterministic foundations, not a substitute for bilingual gold review.
 - Current-message attachment materialization is not advertised because OpenCode 1.3.9 does not expose a proven safe bridge in this repository.
 - The local OpenCode server `/doc` surface exposed only global routes during inspection; the runner therefore uses the supported CLI JSON-event path for protocol execution and records structured server API work as a separate capability.
@@ -71,10 +97,11 @@ The optional skips require image/PDF/PPTX packages in the base interpreter; the 
 
 ## Next phase
 
-1. Build and execute the heavy image self-test in an approved environment.
-2. Connect the approved Gemma 4 31B-it endpoint through the bounded OpenCode workflow.
-3. Run development, validation, ablation, repeated high-risk, and finally frozen held-out evaluations.
-4. Promote a configuration only when hard critical-error gates and protected-category regression rules pass.
+1. Run the heavy container/doctor with a working Docker daemon or approved heavy runner; resolve any real OCR/layout failures before model scoring.
+2. Resolve the simple OpenCode protocol smoke timeout and prove a complete one-slide run.
+3. Connect the approved Gemma 4 31B-it endpoint through the bounded OpenCode workflow.
+4. Run development, validation, ablation, repeated high-risk, and finally frozen held-out evaluations.
+5. Promote a configuration only when hard critical-error gates and protected-category regression rules pass.
 
 ## Architecture decisions
 
@@ -95,3 +122,16 @@ The optional skips require image/PDF/PPTX packages in the base interpreter; the 
 - [ADR 0015 — Evaluation corpus](docs/adr/0015-evaluation-corpus.md)
 - [ADR 0016 — Modality enums](docs/adr/0016-modality-enums.md)
 - [ADR 0017 — Bounded repair](docs/adr/0017-bounded-repair.md)
+- [ADR 0018 — Realistic visual corpus](docs/adr/0018-realistic-visual-corpus.md)
+- [ADR 0019 — OpenCode evaluation surface](docs/adr/0019-opencode-evaluation-surface.md)
+- [ADR 0020 — Stratified evaluation splits](docs/adr/0020-stratified-evaluation-splits.md)
+- [ADR 0021 — Structured OpenCode events](docs/adr/0021-structured-opencode-events.md)
+- [ADR 0022 — Source-local semantic scoring](docs/adr/0022-source-local-semantic-scoring.md)
+- [ADR 0023 — Heavy certification environment](docs/adr/0023-heavy-certification-environment.md)
+- [ADR 0024 — Held-out governance](docs/adr/0024-held-out-governance.md)
+- [ADR 0025 — Certification state semantics](docs/adr/0025-certification-state-semantics.md)
+- [ADR 0026 — Per-work-unit media compliance](docs/adr/0026-per-work-unit-media-compliance.md)
+- [ADR 0027 — Multi-unit model scoring](docs/adr/0027-multi-unit-model-scoring.md)
+- [ADR 0028 — Corpus fingerprints](docs/adr/0028-corpus-fingerprints.md)
+- [ADR 0029 — Approved model policy](docs/adr/0029-approved-model-policy.md)
+- [ADR 0030 — Review-rate governance](docs/adr/0030-review-rate-governance.md)
