@@ -2,7 +2,7 @@
 
 ## Current boundary
 
-**K-Slide 0.3.1 — Phase 3.1 multimodal evaluation laboratory.**
+**K-Slide 0.3.2 — Phase 3.2 certification-harness integrity boundary.**
 
 The repository now has a coherent, tested boundary from validated immutable input through normalized document units, native evidence, deterministic crops, bounded multimodal packets, deterministic reports, and synthetic evaluation artifacts. It remains `DEVELOPMENT`: the local runtime is `ollama/qwen3:14b`, not the target `google/gemma-4-31b-it`, and no production translation gate has been certified.
 
@@ -29,7 +29,11 @@ The repository now has a coherent, tested boundary from validated immutable inpu
 - Independent PNG/JPEG/WebP/PDF/PPTX artifact cases and qualified engine scores for normalization, EvidenceIR coverage, table/numeric/visual/media invariants.
 - Verified Korean-font discovery that fails corpus generation instead of falling back to tofu/default glyphs.
 - OpenCode protocol runner using the real `opencode run --format json` command surface; non-Gemma runs are protocol smoke only.
-- Semantic TranslationPatch scorers, champion/challenger comparison utilities, private gold-set protocol, and zero-Korean comprehension-study protocol.
+- Structured OpenCode event normalization that does not infer tool use from prompt/log substrings; actual forbidden-tool and media-read assertions, timeout diagnostics, and a complete-run success contract.
+- Corpus-level `ModelEvaluationRunner` with split/category/format/repetition controls, persisted experiment manifests, TranslationPatch/SlideIR loading, source-local semantic scoring, and non-authoritative gating for non-target models.
+- Stratified deterministic split manifest generation, held-out governance, five linked multi-slide deck scenarios, and stricter champion/challenger protected-category rules.
+- Semantic TranslationPatch scorers, private gold-set protocol, and zero-Korean comprehension-study protocol.
+- Reproducible heavyweight Docker definition/self-test for LibreOffice, PaddleOCR 3.x, PyMuPDF, python-pptx, Pillow, and Korean fonts.
 - Black-box CLI, installer regression, trust-model, queue/resume, concurrency, stale-evidence, stale-finalization, and normalization fixture tests.
 - GitHub Actions workflow for Python 3.11/3.12, unit tests, compile checks, CLI/installer checks, and doctor.
 
@@ -38,28 +42,18 @@ The repository now has a coherent, tested boundary from validated immutable inpu
 ```text
 Latest local verification:
 
-```text
-PYTHONPATH=src /tmp/k-slide-verify/bin/python -m unittest discover -s tests -v: PASS (38 tests)
-PYTHONPATH=src python3 -m unittest discover -s tests -v: PASS (38 tests, 6 optional skips)
-generate_corpus --formats png jpg webp pdf pptx: PASS (500 artifact cases)
-generate_corpus --split held_out --formats png --all-variants: PASS (100 artifact cases)
-run_engine_eval --split all --formats png pdf pptx: PASS command; 300 cases evaluated
-  artifact_generation_pass_rate: 1.000
-  engine_normalization_pass_rate: 0.667
-  evidence_generation_pass_rate: 0.667
-  critical engine failures: 260 (local LibreOffice/OCR capability boundary is visible)
-run_engine_eval --split all --formats jpg webp: PASS command; 200 cases evaluated
-  artifact/normalization/evidence pass rates: 1.000 / 1.000 / 1.000
-  critical engine failures: 40 (local OCR/layout boundary is visible)
-OpenCode protocol smoke: TIMEOUT with ollama/qwen3:14b; no quality metrics recorded
+PYTHONPATH=src python3 -m unittest discover -s tests -q: PASS (55 tests, 7 optional skips in the base interpreter)
+PYTHONPATH=src python3 -m compileall -q src evals tests: PASS
+scenario split manifest: PASS (100 specs; 60/20/20; protected categories in held-out)
+OpenCode 1.3.9 event parser contract tests: PASS
+heavy Docker self-test: not run locally; image definition is present
+PNG/PDF/PPTX corpus generation: BLOCKED locally because verified Korean font/document extras are absent
 Gemma quality evaluation: BLOCKED — target endpoint unavailable
 ```
 
 Test totals are not repeated as a standing contract; CI and the commands above are authoritative as the suite evolves.
-OpenCode: 1.3.9
-Configured model: ollama/qwen3:14b
-Model compatibility: different_model_warning
-```
+
+Runtime snapshot: OpenCode `1.3.9`; configured model `ollama/qwen3:14b`; model compatibility `different_model_warning`.
 
 The optional skips require image/PDF/PPTX packages in the base interpreter; the temporary verification environment exercised them. The CI workflow installs the development/document extras, while LibreOffice and PaddleOCR remain capability-gated integration paths. No target-model session or Gemma production evaluation was available locally.
 
@@ -67,7 +61,7 @@ The optional skips require image/PDF/PPTX packages in the base interpreter; the 
 
 - Full target Gemma translation, repair quality, and zero-Korean comprehension evaluation are not yet measured.
 - The base local interpreter does not have all optional document/OCR runtimes; doctor reports proven capabilities rather than pretending they pass.
-- LibreOffice-rendered PPTX and PaddleOCR 3 integration are not exercised in this workspace.
+- LibreOffice-rendered PPTX and PaddleOCR 3 integration are not exercised in this workspace; use `evals/heavy/Dockerfile` and `python -m evals.heavy.doctor` in an approved environment.
 - The model-facing OpenCode flow is contract-ready, but no Gemma endpoint is available locally; no Gemma accuracy or comprehension result is reported.
 - Numeric/modality/terminology verifiers are deterministic foundations, not a substitute for bilingual gold review.
 - Current-message attachment materialization is not advertised because OpenCode 1.3.9 does not expose a proven safe bridge in this repository.
@@ -77,10 +71,10 @@ The optional skips require image/PDF/PPTX packages in the base interpreter; the 
 
 ## Next phase
 
-1. Execute LibreOffice/PaddleOCR integration in the documented managed environment.
+1. Build and execute the heavy image self-test in an approved environment.
 2. Connect the approved Gemma 4 31B-it endpoint through the bounded OpenCode workflow.
-3. Run v6 baseline, ablations, repeated target-model tests, bilingual review, and zero-Korean comprehension evaluation.
-4. Promote a configuration only when hard critical-error gates and regression rules pass.
+3. Run development, validation, ablation, repeated high-risk, and finally frozen held-out evaluations.
+4. Promote a configuration only when hard critical-error gates and protected-category regression rules pass.
 
 ## Architecture decisions
 

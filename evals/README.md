@@ -1,10 +1,13 @@
 # K-Slide evaluation laboratory
 
 The public corpus is synthetic and contains no confidential Samsung material.
-It has 100 fixed semantic specifications split into development (60),
-validation (20), and held-out (20). The specifications describe actual visual
-structures rather than labels: raster/PPTX tables, charts, process diagrams,
-and compound executive compositions. Held-out includes compound cases.
+It has 100 fixed semantic specifications in dataset version `1.0`, split by a
+deterministic per-category 60/20/20 stratification into development (60),
+validation (20), and held-out (20). `write_specs` emits an auditable
+`splits.json` manifest; held-out membership must not change without a dataset
+version bump. The specifications describe actual visual structures rather than
+labels: raster/PPTX tables, charts, process diagrams, and compound executive
+compositions.
 
 ## Artifact corpus
 
@@ -49,8 +52,10 @@ not as a pass.
 
 The primary production surface is OpenCode, not a direct model call. The
 runner executes the real `/k-slide` command through `opencode run --format
-json`, captures tool/permission/media evidence, and labels a non-Gemma run
-`PROTOCOL_SMOKE_ONLY`:
+json`, normalizes structured events, detects forbidden tools only from actual
+tool invocations, proves required image reads before submit, records timeout
+diagnostics, and requires a complete K-Slide run before success. A non-Gemma
+run is labelled `PROTOCOL_SMOKE_ONLY`:
 
 ```bash
 PYTHONPATH=src python -m evals.run_model_eval \
@@ -62,6 +67,11 @@ PYTHONPATH=src python -m evals.run_model_eval \
 Quality mode refuses to certify or tune any model other than the approved
 `google/gemma-4-31b-it` target. If that endpoint is unavailable, the result
 must say `GEMMA QUALITY EVALUATION BLOCKED — TARGET ENDPOINT UNAVAILABLE`.
+
+The corpus-level runner supports split/category filters, formats, repetitions,
+configuration manifests, and semantic TranslationPatch/SlideIR scoring. Quality
+metrics remain non-authoritative unless every case satisfies the target-model,
+OpenCode, media, artifact, and semantic scoring contract.
 
 Heavy LibreOffice/PaddleOCR setup and the secure internal bilingual gold
 protocol are documented in `evals/heavy/README.md` and

@@ -18,6 +18,18 @@ their integration is capability-gated and not claimed as locally executed.
 Before promoting this environment, record the exact tested versions in the
 evaluation summary and run native PPTX conversion plus actual Korean OCR.
 
+Reproducible container:
+
+```bash
+docker build -f evals/heavy/Dockerfile -t k-slide-heavy .
+docker run --rm k-slide-heavy
+```
+
+The Dockerfile pins the initial CPU-tested target versions as build arguments;
+update them only after the self-test and record the resulting versions in the
+evaluation report. The current development machine has not built this image,
+so this repository does not claim that heavy integration has executed locally.
+
 Suggested bootstrap on Ubuntu:
 
 ```bash

@@ -365,6 +365,45 @@ def _generate_pptx(scenario: Scenario, destination: Path, *, font_info: FontInfo
     return True
 
 
+def generate_deck_pptx(scenarios: Iterable[Scenario], destination: Path) -> bool:
+    """Generate a real linked multi-slide PPTX for deck-level evaluations."""
+
+    try:
+        from pptx import Presentation
+        from pptx.dml.color import RGBColor
+        from pptx.enum.shapes import MSO_SHAPE
+        from pptx.util import Inches, Pt
+    except ImportError:
+        return False
+    slides = list(scenarios)
+    if not slides:
+        return False
+    presentation = Presentation()
+    presentation.slide_width = Inches(13.333)
+    presentation.slide_height = Inches(7.5)
+    for index, scenario in enumerate(slides, start=1):
+        slide = presentation.slides.add_slide(presentation.slide_layouts[6])
+        _add_pptx_text(slide, scenario.title_ko, Inches(0.45), Inches(0.25), Inches(12.3), Inches(0.55), font_size=28, bold=True)
+        _add_pptx_text(slide, f"Slide {index} of {len(slides)}", Inches(10.8), Inches(0.35), Inches(2.0), Inches(0.3), font_size=12)
+        for line_index, line in enumerate(scenario.body_ko):
+            _add_pptx_text(slide, f"• {line}", Inches(0.8), Inches(1.45 + line_index * 0.7), Inches(7.4), Inches(0.55), font_size=22)
+        callout = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(8.65), Inches(1.45), Inches(3.8), Inches(1.25))
+        callout.text = "공식 용어\nAI Platform"
+        callout.fill.solid()
+        callout.fill.fore_color.rgb = RGBColor(232, 241, 252)
+        callout.text_frame.paragraphs[0].font.size = Pt(18)
+        callout.text_frame.paragraphs[1].font.size = Pt(24)
+        risk = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(8.65), Inches(3.1), Inches(3.8), Inches(1.25))
+        risk.text = "리스크 / 의존성\n관련 부서 협의"
+        risk.fill.solid()
+        risk.fill.fore_color.rgb = RGBColor(255, 241, 236)
+        for paragraph in risk.text_frame.paragraphs:
+            paragraph.font.size = Pt(18)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    presentation.save(destination)
+    return True
+
+
 def _add_pptx_table(slide, scenario: Scenario, x, y, width, height):
     from pptx.dml.color import RGBColor
     from pptx.util import Pt

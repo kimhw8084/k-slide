@@ -7,6 +7,7 @@ because its label says ``financial_table`` or ``chart``.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -39,13 +40,48 @@ _DISTRIBUTION = (
     ("state_resume", 5),
 )
 
+DATASET_VERSION = "1.0"
+SPLIT_SEED = 3202
+SPLITS = ("development", "validation", "held_out")
+PROTECTED_CATEGORIES = (
+    "financial_table",
+    "modality_decision_state",
+    "chart",
+    "process_diagram",
+    "state_resume",
+)
 
-def _split(counter: int) -> str:
-    if counter <= 60:
-        return "development"
-    if counter <= 80:
-        return "validation"
-    return "held_out"
+
+def _stable_category_order(category: str, count: int) -> list[int]:
+    """Return a deterministic per-category permutation without Python hash()."""
+
+    return sorted(
+        range(count),
+        key=lambda index: hashlib.sha256(f"{SPLIT_SEED}:{category}:{index}".encode("utf-8")).hexdigest(),
+    )
+
+
+def _category_split_map(category: str, count: int) -> dict[int, str]:
+    """Allocate each category approximately 60/20/20 with every split present."""
+
+    if count < 3:
+        raise ValueError(f"Category {category!r} needs at least three cases for stratification.")
+    development = max(1, round(count * 0.60))
+    validation = max(1, round(count * 0.20))
+    held_out = count - development - validation
+    if held_out < 1:
+        validation -= 1
+        held_out = count - development - validation
+    order = _stable_category_order(category, count)
+    assignment: dict[int, str] = {}
+    for position, index in enumerate(order):
+        if position < development:
+            assignment[index] = "development"
+        elif position < development + validation:
+            assignment[index] = "validation"
+        else:
+            assignment[index] = "held_out"
+    return assignment
 
 
 def _table_gold(index: int) -> dict[str, Any]:
@@ -114,7 +150,7 @@ def _content(category: str, index: int) -> tuple[str, tuple[str, ...], str, bool
         phrase = phrases[index % len(phrases)]
         expected = {"검토": "under_review", "예정": "scheduled", "확정": "decided", "완료": "completed", "미정": "not_decided"}
         state = next(value for key, value in expected.items() if key in phrase)
-        return "적용 계획 및 상태", (phrase, "관련 부서 협의 후 추진 예정", "리스크: 예산 승인 필요"), "modality", False, {"commitment": state, "speech_act": "plan", "visible_items": 3, "expected_region_min": 4, "visual_elements": ["status_badge", "risk_callout"]}
+        return "적용 계획 및 상태", (phrase, "관련 부서 협의 후 추진 예정", "리스크: 예산 승인 필요"), "modality", False, {"commitment": state, "speech_act": "plan", "modality": {"source_text": phrase, "commitment": state, "speech_act": "plan"}, "visible_items": 3, "expected_region_min": 4, "visual_elements": ["status_badge", "risk_callout"]}
     if category == "financial_table":
         gold = _table_gold(index)
         return "실적 현황", ("전년 대비 핵심 지표", "투자 여부는 검토 중"), "table", index % 5 == 0, gold
@@ -137,16 +173,50 @@ def _content(category: str, index: int) -> tuple[str, tuple[str, ...], str, bool
 
 def scenario_specs() -> list[Scenario]:
     scenarios: list[Scenario] = []
-    counter = 0
     for category, count in _DISTRIBUTION:
+        split_map = _category_split_map(category, count)
         for index in range(count):
-            counter += 1
+            counter = len(scenarios) + 1
             title, body, visual_kind, category_compound, gold = _content(category, index)
-            # Keep at least a quarter of held-out cases compound, as required by
-            # the evaluation design, without changing the semantic distribution.
-            compound = category_compound or (_split(counter) == "held_out" and counter % 2 == 0)
-            scenarios.append(Scenario(f"scenario-{counter:04d}", category, 1000 + counter, _split(counter), title, body, visual_kind, compound, gold))
+            split = split_map[index]
+            # Keep at least a quarter of held-out cases compound, without
+            # changing the semantic distribution.
+            compound = category_compound or (split == "held_out" and index % 2 == 0)
+            scenarios.append(Scenario(f"scenario-{counter:04d}", category, 1000 + counter, split, title, body, visual_kind, compound, gold))
     return scenarios
+
+
+def split_manifest(scenarios: list[Scenario] | None = None) -> dict[str, Any]:
+    """Build the immutable, auditable split manifest used by every eval tier."""
+
+    selected = list(scenarios or scenario_specs())
+    entries = [
+        {
+            "scenario_id": item.scenario_id,
+            "category": item.category,
+            "split": item.split,
+            "seed": item.seed,
+            "visual_kind": item.visual_kind,
+            "compound": item.compound,
+        }
+        for item in selected
+    ]
+    by_split = {split: sum(item["split"] == split for item in entries) for split in SPLITS}
+    by_category = {
+        category: {split: sum(item["category"] == category and item["split"] == split for item in entries) for split in SPLITS}
+        for category, _count in _DISTRIBUTION
+    }
+    return {
+        "schema_version": "1.0",
+        "dataset_version": DATASET_VERSION,
+        "split_seed": SPLIT_SEED,
+        "scenario_count": len(entries),
+        "splits": by_split,
+        "by_category": by_category,
+        "protected_categories": list(PROTECTED_CATEGORIES),
+        "compound": {"total": sum(item["compound"] for item in entries), "held_out": sum(item["compound"] and item["split"] == "held_out" for item in entries)},
+        "scenarios": entries,
+    }
 
 
 def write_specs(path: Any) -> int:
@@ -158,12 +228,7 @@ def write_specs(path: Any) -> int:
     scenarios = scenario_specs()
     for scenario in scenarios:
         (target / f"{scenario.scenario_id}.json").write_text(json.dumps(scenario.as_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    manifest = {
-        "schema_version": "1.0",
-        "scenario_count": len(scenarios),
-        "splits": {split: sum(item.split == split for item in scenarios) for split in ("development", "validation", "held_out")},
-        "compound_held_out": sum(item.compound for item in scenarios if item.split == "held_out"),
-        "seed_ranges": {split: [min(item.seed for item in scenarios if item.split == split), max(item.seed for item in scenarios if item.split == split)] for split in ("development", "validation", "held_out")},
-    }
+    manifest = split_manifest(scenarios)
     (target / "MANIFEST.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (target / "splits.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return len(scenarios)

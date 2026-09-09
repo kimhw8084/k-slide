@@ -10,6 +10,26 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
+_ENGINE_FAILURE_CLASSES = {
+    "KSLIDE_PPTX_RENDER_UNAVAILABLE": "CAPABILITY_BLOCK",
+    "KSLIDE_OCR_UNAVAILABLE": "CAPABILITY_BLOCK",
+    "KSLIDE_PDF_RENDER_UNAVAILABLE": "CAPABILITY_BLOCK",
+    "ENGINE_NORMALIZATION": "NORMALIZATION_FAILURE",
+    "ENGINE_WORK_UNIT_COUNT": "LAYOUT_FAILURE",
+    "table_missing_or_dimensions_mismatch": "TABLE_EXTRACTION_FAILURE",
+    "required_table_cell_missing": "TABLE_EXTRACTION_FAILURE",
+    "ENGINE_ID_COLLISION": "ID_INTEGRITY_FAILURE",
+    "ENGINE_EVIDENCE_MISSING": "VISUAL_EVIDENCE_FAILURE",
+}
+
+
+def _failure_classes(codes: Iterable[str]) -> list[str]:
+    classes: set[str] = set()
+    for code in codes:
+        classes.add(_ENGINE_FAILURE_CLASSES.get(code, "ARTIFACT_FAILURE" if code == "ARTIFACT_GENERATION" else "ENGINE_EXTRACTION"))
+    return sorted(classes)
+
+
 def score_artifact(path: Path, scenario: Any) -> dict[str, Any]:
     result: dict[str, Any] = {
         "scenario_id": scenario.scenario_id,
@@ -166,6 +186,9 @@ def score_engine_case(scenario: Any, *, artifact_result: dict[str, Any], normali
         critical_failures.append("ENGINE_ID_COLLISION")
     if expected_table and not table_pass:
         critical_failures.extend(table_failures)
+    failure_classes = _failure_classes(critical_failures)
+    if error and error not in critical_failures:
+        failure_classes = sorted(set(failure_classes + [_ENGINE_FAILURE_CLASSES.get(error, "ENGINE_EXTRACTION")]))
     return {
         "scenario_id": scenario.scenario_id,
         "category": scenario.category,
@@ -175,6 +198,7 @@ def score_engine_case(scenario: Any, *, artifact_result: dict[str, Any], normali
         "evidence_generation_pass": bool(evidence),
         "scores": scores,
         "critical_failures": sorted(set(critical_failures)),
+        "failure_classes": failure_classes,
         "error": error,
         "run_id": run_dir.name if run_dir is not None else None,
     }
@@ -182,11 +206,15 @@ def score_engine_case(scenario: Any, *, artifact_result: dict[str, Any], normali
 
 def aggregate_engine_scores(results: list[dict[str, Any]]) -> dict[str, Any]:
     keys = ("work_unit_count", "region_coverage", "table_structure", "numeric_fact_recall", "visual_context", "context_media_plan", "unique_ids")
+    from collections import Counter
+
+    failure_classes = Counter(classification for item in results for classification in item.get("failure_classes", []))
     return {
         "case_count": len(results),
         "artifact_generation_pass_rate": sum(bool(item["artifact"].get("artifact_generation_pass")) for item in results) / len(results) if results else 0.0,
         "engine_normalization_pass_rate": sum(bool(item.get("normalization_pass")) for item in results) / len(results) if results else 0.0,
         "evidence_generation_pass_rate": sum(bool(item.get("evidence_generation_pass")) for item in results) / len(results) if results else 0.0,
         "critical_failure_count": sum(len(item.get("critical_failures", [])) for item in results),
+        "failure_classes": dict(sorted(failure_classes.items())),
         "mean_scores": {key: sum(float(item["scores"].get(key, 0.0)) for item in results) / len(results) if results else 0.0 for key in keys},
     }
