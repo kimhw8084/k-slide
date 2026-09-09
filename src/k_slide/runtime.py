@@ -65,8 +65,31 @@ def _read_config(path: Path | None) -> dict[str, Any]:
     if path is None:
         return {}
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+        text = re.sub(r"//[^\n]*", "", text)
+        text = re.sub(r",\s*([}\]])", r"\1", text)
+        value = json.loads(text)
     except (OSError, UnicodeError, json.JSONDecodeError):
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _effective_config(executable: str | None) -> dict[str, Any]:
+    """Prefer OpenCode's effective config report over one guessed config file."""
+
+    if not executable:
+        return {}
+    try:
+        result = subprocess.run([executable, "debug", "config"], capture_output=True, text=True, timeout=10, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return {}
+    output = (result.stdout or "").strip()
+    start, end = output.find("{"), output.rfind("}")
+    if start < 0 or end <= start:
+        return {}
+    try:
+        value = json.loads(output[start : end + 1])
+    except json.JSONDecodeError:
         return {}
     return value if isinstance(value, dict) else {}
 
@@ -96,7 +119,9 @@ def _model_details(model_id: str | None) -> dict[str, Any]:
         "model_family": "Gemma 4" if is_gemma4 else (model_id.split("/", 1)[1].split(":", 1)[0] if model_id and "/" in model_id else (model_id.split(":", 1)[0] if model_id else None)),
         "model_size": "31B" if "31b" in normalized else None,
         "instruction_tuned_status": tuned,
-        "vision_support": True if is_gemma4 else None,
+        # Model naming is not proof that the active provider accepts image
+        # inputs. A multimodal smoke test/provider capability report is needed.
+        "vision_support": None,
         "thinking_support": None,
         "model_compatibility": compatibility,
         "warnings": warnings,
@@ -106,7 +131,7 @@ def _model_details(model_id: str | None) -> dict[str, Any]:
 def discover_runtime() -> RuntimeMetadata:
     executable = shutil.which("opencode")
     path = _config_path()
-    config = _read_config(path)
+    config = _effective_config(executable) or _read_config(path)
     reported_model = os.environ.get("KSLIDE_MODEL") or os.environ.get("OPENCODE_MODEL") or config.get("model")
     provider = reported_model.split("/", 1)[0] if isinstance(reported_model, str) and "/" in reported_model else None
     provider_config = config.get("provider", {}).get(provider, {}) if provider and isinstance(config.get("provider"), dict) else {}

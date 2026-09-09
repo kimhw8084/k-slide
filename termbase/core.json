@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "records": [
+    {
+      "term_id": "core-enhance",
+      "source": "고도화",
+      "preferred": {"default": "enhance"},
+      "status": "PREFERRED",
+      "scope": ["corporate"]
+    },
+    {
+      "term_id": "core-under-review",
+      "source": "검토",
+      "preferred": {"default": "under review"},
+      "status": "PREFERRED",
+      "scope": ["modality"]
+    }
+  ]
+}

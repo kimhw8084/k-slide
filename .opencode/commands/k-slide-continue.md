@@ -10,6 +10,6 @@ Do not use shell, edit, write, web, or Task/subagent tools. Use `kslide_status`,
 
 If `$ARGUMENTS` is empty, resolve the current session's run automatically.
 
-Use `kslide_status` and loop with `kslide_next` to resume from persisted queue state. Do not invent paths or run IDs. Process each returned work unit through `kslide_evidence` and structured `kslide_submit`; do not repeat verified units.
+Use `kslide_status` and loop with `kslide_next` to resume from persisted queue state. Do not invent paths or run IDs. Process each returned work unit through `kslide_evidence`, read its context image and required risk crops, and structured `kslide_submit`; do not repeat verified units.
 
 When `kslide_next` returns `VERIFIED`, call `kslide_finalize`. Do not say DONE unless `RUN_COMPLETE.md` exists and current verification passes.

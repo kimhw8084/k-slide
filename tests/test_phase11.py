@@ -51,10 +51,10 @@ class Phase11Tests(unittest.TestCase):
             "schema_version": "1.0",
             "work_unit_id": work_unit_id,
             "evidence_revision": evidence_revision or evidence["evidence_revision"],
-            "regions": [{"region_id": f"{work_unit_id}-r001", "english": "Requires review before deployment.", "commitment_status": "under_review", "speech_act": "plan", "term_ids": [], "numeric_fact_ids": [], "unresolved": False}],
+            "regions": [{"region_id": f"{work_unit_id}-r001", "english": "Requires review before deployment.", "commitment_status": "under_review", "speech_act": "plan", "term_ids": [], "unresolved": False}],
             "tables": [],
             "visual_interpretations": [],
-            "executive_semantics": {"evidence_ids": [f"{work_unit_id}-r001"]},
+            "executive_claims": [],
             **({"repair_revision": repair_revision} if repair_revision else {}),
         }
 
@@ -69,7 +69,7 @@ class Phase11Tests(unittest.TestCase):
             run = self._prepared(root)
             result = _next(root, run.name, None)
             self.assertEqual(result["status"], "READY")
-            stale = self._payload(run, "slide-001", evidence_revision="b" * 64)
+            stale = self._payload(run, load_queue(run).work_units[0].work_unit_id, evidence_revision="b" * 64)
             with self.assertRaises(KSlideError) as raised:
                 _submit(root, run.name, json.dumps(stale), None)
             self.assertEqual(raised.exception.code, ErrorCode.STALE_EVIDENCE)
@@ -117,7 +117,7 @@ class Phase11Tests(unittest.TestCase):
             self.assertTrue(verify_run(run).passed)
             finalize_run(run)
             self.assertTrue((run / "RUN_COMPLETE.md").exists())
-            ir_path = run / "ir" / "slide-001.json"
+            ir_path = run / "ir" / f"{str(next_value['work_unit_id'])}.json"
             ir_path.write_text(ir_path.read_text().replace("Requires review", "Fabricated change"))
             with self.assertRaises(KSlideError) as raised:
                 finalize_run(run)

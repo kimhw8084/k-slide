@@ -14,7 +14,7 @@ The v6 package already provides:
 - Verification and recovery artifacts, including an explicit completion sentinel.
 - Smart, strict, safe, continue, status, audit, doctor, and help commands.
 
-The current `0.2.0` implementation extends that foundation through the Phase 2 evidence boundary. The engine now owns input validation, immutable snapshots, state transitions, session resolution, typed OpenCode tools, collision-safe installation, runtime/model discovery, deterministic completion, document normalization, native evidence, region crops, numeric evidence, and the OCR-provider abstraction. Gemma receives only bounded EvidenceIR packets and returns a strict TranslationPatch; it does not author source evidence. See [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) for the tested boundary and next task.
+The current `0.3.0` implementation extends that foundation through the Phase 2.1 translation-ready evidence boundary. The engine owns input validation, immutable snapshots, globally unique work units, state transitions, session resolution, typed OpenCode tools, collision-safe installation, runtime/model discovery, deterministic reports/completion, document normalization, native evidence, region crops, numeric evidence, semantic enums, termbase loading, and the OCR-provider abstraction. Gemma receives only bounded EvidenceIR packets and returns a strict TranslationPatch; it does not author source evidence. See [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) for the tested boundary and next task.
 
 ## Acceptance focus for future iterations
 
@@ -29,4 +29,4 @@ Every change should be evaluated against these reader outcomes:
 | Mixed Korean/English slide | Consistent terminology and explanations of important Korean business terms |
 | Unreadable or ambiguous region | Explicit `[unreadable]` or unresolved notation instead of invented content |
 
-The package is a prepared development baseline, not a claim that every visual case has already been benchmarked. The evidence boundary is implemented, but target Gemma evaluation, full deterministic numeric/modality verification, and production certification remain future work.
+The package is a prepared development baseline, not a claim that every visual case has already been benchmarked. The public corpus has 100 deterministic synthetic specifications and an artifact smoke runner. Target Gemma evaluation, internal bilingual review, and production certification remain future work.

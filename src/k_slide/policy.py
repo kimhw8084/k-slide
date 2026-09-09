@@ -42,3 +42,8 @@ class CompletionPolicy:
 
 
 COMPLETION_POLICY = CompletionPolicy()
+
+# A repair loop is deliberately bounded.  Once this many targeted attempts
+# have failed, the work unit is surfaced for review instead of being allowed
+# to consume unbounded model calls.
+MAX_AUTO_REPAIRS_PER_UNIT = 2

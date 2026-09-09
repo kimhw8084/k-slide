@@ -1,6 +1,6 @@
 """K-Slide core: local-first lifecycle and evidence integrity primitives."""
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 RUN_STATE_SCHEMA_VERSION = "1.0"
 EVIDENCE_IR_SCHEMA_VERSION = "1.0"
 TRANSLATION_PATCH_SCHEMA_VERSION = "1.0"

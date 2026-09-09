@@ -2,9 +2,9 @@
 
 ## Current boundary
 
-**K-Slide 0.2.0 — Phase 1.1 trust-model hardening and Phase 2 evidence boundary.**
+**K-Slide 0.3.0 — Phase 2.1 translation-ready evidence boundary and Phase 3 development infrastructure.**
 
-The repository now has a coherent, tested boundary from validated immutable input through normalized document units, native evidence, deterministic crops, and bounded evidence packets. It does not claim production translation certification: the local runtime is `ollama/qwen3:14b`, not the target `google/gemma-4-31b-it`, and the release gates have not been measured on a gold corpus.
+The repository now has a coherent, tested boundary from validated immutable input through normalized document units, native evidence, deterministic crops, bounded multimodal packets, deterministic reports, and synthetic evaluation artifacts. It remains `DEVELOPMENT`: the local runtime is `ollama/qwen3:14b`, not the target `google/gemma-4-31b-it`, and no production translation gate has been certified.
 
 ## Implemented and tested
 
@@ -22,39 +22,42 @@ The repository now has a coherent, tested boundary from validated immutable inpu
 - PPTX native shape/table extraction through python-pptx and capability-gated headless LibreOffice rendering.
 - Deterministic render-region crops, model-ready non-generative resizing, numeric evidence extraction, and native/OCR evidence-fusion states.
 - OCR provider protocol with `none` and optional PaddleOCR 3.x adapter.
+- Closed commitment/speech/claim/uncertainty enums, engine-owned numeric linkage, Korean scale and `%p` semantic checks, residual-Hangul and locked-term verification foundations.
+- Deterministic final report, executive brief, and unresolved-item renderers generated from SlideIR.
+- Explicit whole-unit context-image/risk-crop media plan and bounded model prompt contract.
+- 100 synthetic scenario specifications and a real-image artifact smoke runner; no model-quality claim is made from this tier.
 - Black-box CLI, installer regression, trust-model, queue/resume, concurrency, stale-evidence, stale-finalization, and normalization fixture tests.
 - GitHub Actions workflow for Python 3.11/3.12, unit tests, compile checks, CLI/installer checks, and doctor.
 
 ## Verification performed locally
 
 ```text
-PYTHONPATH=src python3 -m unittest discover -s tests -v: PASS (26 tests, 3 optional skips)
-PYTHONPATH=src /tmp/k-slide-verify/bin/python -m unittest discover -s tests -v: PASS (26 tests, optional image/PDF/PPTX fixtures exercised)
+PYTHONPATH=src python3 -m unittest discover -s tests -v: PASS (33 tests, 5 optional skips in the base interpreter)
+PYTHONPATH=src /tmp/k-slide-verify/bin/python -m unittest discover -s tests -v: PASS (33 tests; image/PDF/PPTX fixtures and multi-input evidence exercised)
+PYTHONPATH=src /tmp/k-slide-verify/bin/python -m evals.run_engine_eval --output /tmp/k-slide-eval --limit 5 --formats png jpg webp pdf pptx: PASS (100 specs available; 5 cases generated in all five formats; normalization + EvidenceIR extraction passed; artifact hard-pass rate 1.0)
 OpenCode: 1.3.9
 Configured model: ollama/qwen3:14b
 Model compatibility: different_model_warning
 ```
 
-The three skipped tests require optional local Pillow, PyMuPDF, and python-pptx availability in the base interpreter. The temporary verification environment exercised those fixtures successfully. The CI workflow installs the project development extras, while PPTX rendering and PaddleOCR remain capability-gated integration paths. No target-model session or Gemma production evaluation was available locally.
+The optional skips require image/PDF/PPTX packages in the base interpreter; the temporary verification environment exercised them. The CI workflow installs the development/document extras, while LibreOffice and PaddleOCR remain capability-gated integration paths. No target-model session or Gemma production evaluation was available locally.
 
 ## Known limitations
 
 - Full target Gemma translation, repair quality, and zero-Korean comprehension evaluation are not yet measured.
-- The current local interpreter does not have Pillow, PyMuPDF, python-pptx, LibreOffice, or PaddleOCR installed; doctor reports those capabilities rather than pretending they pass.
-- PDF/PPTX normalization code is implemented but needs runtime fixture execution in an environment with those dependencies.
-- Numeric extraction is an evidence foundation, not yet the complete semantic equivalence verifier for Korean scale units, dates, direction, `%` versus `%p`, or currency conversion.
-- Modality, terminology, residual Hangul, visual-relation, and executive-claim verifiers remain to be expanded for the translation phase.
-- Deterministic final report/executive-brief content generation is currently a completion-contract boundary; richer renderers are next.
+- The base local interpreter does not have all optional document/OCR runtimes; doctor reports proven capabilities rather than pretending they pass.
+- LibreOffice-rendered PPTX and PaddleOCR 3 integration are not exercised in this workspace.
+- The model-facing OpenCode flow is contract-ready, but no Gemma endpoint is available locally; no Gemma accuracy or comprehension result is reported.
+- Numeric/modality/terminology verifiers are deterministic foundations, not a substitute for bilingual gold review.
 - Current-message attachment materialization is not advertised because OpenCode 1.3.9 does not expose a proven safe bridge in this repository.
 - The PaddleOCR adapter follows the current 3.x API shape but is not installed or benchmarked in this workspace.
 
 ## Next phase
 
-1. Install/execute the optional normalization stack in CI or a managed cloud image and add rendered PDF/PPTX fixture coverage.
-2. Complete deck context, terminology, modality, and numeric semantic models.
-3. Add the Gemma bounded work-packet prompts and deterministic repair loop.
-4. Expand numeric, table, residual-Korean, modality, evidence-linkage, and executive-claim verification.
-5. Run v6 baseline, ablations, target-model configuration experiments, bilingual review, and zero-Korean comprehension evaluation.
+1. Execute LibreOffice/PaddleOCR integration in a managed environment.
+2. Connect the approved Gemma 4 31B-it endpoint through the bounded OpenCode workflow.
+3. Run v6 baseline, ablations, repeated target-model tests, bilingual review, and zero-Korean comprehension evaluation.
+4. Promote a configuration only when hard critical-error gates and regression rules pass.
 
 ## Architecture decisions
 
@@ -68,3 +71,10 @@ The three skipped tests require optional local Pillow, PyMuPDF, and python-pptx 
 - [ADR 0008 — Evidence revisions](docs/adr/0008-evidence-revision.md)
 - [ADR 0009 — Document normalization](docs/adr/0009-document-normalization.md)
 - [ADR 0010 — OCR provider abstraction](docs/adr/0010-ocr-provider-abstraction.md)
+- [ADR 0011 — Globally unique work units](docs/adr/0011-globally-unique-work-units.md)
+- [ADR 0012 — Deterministic renderers](docs/adr/0012-deterministic-renderers.md)
+- [ADR 0013 — Model media plan](docs/adr/0013-model-media-plan.md)
+- [ADR 0014 — Verification scoping](docs/adr/0014-verification-scoping.md)
+- [ADR 0015 — Evaluation corpus](docs/adr/0015-evaluation-corpus.md)
+- [ADR 0016 — Modality enums](docs/adr/0016-modality-enums.md)
+- [ADR 0017 — Bounded repair](docs/adr/0017-bounded-repair.md)

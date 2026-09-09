@@ -10,11 +10,11 @@
     "evidence_revision": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "document_id": {"type": "string"},
     "work_unit_id": {"type": "string"},
-    "source": {"type": "object"},
-    "regions": {"type": "array", "items": {"type": "object", "required": ["region_id", "bbox_px", "bbox_normalized", "reading_order", "region_type", "required_for_translation"]}},
-    "tables": {"type": "array", "items": {"type": "object", "required": ["table_id", "row_count", "column_count", "cells"]}},
-    "numeric_facts": {"type": "array"},
-    "visual_elements": {"type": "array"},
+    "source": {"type": "object", "required": ["document_id", "context_image_path", "context_image_sha256"]},
+    "regions": {"type": "array", "items": {"type": "object", "required": ["region_id", "bbox_px", "bbox_normalized", "reading_order", "region_type", "required_for_translation"], "properties": {"region_id": {"type": "string"}, "bbox_px": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}}, "bbox_normalized": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}}, "reading_order": {"type": "integer"}, "region_type": {"type": "string"}, "required_for_translation": {"type": "boolean"}}}},
+    "tables": {"type": "array", "items": {"type": "object", "required": ["table_id", "row_count", "column_count", "cells"], "properties": {"table_id": {"type": "string"}, "row_count": {"type": "integer", "minimum": 1}, "column_count": {"type": "integer", "minimum": 1}, "cells": {"type": "array"}}}},
+    "numeric_facts": {"type": "array", "items": {"type": "object", "required": ["fact_id", "source_string"], "properties": {"fact_id": {"type": "string"}, "source_string": {"type": "string"}, "source_object_id": {"type": ["string", "null"]}, "source_region_id": {"type": ["string", "null"]}, "source_table_id": {"type": ["string", "null"]}, "source_cell_id": {"type": ["string", "null"]}}}},
+    "visual_elements": {"type": "array", "items": {"type": "object", "required": ["element_id", "kind", "path", "sha256", "required"]}},
     "native_evidence": {"type": "array"},
     "required_source_ids": {"type": "array", "items": {"type": "string"}}
   }

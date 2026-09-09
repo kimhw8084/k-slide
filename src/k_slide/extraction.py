@@ -32,7 +32,8 @@ def _crop_regions(run_dir: Path, unit: Any, native_items: list[dict[str, Any]]) 
         raise KSlideError(ErrorCode.IMAGE_DECODE_FAILED, "Normalized render could not be opened for region cropping.", {"work_unit_id": unit.work_unit_id, "reason": str(exc)}) from exc
     width, height = image.size
     regions: list[EvidenceRegion] = []
-    items = native_items or [{"source_id": f"{unit.work_unit_id}-region-001", "text": None, "bbox_px": [0, 0, width, height], "region_type": "IMAGE"}]
+    items = native_items or [{"source_id": f"{unit.work_unit_id}-region-001", "text": None, "bbox_px": [0, 0, width, height], "region_type": "IMAGE", "evidence_source": "visual"}]
+    items = sorted(items, key=lambda item: (int((item.get("bbox_px") or [0, 0, 0, 0])[1]), int((item.get("bbox_px") or [0, 0, 0, 0])[0]), str(item.get("source_id", ""))))
     for order, item in enumerate(items, start=1):
         bbox = item.get("bbox_px", [0, 0, width, height])
         if len(bbox) != 4:
@@ -57,9 +58,10 @@ def _crop_regions(run_dir: Path, unit: Any, native_items: list[dict[str, Any]]) 
             model_crop = crop.resize((max(1, int(crop.width * scale)), max(1, int(crop.height * scale))), Image.Resampling.LANCZOS)
         model_crop.save(model_path, format="PNG")
         text = item.get("text")
-        native_candidates = ({"text": str(text), "confidence": 1.0, "source": "native"},) if text else ()
+        native_source = item.get("evidence_source", "native") == "native"
+        native_candidates = ({"text": str(text), "confidence": 1.0, "source": "native"},) if text and native_source else ()
         normalized = (crop_box[0] / width, crop_box[1] / height, crop_box[2] / width, crop_box[3] / height)
-        regions.append(EvidenceRegion(region_id=region_id, bbox_px=crop_box, bbox_normalized=normalized, reading_order=order, region_type=str(item.get("region_type", "TEXT" if text else "IMAGE")), native_text_candidates=native_candidates, selected_literal_candidate=str(text) if text else None, literal_confidence=1.0 if text else None, language="ko" if text else None, crop_original_path=str(original_path.relative_to(run_dir)), crop_model_path=str(model_path.relative_to(run_dir)), required_for_translation=True))
+        regions.append(EvidenceRegion(region_id=region_id, bbox_px=crop_box, bbox_normalized=normalized, reading_order=order, region_type=str(item.get("region_type", "TEXT" if text else "IMAGE")), native_text_candidates=native_candidates, selected_literal_candidate=str(text) if text and native_source else None, literal_confidence=1.0 if text and native_source else None, language="ko" if text else None, crop_original_path=str(original_path.relative_to(run_dir)), crop_model_path=str(model_path.relative_to(run_dir)), required_for_translation=True))
     return regions
 
 
@@ -89,23 +91,41 @@ def _unit_native(run_dir: Path, unit: Any) -> list[dict[str, Any]]:
     return []
 
 
-def _tables(unit: Any, native_items: list[dict[str, Any]]) -> tuple[EvidenceTable, ...]:
+def _tables(unit: Any, native_items: list[dict[str, Any]]) -> tuple[tuple[EvidenceTable, ...], list[dict[str, Any]]]:
     tables: list[EvidenceTable] = []
+    facts: list[dict[str, Any]] = []
     for item in native_items:
         table_value = item.get("table")
         if not isinstance(table_value, dict):
             continue
         table_id = f"{item.get('source_id', f'{unit.work_unit_id}-table-001')}-table"
-        cells = tuple(EvidenceTableCell(cell_id=str(cell["cell_id"]), row=int(cell["row"]), column=int(cell["column"]), source_text=cell.get("text"), required_for_translation=True) for cell in table_value.get("cells", []) if isinstance(cell, dict) and "cell_id" in cell)
+        raw_cells = [cell for cell in table_value.get("cells", []) if isinstance(cell, dict) and "cell_id" in cell]
+        cell_values: list[EvidenceTableCell] = []
+        for cell in raw_cells:
+            cell_id = str(cell["cell_id"])
+            cell_facts = extract_numeric_facts(cell.get("text"), source_object_id=cell_id, source_table_id=table_id, source_cell_id=cell_id)
+            facts.extend(cell_facts)
+            cell_values.append(EvidenceTableCell(cell_id=cell_id, row=int(cell["row"]), column=int(cell["column"]), rowspan=int(cell.get("rowspan", 1) or 1), colspan=int(cell.get("colspan", 1) or 1), source_text=cell.get("text"), numeric_fact_ids=tuple(item["fact_id"] for item in cell_facts), required_for_translation=True))
+        cells = tuple(cell_values)
         tables.append(EvidenceTable(table_id=table_id, row_count=int(table_value.get("row_count", 0)), column_count=int(table_value.get("column_count", 0)), cells=cells))
-    return tuple(tables)
+    return tuple(tables), facts
 
 
-def extract_run(run_dir: Path, *, ocr_provider: Any | None = None) -> list[EvidenceIR]:
+def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None) -> list[EvidenceIR]:
     with run_lock(run_dir):
         state = load_state(run_dir)
         if state.phase not in {RunPhase.NORMALIZED, RunPhase.EXTRACTING, RunPhase.EXTRACTED}:
             raise KSlideError(ErrorCode.INVALID_TRANSITION, "Run is not ready for evidence extraction.", {"phase": state.phase.value})
+        if state.phase is RunPhase.EXTRACTED:
+            queue = load_queue(run_dir)
+            cached: list[EvidenceIR] = []
+            try:
+                for unit in queue.work_units:
+                    cached.append(load_evidence(run_dir, unit.work_unit_id))
+                if cached and len(cached) == len(queue.work_units):
+                    return cached
+            except (KSlideError, OSError, ValueError):
+                pass
         if state.phase != RunPhase.EXTRACTING:
             state.transition(RunPhase.EXTRACTING, next_action="Generate immutable source EvidenceIR")
             save_state(run_dir, state)
@@ -116,13 +136,25 @@ def extract_run(run_dir: Path, *, ocr_provider: Any | None = None) -> list[Evide
         for document in normalized.documents:
             for unit in document.units:
                 native_items = _unit_native(run_dir, unit)
-                regions = _crop_regions(run_dir, unit, native_items)
                 try:
                     ocr_result = provider.extract(run_dir / unit.canonical_render_path)
                 except KSlideError:
                     raise
                 except (OSError, ValueError) as exc:
                     raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "Configured OCR provider failed.", {"work_unit_id": unit.work_unit_id, "reason": str(exc)}) from exc
+                if not native_items and ocr_result.regions:
+                    native_items = [
+                        {
+                            "source_id": f"{unit.work_unit_id}-ocr-{index:04d}",
+                            "text": region.text,
+                            "bbox_px": list(region.bbox_px),
+                            "region_type": str(region.metadata.get("region_type", "TEXT")),
+                            "evidence_source": "ocr",
+                        }
+                        for index, region in enumerate(sorted(ocr_result.regions, key=lambda item: (item.bbox_px[1], item.bbox_px[0], item.reading_order)), start=1)
+                        if region.text.strip()
+                    ]
+                regions = _crop_regions(run_dir, unit, native_items)
                 ocr_by_region: dict[str, list[dict[str, Any]]] = {region.region_id: [] for region in regions}
                 for ocr_region in ocr_result.regions:
                     for region in regions:
@@ -140,11 +172,16 @@ def extract_run(run_dir: Path, *, ocr_provider: Any | None = None) -> list[Evide
                     facts.extend(extract_numeric_facts(region.selected_literal_candidate, source_region_id=region.region_id))
                 fact_ids = {fact["fact_id"] for fact in facts}
                 regions = [EvidenceRegion(**{**region.__dict__, "numeric_fact_ids": tuple(fact_id for fact_id in fact_ids if fact_id.startswith(region.region_id + "-"))}) for region in regions]
-                tables = _tables(unit, native_items)
+                tables, table_facts = _tables(unit, native_items)
+                facts.extend(table_facts)
                 required_source_ids = [region.region_id for region in regions]
                 required_source_ids.extend(table.table_id for table in tables)
                 required_source_ids.extend(cell.cell_id for table in tables for cell in table.cells if cell.required_for_translation)
-                evidence = EvidenceIR(document.document_id, unit.work_unit_id, {"input_id": unit.input_id, "input_sha256": document.source_sha256, "page_or_slide_index": unit.source_index, "width_px": unit.width_px, "height_px": unit.height_px, "canonical_render_sha256": unit.render_sha256, "canonical_render_path": unit.canonical_render_path}, tuple(regions), tables, tuple(facts), (), tuple(unit.native_evidence), tuple(required_source_ids)).with_revision()
+                context_id = f"{unit.work_unit_id}-visual-context"
+                visual_elements = ({"element_id": context_id, "kind": "context_image", "path": unit.canonical_render_path, "sha256": unit.render_sha256, "bbox_px": [0, 0, unit.width_px, unit.height_px], "required": True},)
+                required_source_ids.append(context_id)
+                source = {"input_id": unit.input_id, "document_id": document.document_id, "input_sha256": document.source_sha256, "page_or_slide_index": unit.source_index, "width_px": unit.width_px, "height_px": unit.height_px, "canonical_render_sha256": unit.render_sha256, "canonical_render_path": unit.canonical_render_path, "context_image_path": unit.canonical_render_path, "context_image_sha256": unit.render_sha256}
+                evidence = EvidenceIR(document.document_id, unit.work_unit_id, source, tuple(regions), tables, tuple(facts), visual_elements, tuple(unit.native_evidence), tuple(required_source_ids)).with_revision()
                 save_evidence(run_dir, evidence)
                 evidence_values.append(evidence)
                 queue_unit = queue.get(unit.work_unit_id)
@@ -159,3 +196,25 @@ def extract_run(run_dir: Path, *, ocr_provider: Any | None = None) -> list[Evide
         save_state(run_dir, state)
         atomic_write_json(run_dir / "metrics.json", {"work_unit_count": len(evidence_values), "regions_detected": sum(len(item.regions) for item in evidence_values), "native_regions": sum(sum(1 for region in item.regions if region.native_text_candidates) for item in evidence_values), "numeric_facts": sum(len(item.numeric_facts) for item in evidence_values), "ocr_provider": provider.name}, mode=0o600)
         return evidence_values
+
+
+def extract_run(run_dir: Path, *, ocr_provider: Any | None = None) -> list[EvidenceIR]:
+    """Run extraction and leave a resumable, fail-closed failure record."""
+
+    try:
+        return _extract_run_locked(run_dir, ocr_provider=ocr_provider)
+    except Exception as exc:
+        try:
+            with run_lock(run_dir):
+                state = load_state(run_dir)
+                if state.phase is RunPhase.EXTRACTING:
+                    code = exc.code.value if isinstance(exc, KSlideError) else ErrorCode.NORMALIZATION_FAILED.value
+                    message = exc.message if isinstance(exc, KSlideError) else "Evidence extraction failed safely."
+                    state.transition(RunPhase.FAILED_EXTRACTION, next_action="Fix the extraction capability or source file and retry", error_code=code, error_message=message)
+                    save_state(run_dir, state)
+                    details = exc.as_dict() if isinstance(exc, KSlideError) else {"code": code, "message": message, "details": {"reason": str(exc)}}
+                    atomic_write_json(run_dir / "evidence" / "EXTRACTION_ERROR.json", details, mode=0o600)
+                    atomic_write_text(run_dir / "RUN_FAILED.md", f"# FAILED\n\n{message}\n\nError code: `{code}`\n")
+        except (KSlideError, OSError):
+            pass
+        raise

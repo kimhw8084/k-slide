@@ -13,7 +13,7 @@ Use the typed lifecycle tools in this order:
 
 1. `kslide_prepare` — create or resume an immutable, hashed input run.
 2. `kslide_next` and `kslide_evidence` — obtain the bounded work unit and its evidence.
-3. Translate only the returned work unit and submit the required structured payload with `kslide_submit`.
+3. Read the returned media plan's context image and required risk crops, then translate only the returned work unit and submit the narrow TranslationPatch with `kslide_submit`.
 4. Run `kslide_verify`; repair only the exact targets it returns.
 5. Call `kslide_finalize` only after verification passes.
 
@@ -27,6 +27,7 @@ Do not invent run paths or IDs. Reuse identifiers returned by tools. `/k-slide-s
 - Preserve Korean business modality: review is not a decision, possibility is not commitment, forecast is not target, and planned is not completed.
 - Use `[unreadable]` or an explicit unresolved item when evidence is insufficient. Never fabricate.
 - Keep authoritative reconstruction separate from the clearly labeled Executive Lens, and link interpretations to evidence.
+- EvidenceIR owns source geometry, numeric facts, table structure, coverage, and source IDs. TranslationPatch owns only bounded English interpretation and closed semantic enums.
 
 ## Safety and completion
 

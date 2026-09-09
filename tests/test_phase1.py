@@ -121,15 +121,17 @@ class Phase1Tests(unittest.TestCase):
             self.assertFalse(blocked.passed)
             self.assertFalse((run_dir / "RUN_COMPLETE.md").exists())
 
+            queue = load_queue(run_dir)
+            work_unit_id = queue.work_units[0].work_unit_id
+            region_id = f"{work_unit_id}-r001"
             evidence = EvidenceIR(
                 "doc-001",
-                "slide-001",
+                work_unit_id,
                 {"input_id": "source-001", "width_px": 100, "height_px": 100},
-                (EvidenceRegion("r001", (0, 0, 100, 100), (0, 0, 1, 1), selected_literal_candidate="원문", literal_confidence=1.0),),
-                required_source_ids=("r001",),
+                (EvidenceRegion(region_id, (0, 0, 100, 100), (0, 0, 1, 1), selected_literal_candidate="원문", literal_confidence=1.0),),
+                required_source_ids=(region_id,),
             ).with_revision()
             save_evidence(run_dir, evidence)
-            queue = load_queue(run_dir)
             queue.work_units[0].status = WorkUnitStatus.READY
             queue.work_units[0].evidence_revision = evidence.evidence_revision
             save_queue(run_dir, queue)
@@ -139,9 +141,9 @@ class Phase1Tests(unittest.TestCase):
             save_state(run_dir, state)
             payload = {
                 "schema_version": "1.0",
-                "work_unit_id": "slide-001",
+                "work_unit_id": work_unit_id,
                 "evidence_revision": evidence.evidence_revision,
-                "regions": [{"region_id": "r001", "english": "A faithful reconstruction.", "numeric_fact_ids": []}],
+                "regions": [{"region_id": region_id, "english": "A faithful reconstruction."}],
                 "tables": [],
             }
             self.assertEqual(_next(root, run_dir.name, None)["status"], "READY")

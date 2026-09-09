@@ -55,6 +55,12 @@ def _copy_owned(source: Path, destination: Path, *, target_root: Path, previous:
                     "K-Slide refused to overwrite an unrelated existing file.",
                     {"path": destination_key, "guidance": "Back up or remove the conflicting K-Slide-owned file, then retry."},
                 )
+            if existing_hash != source_hash and destination_key in previous and existing_hash != previous[destination_key]:
+                raise KSlideError(
+                    ErrorCode.INSTALL_LOCAL_MODIFICATION,
+                    "K-Slide refused to overwrite a locally modified owned file.",
+                    {"path": destination_key, "guidance": "Restore the installed version or review the change before upgrading."},
+                )
             if existing_hash == source_hash:
                 installed[destination_key] = source_hash
                 continue
@@ -89,6 +95,7 @@ def install(source_root: Path, target: Path, *, scope: str = "project") -> Path:
     engine_root = target / (".k-slide-engine" if scope == "project" else "k-slide-engine")
     files.update(_copy_owned(source_root / "src", engine_root / "src", target_root=target, previous=previous))
     files.update(_copy_owned(source_root / "schemas", engine_root / "schemas", target_root=target, previous=previous))
+    files.update(_copy_owned(source_root / "termbase", engine_root / "termbase", target_root=target, previous=previous))
     files.update(_copy_owned(source_root / "pyproject.toml", engine_root, target_root=target, previous=previous))
 
     if scope == "project":

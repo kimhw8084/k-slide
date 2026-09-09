@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from . import RUN_STATE_SCHEMA_VERSION
 from .errors import ErrorCode, KSlideError
@@ -97,8 +97,19 @@ def queue_path(run_dir: Path) -> Path:
 
 
 def save_queue(run_dir: Path, queue: WorkQueue) -> None:
+    validate_queue(queue)
     queue.refresh_revision()
     atomic_write_json(queue_path(run_dir), queue.as_dict(), mode=0o600)
+
+
+def validate_queue(queue: WorkQueue) -> None:
+    from .errors import ErrorCode
+
+    work_ids = [unit.work_unit_id for unit in queue.work_units]
+    if len(work_ids) != len(set(work_ids)):
+        raise KSlideError(ErrorCode.DUPLICATE_WORK_UNIT_ID, "Work queue contains duplicate work-unit IDs.", {"work_unit_ids": work_ids})
+    if not queue.run_id:
+        raise KSlideError(ErrorCode.STATE_CORRUPT, "Work queue has no run ID.")
 
 
 def load_queue(run_dir: Path) -> WorkQueue:
@@ -111,13 +122,15 @@ def load_queue(run_dir: Path) -> WorkQueue:
         item["status"] = WorkUnitStatus(str(item.get("status", "PENDING")))
         units.append(WorkUnit(**item))
     queue = WorkQueue(run_id=str(value["run_id"]), work_units=units, queue_revision=str(value.get("queue_revision", "")), schema_version=str(value.get("schema_version", RUN_STATE_SCHEMA_VERSION)))
+    validate_queue(queue)
     if queue.queue_revision and queue.queue_revision != queue.computed_revision():
         raise KSlideError(ErrorCode.STATE_CORRUPT, "WORK_QUEUE.json revision does not match its contents.")
     return queue
 
 
 def create_queue(run_id: str, *, input_count: int, now: str) -> WorkQueue:
-    units = [WorkUnit(work_unit_id=f"slide-{index:03d}", document_id=f"doc-{index:03d}", source_input_id=f"source-{index:03d}", source_index=index - 1, created_at=now, updated_at=now) for index in range(1, input_count + 1)]
+    units = [WorkUnit(work_unit_id=f"doc-{index:03d}-input-{index:04d}", document_id=f"doc-{index:03d}", source_input_id=f"source-{index:03d}", source_index=index - 1, kind="input", created_at=now, updated_at=now) for index in range(1, input_count + 1)]
     queue = WorkQueue(run_id=run_id, work_units=units)
+    validate_queue(queue)
     queue.refresh_revision()
     return queue

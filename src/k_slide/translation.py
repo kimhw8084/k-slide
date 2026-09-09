@@ -11,13 +11,14 @@ from . import TRANSLATION_PATCH_SCHEMA_VERSION
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import EvidenceIR, stable_revision
 from .ir import CoverageEntry, NumericFact, SlideIR, TableCell, TableIR, TextRegion, VisualRelation
+from .semantics import ClaimKind, CommitmentStatus, CoverageStatus, SpeechAct, Uncertainty, enum_value
 
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
-_MODEL_REGION_FIELDS = {"region_id", "english", "commitment_status", "speech_act", "term_ids", "numeric_fact_ids", "unresolved", "unresolved_reason"}
+_MODEL_REGION_FIELDS = {"region_id", "english", "commitment_status", "speech_act", "term_ids", "unresolved", "unresolved_reason"}
 _MODEL_CELL_FIELDS = {"cell_id", "english", "unresolved", "unresolved_reason"}
 _MODEL_TABLE_FIELDS = {"table_id", "cells"}
 _MODEL_RELATION_FIELDS = {"relation_id", "interpretation", "evidence_ids"}
-_MODEL_EXECUTIVE_FIELDS = {"source_faithful", "takeaway", "decision_or_ask", "status", "risk", "dependency", "timing", "evidence_ids"}
+_MODEL_CLAIM_FIELDS = {"claim_id", "kind", "text", "evidence_ids", "uncertainty"}
 
 
 def _id(value: Any, label: str) -> str:
@@ -59,14 +60,12 @@ class TranslationRegionPatch:
     commitment_status: str | None = None
     speech_act: str | None = None
     term_ids: tuple[str, ...] = ()
-    numeric_fact_ids: tuple[str, ...] = ()
     unresolved: bool = False
     unresolved_reason: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         value = asdict(self)
         value["term_ids"] = list(self.term_ids)
-        value["numeric_fact_ids"] = list(self.numeric_fact_ids)
         return value
 
 
@@ -97,7 +96,7 @@ class TranslationPatch:
     regions: tuple[TranslationRegionPatch, ...] = ()
     tables: tuple[TranslationTablePatch, ...] = ()
     visual_interpretations: tuple[dict[str, Any], ...] = ()
-    executive_semantics: dict[str, Any] = field(default_factory=dict)
+    executive_claims: tuple[dict[str, Any], ...] = ()
     repair_revision: str | None = None
     schema_version: str = TRANSLATION_PATCH_SCHEMA_VERSION
 
@@ -109,7 +108,7 @@ class TranslationPatch:
             "regions": [region.as_dict() for region in self.regions],
             "tables": [table.as_dict() for table in self.tables],
             "visual_interpretations": list(self.visual_interpretations),
-            "executive_semantics": self.executive_semantics,
+            "executive_claims": list(self.executive_claims),
             "repair_revision": self.repair_revision,
         }
 
@@ -127,7 +126,6 @@ class TranslationPatch:
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "TranslationPatch evidence_revision must be a SHA-256 hex revision.")
         region_map = {region.region_id: region for region in evidence.regions}
         table_map = {table.table_id: table for table in evidence.tables}
-        numeric_ids = {str(item.get("fact_id")) for item in evidence.numeric_facts if isinstance(item, dict) and item.get("fact_id")}
         seen_regions: set[str] = set()
         for patch in self.regions:
             _id(patch.region_id, "region_id")
@@ -140,9 +138,10 @@ class TranslationPatch:
                 raise KSlideError(ErrorCode.SCHEMA_INVALID, "Every translated region needs non-empty English.", {"region_id": patch.region_id})
             if patch.unresolved and not patch.unresolved_reason:
                 raise KSlideError(ErrorCode.SCHEMA_INVALID, "Unresolved regions require an explicit reason.", {"region_id": patch.region_id})
-            for fact_id in patch.numeric_fact_ids:
-                if fact_id not in numeric_ids:
-                    raise KSlideError(ErrorCode.UNKNOWN_REGION, "TranslationPatch references an unknown numeric fact.", {"fact_id": fact_id})
+            if patch.commitment_status is not None:
+                enum_value(patch.commitment_status, CommitmentStatus, "commitment_status")
+            if patch.speech_act is not None:
+                enum_value(patch.speech_act, SpeechAct, "speech_act")
         required_regions = {region.region_id for region in evidence.regions if region.required_for_translation}
         missing_regions = sorted(required_regions - seen_regions)
         if missing_regions:
@@ -180,17 +179,28 @@ class TranslationPatch:
                 raise KSlideError(ErrorCode.SCHEMA_INVALID, "Visual interpretation evidence_ids must be an array.")
             if not set(relation.get("evidence_ids", [])).issubset(set(evidence.required_source_ids)):
                 raise KSlideError(ErrorCode.UNKNOWN_REGION, "Visual interpretation references unknown evidence.")
-        _only_fields(self.executive_semantics, _MODEL_EXECUTIVE_FIELDS, "executive semantics")
-        if not isinstance(self.executive_semantics.get("evidence_ids", []), list):
-            raise KSlideError(ErrorCode.SCHEMA_INVALID, "Executive semantics evidence_ids must be an array.")
-        if not set(self.executive_semantics.get("evidence_ids", [])).issubset(set(evidence.required_source_ids)):
-            raise KSlideError(ErrorCode.UNKNOWN_REGION, "Executive semantics references unknown evidence.")
+        seen_claims: set[str] = set()
+        for claim in self.executive_claims:
+            _only_fields(claim, _MODEL_CLAIM_FIELDS, "executive claim")
+            claim_id = _id(claim.get("claim_id"), "claim_id")
+            if claim_id in seen_claims:
+                raise KSlideError(ErrorCode.SCHEMA_INVALID, "TranslationPatch contains duplicate executive claims.", {"claim_id": claim_id})
+            seen_claims.add(claim_id)
+            if not isinstance(claim.get("text"), str) or not claim["text"].strip():
+                raise KSlideError(ErrorCode.SCHEMA_INVALID, "Executive claims need non-empty text.", {"claim_id": claim_id})
+            enum_value(claim.get("kind"), ClaimKind, "executive claim kind")
+            enum_value(claim.get("uncertainty"), Uncertainty, "executive claim uncertainty")
+            evidence_ids = _string_list(claim.get("evidence_ids", []), "executive claim evidence_ids")
+            if not evidence_ids:
+                raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Every executive claim must cite at least one evidence ID.", {"claim_id": claim_id})
+            if not set(evidence_ids).issubset(set(evidence.required_source_ids)):
+                raise KSlideError(ErrorCode.UNKNOWN_REGION, "Executive claim references unknown evidence.", {"claim_id": claim_id})
 
 
 def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
     if not isinstance(value, dict):
         raise KSlideError(ErrorCode.SCHEMA_INVALID, "TranslationPatch must be an object.")
-    allowed = {"schema_version", "work_unit_id", "evidence_revision", "regions", "tables", "visual_interpretations", "executive_semantics", "repair_revision"}
+    allowed = {"schema_version", "work_unit_id", "evidence_revision", "regions", "tables", "visual_interpretations", "executive_claims", "repair_revision"}
     _only_fields(value, allowed, "payload")
     regions_value = value.get("regions", [])
     tables_value = value.get("tables", [])
@@ -210,7 +220,6 @@ def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
             commitment_status=_optional_string(item.get("commitment_status"), "commitment_status"),
             speech_act=_optional_string(item.get("speech_act"), "speech_act"),
             term_ids=_string_list(item.get("term_ids", []), "term_ids"),
-            numeric_fact_ids=_string_list(item.get("numeric_fact_ids", []), "numeric_fact_ids"),
             unresolved=_boolean(item.get("unresolved"), "unresolved"),
             unresolved_reason=_optional_string(item.get("unresolved_reason"), "unresolved_reason"),
         ))
@@ -241,13 +250,9 @@ def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
         if not isinstance(relation.get("interpretation"), str):
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "visual interpretation must be a string.")
         _string_list(relation.get("evidence_ids", []), "visual interpretation evidence_ids")
-    executive = value.get("executive_semantics", {})
-    if not isinstance(executive, dict):
-        raise KSlideError(ErrorCode.SCHEMA_INVALID, "executive_semantics must be an object.")
-    _only_fields(executive, _MODEL_EXECUTIVE_FIELDS, "executive semantics")
-    for key in _MODEL_EXECUTIVE_FIELDS - {"evidence_ids"}:
-        _optional_string(executive.get(key), f"executive_semantics.{key}")
-    _string_list(executive.get("evidence_ids", []), "executive semantics evidence_ids")
+    executive_claims = value.get("executive_claims", [])
+    if not isinstance(executive_claims, list) or any(not isinstance(item, dict) for item in executive_claims):
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "executive_claims must be an array of objects.")
     evidence_revision = value.get("evidence_revision")
     schema_version = value.get("schema_version")
     if not isinstance(evidence_revision, str):
@@ -260,7 +265,7 @@ def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
         regions=tuple(regions),
         tables=tuple(tables),
         visual_interpretations=tuple(visual),
-        executive_semantics=executive,
+        executive_claims=tuple(executive_claims),
         repair_revision=_optional_string(value.get("repair_revision"), "repair_revision"),
         schema_version=schema_version,
     )
@@ -286,7 +291,7 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
             translation=item.english,
             evidence_sources=[source.region_id],
             term_matches=list(item.term_ids),
-            numeric_fact_ids=list(item.numeric_fact_ids),
+            numeric_fact_ids=list(source.numeric_fact_ids),
             commitment_status=item.commitment_status,
             speech_act=item.speech_act,
             unresolved_reason=item.unresolved_reason,
@@ -299,7 +304,22 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
         tables.append(TableIR(table_id=source_table.table_id, bbox=list(source_table.bbox_px), row_count=source_table.row_count, column_count=source_table.column_count, headers=list(source_table.headers), cells=cells))
     numeric_facts = [NumericFact(**item) for item in evidence.numeric_facts if isinstance(item, dict)]
     relations = [VisualRelation(relation_id=str(item["relation_id"]), interpretation=item.get("interpretation"), evidence=list(item.get("evidence_ids", []))) for item in patch.visual_interpretations]
-    coverage = [CoverageEntry(source_id=source_id, status="translated", evidence_ids=[source_id]) for source_id in evidence.required_source_ids]
+    coverage: list[CoverageEntry] = []
+    for source_id in evidence.required_source_ids:
+        status = CoverageStatus.TRANSLATED.value
+        note = None
+        if source_id in region_patches and region_patches[source_id].unresolved:
+            status = "unresolved"
+            note = region_patches[source_id].unresolved_reason
+        else:
+            if source_id in {item.get("element_id") for item in evidence.visual_elements} or source_id in {table.table_id for table in evidence.tables}:
+                status = CoverageStatus.INTENTIONALLY_PRESERVED.value
+            for table_patch in patch.tables:
+                for cell_patch in table_patch.cells:
+                    if cell_patch.cell_id == source_id and cell_patch.unresolved:
+                        status = "unresolved"
+                        note = cell_patch.unresolved_reason
+        coverage.append(CoverageEntry(source_id=source_id, status=status, evidence_ids=[source_id], note=note))
     return SlideIR(
         slide_id=evidence.work_unit_id,
         source={**evidence.source, "evidence_revision": evidence.evidence_revision},
@@ -309,9 +329,9 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
         visual_relations=relations,
         numeric_facts=numeric_facts,
         native_evidence=list(evidence.native_evidence),
-        unresolved=[{"region_id": item.region_id, "reason": item.unresolved_reason or "Model marked unresolved."} for item in patch.regions if item.unresolved],
+        unresolved=[{"region_id": item.region_id, "reason": item.unresolved_reason or "Model marked unresolved."} for item in patch.regions if item.unresolved] + [{"cell_id": cell.cell_id, "reason": cell.unresolved_reason or "Model marked unresolved."} for table in patch.tables for cell in table.cells if cell.unresolved],
         coverage=coverage,
-        executive_semantics={**patch.executive_semantics, "translation_revision": translation_revision or patch.revision(), "model_runtime": runtime_metadata or {}},
+        executive_semantics={"executive_claims": list(patch.executive_claims), "translation_revision": translation_revision or patch.revision(), "model_runtime": runtime_metadata or {}},
         evidence_revision=evidence.evidence_revision,
         translation_revision=translation_revision or patch.revision(),
         model_runtime=runtime_metadata or {},

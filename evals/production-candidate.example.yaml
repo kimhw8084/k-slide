@@ -1,0 +1,9 @@
+status: DEVELOPMENT
+model_id: google/gemma-4-31b-it
+runtime: approved-opencode-runtime
+prompt_version: translation/v1
+ocr_provider: none-or-approved-local-provider
+render_dpi: 220
+crop_padding_percent: 10
+max_auto_repairs_per_unit: 2
+note: Replace only with measured approved-environment results; this example is not a certification lockfile.

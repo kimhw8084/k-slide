@@ -15,10 +15,13 @@ from .evidence_ir import load_evidence
 from .io import atomic_write_json, atomic_write_text, read_json
 from .ir import SlideIR
 from .locking import run_lock
+from .numeric import numeric_fact_matches
 from .policy import COMPLETION_POLICY
 from .queue import WorkQueue, WorkUnitStatus, load_queue, save_queue
+from .rendering import render_run
 from .security import sha256_file
 from .state import RunPhase, load_state, save_state
+from .terminology import load_effective_termbase
 
 
 class Severity(str, Enum):
@@ -35,6 +38,7 @@ class VerificationIssue:
     message: str
     target: str | None = None
     evidence_ids: list[str] = field(default_factory=list)
+    scope: str = "WORK_UNIT_TRANSLATION_FAILURE"
 
     def as_dict(self) -> dict[str, Any]:
         value = asdict(self)
@@ -53,6 +57,7 @@ class VerificationResult:
     critical_count: int = 0
     unaccounted_count: int = 0
     queue_revision: str | None = None
+    unit_status: dict[str, str] = field(default_factory=dict)
 
     @property
     def passed(self) -> bool:
@@ -70,11 +75,12 @@ class VerificationResult:
             "critical_count": self.critical_count,
             "unaccounted_count": self.unaccounted_count,
             "queue_revision": self.queue_revision,
+            "unit_status": dict(sorted(self.unit_status.items())),
         }
 
 
-def _issue(result: VerificationResult, code: str, severity: Severity, message: str, *, target: str | None = None, evidence_ids: list[str] | None = None) -> None:
-    result.issues.append(VerificationIssue(code, severity, message, target, evidence_ids or []))
+def _issue(result: VerificationResult, code: str, severity: Severity, message: str, *, target: str | None = None, evidence_ids: list[str] | None = None, scope: str = "WORK_UNIT_TRANSLATION_FAILURE") -> None:
+    result.issues.append(VerificationIssue(code, severity, message, target, evidence_ids or [], scope))
     if severity is Severity.CRITICAL:
         result.critical_count += 1
 
@@ -109,6 +115,30 @@ def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult
             for cell in table.cells:
                 if cell.row < 0 or cell.column < 0 or cell.row >= table.row_count or cell.column >= table.column_count:
                     _issue(result, "KSLIDE_TABLE_CELL_OUT_OF_RANGE", Severity.CRITICAL, "Table cell is outside declared dimensions.", target=table.table_id)
+        facts = {fact.fact_id: fact for fact in slide.numeric_facts}
+        region_text = {region.region_id: region.translation or "" for region in slide.regions}
+        cell_text = {cell.cell_id: cell.translation or "" for table in slide.tables for cell in table.cells}
+        for fact in facts.values():
+            target_text = cell_text.get(fact.source_cell_id or "") or region_text.get(fact.source_region_id or "")
+            if not target_text:
+                _issue(result, ErrorCode.NUMERIC_MISMATCH.value, Severity.CRITICAL, "Source numeric fact has no translated target text.", target=fact.fact_id, evidence_ids=[fact.source_region_id or fact.source_cell_id or fact.fact_id])
+                continue
+            matched, reason = numeric_fact_matches(asdict(fact), target_text)
+            if not matched:
+                _issue(result, ErrorCode.NUMERIC_MISMATCH.value, Severity.CRITICAL, reason, target=fact.fact_id, evidence_ids=[fact.source_region_id or fact.source_cell_id or fact.fact_id])
+        if slide.unresolved:
+            for item in slide.unresolved:
+                _issue(result, "KSLIDE_UNRESOLVED_REQUIRED", Severity.CRITICAL, "A required source item remains unresolved; final certification is blocked.", target=work_unit_id, evidence_ids=[str(item.get("region_id") or item.get("cell_id") or work_unit_id)])
+        for region in slide.regions:
+            if region.translation and any("\uac00" <= char <= "\ud7a3" for char in region.translation):
+                _issue(result, "KSLIDE_RESIDUAL_HANGUL", Severity.CRITICAL, "Unexpected Hangul remains in translated output.", target=region.region_id, evidence_ids=[region.region_id])
+        termbase = load_effective_termbase(run_dir.parent.parent)
+        for source_region in evidence.regions:
+            source_text = source_region.selected_literal_candidate or ""
+            translated = region_text.get(source_region.region_id, "")
+            for term in termbase.records:
+                if term.status == "LOCKED" and term.source in source_text and term.default and term.default.lower() not in translated.lower():
+                    _issue(result, "KSLIDE_LOCKED_TERM_MISMATCH", Severity.MAJOR, f"Locked term `{term.source}` must use `{term.default}`.", target=source_region.region_id, evidence_ids=[source_region.region_id])
         for item in slide.unresolved:
             if not item.get("reason") and not item.get("unresolved_reason"):
                 _issue(result, "KSLIDE_UNRESOLVED_UNDISCLOSED", Severity.CRITICAL, "Unresolved evidence lacks a reason.", target=work_unit_id)
@@ -127,23 +157,30 @@ def _verify_unlocked(run_dir: Path) -> VerificationResult:
         queue = WorkQueue(run_id=state.run_id)
     result.checked_work_units = len(queue.work_units)
     if not queue.work_units:
-        _issue(result, "KSLIDE_NO_WORK_UNITS", Severity.CRITICAL, "No engine-defined work units exist.")
+        _issue(result, "KSLIDE_NO_WORK_UNITS", Severity.CRITICAL, "No engine-defined work units exist.", scope="RUN_LEVEL_POLICY_FAILURE")
     for unit in queue.work_units:
-        if unit.status in {WorkUnitStatus.TRANSLATED, WorkUnitStatus.VERIFIED, WorkUnitStatus.NEEDS_REVIEW}:
+        before = len(result.issues)
+        if unit.status is WorkUnitStatus.NEEDS_REVIEW:
+            result.unit_status[unit.work_unit_id] = "NEEDS_REVIEW"
+            _issue(result, "KSLIDE_REVIEW_REQUIRED", Severity.CRITICAL, "Work unit requires human review or a bounded repair before final certification.", target=unit.work_unit_id, scope="RUN_LEVEL_POLICY_FAILURE")
+            continue
+        if unit.status in {WorkUnitStatus.TRANSLATED, WorkUnitStatus.VERIFIED}:
             if not (run_dir / "ir" / f"{unit.work_unit_id}.json").is_file():
-                _issue(result, "KSLIDE_IR_MISSING", Severity.CRITICAL, "Translated work unit has no canonical SlideIR.", target=unit.work_unit_id)
+                _issue(result, "KSLIDE_IR_MISSING", Severity.CRITICAL, "Translated work unit has no canonical SlideIR.", target=unit.work_unit_id, scope="WORK_UNIT_TRANSLATION_FAILURE")
             else:
                 if unit.canonical_ir_sha256 and sha256_file(run_dir / "ir" / f"{unit.work_unit_id}.json") != unit.canonical_ir_sha256:
-                    _issue(result, "KSLIDE_CANONICAL_IR_CHANGED", Severity.CRITICAL, "Canonical SlideIR changed after engine merge.", target=unit.work_unit_id)
+                    _issue(result, "KSLIDE_CANONICAL_IR_CHANGED", Severity.CRITICAL, "Canonical SlideIR changed after engine merge.", target=unit.work_unit_id, scope="WORK_UNIT_TRANSLATION_FAILURE")
                 _validate_slide(run_dir, unit.work_unit_id, result)
-        elif unit.status not in {WorkUnitStatus.PENDING, WorkUnitStatus.NORMALIZED, WorkUnitStatus.EXTRACTED}:
-            _issue(result, "KSLIDE_WORK_UNIT_INCOMPLETE", Severity.CRITICAL, "Work unit is not translated or explicitly reviewable.", target=unit.work_unit_id)
+            result.unit_status[unit.work_unit_id] = "PASS" if len(result.issues) == before else "FAIL_REPAIRABLE"
+        else:
+            result.unit_status[unit.work_unit_id] = "INCOMPLETE"
+            _issue(result, "KSLIDE_WORK_UNIT_INCOMPLETE", Severity.CRITICAL, "Work unit is not translated or explicitly reviewable.", target=unit.work_unit_id, scope="RUN_LEVEL_POLICY_FAILURE")
     # 06_verification.md is generated by this verifier, so it cannot be a
     # prerequisite for the verifier that writes it. The remaining artifacts
     # must already exist before a run can pass.
     missing = [name for name in COMPLETION_POLICY.precompletion_artifacts if name != "06_verification.md" and not (run_dir / name).is_file()]
     for name in missing:
-        _issue(result, "KSLIDE_REQUIRED_ARTIFACT_MISSING", Severity.CRITICAL, "Required pre-completion artifact is missing.", target=name)
+        _issue(result, "KSLIDE_REQUIRED_ARTIFACT_MISSING", Severity.CRITICAL, "Required pre-completion artifact is missing.", target=name, scope="RUN_LEVEL_ARTIFACT_FAILURE")
     result.status = "PASS" if not result.issues else "FAIL"
     return result
 
@@ -151,9 +188,12 @@ def _verify_unlocked(run_dir: Path) -> VerificationResult:
 def _persist_verification(run_dir: Path, result: VerificationResult) -> None:
     atomic_write_json(run_dir / "verification" / "summary.json", result.as_dict(), mode=0o600)
     lines = ["# K-Slide Verification", "", f"Status: **{result.status}**", f"Run: `{result.run_id}`", "", f"Work units checked: {result.checked_work_units}", f"Critical issues: {result.critical_count}", f"Unaccounted source items: {result.unaccounted_count}"]
+    if result.unit_status:
+        lines.extend(["", "## Work-unit status", ""])
+        lines.extend(f"- `{work_unit_id}`: **{status}**" for work_unit_id, status in sorted(result.unit_status.items()))
     if result.issues:
         lines.extend(["", "## Issues"])
-        lines.extend(f"- **{issue.severity.value}** `{issue.code}`: {issue.message}" + (f" (`{issue.target}`)" if issue.target else "") for issue in result.issues)
+        lines.extend(f"- **{issue.severity.value}** `{issue.code}` [{issue.scope}]: {issue.message}" + (f" (`{issue.target}`)" if issue.target else "") for issue in result.issues)
     lines.extend(["", "## Completion policy", "", f"Policy version: `{COMPLETION_POLICY.version}`", "", "`RUN_COMPLETE.md` is created only by deterministic finalization after current verification passes.", ""])
     atomic_write_text(run_dir / "06_verification.md", "\n".join(lines))
 
@@ -175,13 +215,20 @@ def verify_run(run_dir: Path) -> VerificationResult:
             _issue(result, "KSLIDE_PHASE_NOT_VERIFIABLE", Severity.CRITICAL, "Run is not in a translation/verification phase.", target=state.phase.value)
             _persist_verification(run_dir, result)
             return result
+        if any((run_dir / "ir").glob("*.json")):
+            render_run(run_dir)
         result = _verify_unlocked(run_dir)
         try:
             queue = load_queue(run_dir)
             for unit in queue.work_units:
-                if unit.status in {WorkUnitStatus.TRANSLATED, WorkUnitStatus.VERIFIED}:
-                    unit.verification_status = "PASS" if result.passed else "FAIL"
-                    unit.status = WorkUnitStatus.VERIFIED if result.passed else WorkUnitStatus.VERIFY_FAILED
+                unit_result = result.unit_status.get(unit.work_unit_id)
+                if unit_result == "PASS":
+                    unit.verification_status = "PASS"
+                    unit.status = WorkUnitStatus.VERIFIED
+                    unit.revision += 1
+                elif unit_result == "FAIL_REPAIRABLE":
+                    unit.verification_status = "FAIL"
+                    unit.status = WorkUnitStatus.VERIFY_FAILED
                     unit.revision += 1
             save_queue(run_dir, queue)
         except (KSlideError, OSError):
@@ -205,6 +252,8 @@ def finalize_run(run_dir: Path) -> VerificationResult:
         elif state.phase != RunPhase.VERIFYING:
             state.transition(RunPhase.VERIFYING, next_action="Re-verifying current artifacts")
             save_state(run_dir, state)
+        if any((run_dir / "ir").glob("*.json")):
+            render_run(run_dir)
         result = _verify_unlocked(run_dir)
         _persist_verification(run_dir, result)
         if not result.passed:

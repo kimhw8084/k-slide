@@ -6,3 +6,6 @@
 *.py[cod]
 __pycache__/
 .venv/
+evals/artifacts/
+evals/runs/
+evals/reports/

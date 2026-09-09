@@ -13,7 +13,7 @@ from typing import Any
 from .documents import DocumentUnit, NormalizationResult, NormalizedDocument
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import stable_revision
-from .io import atomic_write_json, read_json
+from .io import atomic_write_json, atomic_write_text, read_json
 from .locking import run_lock
 from .queue import WorkUnit, WorkUnitStatus, WorkQueue, load_queue, save_queue
 from .security import sha256_file
@@ -23,6 +23,12 @@ RENDER_DPI = 220.0
 MAX_IMAGE_PIXELS = 120_000_000
 MAX_IMAGE_WIDTH = 20_000
 MAX_IMAGE_HEIGHT = 20_000
+MAX_DOCUMENTS_PER_RUN = 32
+MAX_UNITS_PER_RUN = 500
+MAX_PAGES_PER_PDF = 200
+MAX_SLIDES_PER_PPTX = 200
+MAX_TOTAL_RENDER_PIXELS = 500_000_000
+MAX_NORMALIZED_BYTES = 2_000_000_000
 
 
 def _snapshot_inputs(run_dir: Path) -> list[tuple[str, Path, dict[str, Any]]]:
@@ -52,7 +58,7 @@ def _normalize_image(run_dir: Path, input_id: str, source: Path, index: int, doc
                 raise KSlideError(ErrorCode.INPUT_TOO_LARGE, "Decoded image dimensions exceed K-Slide safety limits.", {"width": width, "height": height, "max_pixels": MAX_IMAGE_PIXELS})
             if image.mode not in {"RGB", "RGBA"}:
                 image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
-            work_unit_id = f"slide-{index:03d}"
+            work_unit_id = f"{document_id}-image-0001"
             render = run_dir / "normalized" / f"{work_unit_id}.png"
             image.save(render, format="PNG", optimize=True)
     except KSlideError:
@@ -79,6 +85,10 @@ def _pdf_units(run_dir: Path, input_id: str, source: Path, document_id: str, sou
     if document.page_count < 1:
         document.close()
         raise KSlideError(ErrorCode.NORMALIZATION_FAILED, "PDF contains no pages.", {"input": source.name})
+    if document.page_count > MAX_PAGES_PER_PDF:
+        page_count = document.page_count
+        document.close()
+        raise KSlideError(ErrorCode.RESOURCE_LIMIT, "PDF page count exceeds the configured safety limit.", {"input": source.name, "pages": page_count, "max_pages": MAX_PAGES_PER_PDF})
     units: list[DocumentUnit] = []
     try:
         for page_index in range(document.page_count):
@@ -86,7 +96,7 @@ def _pdf_units(run_dir: Path, input_id: str, source: Path, document_id: str, sou
             rect = page.rect
             matrix = fitz.Matrix(RENDER_DPI / 72.0, RENDER_DPI / 72.0)
             pixmap = page.get_pixmap(matrix=matrix, alpha=False)
-            work_unit_id = f"page-{source_index:03d}-{page_index + 1:04d}"
+            work_unit_id = f"{document_id}-page-{page_index + 1:04d}"
             render = run_dir / "normalized" / f"{work_unit_id}.png"
             pixmap.save(str(render))
             native = page.get_text("dict")
@@ -108,6 +118,44 @@ def _shape_bbox(shape: Any, width_emu: int, height_emu: int, width_px: int, heig
     return x, y, max(x + w, x + 1), max(y + h, y + 1)
 
 
+def _iter_shapes(shapes: Any, prefix: str = "") -> list[tuple[str, Any]]:
+    """Traverse grouped PPTX shapes with stable source numbering."""
+
+    result: list[tuple[str, Any]] = []
+    for index, shape in enumerate(shapes, start=1):
+        source_index = f"{prefix}{index:03d}"
+        result.append((source_index, shape))
+        children = getattr(shape, "shapes", None)
+        if children is not None:
+            result.extend(_iter_shapes(children, f"{source_index}-"))
+    return result
+
+
+def _chart_metadata(shape: Any) -> dict[str, Any] | None:
+    if not getattr(shape, "has_chart", False):
+        return None
+    chart = shape.chart
+    value: dict[str, Any] = {"chart_type": str(getattr(chart, "chart_type", "unknown"))}
+    try:
+        value["title"] = chart.chart_title.text_frame.text if chart.has_title else None
+    except (AttributeError, ValueError):
+        value["title"] = None
+    series_values: list[dict[str, Any]] = []
+    for series in getattr(chart, "series", []):
+        item: dict[str, Any] = {"name": str(getattr(series, "name", ""))}
+        try:
+            item["values"] = [float(number) if number is not None else None for number in series.values]
+        except (AttributeError, TypeError, ValueError):
+            item["values"] = []
+        series_values.append(item)
+    value["series"] = series_values
+    try:
+        value["categories"] = [str(category) for category in chart.plots[0].categories]
+    except (AttributeError, IndexError, TypeError):
+        value["categories"] = []
+    return value
+
+
 def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, rendered_pages: list[Path]) -> list[DocumentUnit]:
     if importlib.util.find_spec("pptx") is None:
         raise KSlideError(ErrorCode.NORMALIZATION_FAILED, "python-pptx is required to extract PPTX structure.", {"input": source.name, "extra": "pip install k-slide[pptx]"})
@@ -122,8 +170,10 @@ def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, r
     units: list[DocumentUnit] = []
     if len(rendered_pages) != len(presentation.slides):
         raise KSlideError(ErrorCode.RENDER_COUNT_MISMATCH, "PPTX render page count does not match slide count.", {"slides": len(presentation.slides), "renders": len(rendered_pages)})
+    if len(presentation.slides) > MAX_SLIDES_PER_PPTX:
+        raise KSlideError(ErrorCode.RESOURCE_LIMIT, "PPTX slide count exceeds the configured safety limit.", {"input": source.name, "slides": len(presentation.slides), "max_slides": MAX_SLIDES_PER_PPTX})
     for slide_index, slide in enumerate(presentation.slides):
-        work_unit_id = f"slide-{slide_index + 1:03d}"
+        work_unit_id = f"{document_id}-slide-{slide_index + 1:04d}"
         render = rendered_pages[slide_index]
         try:
             from PIL import Image
@@ -134,13 +184,21 @@ def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, r
         except (ImportError, OSError) as exc:
             raise KSlideError(ErrorCode.PPTX_RENDER_UNAVAILABLE, "Unable to inspect the canonical PPTX render dimensions.", {"input": source.name}) from exc
         objects: list[dict[str, Any]] = []
-        for shape_index, shape in enumerate(slide.shapes, start=1):
-            item: dict[str, Any] = {"source_id": f"{work_unit_id}-shape-{shape_index:03d}", "shape_type": str(getattr(shape, "shape_type", "unknown")), "bbox_px": list(_shape_bbox(shape, slide_width_emu, slide_height_emu, render_width, render_height))}
+        for shape_index, shape in _iter_shapes(slide.shapes):
+            item: dict[str, Any] = {"source_id": f"{work_unit_id}-shape-{shape_index}", "shape_type": str(getattr(shape, "shape_type", "unknown")), "bbox_px": list(_shape_bbox(shape, slide_width_emu, slide_height_emu, render_width, render_height))}
             if getattr(shape, "has_text_frame", False):
                 item["text"] = "\n".join(paragraph.text for paragraph in shape.text_frame.paragraphs)
             if getattr(shape, "has_table", False):
                 table = shape.table
-                item["table"] = {"row_count": len(table.rows), "column_count": len(table.columns), "cells": [{"cell_id": f"{work_unit_id}-table-{shape_index:03d}-r{row_index + 1:02d}-c{column_index + 1:02d}", "row": row_index, "column": column_index, "text": table.cell(row_index, column_index).text} for row_index in range(len(table.rows)) for column_index in range(len(table.columns))]}
+                cells = []
+                for row_index in range(len(table.rows)):
+                    for column_index in range(len(table.columns)):
+                        cell = table.cell(row_index, column_index)
+                        cells.append({"cell_id": f"{work_unit_id}-table-{shape_index}-r{row_index + 1:02d}-c{column_index + 1:02d}", "row": row_index, "column": column_index, "text": cell.text, "rowspan": int(getattr(cell, "span_height", 1) or 1), "colspan": int(getattr(cell, "span_width", 1) or 1), "is_merge_origin": bool(getattr(cell, "is_merge_origin", False)), "is_spanned": bool(getattr(cell, "is_spanned", False))})
+                item["table"] = {"row_count": len(table.rows), "column_count": len(table.columns), "cells": cells}
+            chart = _chart_metadata(shape)
+            if chart is not None:
+                item["chart"] = chart
             objects.append(item)
         native_path = run_dir / "native" / f"{work_unit_id}.json"
         atomic_write_json(native_path, {"provider": "python-pptx", "slide_index": slide_index, "slide_width_px": render_width, "slide_height_px": render_height, "objects": objects}, mode=0o600)
@@ -148,7 +206,7 @@ def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, r
     return units
 
 
-def _render_pptx(source: Path, run_dir: Path) -> list[Path]:
+def _render_pptx(source: Path, run_dir: Path, document_id: str) -> list[Path]:
     binary = shutil.which("libreoffice") or shutil.which("soffice")
     if not binary:
         raise KSlideError(ErrorCode.PPTX_RENDER_UNAVAILABLE, "LibreOffice/soffice is required to render PPTX slides.", {"input": source.name})
@@ -174,7 +232,7 @@ def _render_pptx(source: Path, run_dir: Path) -> list[Path]:
         try:
             renders: list[Path] = []
             for index, page in enumerate(document):
-                render = run_dir / "normalized" / f"slide-{index + 1:03d}.png"
+                render = run_dir / "normalized" / f"{document_id}-slide-{index + 1:04d}.png"
                 page.get_pixmap(matrix=fitz.Matrix(RENDER_DPI / 72, RENDER_DPI / 72), alpha=False).save(str(render))
                 renders.append(render)
             return renders
@@ -196,7 +254,10 @@ def normalize_run(run_dir: Path) -> NormalizationResult:
         documents: list[NormalizedDocument] = []
         warnings: list[str] = []
         try:
-            for input_id, source, metadata in _snapshot_inputs(run_dir):
+            snapshots = _snapshot_inputs(run_dir)
+            if len(snapshots) > MAX_DOCUMENTS_PER_RUN:
+                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Input count exceeds the configured safety limit.", {"documents": len(snapshots), "max_documents": MAX_DOCUMENTS_PER_RUN})
+            for input_id, source, metadata in snapshots:
                 document_id = f"doc-{input_id.split('-')[-1]}"
                 extension = str(metadata.get("extension", source.suffix)).lower()
                 if extension in {".png", ".jpg", ".jpeg", ".webp"}:
@@ -204,14 +265,25 @@ def normalize_run(run_dir: Path) -> NormalizationResult:
                 elif extension == ".pdf":
                     units = _pdf_units(run_dir, input_id, source, document_id, int(input_id.split("-")[-1]))
                 elif extension == ".pptx":
-                    rendered = _render_pptx(source, run_dir)
+                    rendered = _render_pptx(source, run_dir, document_id)
                     units = _pptx_native(source, run_dir, input_id, document_id, rendered)
                 else:
                     raise KSlideError(ErrorCode.INPUT_UNSUPPORTED, "Unsupported normalized input type.", {"extension": extension})
                 documents.append(NormalizedDocument(document_id, input_id, str(metadata.get("kind", "unknown")), str(metadata.get("sha256", "")), tuple(units)))
+            units = [unit for document in documents for unit in document.units]
+            document_ids = [document.document_id for document in documents]
+            if len(document_ids) != len(set(document_ids)):
+                raise KSlideError(ErrorCode.DUPLICATE_DOCUMENT_ID, "Normalization generated duplicate document IDs.", {"document_ids": document_ids})
+            if len(units) > MAX_UNITS_PER_RUN:
+                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Page/slide count exceeds the configured safety limit.", {"units": len(units), "max_units": MAX_UNITS_PER_RUN})
+            total_pixels = sum(unit.width_px * unit.height_px for unit in units)
+            if total_pixels > MAX_TOTAL_RENDER_PIXELS:
+                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Total normalized render pixels exceed the configured safety limit.", {"pixels": total_pixels, "max_pixels": MAX_TOTAL_RENDER_PIXELS})
+            normalized_bytes = sum((run_dir / unit.canonical_render_path).stat().st_size for unit in units if (run_dir / unit.canonical_render_path).is_file())
+            if normalized_bytes > MAX_NORMALIZED_BYTES:
+                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Normalized render bytes exceed the configured safety limit.", {"bytes": normalized_bytes, "max_bytes": MAX_NORMALIZED_BYTES})
             result = NormalizationResult(tuple(documents), tuple(warnings), {"render_dpi": RENDER_DPI, "max_image_pixels": MAX_IMAGE_PIXELS})
             atomic_write_json(run_dir / "normalized" / "DOCUMENT_MANIFEST.json", result.as_dict(), mode=0o600)
-            units = [unit for document in documents for unit in document.units]
             now = state.updated_at
             queue = WorkQueue(run_id=state.run_id, work_units=[WorkUnit(unit.work_unit_id, unit.document_id, unit.input_id, unit.source_index, unit.kind, WorkUnitStatus.NORMALIZED, created_at=now, updated_at=now) for unit in units])
             save_queue(run_dir, queue)

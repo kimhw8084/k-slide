@@ -4,19 +4,23 @@
   "title": "K-Slide Gemma TranslationPatch",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "work_unit_id", "evidence_revision", "regions", "tables", "visual_interpretations", "executive_semantics"],
+  "required": ["schema_version", "work_unit_id", "evidence_revision", "regions", "tables", "visual_interpretations", "executive_claims"],
   "properties": {
     "schema_version": {"const": "1.0"},
-    "work_unit_id": {"type": "string"},
+    "work_unit_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
     "evidence_revision": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "repair_revision": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "regions": {"type": "array", "items": {"$ref": "#/$defs/region"}},
     "tables": {"type": "array", "items": {"$ref": "#/$defs/table"}},
     "visual_interpretations": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["relation_id", "interpretation", "evidence_ids"], "properties": {"relation_id": {"type": "string"}, "interpretation": {"type": "string"}, "evidence_ids": {"type": "array", "items": {"type": "string"}}}}},
-    "executive_semantics": {"type": "object", "additionalProperties": false, "properties": {"source_faithful": {"type": "string"}, "takeaway": {"type": "string"}, "decision_or_ask": {"type": "string"}, "status": {"type": "string"}, "risk": {"type": "string"}, "dependency": {"type": "string"}, "timing": {"type": "string"}, "evidence_ids": {"type": "array", "items": {"type": "string"}}}}
+    "executive_claims": {"type": "array", "items": {"$ref": "#/$defs/claim"}}
   },
   "$defs": {
-    "region": {"type": "object", "additionalProperties": false, "required": ["region_id", "english", "term_ids", "numeric_fact_ids", "unresolved"], "properties": {"region_id": {"type": "string"}, "english": {"type": "string"}, "commitment_status": {"type": ["string", "null"]}, "speech_act": {"type": ["string", "null"]}, "term_ids": {"type": "array", "items": {"type": "string"}}, "numeric_fact_ids": {"type": "array", "items": {"type": "string"}}, "unresolved": {"type": "boolean"}, "unresolved_reason": {"type": ["string", "null"]}}},
-    "table": {"type": "object", "additionalProperties": false, "required": ["table_id", "cells"], "properties": {"table_id": {"type": "string"}, "cells": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["cell_id", "english", "unresolved"], "properties": {"cell_id": {"type": "string"}, "english": {"type": "string"}, "unresolved": {"type": "boolean"}, "unresolved_reason": {"type": ["string", "null"]}}}}}}
+    "commitment": {"type": ["string", "null"], "enum": ["decided", "committed", "planned", "scheduled", "target", "proposed", "under_review", "needs_review", "discussion_required", "expected", "forecast", "possible", "tentative", "not_decided", "completed", "in_progress", "unknown", null]},
+    "speech": {"type": ["string", "null"], "enum": ["fact", "status", "decision", "plan", "request", "recommendation", "risk", "dependency", "forecast", "question", "unknown", null]},
+    "region": {"type": "object", "additionalProperties": false, "required": ["region_id", "english", "term_ids", "unresolved"], "properties": {"region_id": {"type": "string"}, "english": {"type": "string"}, "commitment_status": {"$ref": "#/$defs/commitment"}, "speech_act": {"$ref": "#/$defs/speech"}, "term_ids": {"type": "array", "items": {"type": "string"}}, "unresolved": {"type": "boolean"}, "unresolved_reason": {"type": ["string", "null"]}}},
+    "table": {"type": "object", "additionalProperties": false, "required": ["table_id", "cells"], "properties": {"table_id": {"type": "string"}, "cells": {"type": "array", "items": {"$ref": "#/$defs/cell"}}}},
+    "cell": {"type": "object", "additionalProperties": false, "required": ["cell_id", "english", "unresolved"], "properties": {"cell_id": {"type": "string"}, "english": {"type": "string"}, "unresolved": {"type": "boolean"}, "unresolved_reason": {"type": ["string", "null"]}}},
+    "claim": {"type": "object", "additionalProperties": false, "required": ["claim_id", "kind", "text", "evidence_ids", "uncertainty"], "properties": {"claim_id": {"type": "string"}, "kind": {"enum": ["takeaway", "decision_status", "decision_or_ask", "timing", "key_number", "risk", "dependency", "owner", "trend", "next_step", "other"]}, "text": {"type": "string"}, "evidence_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}}, "uncertainty": {"enum": ["low", "medium", "high"]}}}
   }
 }

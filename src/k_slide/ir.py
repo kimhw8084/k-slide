@@ -56,11 +56,17 @@ class TableIR:
 @dataclass
 class NumericFact:
     fact_id: str
-    source_region_id: str
+    source_region_id: str | None
     source_string: str
+    source_object_id: str | None = None
+    source_table_id: str | None = None
+    source_cell_id: str | None = None
+    raw_value: float | None = None
     canonical_value: float | None = None
+    scale_factor: float | None = None
     source_unit: str | None = None
     semantic_quantity: str | None = None
+    currency: str | None = None
     time_period: str | None = None
     direction: str | None = None
     approximation: str | None = None

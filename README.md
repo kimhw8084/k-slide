@@ -2,7 +2,7 @@
 
 K-Slide turns Korean or mixed Korean-English business artifacts into evidence-backed English comprehension for readers who do not know Korean. It is designed for slides, screenshots, PDFs, PPTX files, tables, charts, diagrams, and dense business-review visuals.
 
-The current implementation is K-Slide `0.2.0`, a Phase 1.1 plus Phase 2 evidence-boundary build. It provides immutable engine-owned source evidence, a narrow structured translation patch, multi-work-unit state, deterministic completion, image/PDF/PPTX normalization, native extraction, deterministic crops, and an OCR-provider boundary. Full Gemma translation certification is not claimed until the target model and evaluation gates are exercised.
+The current implementation is K-Slide `0.3.0`, a Phase 2.1 translation-ready evidence boundary and Phase 3 development build. It provides immutable engine-owned source evidence, a narrow structured TranslationPatch, globally unique multi-document work units, deterministic reports, semantic enums, numeric verification foundations, image/PDF/PPTX normalization, native extraction, deterministic crops, OCR-provider contracts, and a 100-spec synthetic evaluation corpus. Full Gemma translation certification is not claimed until the target model and evaluation gates are exercised.
 
 ## Quick start
 
@@ -54,6 +54,8 @@ engine EvidenceIR → Gemma TranslationPatch → engine-controlled SlideIR → d
 
 The model cannot author source geometry, native text, numeric facts, required-region inventories, or coverage baselines. Each patch is bound to the immutable EvidenceIR revision for its work unit.
 
+`kslide_evidence` also returns a model media plan with one required whole-unit context image and risk-routed crops. The agent must read those images before submitting a patch. Reports are rendered deterministically from the merged SlideIR; `NEEDS_REVIEW` and incomplete work units block `DONE`.
+
 ## OpenCode integration
 
 The project installs:
@@ -72,6 +74,9 @@ The current local environment reports `ollama/qwen3:14b`, not the target `google
 rtk env PYTHONPATH=src python3 -m unittest discover -s tests -v
 rtk env PYTHONPATH=src python3 -m k_slide.cli doctor --root . --json
 rtk opencode debug config
+rtk env PYTHONPATH=src python3 -m evals.run_engine_eval --output /tmp/k-slide-eval --limit 5
 ```
+
+The public evaluation runner generates 100 synthetic scenario specifications and real image artifacts. It is an engine/artifact smoke tier, not a Gemma quality benchmark. Target-model results must be produced in an approved environment and recorded with the exact model, provider, prompt, OCR, and preprocessing configuration.
 
 The implementation status, known limitations, and next concrete tasks are tracked in [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md). Historical source-pack lineage remains in [`SOURCE_PROVENANCE.md`](SOURCE_PROVENANCE.md). The exact completion artifact contract is code-owned by `src/k_slide/policy.py`.

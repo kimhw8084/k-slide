@@ -141,8 +141,12 @@ class EvidenceIR:
         table_ids = [_identifier(table.table_id, "table_id") for table in self.tables]
         if len(table_ids) != len(set(table_ids)):
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "EvidenceIR contains duplicate table IDs.")
-        numeric_ids = {str(item.get("fact_id")) for item in self.numeric_facts if isinstance(item, dict) and item.get("fact_id")}
-        known = set(region_ids) | set(table_ids) | numeric_ids
+        numeric_values = [str(item.get("fact_id")) for item in self.numeric_facts if isinstance(item, dict) and item.get("fact_id")]
+        numeric_ids = set(numeric_values)
+        if len(numeric_values) != len(numeric_ids):
+            raise KSlideError(ErrorCode.DUPLICATE_SOURCE_ID, "EvidenceIR contains duplicate numeric fact IDs.")
+        visual_ids = {str(item.get("element_id")) for item in self.visual_elements if isinstance(item, dict) and item.get("element_id")}
+        known = set(region_ids) | set(table_ids) | numeric_ids | visual_ids
         for source_id in self.required_source_ids:
             _identifier(source_id, "required_source_id")
         for region in self.regions:
@@ -163,6 +167,9 @@ class EvidenceIR:
                 for fact_id in cell.numeric_fact_ids:
                     if fact_id not in numeric_ids:
                         raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence cell references an unknown numeric fact.", {"fact_id": fact_id})
+                for region_id in cell.evidence_region_ids:
+                    if region_id not in region_ids:
+                        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence cell references an unknown region.", {"region_id": region_id})
         if not set(self.required_source_ids).issubset(known | {cell.cell_id for table in self.tables for cell in table.cells}):
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "EvidenceIR required source IDs contain unknown objects.")
         expected = self.computed_revision()

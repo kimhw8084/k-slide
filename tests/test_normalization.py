@@ -33,7 +33,7 @@ class ImageNormalizationTests(unittest.TestCase):
             evidence_values = extract_run(run)
             self.assertEqual(load_state(run).phase, RunPhase.EXTRACTED)
             self.assertEqual(len(evidence_values), 1)
-            evidence = load_evidence(run, "slide-001")
+            evidence = load_evidence(run, "doc-001-image-0001")
             self.assertEqual(evidence.evidence_revision, evidence.computed_revision())
             self.assertTrue(evidence.regions[0].crop_original_path)
             self.assertTrue((run / evidence.regions[0].crop_original_path).is_file())
@@ -57,7 +57,7 @@ class PDFNormalizationTests(unittest.TestCase):
             run = prepare_run(root, explicit_paths=[str(pdf_path)])
             result = normalize_run(run)
             self.assertEqual(len(result.documents[0].units), 3)
-            self.assertEqual([unit.work_unit_id for unit in result.documents[0].units], ["page-001-0001", "page-001-0002", "page-001-0003"])
+            self.assertEqual([unit.work_unit_id for unit in result.documents[0].units], ["doc-001-page-0001", "doc-001-page-0002", "doc-001-page-0003"])
 
 
 @unittest.skipUnless(importlib.util.find_spec("PIL") and importlib.util.find_spec("pptx"), "Pillow and python-pptx are optional in the base development environment")
@@ -78,7 +78,7 @@ class PPTXNativeExtractionTests(unittest.TestCase):
             table_shape.table.cell(0, 0).text = "항목"
             table_shape.table.cell(0, 1).text = "수치"
             presentation.save(source)
-            render = root / "slide-001.png"
+            render = root / "doc-001-slide-0001.png"
             Image.new("RGB", (1920, 1080), "white").save(render)
             native = _pptx_native(source, root, "source-001", "doc-001", [render])
 

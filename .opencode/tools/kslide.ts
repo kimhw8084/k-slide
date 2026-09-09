@@ -12,10 +12,9 @@ type ToolContext = {
 const translationRegion = tool.schema.object({
   region_id: tool.schema.string(),
   english: tool.schema.string(),
-  commitment_status: tool.schema.string().optional(),
-  speech_act: tool.schema.string().optional(),
+  commitment_status: tool.schema.enum(["decided", "committed", "planned", "scheduled", "target", "proposed", "under_review", "needs_review", "discussion_required", "expected", "forecast", "possible", "tentative", "not_decided", "completed", "in_progress", "unknown"]).optional(),
+  speech_act: tool.schema.enum(["fact", "status", "decision", "plan", "request", "recommendation", "risk", "dependency", "forecast", "question", "unknown"]).optional(),
   term_ids: tool.schema.array(tool.schema.string()).default([]),
-  numeric_fact_ids: tool.schema.array(tool.schema.string()).default([]),
   unresolved: tool.schema.boolean().default(false),
   unresolved_reason: tool.schema.string().optional(),
 })
@@ -38,15 +37,12 @@ const visualInterpretation = tool.schema.object({
   evidence_ids: tool.schema.array(tool.schema.string()).default([]),
 })
 
-const executiveSemantics = tool.schema.object({
-  source_faithful: tool.schema.string().optional(),
-  takeaway: tool.schema.string().optional(),
-  decision_or_ask: tool.schema.string().optional(),
-  status: tool.schema.string().optional(),
-  risk: tool.schema.string().optional(),
-  dependency: tool.schema.string().optional(),
-  timing: tool.schema.string().optional(),
-  evidence_ids: tool.schema.array(tool.schema.string()).default([]),
+const executiveClaim = tool.schema.object({
+  claim_id: tool.schema.string(),
+  kind: tool.schema.enum(["takeaway", "decision_status", "decision_or_ask", "timing", "key_number", "risk", "dependency", "owner", "trend", "next_step", "other"]),
+  text: tool.schema.string(),
+  evidence_ids: tool.schema.array(tool.schema.string()),
+  uncertainty: tool.schema.enum(["low", "medium", "high"]),
 })
 
 const translationPatch = tool.schema.object({
@@ -56,7 +52,7 @@ const translationPatch = tool.schema.object({
   regions: tool.schema.array(translationRegion),
   tables: tool.schema.array(translationTable),
   visual_interpretations: tool.schema.array(visualInterpretation).default([]),
-  executive_semantics: executiveSemantics.default({}),
+  executive_claims: tool.schema.array(executiveClaim).default([]),
   repair_revision: tool.schema.string().optional(),
 })
 

@@ -12,4 +12,4 @@ Do not use shell, edit, write, web, or Task/subagent tools. Use the typed `kslid
 
 First call `kslide_prepare` with mode `strict`. Pass explicit input paths only when the user supplied them. Use the returned run metadata exactly.
 
-Loop on `kslide_next` until `VERIFIED`, `NEEDS_REVIEW`, or `COMPLETE`. Process each `READY`/`REPAIR_READY` work unit through `kslide_evidence` and structured `kslide_submit`. Verify the whole run when all units are translated, then finalize on `VERIFIED`; repair exact targets only.
+Loop on `kslide_next` until `VERIFIED`, `NEEDS_REVIEW`, or `COMPLETE`. Process each `READY`/`REPAIR_READY` work unit through `kslide_evidence`, read its context image and required risk crops, and structured `kslide_submit`. Verify the whole run when all units are translated, then finalize on `VERIFIED`; repair exact targets only.
