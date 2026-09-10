@@ -56,17 +56,19 @@ policy, without best-format selection. Validation and held-out evidence
 require locked terminology recall of at least 0.995 and zero unexpected
 unresolved rate. Security scanner exit codes are captured structurally by the
 workflow; failed scanners or missing reports cannot be normalized into clean
-evidence. Base and dependency-backed suites both executed with 140 passing
-tests during this closure; external OpenCode, heavy, Gemma, private, human,
+evidence. Base and dependency-backed suites both executed with 148 passing
+tests during this closure (the base interpreter retained 2 optional
+dependency skips); external OpenCode, heavy, Gemma, private, human,
 governance, and pilot gates remain unexecuted or blocked.
 
-The subsequent identity/coverage repair uses adapter version 2.0. One explicit
-deployment-factor allowlist is shared by model evaluation, release, engine
-diagnostics, and production verification. Behavior/configuration hashes no
-longer include split or sampling controls; each run has a separate canonical
-experiment-plan hash. Validation and held-out evidence require the complete
-frozen matrix, while high-risk evidence requires every declared
+The subsequent identity/coverage repair uses candidate-bound adapter version
+2.1. One explicit candidate-spec allowlist is shared by model evaluation,
+release, engine diagnostics, security, and production verification. Host
+runtime details remain separate execution provenance. Behavior/configuration
+hashes no longer include split or sampling controls; each run has a separate
+canonical experiment-plan hash. Validation and held-out evidence require the
+complete frozen matrix, while high-risk evidence requires every declared
 `scenario_id + format` group with exact repeats and protected-category
-coverage. The temporary full-chain test derives `PRODUCTION_CERTIFIED`
-without a profile pre-labeled with that state; the real repository remains
-`DEVELOPMENT` with `champion.json` `UNSET`.
+coverage. The temporary full-chain test derives `PRODUCTION_CERTIFIED`,
+materializes the certified profile after writing the final manifest, and the
+real repository remains `DEVELOPMENT` with `champion.json` `UNSET`.

@@ -21,6 +21,7 @@ class ModelPolicy:
     target_variant: str = "instruction_tuned"
     approved_model_ids: tuple[str, ...] = ("google/gemma-4-31b-it",)
     approved_aliases: tuple[str, ...] = ()
+    approved_alias_targets: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
     @classmethod
     def from_mapping(cls, value: dict[str, Any] | None) -> "ModelPolicy":
@@ -34,19 +35,44 @@ class ModelPolicy:
                 return tuple(str(item) for item in raw)
             return default
 
+        raw_targets = value.get("approved_alias_targets", {})
+        targets: list[tuple[str, tuple[str, ...]]] = []
+        if isinstance(raw_targets, dict):
+            for alias, raw_values in sorted(raw_targets.items()):
+                if isinstance(raw_values, str):
+                    raw_values = [raw_values]
+                if isinstance(raw_values, (list, tuple)):
+                    targets.append((str(alias), tuple(str(item) for item in raw_values)))
+
         return cls(
             target_family=str(value.get("target_family", cls.target_family)),
             target_size=str(value.get("target_size", cls.target_size)),
             target_variant=str(value.get("target_variant", cls.target_variant)),
             approved_model_ids=values("approved_model_ids", cls.approved_model_ids),
             approved_aliases=values("approved_aliases", ()),
+            approved_alias_targets=tuple(targets),
         )
 
     def approved(self, *, requested: str | None, effective: str | None) -> bool:
         if not requested or not effective:
             return False
         approved = set(self.approved_model_ids) | set(self.approved_aliases)
-        return requested in approved and effective in approved
+        if requested not in approved or effective not in approved:
+            return False
+        if requested in self.approved_model_ids:
+            return effective == requested or effective in self.approved_model_ids
+        targets = dict(self.approved_alias_targets).get(requested, ())
+        return effective in targets or effective == requested
+
+    def canonical_effective(self, *, requested: str | None, effective: str | None) -> str | None:
+        """Return the policy's canonical effective ID for one approved pair."""
+
+        if not self.approved(requested=requested, effective=effective):
+            return None
+        if effective in self.approved_model_ids:
+            return effective
+        targets = dict(self.approved_alias_targets).get(str(requested), ())
+        return targets[0] if targets else effective
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -55,6 +81,7 @@ class ModelPolicy:
             "target_variant": self.target_variant,
             "approved_model_ids": list(self.approved_model_ids),
             "approved_aliases": list(self.approved_aliases),
+            "approved_alias_targets": {alias: list(targets) for alias, targets in self.approved_alias_targets},
         }
 
 

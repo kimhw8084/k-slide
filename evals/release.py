@@ -13,13 +13,15 @@ from typing import Any
 
 from k_slide import __version__
 from k_slide.certification import (
+    CANDIDATE_INPUT_FIELDS,
     EvidenceValidationError,
-    build_deployment_factors,
+    candidate_deployment_fingerprint,
+    canonical_candidate_factors,
     canonical_corpus_identity,
     certification_fingerprint,
-    deployment_fingerprint,
     evidence_hashes,
     load_evidence,
+    load_candidate_spec,
     sha256_file,
 )
 from k_slide.model_policy import load_model_policy
@@ -107,6 +109,44 @@ def _raw_profile(root: Path) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _candidate_spec_for_release(root: Path, *, candidate_profile: Path | None, subject_sha: str | None, model: str | None, policy: Any, corpus: dict[str, Any], require_identity: bool = False) -> tuple[dict[str, Any], str]:
+    """Resolve one candidate input object; certified output fields are ignored."""
+
+    source_path = candidate_profile
+    if source_path is None:
+        local = root / ".k-slide-config" / "production-candidate.json"
+        repository_candidate = root / "evals" / "production-candidate.yaml"
+        source_path = local if local.is_file() else (repository_candidate if repository_candidate.is_file() else None)
+    if source_path is not None:
+        candidate = load_candidate_spec(source_path, root=root, require_identity=False, strict=True)
+    else:
+        candidate = _raw_profile(root)
+    candidate = dict(candidate)
+    git_subject = _git_sha(root)
+    declared_subject = str(candidate.get("subject_git_sha") or "")
+    subject = subject_sha or (git_subject if git_subject and git_subject != "UNSET" else (declared_subject or "UNSET"))
+    if declared_subject and declared_subject.upper() != "UNSET" and declared_subject != subject:
+        raise EvidenceValidationError("candidate subject_git_sha does not match release subject")
+    candidate["subject_git_sha"] = subject
+    if model:
+        declared_model = str(candidate.get("requested_model") or "")
+        if declared_model and declared_model.upper() != "UNSET" and declared_model != model:
+            raise EvidenceValidationError("candidate requested_model does not match release model")
+        candidate["requested_model"] = model
+    candidate.setdefault("kslide_version", __version__)
+    candidate.setdefault("effective_model", "UNSET")
+    candidate.setdefault("ocr_provider", "none")
+    candidate["model_policy"] = policy.as_dict()
+    candidate["corpus_identity"] = canonical_corpus_identity(corpus)
+    if candidate.get("behavior_configuration") is None:
+        candidate["behavior_configuration"] = {}
+    if require_identity:
+        for field in ("subject_git_sha", "requested_model"):
+            if not str(candidate.get(field) or "") or str(candidate[field]).upper() == "UNSET":
+                raise EvidenceValidationError(f"candidate profile must declare {field} after release binding")
+    return candidate, subject
+
+
 def _evidence_arguments(args: argparse.Namespace) -> dict[str, Path]:
     names = {
         "runtime": "runtime_evidence",
@@ -130,12 +170,42 @@ def _evidence_arguments(args: argparse.Namespace) -> dict[str, Path]:
     return result
 
 
-def _load_records(paths: dict[str, Path], *, subject_sha: str, deployment_fp: str, repository_root: Path | None = None) -> tuple[dict[str, dict[str, Any]], list[str]]:
+def _adopt_proven_effective_model(candidate: dict[str, Any], paths: dict[str, Path]) -> dict[str, Any]:
+    """Use finalized model evidence to complete provisional candidate inputs."""
+
+    specs: list[dict[str, Any]] = []
+    for evidence_type in ("model_validation", "model_high_risk_stability", "model_held_out"):
+        path = paths.get(evidence_type)
+        if path is None or not path.is_file():
+            continue
+        try:
+            envelope = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            continue
+        if isinstance(envelope, dict) and isinstance(envelope.get("candidate_spec"), dict):
+            specs.append(envelope["candidate_spec"])
+    if not specs:
+        return candidate
+    if any(item != specs[0] for item in specs[1:]):
+        raise EvidenceValidationError("model evidence final candidate specifications disagree")
+    effective = str(specs[0].get("effective_model") or "")
+    if not effective or effective.upper() == "UNSET":
+        raise EvidenceValidationError("model evidence does not prove one effective model identity")
+    result = dict(candidate)
+    for key, value in specs[0].items():
+        existing = result.get(key)
+        if existing is not None and str(existing).upper() != "UNSET" and existing != value:
+            raise EvidenceValidationError(f"model evidence final candidate input disagrees: {key}")
+        result[key] = value
+    return result
+
+
+def _load_records(paths: dict[str, Path], *, subject_sha: str, deployment_fp: str, repository_root: Path | None = None, candidate_spec: dict[str, Any] | None = None, require_candidate_binding: bool = False) -> tuple[dict[str, dict[str, Any]], list[str]]:
     records: dict[str, dict[str, Any]] = {}
     errors: list[str] = []
     for evidence_type, path in paths.items():
         try:
-                records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject_sha, deployment_fingerprint=deployment_fp, repository_root=repository_root or path.parent)
+            records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject_sha, deployment_fingerprint=deployment_fp, repository_root=repository_root or path.parent, candidate_spec=candidate_spec, require_candidate_spec=require_candidate_binding)
         except EvidenceValidationError as exc:
             errors.append(f"{evidence_type}: {exc}")
     return records, errors
@@ -170,6 +240,10 @@ def _champion(root: Path, *, records: dict[str, dict[str, Any]], policy: Any, de
     format_plans = {tuple(record["payload"].get("formats", ())) for record in model_records}
     if len(format_plans) > 1:
         blockers.append("model evidence format plans disagree")
+    effective_ids = {record["payload"].get("effective_model") for record in model_records if record["payload"].get("effective_model")}
+    champion_effective = policy.canonical_effective(requested=value.get("model"), effective=value.get("effective_model", value.get("model")))
+    if len(effective_ids) > 1 or (effective_ids and champion_effective not in effective_ids):
+        blockers.append("model evidence effective identities disagree")
     return value, _sha256(path), blockers
 
 
@@ -230,20 +304,17 @@ def derive_release_state(requested_state: str, *, records: dict[str, dict[str, A
     return requested_state, requested_blockers
 
 
-def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.value, requested_state: str | None = None, model: str | None = None, ocr_asset_manifest: Path | None = None, validation_result: Path | None = None, held_out_result: Path | None = None, evidence_paths: dict[str, Path] | None = None, subject_sha: str | None = None) -> dict[str, Any]:
+def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.value, requested_state: str | None = None, model: str | None = None, ocr_asset_manifest: Path | None = None, validation_result: Path | None = None, held_out_result: Path | None = None, evidence_paths: dict[str, Path] | None = None, subject_sha: str | None = None, candidate_profile: Path | None = None) -> dict[str, Any]:
     root = root.expanduser().resolve()
     runtime = discover_runtime()
     policy = load_model_policy(root)
     split = split_manifest()
-    subject = subject_sha or _git_sha(root) or "UNSET"
-    profile = _raw_profile(root)
-    runtime_values = runtime.as_dict()
-    if model:
-        runtime_values["reported_model_id"] = model
-    runtime_values["ocr_provider"] = profile.get("ocr_provider", "none")
-    factors = build_deployment_factors(root, subject_git_sha=subject, runtime=runtime_values, profile=profile, model_policy=policy, corpus=canonical_corpus_identity({"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]}))
-    deployment_fp = deployment_fingerprint(factors)
-    records, evidence_errors = _load_records(evidence_paths or {}, subject_sha=subject, deployment_fp=deployment_fp, repository_root=root)
+    corpus = canonical_corpus_identity({"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]})
+    candidate, subject = _candidate_spec_for_release(root, candidate_profile=candidate_profile, subject_sha=subject_sha, model=model, policy=policy, corpus=corpus)
+    evidence_paths = evidence_paths or {}
+    candidate = _adopt_proven_effective_model(candidate, evidence_paths)
+    deployment_fp = candidate_deployment_fingerprint(candidate)
+    records, evidence_errors = _load_records(evidence_paths, subject_sha=subject, deployment_fp=deployment_fp, repository_root=root, candidate_spec=candidate, require_candidate_binding=candidate_profile is not None)
     requested = requested_state or state
     derived, blockers = derive_release_state(requested, records=records, root=root, policy=policy, deployment_fp=deployment_fp)
     if evidence_errors:
@@ -254,8 +325,20 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
     envelope_hashes = {str(item["evidence_type"]): str(item.get("envelope_sha256") or item["sha256"]) for item in records.values()}
     cert_fp = "UNSET" if derived == ReleaseState.DEVELOPMENT.value else certification_fingerprint(deployment=deployment_fp, evidence_hashes=hashes, release_state=derived, champion_hash=champion_hash)
     manifest_ocr_asset = ocr_asset_manifest
-    if manifest_ocr_asset is None and profile.get("ocr_asset_manifest") and not str(profile["ocr_asset_manifest"]).startswith("UNSET"):
-        manifest_ocr_asset = Path(str(profile["ocr_asset_manifest"]))
+    if manifest_ocr_asset is not None:
+        manifest_ocr_asset = manifest_ocr_asset.expanduser()
+        if not manifest_ocr_asset.is_absolute():
+            manifest_ocr_asset = root / manifest_ocr_asset
+    if manifest_ocr_asset is not None and candidate.get("ocr_asset_manifest") and not str(candidate["ocr_asset_manifest"]).startswith("UNSET"):
+        declared_asset = Path(str(candidate["ocr_asset_manifest"])).expanduser()
+        if not declared_asset.is_absolute():
+            declared_asset = root / declared_asset
+        if manifest_ocr_asset.expanduser().resolve() != declared_asset.resolve():
+            raise EvidenceValidationError("release OCR asset manifest does not match candidate specification")
+    if manifest_ocr_asset is None and candidate.get("ocr_asset_manifest") and not str(candidate["ocr_asset_manifest"]).startswith("UNSET"):
+        manifest_ocr_asset = Path(str(candidate["ocr_asset_manifest"]))
+        if not manifest_ocr_asset.is_absolute():
+            manifest_ocr_asset = root / manifest_ocr_asset
     def safe_relative(path: Path | None) -> str | None:
         if path is None:
             return None
@@ -273,14 +356,16 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "deployment_fingerprint": deployment_fp,
         "certification_fingerprint": cert_fp,
-        "runtime": {"opencode_version": runtime.opencode_version, "model": model or runtime.reported_model_id, "provider": runtime.provider, "vision_support": runtime.vision_support},
+        "candidate_spec": canonical_candidate_factors(candidate),
+        "runtime_provenance": {"opencode_version": runtime.opencode_version, "model": runtime.reported_model_id, "provider": runtime.provider, "vision_support": runtime.vision_support},
+        "runtime": {"opencode_version": candidate.get("opencode_version"), "model": candidate.get("effective_model"), "provider": candidate.get("provider"), "vision_support": candidate.get("vision_settings")},
         "model_policy": policy.as_dict(),
-        "ocr": {"provider": "paddle", "asset_manifest": safe_relative(manifest_ocr_asset), "asset_manifest_sha256": _sha256(manifest_ocr_asset)},
+        "ocr": {"provider": candidate.get("ocr_provider"), "asset_manifest": safe_relative(manifest_ocr_asset), "asset_manifest_sha256": candidate.get("ocr_asset_manifest_sha256") or _sha256(manifest_ocr_asset)},
         "schemas": {"translation_patch": "1.0", "evidence_ir": "1.0", "slide_ir": "1.0"},
         "dataset": {"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]},
         "evidence_hashes": hashes,
         "evidence_envelope_hashes": envelope_hashes,
-        "evidence_paths": {key: safe_relative(value) for key, value in (evidence_paths or {}).items()},
+        "evidence_paths": {key: safe_relative(value) for key, value in evidence_paths.items()},
         "champion_hash": champion_hash,
         "constraints_file": "constraints-production.txt",
         "constraints_sha256": _sha256(root / "constraints-production.txt"),
@@ -297,6 +382,55 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
     return manifest
 
 
+def materialize_certified_profile(root: Path, *, candidate_spec: dict[str, Any], manifest: dict[str, Any], manifest_path: Path, output: Path) -> Path:
+    """Write the post-derivation production profile without hash recursion."""
+
+    if manifest.get("release_state") != ReleaseState.PRODUCTION_CERTIFIED.value:
+        raise EvidenceValidationError("certified profile requires PRODUCTION_CERTIFIED manifest")
+    manifest_path = manifest_path.expanduser().resolve()
+    output = output.expanduser()
+    candidate = dict(candidate_spec)
+    finalized = manifest.get("candidate_spec")
+    if not isinstance(finalized, dict):
+        raise EvidenceValidationError("release manifest has no finalized candidate specification")
+    candidate.update(finalized)
+    dataset = manifest.get("dataset")
+    if isinstance(dataset, dict):
+        candidate["corpus_identity"] = canonical_corpus_identity(dataset)
+    attestations = manifest.get("attestations")
+    model_data_attestation = attestations.get("model_data_policy") if isinstance(attestations, dict) else None
+    if not model_data_attestation or model_data_attestation == "UNSET":
+        raise EvidenceValidationError("release manifest has no model-data-policy attestation")
+    def relative_or_absolute(path: Path) -> str:
+        try:
+            return path.relative_to(root.expanduser().resolve()).as_posix()
+        except ValueError:
+            return str(path)
+    profile: dict[str, Any] = {key: value for key, value in candidate.items() if key in CANDIDATE_INPUT_FIELDS and key not in {"candidate_spec_version", "ocr_asset_manifest_sha256", "constraints_sha256"}}
+    if candidate.get("ocr_asset_manifest"):
+        profile["ocr_asset_manifest"] = candidate["ocr_asset_manifest"]
+    profile.update({
+        "schema_version": "1.0",
+        "release_state": ReleaseState.PRODUCTION_CERTIFIED.value,
+        "subject_git_sha": manifest.get("subject_git_sha"),
+        "deployment_fingerprint": manifest.get("deployment_fingerprint"),
+        "certification_fingerprint": manifest.get("certification_fingerprint"),
+        "release_manifest": relative_or_absolute(manifest_path),
+        "release_manifest_sha256": sha256_file(manifest_path),
+        "model_data_attestation": model_data_attestation,
+        "candidate_spec": canonical_candidate_factors(candidate),
+    })
+    # ProductionProfile.from_mapping is the final schema check before write.
+    from k_slide.production import ProductionProfile
+
+    parsed = ProductionProfile.from_mapping(profile)
+    if parsed.deployment_fingerprint != candidate_deployment_fingerprint(candidate):
+        raise EvidenceValidationError("certified profile deployment does not match finalized candidate specification")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(profile, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    return output
+
+
 def _write_development_sbom(root: Path, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(build_sbom(root), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -306,6 +440,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Generate evidence-derived K-Slide release metadata")
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--candidate-profile", type=Path, help="Explicit candidate deployment specification")
+    parser.add_argument("--certified-profile-output", type=Path, help="Materialize the certified production profile after the final manifest is written")
     parser.add_argument("--sbom", type=Path)
     parser.add_argument("--generate-production-sbom", action="store_true", help="Generate the required production environment SBOM with cyclonedx-py")
     parser.add_argument("--requested-state", choices=REQUESTABLE_STATES, default=None)
@@ -322,25 +458,34 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     root = args.root.expanduser().resolve()
     requested = args.requested_state or args.state or ReleaseState.DEVELOPMENT.value
-    subject = args.subject_sha or _git_sha(root) or "UNSET"
+    try:
+        split = split_manifest()
+        policy = load_model_policy(root)
+        candidate, subject = _candidate_spec_for_release(
+            root,
+            candidate_profile=args.candidate_profile,
+            subject_sha=args.subject_sha,
+            model=args.model,
+            policy=policy,
+            corpus=canonical_corpus_identity({"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]}),
+            require_identity=requested != ReleaseState.DEVELOPMENT.value,
+        )
+    except (EvidenceValidationError, OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": [str(exc)]}, ensure_ascii=False, indent=2))
+        return 2
+    if requested != ReleaseState.DEVELOPMENT.value and args.candidate_profile is None and not (root / ".k-slide-config" / "production-candidate.json").is_file():
+        print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": ["certification-quality release requires --candidate-profile"]}, ensure_ascii=False, indent=2))
+        return 2
     if args.generate_production_sbom:
         try:
             build_production_sbom(root, root / ".k-slide-config" / "production-sbom.json")
         except RuntimeError as exc:
             print(json.dumps({"status": "BLOCKED", "reasons": [str(exc)]}, ensure_ascii=False, indent=2))
             return 2
-    runtime = discover_runtime()
-    policy = load_model_policy(root)
-    profile = _raw_profile(root)
-    split = split_manifest()
-    runtime_values = runtime.as_dict()
-    if args.model:
-        runtime_values["reported_model_id"] = args.model
-    runtime_values["ocr_provider"] = profile.get("ocr_provider", "none")
-    factors = build_deployment_factors(root, subject_git_sha=subject, runtime=runtime_values, profile=profile, model_policy=policy, corpus=canonical_corpus_identity({"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]}))
-    deployment_fp = deployment_fingerprint(factors)
     paths = _evidence_arguments(args)
-    records, evidence_errors = _load_records(paths, subject_sha=subject, deployment_fp=deployment_fp, repository_root=root)
+    candidate = _adopt_proven_effective_model(candidate, paths)
+    deployment_fp = candidate_deployment_fingerprint(candidate)
+    records, evidence_errors = _load_records(paths, subject_sha=subject, deployment_fp=deployment_fp, repository_root=root, candidate_spec=candidate, require_candidate_binding=requested != ReleaseState.DEVELOPMENT.value or args.candidate_profile is not None)
     derived, blockers = derive_release_state(requested, records=records, root=root, policy=policy, deployment_fp=deployment_fp)
     blockers.extend(evidence_errors)
     if args.validation_result and "model_validation" not in paths:
@@ -354,9 +499,18 @@ def main(argv: list[str] | None = None) -> int:
     if blockers:
         print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": derived, "reasons": sorted(set(blockers))}, ensure_ascii=False, indent=2))
         return 2
-    manifest = build_release_manifest(root, requested_state=requested, model=args.model, ocr_asset_manifest=args.ocr_asset_manifest, evidence_paths=paths, subject_sha=subject)
+    if derived == ReleaseState.PRODUCTION_CERTIFIED.value and args.certified_profile_output is None:
+        print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": derived, "reasons": ["PRODUCTION_CERTIFIED requires --certified-profile-output"]}, ensure_ascii=False, indent=2))
+        return 2
+    manifest = build_release_manifest(root, requested_state=requested, model=args.model, ocr_asset_manifest=args.ocr_asset_manifest, evidence_paths=paths, subject_sha=subject, candidate_profile=args.candidate_profile)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if manifest["release_state"] == ReleaseState.PRODUCTION_CERTIFIED.value:
+        try:
+            materialize_certified_profile(root, candidate_spec=candidate, manifest=manifest, manifest_path=args.output, output=args.certified_profile_output)
+        except (EvidenceValidationError, OSError, ValueError) as exc:
+            print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": manifest["release_state"], "reasons": [str(exc)]}, ensure_ascii=False, indent=2))
+            return 2
     if args.sbom:
         _write_development_sbom(root, args.sbom)
     print(json.dumps({"status": "PASS", "release_state": manifest["release_state"], "manifest": str(args.output), "sbom": str(args.sbom) if args.sbom else None}, ensure_ascii=False))

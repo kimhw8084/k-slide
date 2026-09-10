@@ -13,7 +13,8 @@ from typing import Any
 
 from .opencode_events import normalize_events, parse_json_events
 from .process_control import terminate_process_group
-from k_slide.certification import build_deployment_factors, canonical_corpus_identity, deployment_fingerprint
+from k_slide import __version__
+from k_slide.certification import CANDIDATE_SPEC_SCHEMA_VERSION, candidate_deployment_fingerprint, canonical_candidate_factors, canonical_corpus_identity, load_candidate_spec
 from k_slide.model_policy import load_model_policy
 from k_slide.runtime import discover_runtime
 from k_slide.redaction import redact_text, redact_value
@@ -103,7 +104,7 @@ def _provider_health(model: str, config: dict[str, Any], workspace: Path, output
     return result
 
 
-def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = None, cold_timeout: int = 300, warm_timeout: int = 60) -> dict[str, Any]:
+def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = None, cold_timeout: int = 300, warm_timeout: int = 60, candidate_profile: Path | None = None) -> dict[str, Any]:
     """Run clean-provider levels before installing any K-Slide project files."""
 
     output.mkdir(parents=True, exist_ok=True)
@@ -113,10 +114,34 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
         subject_sha = git.stdout.strip() if git.returncode == 0 else "UNSET"
     except (OSError, subprocess.TimeoutExpired):
         subject_sha = "UNSET"
-    deployment = deployment_fingerprint(build_deployment_factors(repo_root, subject_git_sha=subject_sha, runtime={**discover_runtime().as_dict(), "reported_model_id": model}, profile={}, model_policy=load_model_policy(repo_root), corpus=canonical_corpus_identity(split_manifest())))
+    corpus = canonical_corpus_identity(split_manifest())
+    if candidate_profile is not None:
+        try:
+            candidate = load_candidate_spec(candidate_profile, root=repo_root, require_identity=False, strict=True)
+        except Exception as exc:
+            result = {"status": "BLOCKED", "model": model, "subject_git_sha": subject_sha, "reason": str(exc), "levels": [], "first_failed_level": "candidate_profile", "conclusion": "CANDIDATE_PROFILE_INVALID"}
+            (output / "diagnostics.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            return result
+    else:
+        candidate = {"schema_version": CANDIDATE_SPEC_SCHEMA_VERSION, "subject_git_sha": subject_sha, "kslide_version": __version__, "requested_model": model, "effective_model": "UNSET"}
+    declared_model = str(candidate.get("requested_model") or "")
+    if declared_model and declared_model.upper() != "UNSET" and declared_model != model:
+        result = {"status": "BLOCKED", "model": model, "subject_git_sha": subject_sha, "reason": "candidate requested_model does not match diagnostic model", "levels": [], "first_failed_level": "candidate_profile", "conclusion": "CANDIDATE_PROFILE_INVALID"}
+        (output / "diagnostics.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        return result
+    declared_subject = str(candidate.get("subject_git_sha") or "")
+    if declared_subject and declared_subject.upper() != "UNSET" and declared_subject != subject_sha:
+        result = {"status": "BLOCKED", "model": model, "subject_git_sha": subject_sha, "reason": "candidate subject_git_sha does not match diagnostic subject", "levels": [], "first_failed_level": "candidate_profile", "conclusion": "CANDIDATE_PROFILE_INVALID"}
+        (output / "diagnostics.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        return result
+    candidate["subject_git_sha"] = subject_sha
+    candidate["requested_model"] = model
+    candidate["model_policy"] = load_model_policy(repo_root).as_dict()
+    candidate["corpus_identity"] = corpus
+    deployment = candidate_deployment_fingerprint(candidate)
     executable = opencode or shutil.which("opencode")
     if not executable or (opencode is not None and not Path(executable).is_file()):
-        result = {"status": "BLOCKED", "model": model, "subject_git_sha": subject_sha, "deployment_fingerprint": deployment, "reason": "OpenCode executable is unavailable.", "levels": [], "first_failed_level": "level0_opencode", "conclusion": "OPENCODE_EXECUTABLE_UNAVAILABLE"}
+        result = {"status": "BLOCKED", "model": model, "subject_git_sha": subject_sha, "deployment_fingerprint": deployment, "candidate_spec": canonical_candidate_factors(candidate), "runtime_provenance": discover_runtime().as_dict(), "reason": "OpenCode executable is unavailable.", "levels": [], "first_failed_level": "level0_opencode", "conclusion": "OPENCODE_EXECUTABLE_UNAVAILABLE"}
         (output / "diagnostics.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return result
 
@@ -189,6 +214,8 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
             "requested_model": model,
             "subject_git_sha": subject_sha,
             "deployment_fingerprint": deployment,
+            "candidate_spec": canonical_candidate_factors(candidate),
+            "runtime_provenance": discover_runtime().as_dict(),
             "provider": provider_result,
             "workspace_paths": {"clean": "workspace-clean", "k_slide": "workspace-kslide"},
             "workspace_assertions": {

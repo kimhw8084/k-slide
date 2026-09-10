@@ -37,7 +37,9 @@ PYTHONPATH=src python -m evals.run_engine_eval \
 
 Certification runs pin `--ocr-provider none` or `--ocr-provider paddle` so the
 benchmark uses the same configured provider as `/k-slide`; summaries record the
-requested and effective provider.
+requested and effective provider. Certification-quality validation and held-out
+runs must also pass `--candidate-profile evals/production-candidate.yaml` (or
+an approved private candidate file); filtered development smoke may omit it.
 
 The report separates:
 

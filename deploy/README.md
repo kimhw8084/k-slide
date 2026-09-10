@@ -1,5 +1,12 @@
 # Managed production profile
 
+Certification inputs live in the public-safe `evals/production-candidate.yaml`
+or an ignored `.k-slide-config/production-candidate.json`. Certification-quality
+commands accept that object with `--candidate-profile`; its deployment factors
+exclude release outputs and ambient scanner/runner runtime. The release command
+materializes `.k-slide-config/production-profile.json` only after deriving the
+requested state, so the source candidate does not need to claim certification.
+
 Copy `production-profile.example.json` to the deployment’s ignored
 `.k-slide-config/production-profile.json` and replace every `UNSET` value only
 after the corresponding certification evidence exists. The profile is checked

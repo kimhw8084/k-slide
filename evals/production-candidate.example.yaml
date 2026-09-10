@@ -1,9 +1,49 @@
-status: DEVELOPMENT
-model_id: google/gemma-4-31b-it
-runtime: approved-opencode-runtime
-prompt_version: translation/v1
-ocr_provider: none-or-approved-local-provider
-render_dpi: 220
-crop_padding_percent: 10
-max_auto_repairs_per_unit: 2
-note: Replace only with measured approved-environment results; this example is not a certification lockfile.
+# Canonical public candidate input shape. The checked-in candidate used for
+# development and release tooling is evals/production-candidate.yaml.
+schema_version: "1.0"
+subject_git_sha: UNSET
+kslide_version: "0.3.5"
+opencode_version: UNSET
+requested_model: "google/gemma-4-31b-it"
+effective_model: UNSET
+provider: UNSET
+provider_backend: UNSET
+model_revision: UNSET
+quantization_or_dtype: UNSET
+vision_settings: {}
+context_configuration: {}
+image_preprocessing_settings: {}
+prompt_identity:
+  version: "translation/v1"
+  hash: UNSET
+generation_settings: {}
+ocr_provider: "none"
+ocr_asset_manifest: UNSET
+ocr_asset_manifest_sha256: UNSET
+normalization_behavior:
+  render_dpi: 220
+repair_policy:
+  max_auto_repairs_per_unit: 2
+python_version: UNSET
+paddle_version: UNSET
+paddleocr_version: UNSET
+libreoffice_version: UNSET
+termbase_identity:
+  version: "core-v1"
+  hash: UNSET
+termbase_version: "core-v1"
+termbase_hash: UNSET
+constraints_sha256: UNSET
+model_policy:
+  target_family: "Gemma 4"
+  target_size: "31B"
+  target_variant: "instruction_tuned"
+  approved_model_ids: ["google/gemma-4-31b-it"]
+  approved_aliases: []
+schema_versions:
+  evidence_ir: "1.0"
+  translation_patch: "1.0"
+  slide_ir: "1.0"
+retention_days: 30
+tenant_isolation: "workspace_per_session"
+network_egress: "approved_inference_only"

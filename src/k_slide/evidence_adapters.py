@@ -13,10 +13,13 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
-# 2.0 separates behavior identity from experiment-plan identity and requires
-# exact frozen scenario matrices.  No production-certified v1 evidence exists,
-# so ambiguous development envelopes are intentionally not migrated.
-ADAPTER_VERSION = "2.0"
+from .certification import EvidenceValidationError, candidate_deployment_fingerprint
+from .model_policy import load_model_policy
+
+# 2.1 adds candidate-bound identity/provenance to the behavior/experiment
+# separation and exact frozen scenario matrices. No production-certified v1
+# or 2.0 evidence exists, so ambiguous development envelopes are not migrated.
+ADAPTER_VERSION = "2.1"
 
 _ROLES: dict[str, tuple[str, ...]] = {
     "runtime": ("diagnostic_ladder", "simple_run", "three_slide", "five_slide"),
@@ -46,7 +49,7 @@ def _read_json(path: Path) -> Any:
         raise AdapterError(f"source result is missing or symlinked: {path.name}")
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-        if isinstance(value, dict) and value.get("schema_version") not in (None, "1.0", "2.0"):
+        if isinstance(value, dict) and value.get("schema_version") not in (None, "1.0", "2.0", "2.1"):
             raise AdapterError(f"unsupported source result schema version: {path.name}")
         return value
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
@@ -227,6 +230,63 @@ def _derive_heavy(sources: dict[str, Path]) -> dict[str, Any]:
     return {"heavy_pass": True, "networkless_pass": True, "representative_engine_pass": True, "full_engine_pass": full, "unexpected_capability_blocks": 0}
 
 
+def _execution_provenance(sources: dict[str, Path], *, evidence_type: str) -> dict[str, set[str]]:
+    """Collect producer provenance without mixing it into candidate identity."""
+
+    values: dict[str, set[str]] = {}
+    for role, path in sources.items():
+        provenance: list[dict[str, Any]] = []
+        if evidence_type in {"model_validation", "model_high_risk_stability", "model_held_out"} and role == "results_jsonl":
+            for row in _read_jsonl(path):
+                opencode = row.get("opencode")
+                if isinstance(opencode, dict) and opencode.get("runtime_version"):
+                    provenance.append({"opencode_version": opencode["runtime_version"]})
+        else:
+            try:
+                value = _read_json(path)
+            except AdapterError:
+                continue
+            if not isinstance(value, dict):
+                continue
+            for key in ("runtime_provenance", "execution_runtime_provenance"):
+                item = value.get(key)
+                if isinstance(item, dict):
+                    provenance.append(item)
+        for item in provenance:
+            for key, raw in item.items():
+                if raw is not None and str(raw) and str(raw).upper() != "UNSET":
+                    values.setdefault(str(key), set()).add(str(raw))
+    return values
+
+
+def _verify_candidate_execution_provenance(candidate_spec: dict[str, Any], *, evidence_type: str, sources: dict[str, Path]) -> None:
+    """Require declared material runtime versions to be proven by the producer."""
+
+    relevant = {
+        "runtime": ("opencode_version", "python_version"),
+        "heavy_runtime": ("python_version", "paddle_version", "paddleocr_version", "libreoffice_version"),
+        "model_validation": ("opencode_version",),
+        "model_high_risk_stability": ("opencode_version",),
+        "model_held_out": ("opencode_version",),
+    }.get(evidence_type, ())
+    actual = _execution_provenance(sources, evidence_type=evidence_type)
+    for key in relevant:
+        expected = str(candidate_spec.get(key) or "")
+        if not expected or expected.upper() == "UNSET":
+            continue
+        observed = actual.get(key, set())
+        if not observed:
+            raise AdapterError(f"candidate {key} is not proven by {evidence_type} execution provenance")
+        for value in observed:
+            compatible = value == expected
+            if key == "python_version":
+                compatible = value == expected or value.startswith(expected + ".")
+            elif key == "libreoffice_version":
+                compatible = value == expected or expected in value
+            if not compatible:
+                raise AdapterError(f"{evidence_type} execution {key} disagrees with candidate")
+
+
 def _model_rows(values: dict[str, Path]) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
     summary = _read_json(values["model_summary"])
     experiment = _read_json(values["experiment_manifest"])
@@ -311,17 +371,40 @@ def _model_identity(summary: dict[str, Any], experiment: dict[str, Any], rows: l
     from .model_policy import load_model_policy
 
     requested = str(summary.get("requested_model") or experiment.get("model") or summary.get("model") or "")
-    effective = sorted({str(item.get("opencode", {}).get("diagnostics", {}).get("effective_model")) for item in rows if item.get("opencode", {}).get("diagnostics", {}).get("effective_model")})
-    if not requested or not effective:
+    requested_values = {str(item.get("opencode", {}).get("model")) for item in rows if item.get("opencode", {}).get("model")}
+    every_row_declares_requested = bool(rows) and all(isinstance(item.get("opencode", {}).get("model"), str) and item.get("opencode", {}).get("model") for item in rows)
+    declared_requested = {str(value) for value in (summary.get("requested_model"), summary.get("model"), experiment.get("model")) if value}
+    if not requested or not summary.get("requested_model") or not experiment.get("model") or not every_row_declares_requested or len(declared_requested) > 1 or (requested_values and requested_values != {requested}) or (declared_requested and requested not in declared_requested):
+        raise AdapterError("model result requested identity is inconsistent")
+    raw_effective = [item.get("opencode", {}).get("diagnostics", {}).get("effective_model") for item in rows]
+    row_effective = [item.get("effective_model") for item in rows]
+    if not rows or any(not isinstance(item, str) or not item for item in raw_effective) or any(not isinstance(item, str) or not item for item in row_effective):
         raise AdapterError("model result does not prove requested/effective identity")
+    if any(item.get("opencode", {}).get("diagnostics", {}).get("model_identity_proven") is not True for item in rows):
+        raise AdapterError("model result does not prove effective identity from every case")
     policy = load_model_policy(root) if root else load_model_policy()
-    approved = policy.approved(requested=requested, effective=effective[0]) and all(policy.approved(requested=requested, effective=item) for item in effective)
+    effective = sorted({canonical for item in raw_effective if (canonical := policy.canonical_effective(requested=requested, effective=item))})
+    if not effective:
+        raise AdapterError("model result effective identity is not approved")
+    if len(effective) > 1:
+        raise AdapterError("model result contains mixed effective model deployments")
+    for row in rows:
+        declared_row_effective = row.get("effective_model")
+        if policy.canonical_effective(requested=requested, effective=str(declared_row_effective)) != effective[0]:
+            raise AdapterError("model result row effective identity disagrees with diagnostics")
+    for declared in (summary.get("effective_model"), experiment.get("effective_model")):
+        if not declared or str(declared).upper() == "UNSET" or policy.canonical_effective(requested=requested, effective=str(declared)) != effective[0]:
+            raise AdapterError("model result effective identity disagrees with its finalized manifest")
+    approved = all(policy.approved(requested=requested, effective=item) for item in raw_effective)
     return requested, effective, approved
 
 
 def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path | None) -> dict[str, Any]:
     summary, experiment, rows = _model_rows(values)
+    if any(not isinstance(item.get("subject_git_sha"), str) or not item.get("subject_git_sha") or not isinstance(item.get("deployment_fingerprint"), str) or not item.get("deployment_fingerprint") for item in rows):
+        raise AdapterError("model result row subject/deployment provenance is missing")
     identities = {(item.get("subject_git_sha"), item.get("deployment_fingerprint")) for item in (summary, experiment)}
+    identities.update((item.get("subject_git_sha"), item.get("deployment_fingerprint")) for item in rows)
     if any(not isinstance(subject, str) or not subject or not isinstance(deployment, str) or not deployment for subject, deployment in identities):
         raise AdapterError("model result subject/deployment provenance is missing")
     if len(identities) > 1:
@@ -329,6 +412,23 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
     if summary.get("split") != expected_split or experiment.get("split") != expected_split or any(item.get("split") != expected_split for item in rows):
         raise AdapterError(f"model result split is not {expected_split}")
     requested, effective, approved = _model_identity(summary, experiment, rows, root)
+    policy = load_model_policy(root) if root else load_model_policy()
+    candidate_specs = [item.get("candidate_spec") for item in (summary, experiment) if isinstance(item.get("candidate_spec"), dict)]
+    if candidate_specs:
+        if any(item != candidate_specs[0] for item in candidate_specs[1:]):
+            raise AdapterError("model candidate specifications disagree")
+        try:
+            from .certification import candidate_deployment_fingerprint
+
+            if candidate_deployment_fingerprint(candidate_specs[0]) != summary.get("deployment_fingerprint"):
+                raise AdapterError("model candidate specification does not match deployment fingerprint")
+        except (EvidenceValidationError, TypeError, ValueError) as exc:
+            raise AdapterError("model candidate specification is malformed") from exc
+        declared_effective = str(candidate_specs[0].get("effective_model") or "")
+        if declared_effective.upper() == "UNSET" or str(candidate_specs[0].get("requested_model")) != requested:
+            raise AdapterError("model candidate specification lacks finalized model identity")
+        if policy.canonical_effective(requested=requested, effective=declared_effective) != effective[0]:
+            raise AdapterError("model candidate specification effective identity disagrees with rows")
     authoritative = bool(rows) and all(item.get("quality_metrics_authoritative") is True for item in rows)
     if summary.get("quality_metrics_authoritative") is not authoritative:
         raise AdapterError("summary quality authority disagrees with case results")
@@ -358,7 +458,7 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
         raise AdapterError("model behavior configuration is missing")
     try:
         from evals.experiments import behavior_configuration_hash as hash_behavior
-        expected_behavior_hash = hash_behavior(behavior_config)
+        expected_behavior_hash = hash_behavior(behavior_config, strict=True)
     except (ImportError, TypeError, ValueError) as exc:
         raise AdapterError("model behavior configuration cannot be canonicalized") from exc
     if behavior_hash != expected_behavior_hash:
@@ -392,6 +492,7 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
     return {
         "split": expected_split,
         "requested_model": requested,
+        "effective_model": effective[0],
         "effective_model_ids": effective,
         "target_model_approved": approved,
         "quality_metrics_authoritative": authoritative,
@@ -458,7 +559,7 @@ def _derive_high_risk(sources: dict[str, Path], *, root: Path | None) -> dict[st
         raise AdapterError(f"high-risk declared groups do not exactly match observed groups; missing={sorted(declared - observed)}; extra={sorted(observed - declared)}")
     selected_categories = set(PROTECTED_CATEGORIES)
     declared_categories = experiment.get("high_risk_categories")
-    if not isinstance(declared_categories, list) or set(declared_categories) != selected_categories:
+    if not isinstance(declared_categories, list) or len(declared_categories) != len(selected_categories) or set(declared_categories) != selected_categories:
         raise AdapterError("high-risk experiment does not declare the complete protected-category policy")
     observed_categories = {str(item.get("category")) for item in rows}
     missing_categories = sorted(selected_categories - observed_categories)
@@ -667,6 +768,24 @@ def _check_embedded_identity(sources: dict[str, Path], *, subject_git_sha: str |
                 raise AdapterError(f"source provenance mismatch: {role}")
 
 
+def _finalize_candidate_spec(candidate_spec: dict[str, Any], *, evidence_type: str, sources: dict[str, Path]) -> dict[str, Any]:
+    """Complete provisional candidate inputs from the runner's final manifest."""
+
+    if evidence_type not in {"model_validation", "model_high_risk_stability", "model_held_out"}:
+        return candidate_spec
+    manifest = sources.get("experiment_manifest")
+    if manifest is None:
+        return candidate_spec
+    value = _read_json(manifest)
+    if not isinstance(value, dict) or value.get("candidate_identity_status") != "FINAL":
+        raise AdapterError("model experiment identity is not finalized")
+    finalized = value.get("candidate_spec")
+    effective = finalized.get("effective_model") if isinstance(finalized, dict) else None
+    if not effective or str(effective).upper() == "UNSET":
+        raise AdapterError("model experiment has no finalized effective model identity")
+    result = dict(candidate_spec)
+    result.update(finalized)
+    return result
 def verify_envelope_sources(envelope_path: Path, envelope: dict[str, Any]) -> tuple[dict[str, Path], list[dict[str, str]]]:
     raw = envelope.get("sources")
     if not isinstance(raw, list) or not raw:
@@ -694,15 +813,27 @@ def verify_envelope_sources(envelope_path: Path, envelope: dict[str, Any]) -> tu
     return sources, sorted(descriptors, key=lambda item: item["role"])
 
 
-def build_machine_evidence(output: Path, *, evidence_type: str, subject_git_sha: str, deployment_fingerprint: str, sources: dict[str, Path], root: Path | None = None, generated_at: str | None = None) -> Path:
-    from .certification import EVIDENCE_SCHEMA_VERSION, _require_hex, canonical_bytes, sha256_bytes
+def build_machine_evidence(output: Path, *, evidence_type: str, subject_git_sha: str, deployment_fingerprint: str, sources: dict[str, Path], root: Path | None = None, generated_at: str | None = None, candidate_spec: dict[str, Any] | None = None) -> Path:
+    from .certification import EVIDENCE_SCHEMA_VERSION, _require_hex, candidate_deployment_fingerprint, canonical_candidate_factors
     from datetime import datetime, timezone
 
     output = output.expanduser()
+    candidate_factors = None
+    if candidate_spec is not None:
+        candidate_spec = _finalize_candidate_spec(candidate_spec, evidence_type=evidence_type, sources=sources)
+        candidate_factors = canonical_candidate_factors(candidate_spec)
+        expected = candidate_deployment_fingerprint(candidate_spec)
+        if expected != deployment_fingerprint:
+            raise AdapterError("candidate specification does not match deployment fingerprint")
+        if candidate_spec.get("subject_git_sha") != subject_git_sha:
+            raise AdapterError("candidate specification does not match subject SHA")
+        _verify_candidate_execution_provenance(candidate_spec, evidence_type=evidence_type, sources=sources)
     _check_embedded_identity(sources, subject_git_sha=subject_git_sha, deployment_fingerprint=deployment_fingerprint)
     descriptors = _source_descriptors(sources, output)
     payload = derive_payload(evidence_type, sources, root=root)
     envelope = {"schema_version": EVIDENCE_SCHEMA_VERSION, "evidence_type": evidence_type, "status": "PASS", "subject_git_sha": subject_git_sha, "deployment_fingerprint": _require_hex(deployment_fingerprint, "deployment_fingerprint"), "generated_at": generated_at or datetime.now(timezone.utc).isoformat(), "adapter_version": ADAPTER_VERSION, "sources": descriptors, "payload": payload}
+    if candidate_factors is not None:
+        envelope["candidate_spec"] = candidate_factors
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(envelope, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     # Fail closed if the generated envelope cannot immediately be revalidated.
@@ -710,7 +841,9 @@ def build_machine_evidence(output: Path, *, evidence_type: str, subject_git_sha:
     return output
 
 
-def verify_machine_envelope(path: Path, envelope: dict[str, Any], *, subject_git_sha: str | None, deployment_fingerprint: str | None, root: Path | None = None) -> dict[str, Any]:
+def verify_machine_envelope(path: Path, envelope: dict[str, Any], *, subject_git_sha: str | None, deployment_fingerprint: str | None, root: Path | None = None, candidate_spec: dict[str, Any] | None = None) -> dict[str, Any]:
+    from .certification import candidate_deployment_fingerprint
+
     evidence_type = str(envelope.get("evidence_type"))
     if envelope.get("adapter_version") != ADAPTER_VERSION:
         raise AdapterError("unsupported machine evidence adapter version")
@@ -719,6 +852,11 @@ def verify_machine_envelope(path: Path, envelope: dict[str, Any], *, subject_git
         raise AdapterError("machine evidence subject does not match candidate")
     if deployment_fingerprint and envelope.get("deployment_fingerprint") != deployment_fingerprint:
         raise AdapterError("machine evidence deployment does not match candidate")
+    candidate_spec = envelope.get("candidate_spec")
+    if candidate_spec is not None:
+        if not isinstance(candidate_spec, dict) or candidate_deployment_fingerprint(candidate_spec) != envelope.get("deployment_fingerprint"):
+            raise AdapterError("machine evidence candidate specification is inconsistent")
+        _verify_candidate_execution_provenance(candidate_spec, evidence_type=evidence_type, sources=sources)
     _check_embedded_identity(sources, subject_git_sha=subject_git_sha, deployment_fingerprint=deployment_fingerprint)
     derived = derive_payload(evidence_type, sources, root=root)
     if envelope.get("payload") != derived:
@@ -730,9 +868,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Derive K-Slide machine evidence from runner results")
     parser.add_argument("evidence_type", choices=sorted(_DERIVERS))
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--subject-sha", required=True)
-    parser.add_argument("--deployment-fingerprint", required=True)
+    parser.add_argument("--subject-sha")
+    parser.add_argument("--deployment-fingerprint")
     parser.add_argument("--root", type=Path)
+    parser.add_argument("--candidate-profile", type=Path, required=True, help="Explicit candidate deployment specification")
     parser.add_argument("--source", action="append", required=True, metavar="ROLE=PATH")
     args = parser.parse_args(argv)
     sources: dict[str, Path] = {}
@@ -742,7 +881,13 @@ def main(argv: list[str] | None = None) -> int:
             if not separator or not role or not raw or role in sources:
                 raise AdapterError("--source must be unique ROLE=PATH entries")
             sources[role] = Path(raw)
-        build_machine_evidence(args.output, evidence_type=args.evidence_type, subject_git_sha=args.subject_sha, deployment_fingerprint=args.deployment_fingerprint, sources=sources, root=args.root)
+        from .certification import load_candidate_spec
+
+        candidate = load_candidate_spec(args.candidate_profile, root=args.root, require_identity=True)
+        subject = args.subject_sha or str(candidate.get("subject_git_sha"))
+        candidate = _finalize_candidate_spec(candidate, evidence_type=args.evidence_type, sources=sources)
+        deployment = args.deployment_fingerprint or candidate_deployment_fingerprint(candidate)
+        build_machine_evidence(args.output, evidence_type=args.evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=args.root, candidate_spec=candidate)
     except (AdapterError, OSError, ValueError) as exc:
         print(json.dumps({"status": "BLOCKED", "reason": str(exc)}, ensure_ascii=False))
         return 2

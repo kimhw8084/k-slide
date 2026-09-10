@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import importlib.metadata
+import platform
 import shutil
 import subprocess
 import tempfile
@@ -19,6 +21,13 @@ def _command_version(command: str) -> str | None:
     except (OSError, subprocess.TimeoutExpired):
         return None
     return (result.stdout or result.stderr).strip() or None
+
+
+def _package_version(name: str) -> str | None:
+    try:
+        return importlib.metadata.version(name)
+    except importlib.metadata.PackageNotFoundError:
+        return None
 
 
 def _font_check() -> dict[str, object]:
@@ -99,6 +108,12 @@ def main(*, required: bool = False, networkless: bool = False) -> int:
         "paddleocr": {"status": available("paddleocr")},
         "paddlepaddle": {"status": available("paddle")},
         "korean_font": _font_check(),
+    }
+    checks["runtime_provenance"] = {
+        "python_version": platform.python_version(),
+        "paddle_version": _package_version("paddlepaddle"),
+        "paddleocr_version": _package_version("paddleocr"),
+        "libreoffice_version": _command_version("libreoffice") or _command_version("soffice"),
     }
     # A small real OCR load check is intentionally separate from package import.
     if checks["paddleocr"].get("status") == "PASS" and checks["pillow"].get("status") == "PASS":

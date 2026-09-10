@@ -13,11 +13,12 @@ from pathlib import Path
 from typing import Any
 
 from .certification import (
+    CANDIDATE_INPUT_FIELDS,
     EvidenceValidationError,
-    build_deployment_factors,
     canonical_corpus_identity,
     certification_fingerprint,
-    deployment_fingerprint,
+    candidate_deployment_fingerprint,
+    load_candidate_spec,
     load_evidence,
     sha256_file,
 )
@@ -61,6 +62,7 @@ class ProductionProfile:
     release_manifest_sha256: str
     model_data_attestation: str
     behavior_configuration: dict[str, Any] | None = None
+    candidate_spec: dict[str, Any] | None = None
 
     @classmethod
     def from_mapping(cls, value: dict[str, Any]) -> "ProductionProfile":
@@ -95,6 +97,7 @@ class ProductionProfile:
             release_manifest_sha256=str(value["release_manifest_sha256"]),
             model_data_attestation=str(value["model_data_attestation"]),
             behavior_configuration=value.get("behavior_configuration") if isinstance(value.get("behavior_configuration"), dict) else None,
+            candidate_spec=value.get("candidate_spec") if isinstance(value.get("candidate_spec"), dict) else {key: value[key] for key in CANDIDATE_INPUT_FIELDS if key in value},
         )
 
     def as_dict(self) -> dict[str, Any]:
@@ -120,6 +123,7 @@ class ProductionProfile:
             "release_manifest_sha256": self.release_manifest_sha256,
             "model_data_attestation": self.model_data_attestation,
             **({"behavior_configuration": self.behavior_configuration} if self.behavior_configuration is not None else {}),
+            **({"candidate_spec": self.candidate_spec} if self.candidate_spec is not None else {}),
         }
 
 
@@ -224,7 +228,7 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
                 checks.append(_check(f"Evidence {evidence_type}", False, "path is missing"))
                 continue
             try:
-                record = load_evidence(_resolve_path(root, str(evidence_path)), expected_type=str(evidence_type), subject_git_sha=profile.subject_git_sha, deployment_fingerprint=profile.deployment_fingerprint, repository_root=root)
+                record = load_evidence(_resolve_path(root, str(evidence_path)), expected_type=str(evidence_type), subject_git_sha=profile.subject_git_sha, deployment_fingerprint=profile.deployment_fingerprint, repository_root=root, candidate_spec=profile.candidate_spec)
                 checks.append(_check(f"Evidence {evidence_type}", record.get("evidence_identity") == expected_hash, f"identity={record.get('evidence_identity')}"))
                 expected_envelope = manifest.get("evidence_envelope_hashes", {}).get(evidence_type) if isinstance(manifest.get("evidence_envelope_hashes"), dict) else None
                 if expected_envelope:
@@ -248,11 +252,46 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
         corpus = canonical_corpus_identity(split_manifest())
     except ImportError:
         corpus = canonical_corpus_identity(None)
-    factors = build_deployment_factors(root, subject_git_sha=profile.subject_git_sha, runtime=runtime, profile=profile.as_dict(), model_policy=policy, corpus=corpus)
-    expected_deployment = deployment_fingerprint(factors)
+    candidate = dict(profile.candidate_spec or {})
+    profile_values = profile.as_dict()
+    for field in CANDIDATE_INPUT_FIELDS:
+        if field in profile_values and field != "candidate_spec":
+            candidate[field] = profile_values[field]
+    candidate["subject_git_sha"] = profile.subject_git_sha
+    candidate["requested_model"] = profile.requested_model
+    candidate["effective_model"] = profile.effective_model
+    candidate["opencode_version"] = profile.opencode_version
+    candidate["ocr_provider"] = profile.ocr_provider
+    candidate["model_policy"] = policy.as_dict()
+    if not candidate.get("corpus_identity"):
+        candidate["corpus_identity"] = corpus
+    expected_deployment = candidate_deployment_fingerprint(candidate)
     deployment_match = expected_deployment == profile.deployment_fingerprint
     checks.append(_check("Deployment fingerprint", deployment_match, f"expected={expected_deployment}; profile={profile.deployment_fingerprint}"))
-    checks.append(_check("Certification freshness", deployment_match and certification_match, "current" if deployment_match and certification_match else "CERTIFICATION_STALE"))
+    candidate_sources = [root / ".k-slide-config" / "production-candidate.json", root / "evals" / "production-candidate.yaml"]
+    candidate_source = next((path for path in candidate_sources if path.is_file()), None)
+    candidate_source_match = True
+    if candidate_source is not None:
+        try:
+            source_candidate = load_candidate_spec(candidate_source, root=root, require_identity=False, strict=True)
+            for field in CANDIDATE_INPUT_FIELDS:
+                current = source_candidate.get(field)
+                if current is None or str(current).upper() == "UNSET":
+                    if field in candidate:
+                        source_candidate[field] = candidate[field]
+            source_candidate["subject_git_sha"] = profile.subject_git_sha
+            source_candidate["requested_model"] = profile.requested_model
+            source_candidate["effective_model"] = profile.effective_model
+            source_candidate["opencode_version"] = profile.opencode_version
+            source_candidate["ocr_provider"] = profile.ocr_provider
+            source_candidate["model_policy"] = policy.as_dict()
+            source_match = candidate_deployment_fingerprint(source_candidate) == profile.deployment_fingerprint
+            candidate_source_match = source_match
+            checks.append(_check("Candidate source identity", source_match, str(candidate_source)))
+        except (EvidenceValidationError, OSError, UnicodeError, ValueError, TypeError) as exc:
+            candidate_source_match = False
+            checks.append(_check("Candidate source identity", False, str(exc)))
+    checks.append(_check("Certification freshness", deployment_match and certification_match and candidate_source_match, "current" if deployment_match and certification_match and candidate_source_match else "CERTIFICATION_STALE"))
     return checks
 
 
@@ -282,7 +321,7 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
     checks.append(_check("OpenCode version", runtime.opencode_version == profile.opencode_version, f"expected={profile.opencode_version}; actual={runtime.opencode_version or 'unknown'}"))
     policy = load_model_policy(root)
     checks.append(_check("Requested/effective model policy", policy.approved(requested=profile.requested_model, effective=profile.effective_model), f"requested={profile.requested_model}; effective={profile.effective_model}"))
-    checks.append(_check("Runtime model match", runtime.reported_model_id in {profile.requested_model, profile.effective_model}, runtime.reported_model_id or "unknown"))
+    checks.append(_check("Runtime model match", runtime.reported_model_id == profile.effective_model, runtime.reported_model_id or "unknown"))
     installed_ok, installed_detail = _installed_build_status(root, profile)
     checks.append(_check("Installed build identity", installed_ok, installed_detail))
     checks.append(_check("Vision capability", runtime.vision_support is True, "proven" if runtime.vision_support is True else "not proven"))

@@ -17,8 +17,10 @@ from .fonts import KoreanFontUnavailable
 from .generator import DEFAULT_VARIANT, generate_artifacts
 from .scenarios import scenario_specs, split_manifest, write_specs
 from .scorers import aggregate_engine_scores, score_artifact, score_engine_case
-from k_slide.certification import build_deployment_factors, canonical_corpus_identity, deployment_fingerprint
+from k_slide import __version__
+from k_slide.certification import CANDIDATE_SPEC_SCHEMA_VERSION, EvidenceValidationError, candidate_deployment_fingerprint, canonical_behavior_configuration, canonical_candidate_factors, canonical_corpus_identity, load_candidate_spec
 from k_slide.model_policy import load_model_policy
+from k_slide.runtime import discover_runtime
 
 
 def _selected_scenarios(split: str, limit: int | None, scenario_ids: tuple[str, ...] = ()):
@@ -47,22 +49,67 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ocr-provider", choices=("none", "paddle", "auto"), default="none")
     parser.add_argument("--scenario-ids", nargs="*", default=())
     parser.add_argument("--fail-on-critical", action="store_true")
+    parser.add_argument("--candidate-profile", type=Path, help="Explicit candidate deployment specification")
+    parser.add_argument("--subject-sha", help="Subject Git SHA when the evaluation environment has no checkout metadata")
     args = parser.parse_args(argv)
     scenarios = scenario_specs()
     selected = _selected_scenarios(args.split, args.limit, tuple(args.scenario_ids))
     args.output.mkdir(parents=True, exist_ok=True)
+    if args.split in {"validation", "held_out"} and args.candidate_profile is None:
+        blocked = {
+            "evaluation_tier": "synthetic_engine_evidence",
+            "status": "CANDIDATE_PROFILE_BLOCKED",
+            "subject_git_sha": "UNSET",
+            "split": args.split,
+            "reason": "certification-quality engine evaluation requires --candidate-profile",
+            "model_evaluated": False,
+            "semantic_translation_scored": False,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "results": [],
+        }
+        (args.output / "summary.json").write_text(json.dumps(blocked, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        (args.output / "EVAL_REPORT.md").write_text("# K-Slide Engine Evidence Evaluation\n\n`CANDIDATE_PROFILE_BLOCKED`\n\n" + blocked["reason"] + "\n", encoding="utf-8")
+        print(json.dumps(blocked, ensure_ascii=False))
+        return 2
     repo_root = Path(__file__).resolve().parents[1]
+    subject_sha = args.subject_sha or "UNSET"
     try:
         git_result = subprocess.run(["git", "-C", str(repo_root), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=5, check=False)
-        subject_sha = git_result.stdout.strip() if git_result.returncode == 0 else "UNSET"
+        if not args.subject_sha:
+            subject_sha = git_result.stdout.strip() if git_result.returncode == 0 else "UNSET"
     except (OSError, subprocess.TimeoutExpired):
         subject_sha = "UNSET"
-    deployment = deployment_fingerprint(build_deployment_factors(repo_root, subject_git_sha=subject_sha, runtime={"ocr_provider": args.ocr_provider}, profile={"ocr_provider": args.ocr_provider}, model_policy=load_model_policy(repo_root), corpus=canonical_corpus_identity(split_manifest())))
+    corpus = canonical_corpus_identity(split_manifest())
+    try:
+        if args.candidate_profile:
+            candidate = load_candidate_spec(args.candidate_profile, root=repo_root, require_identity=False, strict=True)
+        else:
+            candidate = {"schema_version": CANDIDATE_SPEC_SCHEMA_VERSION, "subject_git_sha": subject_sha, "kslide_version": __version__, "requested_model": "UNSET", "effective_model": "UNSET", "ocr_provider": args.ocr_provider}
+        declared_subject = str(candidate.get("subject_git_sha") or "")
+        if declared_subject and declared_subject.upper() != "UNSET" and declared_subject != subject_sha:
+            raise EvidenceValidationError("candidate subject_git_sha does not match engine subject")
+        declared_ocr = str(candidate.get("ocr_provider") or "")
+        if declared_ocr and declared_ocr.upper() != "UNSET" and declared_ocr != args.ocr_provider:
+            raise EvidenceValidationError("candidate ocr_provider does not match engine request")
+        candidate["subject_git_sha"] = subject_sha
+        candidate["ocr_provider"] = args.ocr_provider
+        behavior = dict(candidate.get("behavior_configuration") or {})
+        behavior["ocr_provider"] = args.ocr_provider
+        candidate["behavior_configuration"] = canonical_behavior_configuration(behavior)
+        candidate["model_policy"] = load_model_policy(repo_root).as_dict()
+        candidate["corpus_identity"] = corpus
+        deployment = candidate_deployment_fingerprint(candidate)
+    except (EvidenceValidationError, OSError, UnicodeError, ValueError, TypeError, json.JSONDecodeError) as exc:
+        blocked = {"evaluation_tier": "synthetic_engine_evidence", "status": "CANDIDATE_PROFILE_BLOCKED", "subject_git_sha": subject_sha, "split": args.split, "reason": str(exc), "model_evaluated": False, "semantic_translation_scored": False, "generated_at": datetime.now(timezone.utc).isoformat(), "results": []}
+        (args.output / "summary.json").write_text(json.dumps(blocked, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        (args.output / "EVAL_REPORT.md").write_text(f"# K-Slide Engine Evidence Evaluation\n\n`CANDIDATE_PROFILE_BLOCKED`\n\n{exc}\n", encoding="utf-8")
+        print(json.dumps(blocked, ensure_ascii=False))
+        return 2
     write_specs(args.output / "specs")
     try:
         counts = generate_artifacts(selected, args.output / "artifacts", formats=tuple(args.formats), variants=(DEFAULT_VARIANT,))
     except KoreanFontUnavailable as exc:
-        summary = {"evaluation_tier": "synthetic_engine_evidence", "status": "CAPABILITY_BLOCK", "subject_git_sha": subject_sha, "deployment_fingerprint": deployment, "model_evaluated": False, "semantic_translation_scored": False, "scenario_specs": len(scenarios), "split": args.split, "scenarios_selected": len(selected), "case_count": 0, "formats_requested": [item.lower() for item in args.formats], "generated_artifacts": {}, "engine": {"capability_block": str(exc)}, "generated_at": datetime.now(timezone.utc).isoformat(), "results": []}
+        summary = {"evaluation_tier": "synthetic_engine_evidence", "status": "CAPABILITY_BLOCK", "subject_git_sha": subject_sha, "deployment_fingerprint": deployment, "candidate_spec": canonical_candidate_factors(candidate), "runtime_provenance": discover_runtime().as_dict(), "model_evaluated": False, "semantic_translation_scored": False, "scenario_specs": len(scenarios), "split": args.split, "scenarios_selected": len(selected), "case_count": 0, "formats_requested": [item.lower() for item in args.formats], "generated_artifacts": {}, "engine": {"capability_block": str(exc)}, "generated_at": datetime.now(timezone.utc).isoformat(), "results": []}
         args.output.mkdir(parents=True, exist_ok=True)
         (args.output / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         (args.output / "EVAL_REPORT.md").write_text(f"# K-Slide Engine Evidence Evaluation\n\n`CAPABILITY_BLOCK`\n\n{exc}\n", encoding="utf-8")
@@ -98,6 +145,8 @@ def main(argv: list[str] | None = None) -> int:
         "evaluation_tier": "synthetic_engine_evidence",
         "subject_git_sha": subject_sha,
         "deployment_fingerprint": deployment,
+        "candidate_spec": canonical_candidate_factors(candidate),
+        "runtime_provenance": discover_runtime().as_dict(),
         "model_evaluated": False,
         "semantic_translation_scored": False,
         "scenario_specs": len(scenarios),

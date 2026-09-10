@@ -10,11 +10,12 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+import ast
 from pathlib import Path
 from typing import Any, Iterable
 
 
-EVIDENCE_SCHEMA_VERSION = "2.0"
+EVIDENCE_SCHEMA_VERSION = "2.1"
 EVIDENCE_TYPES = (
     "runtime",
     "heavy_runtime",
@@ -40,6 +41,116 @@ MACHINE_EVIDENCE_TYPES = {
     "governance",
 }
 _HEX64 = set("0123456789abcdef")
+
+# Candidate identity is a source-free deployment contract.  These are the
+# only fields that may affect the deployment fingerprint.  Paths are accepted
+# as lookup hints but their content hash, never the path, is fingerprinted.
+CANDIDATE_SPEC_SCHEMA_VERSION = "1.0"
+CANDIDATE_INPUT_FIELDS = (
+    "candidate_spec_version",
+    "subject_git_sha",
+    "kslide_version",
+    "opencode_version",
+    "requested_model",
+    "effective_model",
+    "provider",
+    "provider_backend",
+    "model_revision",
+    "quantization_or_dtype",
+    "vision_settings",
+    "context_configuration",
+    "image_preprocessing_settings",
+    "prompt_identity",
+    "prompt_version",
+    "prompt_hash",
+    "generation_settings",
+    "ocr_provider",
+    "ocr_asset_manifest",
+    "ocr_asset_manifest_sha256",
+    "normalization_behavior",
+    "repair_policy",
+    "python_version",
+    "paddle_version",
+    "paddleocr_version",
+    "libreoffice_version",
+    "termbase_identity",
+    "termbase_version",
+    "termbase_hash",
+    "model_policy",
+    "schema_versions",
+    "retention_days",
+    "tenant_isolation",
+    "network_egress",
+    "corpus_identity",
+    "constraints_sha256",
+    "behavior_configuration",
+)
+
+# These fields are outputs of certification and are deliberately ignored when
+# a certified profile is used as the source of candidate inputs.
+CERTIFICATION_OUTPUT_FIELDS = frozenset({
+    "release_state",
+    "deployment_fingerprint",
+    "certification_fingerprint",
+    "release_manifest",
+    "release_manifest_sha256",
+    "model_data_attestation",
+    "attestations",
+    "evidence_paths",
+    "evidence_hashes",
+    "evidence_envelope_hashes",
+    "champion_hash",
+    "generated_at",
+    "report_generated_from_sha",
+    "blocking_reasons",
+})
+
+_BEHAVIOR_FIELDS = frozenset({
+    "model",
+    "provider",
+    "prompt_version",
+    "prompt_hash",
+    "generation",
+    "generation_settings",
+    "temperature",
+    "top_p",
+    "top_k",
+    "thinking",
+    "reasoning",
+    "visual_budget",
+    "visual_detail",
+    "vision",
+    "vision_settings",
+    "image_preprocessing_settings",
+    "ocr_provider",
+    "normalization",
+    "normalization_behavior",
+    "repair_policy",
+    "termbase_version",
+    "termbase_hash",
+    "evidence_ir_schema",
+    "translation_patch_schema",
+    "slide_ir_schema",
+})
+_EXPERIMENT_ONLY_FIELDS = frozenset({
+    "split",
+    "scenario_ids",
+    "formats",
+    "repetitions",
+    "repeats",
+    "categories",
+    "category_filter",
+    "scenario_filter",
+    "limit",
+    "timeout",
+    "evaluation_timeout",
+    "mode",
+    "output",
+    "output_path",
+    "filters",
+})
+_BEHAVIOR_ALIASES = {"repair": "repair_policy", "normalization": "normalization_behavior", "vision": "vision_settings"}
+_CANDIDATE_ALIASES = {"model": "requested_model", "model_id": "requested_model", **_BEHAVIOR_ALIASES}
 
 # Deployment identity is deliberately an allowlist.  Sampling controls and
 # certification outputs must never become part of the behavior identity merely
@@ -84,6 +195,173 @@ class EvidenceValidationError(ValueError):
     """Raised when evidence is missing, malformed, stale, or insufficient."""
 
 
+def _parse_scalar(raw: str) -> Any:
+    value = raw.strip()
+    if not value:
+        return {}
+    if value in {"null", "NULL", "~"}:
+        return None
+    if value.lower() in {"true", "false"}:
+        return value.lower() == "true"
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        try:
+            return ast.literal_eval(value)
+        except (SyntaxError, ValueError):
+            return value.strip("'\"")
+
+
+def _parse_candidate_yaml(text: str) -> dict[str, Any]:
+    """Parse the small mapping-only YAML contract without a YAML dependency."""
+
+    root: dict[str, Any] = {}
+    stack: list[tuple[int, Any]] = [(-1, root)]
+    for raw in text.splitlines():
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip(" "))
+        line = raw.strip()
+        while stack and indent <= stack[-1][0]:
+            stack.pop()
+        parent = stack[-1][1]
+        if line.startswith("- "):
+            if not isinstance(parent, list):
+                raise ValueError("candidate YAML list has no list parent")
+            parent.append(_parse_scalar(line[2:]))
+            continue
+        key, separator, raw_value = line.partition(":")
+        if not separator or not key.strip():
+            raise ValueError("candidate YAML requires mapping entries")
+        key = key.strip()
+        value = _parse_scalar(raw_value)
+        if raw_value.strip() == "":
+            value = {}
+        if not isinstance(parent, dict):
+            raise ValueError("candidate YAML parent is not a mapping")
+        parent[key] = value
+        if raw_value.strip() == "":
+            stack.append((indent, value))
+    return root
+
+
+def _load_candidate_mapping(path: Path) -> dict[str, Any]:
+    if path.is_symlink() or not path.is_file():
+        raise EvidenceValidationError(f"candidate profile is missing or symlinked: {path.name}")
+    try:
+        text = path.read_text(encoding="utf-8")
+        value = json.loads(text) if path.suffix.lower() == ".json" else _parse_candidate_yaml(text)
+    except (OSError, UnicodeError, json.JSONDecodeError, SyntaxError, TypeError, ValueError) as exc:
+        raise EvidenceValidationError(f"candidate profile is unreadable or malformed: {path.name}") from exc
+    if not isinstance(value, dict):
+        raise EvidenceValidationError("candidate profile must be an object")
+    return value
+
+
+def _canonical_behavior_configuration(configuration: dict[str, Any] | None, *, model: str | None = None, ocr_provider: str | None = None, strict: bool = False) -> dict[str, Any]:
+    source = dict(configuration or {})
+    normalized: dict[str, Any] = {}
+    for raw_key, raw_value in source.items():
+        key = _BEHAVIOR_ALIASES.get(str(raw_key), str(raw_key))
+        if key in _EXPERIMENT_ONLY_FIELDS:
+            continue
+        if key not in _BEHAVIOR_FIELDS:
+            if strict:
+                raise EvidenceValidationError(f"unknown behavior configuration field: {raw_key}")
+            continue
+        if key in normalized and normalized[key] != raw_value:
+            raise EvidenceValidationError(f"conflicting behavior configuration aliases: {raw_key}")
+        normalized[key] = raw_value
+    if model is not None:
+        normalized["model"] = model
+    if ocr_provider is not None:
+        normalized["ocr_provider"] = ocr_provider
+    return {key: normalized[key] for key in sorted(normalized)}
+
+
+def canonical_behavior_configuration(configuration: dict[str, Any] | None, *, model: str | None = None, ocr_provider: str | None = None, strict: bool = False) -> dict[str, Any]:
+    """Canonicalize the material behavior contract, including repository aliases."""
+
+    return _canonical_behavior_configuration(configuration, model=model, ocr_provider=ocr_provider, strict=strict)
+
+
+def _normalize_candidate_mapping(value: dict[str, Any], *, strict: bool = False) -> dict[str, Any]:
+    source_value = dict(value.get("candidate_spec") or {}) if isinstance(value.get("candidate_spec"), dict) else {}
+    source_value.update(value)
+    normalized: dict[str, Any] = {}
+    for raw_key, raw_value in source_value.items():
+        if raw_key == "candidate_spec":
+            continue
+        key = _CANDIDATE_ALIASES.get(str(raw_key), str(raw_key))
+        if key in _EXPERIMENT_ONLY_FIELDS:
+            continue
+        if key in CERTIFICATION_OUTPUT_FIELDS or key in {"schema_version", "status", "certification", "note"}:
+            continue
+        if key not in CANDIDATE_INPUT_FIELDS:
+            if strict:
+                raise EvidenceValidationError(f"unknown candidate profile field: {raw_key}")
+            continue
+        if key in normalized and normalized[key] != raw_value:
+            raise EvidenceValidationError(f"conflicting candidate profile aliases: {raw_key}")
+        normalized[key] = raw_value
+    behavior = dict(normalized.get("behavior_configuration") or {})
+    for key in _BEHAVIOR_FIELDS | set(_BEHAVIOR_ALIASES):
+        if key in source_value:
+            canonical = _BEHAVIOR_ALIASES.get(key, key)
+            if canonical in behavior and behavior[canonical] != source_value[key]:
+                raise EvidenceValidationError(f"conflicting candidate behavior aliases: {key}")
+            behavior[canonical] = source_value[key]
+    if "requested_model" in normalized:
+        behavior.setdefault("model", normalized["requested_model"])
+    if "ocr_provider" in normalized:
+        behavior.setdefault("ocr_provider", normalized["ocr_provider"])
+    normalized["behavior_configuration"] = _canonical_behavior_configuration(behavior, strict=strict)
+    return normalized
+
+
+def load_candidate_spec(path: Path, *, root: Path | None = None, require_identity: bool = False, strict: bool | None = None) -> dict[str, Any]:
+    """Load one explicit public-safe candidate deployment specification."""
+
+    path = path.expanduser().resolve()
+    value = _normalize_candidate_mapping(_load_candidate_mapping(path), strict=require_identity if strict is None else strict)
+    value.setdefault("schema_version", CANDIDATE_SPEC_SCHEMA_VERSION)
+    declared_version = str(value.get("candidate_spec_version") or value.get("schema_version") or "")
+    if declared_version != CANDIDATE_SPEC_SCHEMA_VERSION:
+        raise EvidenceValidationError(f"unsupported candidate specification schema: {declared_version}")
+    if root is not None and value.get("ocr_asset_manifest_sha256") is None:
+        raw_manifest = _load_candidate_mapping(path).get("ocr_asset_manifest")
+        if raw_manifest and not str(raw_manifest).startswith("UNSET"):
+            try:
+                value["ocr_asset_manifest_sha256"] = sha256_file(_resolve_candidate_path(root, str(raw_manifest)))
+            except EvidenceValidationError as exc:
+                if require_identity:
+                    raise EvidenceValidationError("candidate OCR asset manifest is unavailable") from exc
+    if require_identity:
+        for field in ("subject_git_sha", "requested_model"):
+            if not str(value.get(field) or "") or str(value[field]).upper() == "UNSET":
+                raise EvidenceValidationError(f"candidate profile must declare {field}")
+    return value
+
+
+def _resolve_candidate_path(root: Path, raw: str) -> Path:
+    path = Path(raw).expanduser()
+    return path if path.is_absolute() else root.expanduser().resolve() / path
+
+
+def canonical_candidate_factors(candidate_spec: dict[str, Any]) -> dict[str, Any]:
+    """Return the explicit, path/timestamp-free candidate identity factors."""
+
+    normalized = _normalize_candidate_mapping(dict(candidate_spec), strict=True)
+    factors = {key: normalized.get(key) for key in CANDIDATE_INPUT_FIELDS if key in normalized and key not in {"ocr_asset_manifest", "ocr_asset_manifest_sha256"}}
+    factors["ocr_asset_manifest_sha256"] = normalized.get("ocr_asset_manifest_sha256")
+    factors["candidate_spec_version"] = str(normalized.get("candidate_spec_version", candidate_spec.get("schema_version", CANDIDATE_SPEC_SCHEMA_VERSION)))
+    return factors
+
+
+def candidate_deployment_fingerprint(candidate_spec: dict[str, Any]) -> str:
+    return sha256_bytes(canonical_bytes(canonical_candidate_factors(candidate_spec)))
+
+
 def canonical_bytes(value: Any) -> bytes:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
@@ -125,9 +403,9 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
     requirements: dict[str, tuple[str, ...]] = {
         "runtime": ("runtime_pass", "required_media_compliance", "run_complete", "simple_pass", "three_slide_pass", "five_slide_pass"),
         "heavy_runtime": ("heavy_pass", "networkless_pass", "representative_engine_pass", "full_engine_pass", "unexpected_capability_blocks"),
-        "model_validation": ("split", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_media_compliance", "locked_terminology_recall", "unexpected_unresolved_rate"),
-        "model_high_risk_stability": ("target_model_approved", "critical_failure_count", "worst_critical_frequency", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_group_coverage", "group_critical_frequency", "category_coverage"),
-        "model_held_out": ("split", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "corpus_fingerprint", "held_out_fingerprint", "required_media_compliance", "locked_terminology_recall", "unexpected_unresolved_rate"),
+        "model_validation": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_media_compliance", "locked_terminology_recall", "unexpected_unresolved_rate"),
+        "model_high_risk_stability": ("requested_model", "effective_model", "target_model_approved", "critical_failure_count", "worst_critical_frequency", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_group_coverage", "group_critical_frequency", "category_coverage"),
+        "model_held_out": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "corpus_fingerprint", "held_out_fingerprint", "required_media_compliance", "locked_terminology_recall", "unexpected_unresolved_rate"),
         "internal_bilingual": ("attestation_id", "artifact_count", "work_unit_count", "critical_business_meaning_errors", "critical_numeric_date_unit_errors", "critical_modality_escalations", "critical_table_mapping_errors", "critical_trend_reversals", "unsupported_critical_executive_claims", "overall_noncritical_semantic_fidelity", "locked_terminology"),
         "zero_korean_comprehension": ("attestation_id", "users", "answers", "critical_question_accuracy", "overall_comprehension", "critical_misunderstanding"),
         "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings"),
@@ -200,7 +478,7 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
         raise EvidenceValidationError("repository governance evidence is incomplete")
 
 
-def load_evidence(path: Path, *, expected_type: str | None = None, subject_git_sha: str | None = None, deployment_fingerprint: str | None = None, repository_root: Path | None = None) -> dict[str, Any]:
+def load_evidence(path: Path, *, expected_type: str | None = None, subject_git_sha: str | None = None, deployment_fingerprint: str | None = None, repository_root: Path | None = None, candidate_spec: dict[str, Any] | None = None, require_candidate_spec: bool = False) -> dict[str, Any]:
     """Load and validate one immutable evidence envelope."""
 
     path = path.expanduser()
@@ -226,6 +504,21 @@ def load_evidence(path: Path, *, expected_type: str | None = None, subject_git_s
         raise EvidenceValidationError("evidence subject_git_sha does not match candidate")
     evidence_fp = value.get("deployment_fingerprint")
     _require_hex(evidence_fp, "deployment_fingerprint")
+    embedded_candidate = value.get("candidate_spec")
+    if require_candidate_spec and not isinstance(embedded_candidate, dict):
+        raise EvidenceValidationError("evidence is not bound to a candidate specification")
+    if embedded_candidate is not None:
+        if not isinstance(embedded_candidate, dict) or candidate_deployment_fingerprint(embedded_candidate) != evidence_fp:
+            raise EvidenceValidationError("evidence candidate specification is inconsistent")
+        if embedded_candidate.get("subject_git_sha") != value.get("subject_git_sha"):
+            raise EvidenceValidationError("evidence candidate subject does not match envelope subject")
+    if candidate_spec is not None:
+        if candidate_deployment_fingerprint(candidate_spec) != evidence_fp:
+            raise EvidenceValidationError("evidence deployment_fingerprint does not match candidate specification")
+        if embedded_candidate is None and require_candidate_spec:
+            raise EvidenceValidationError("evidence is not bound to the expected candidate specification")
+        if isinstance(embedded_candidate, dict) and canonical_candidate_factors(embedded_candidate) != canonical_candidate_factors(candidate_spec):
+            raise EvidenceValidationError("evidence candidate specification does not match expected candidate")
     if deployment_fingerprint and evidence_fp != deployment_fingerprint:
         raise EvidenceValidationError("evidence deployment_fingerprint does not match candidate")
     if not str(value.get("generated_at") or ""):
@@ -235,7 +528,7 @@ def load_evidence(path: Path, *, expected_type: str | None = None, subject_git_s
         from .evidence_adapters import AdapterError, verify_machine_envelope
 
         try:
-            verified = verify_machine_envelope(path, value, subject_git_sha=subject_git_sha, deployment_fingerprint=deployment_fingerprint, root=repository_root)
+            verified = verify_machine_envelope(path, value, subject_git_sha=subject_git_sha, deployment_fingerprint=deployment_fingerprint, root=repository_root, candidate_spec=candidate_spec)
         except AdapterError as exc:
             raise EvidenceValidationError(str(exc)) from exc
         if payload != verified["payload"]:
@@ -248,7 +541,7 @@ def load_evidence(path: Path, *, expected_type: str | None = None, subject_git_s
     return {**value, "path": str(path), "sha256": physical, "envelope_sha256": physical, "evidence_identity": evidence_identity(value)}
 
 
-def write_evidence(path: Path, *, evidence_type: str, subject_git_sha: str, deployment_fingerprint: str, payload: dict[str, Any], generated_at: str, attestation_id: str | None = None) -> Path:
+def write_evidence(path: Path, *, evidence_type: str, subject_git_sha: str, deployment_fingerprint: str, payload: dict[str, Any], generated_at: str, attestation_id: str | None = None, candidate_spec: dict[str, Any] | None = None) -> Path:
     """Write a source-free envelope after validating its substantive payload."""
 
     if evidence_type not in EVIDENCE_TYPES:
@@ -265,6 +558,10 @@ def write_evidence(path: Path, *, evidence_type: str, subject_git_sha: str, depl
         "generated_at": generated_at,
         "payload": payload,
     }
+    if candidate_spec is not None:
+        if candidate_spec.get("subject_git_sha") != subject_git_sha or candidate_deployment_fingerprint(candidate_spec) != deployment_fingerprint:
+            raise EvidenceValidationError("candidate specification does not match evidence identity")
+        envelope["candidate_spec"] = canonical_candidate_factors(candidate_spec)
     if attestation_id is not None:
         envelope["attestation_id"] = attestation_id
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -307,46 +604,58 @@ def canonical_corpus_identity(corpus: dict[str, Any] | None) -> dict[str, Any]:
 
     value = corpus or {}
     return {
-        "version": value.get("version") or value.get("corpus_version"),
+        "version": value.get("version") or value.get("corpus_version") or value.get("dataset_version"),
         "corpus_fingerprint": value.get("corpus_fingerprint"),
         "held_out_fingerprint": value.get("held_out_fingerprint") or value.get("heldout_fingerprint"),
     }
 
 
 def canonical_behavior_profile(profile: dict[str, Any] | None) -> dict[str, Any]:
-    """Select material candidate behavior fields from a deployment profile."""
+    """Select and normalize material behavior fields from a candidate profile."""
 
-    value = profile or {}
-    return {key: value.get(key) for key in DEPLOYMENT_PROFILE_FIELDS if key in value}
+    value = dict(profile or {})
+    material = {key: value.get(key) for key in DEPLOYMENT_PROFILE_FIELDS if key in value and key != "behavior_configuration"}
+    behavior = dict(value.get("behavior_configuration") or {})
+    for key in _BEHAVIOR_FIELDS | set(_BEHAVIOR_ALIASES):
+        if key in value:
+            canonical = _BEHAVIOR_ALIASES.get(key, key)
+            if canonical in behavior and behavior[canonical] != value[key]:
+                raise EvidenceValidationError(f"conflicting behavior configuration aliases: {key}")
+            behavior[canonical] = value[key]
+    if behavior:
+        material["behavior_configuration"] = _canonical_behavior_configuration(behavior)
+    return material
 
 
-def build_deployment_factors(root: Path, *, subject_git_sha: str | None = None, runtime: Any | None = None, profile: dict[str, Any] | None = None, model_policy: Any | None = None, corpus: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Build stable, path/timestamp-free material deployment identity."""
+def build_deployment_factors(root: Path, *, subject_git_sha: str | None = None, runtime: Any | None = None, profile: dict[str, Any] | None = None, model_policy: Any | None = None, corpus: dict[str, Any] | None = None, candidate_spec: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Build the canonical candidate identity; ``runtime`` is provenance only.
+
+    ``runtime`` remains in the signature for source compatibility, but it is
+    intentionally not fingerprinted.  Callers that certify a deployment must
+    pass the same explicit candidate specification to every producer.
+    """
 
     root = root.expanduser().resolve()
-    profile = dict(profile or {})
-    runtime_dict = runtime.as_dict() if hasattr(runtime, "as_dict") else dict(runtime or {})
-    runtime_material = {key: runtime_dict.get(key) for key in DEPLOYMENT_RUNTIME_FIELDS}
-    profile_material = canonical_behavior_profile(profile)
     from . import __version__
 
-    factors: dict[str, Any] = {
-        "kslide_version": profile.get("kslide_version") or __version__,
-        "subject_git_sha": subject_git_sha or _git_sha(root) or "UNSET",
-        "runtime": runtime_material,
-        "profile": profile_material,
-        "ocr_asset_manifest_sha256": _manifest_hash(profile, root),
-        "constraints_sha256": None,
-        "prompt_tree_sha256": _tree_hash(root / "prompts"),
-        "termbase_tree_sha256": _tree_hash(root / "termbase"),
-        "model_policy": model_policy.as_dict() if hasattr(model_policy, "as_dict") else model_policy,
-        "schemas": {"evidence_ir": "1.0", "translation_patch": "1.0", "slide_ir": "1.0"},
-        "corpus": canonical_corpus_identity(corpus),
-    }
-    constraints = root / "constraints-production.txt"
-    if constraints.is_file():
-        factors["constraints_sha256"] = sha256_file(constraints)
-    return factors
+    if candidate_spec is not None:
+        source = dict(candidate_spec)
+    else:
+        source = dict(profile or {})
+        source.setdefault("kslide_version", __version__)
+        source.setdefault("subject_git_sha", subject_git_sha or _git_sha(root) or "UNSET")
+        if model_policy is not None:
+            source.setdefault("model_policy", model_policy.as_dict() if hasattr(model_policy, "as_dict") else model_policy)
+        if corpus is not None:
+            source.setdefault("corpus_identity", canonical_corpus_identity(corpus))
+        source.setdefault("prompt_identity", {"tree_sha256": _tree_hash(root / "prompts")})
+        source.setdefault("termbase_identity", {"tree_sha256": _tree_hash(root / "termbase")})
+        source.setdefault("schema_versions", {"evidence_ir": "1.0", "translation_patch": "1.0", "slide_ir": "1.0"})
+        constraints = root / "constraints-production.txt"
+        source.setdefault("constraints_sha256", sha256_file(constraints) if constraints.is_file() else None)
+        if source.get("ocr_asset_manifest_sha256") is None:
+            source["ocr_asset_manifest_sha256"] = _manifest_hash(source, root)
+    return canonical_candidate_factors(source)
 
 
 def deployment_fingerprint(factors: dict[str, Any]) -> str:

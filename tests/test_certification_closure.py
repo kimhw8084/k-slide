@@ -2,24 +2,30 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
-from evals.release import derive_release_state, main as release_main
+from evals.release import build_release_manifest, derive_release_state, main as release_main
 from evals.experiments import behavior_configuration_hash, experiment_plan, experiment_plan_hash
 from evals.scenarios import PROTECTED_CATEGORIES, scenario_specs
 from k_slide.certification import (
     EvidenceValidationError,
     build_deployment_factors,
+    candidate_deployment_fingerprint,
+    canonical_candidate_factors,
     certification_fingerprint,
     deployment_fingerprint,
+    load_candidate_spec,
     load_evidence,
     write_evidence,
 )
 from k_slide.evidence_adapters import AdapterError, build_machine_evidence
 from k_slide.model_policy import load_model_policy
-from k_slide.production import _asset_manifest_status
+from k_slide.production import ProductionProfile, _asset_manifest_status, _manifest_and_fingerprint_status
 
 
 def _sha(path: Path) -> str:
@@ -32,7 +38,7 @@ def _write(path: Path, value: object) -> Path:
 
 
 def _runtime_sources(root: Path) -> dict[str, Path]:
-    _write(root / "diagnostic.json", {"levels": [{"level": name, "status": "PASS"} for name in ("level1a_pure_opencode", "level1_plain_opencode", "level2_explicit_model", "level3_k_slide_agent")]})
+    _write(root / "diagnostic.json", {"levels": [{"level": name, "status": "PASS"} for name in ("level1a_pure_opencode", "level1_plain_opencode", "level2_explicit_model", "level3_k_slide_agent")], "runtime_provenance": {"opencode_version": "1.3.9", "python_version": "3.11"}})
     contract = {"status": "PASS", "kslide_complete": True, "run_complete": True, "required_media_compliance": True, "forbidden_tool_attempts": []}
     _write(root / "simple.json", contract)
     _write(root / "three.json", {**contract, "expected_units": 3, "artifact_units": 3})
@@ -43,6 +49,7 @@ def _runtime_sources(root: Path) -> dict[str, Path]:
 def _doctor(networkless: bool = False) -> dict[str, object]:
     value = {key: {"status": "PASS"} for key in ("libreoffice", "pymupdf", "python_pptx", "pillow", "paddleocr", "paddlepaddle", "korean_font", "paddle_load", "libreoffice_roundtrip", "paddle_ocr_roundtrip")}
     value["network"] = {"networkless_asserted": networkless, "network_required": not networkless}
+    value["runtime_provenance"] = {"python_version": "3.11", "paddle_version": "3.0.0", "paddleocr_version": "3.0.3", "libreoffice_version": "25"}
     return value
 
 
@@ -72,16 +79,16 @@ def _model_sources(root: Path, split: str = "validation", critical: int = 0, rep
     formats = ["png"]
     for scenario in selected:
         for repeat in range(1, repeats + 1):
-            rows.append({"scenario_id": scenario.scenario_id, "category": scenario.category, "split": split, "format": "png", "repeat": repeat, "semantic_scored": True, "quality_metrics_authoritative": True, "semantic": {"critical_failures": (["CRITICAL"] if critical else []), "unresolved_region_rate": 0.0, "unexpected_unresolved_rate": 0.0, "term_consistency_recall": 1.0}, "media_by_work_unit": {"u1": {"media_sequence_valid": True}}, "opencode": {"model": "google/gemma-4-31b-it", "diagnostics": {"effective_model": "google/gemma-4-31b-it"}}})
+            rows.append({"scenario_id": scenario.scenario_id, "category": scenario.category, "split": split, "format": "png", "repeat": repeat, "subject_git_sha": subject, "deployment_fingerprint": deployment, "effective_model": "google/gemma-4-31b-it", "semantic_scored": True, "quality_metrics_authoritative": True, "semantic": {"critical_failures": (["CRITICAL"] if critical else []), "unresolved_region_rate": 0.0, "unexpected_unresolved_rate": 0.0, "term_consistency_recall": 1.0}, "media_by_work_unit": {"u1": {"media_sequence_valid": True}}, "opencode": {"model": "google/gemma-4-31b-it", "runtime_version": "1.3.9", "diagnostics": {"effective_model": "google/gemma-4-31b-it", "model_identity_proven": True}}})
     (root / "results.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
     behavior = {"model": "google/gemma-4-31b-it", "ocr_provider": "none", "prompt_version": "test-v1", "generation_settings": {"temperature": 0}}
     behavior_hash = behavior_configuration_hash(behavior)
     plan = experiment_plan(split=split, scenario_ids=scenario_ids, formats=formats, repetitions=repeats, categories=(), timeout=180, mode="quality")
     plan_hash = experiment_plan_hash(plan)
     critical_count = len(rows) if critical else 0
-    summary = {"model": "google/gemma-4-31b-it", "requested_model": "google/gemma-4-31b-it", "split": split, "quality_metrics_authoritative": True, "locked_terminology_recall": 1.0, "unexpected_unresolved_rate": 0.0, "critical_failure_count": critical_count, "required_media_compliance": True, "case_count": len(rows), "semantic_scored_case_count": len(rows), "repetitions": repeats, "subject_git_sha": subject, "deployment_fingerprint": deployment, "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash, "experiment_plan_hash": plan_hash, "corpus_fingerprint": "698b471fa9dffe9f79af40a61c3546d6455889b90063a02bc2e270b90402f7ac", "held_out_fingerprint": "c2dee1ba1b03fead1a6641cfa8c7ceea27eb51b0ed80c0879c07bc3ee29bcc4e"}
+    summary = {"model": "google/gemma-4-31b-it", "requested_model": "google/gemma-4-31b-it", "effective_model": "google/gemma-4-31b-it", "split": split, "quality_metrics_authoritative": True, "locked_terminology_recall": 1.0, "unexpected_unresolved_rate": 0.0, "critical_failure_count": critical_count, "required_media_compliance": True, "case_count": len(rows), "semantic_scored_case_count": len(rows), "repetitions": repeats, "subject_git_sha": subject, "deployment_fingerprint": deployment, "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash, "experiment_plan_hash": plan_hash, "corpus_fingerprint": "698b471fa9dffe9f79af40a61c3546d6455889b90063a02bc2e270b90402f7ac", "held_out_fingerprint": "c2dee1ba1b03fead1a6641cfa8c7ceea27eb51b0ed80c0879c07bc3ee29bcc4e"}
     _write(root / "summary.json", summary)
-    experiment = {"model": "google/gemma-4-31b-it", "split": split, "repetitions": repeats, "scenario_ids": scenario_ids, "formats": formats, "categories": [], "configuration": behavior, "behavior_configuration": behavior, "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash, "experiment_plan": plan, "experiment_plan_hash": plan_hash, "subject_git_sha": subject, "deployment_fingerprint": deployment, "corpus_fingerprint": summary["corpus_fingerprint"], "held_out_fingerprint": summary["held_out_fingerprint"]}
+    experiment = {"model": "google/gemma-4-31b-it", "effective_model": "google/gemma-4-31b-it", "split": split, "repetitions": repeats, "scenario_ids": scenario_ids, "formats": formats, "categories": [], "configuration": behavior, "behavior_configuration": behavior, "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash, "experiment_plan": plan, "experiment_plan_hash": plan_hash, "subject_git_sha": subject, "deployment_fingerprint": deployment, "corpus_fingerprint": summary["corpus_fingerprint"], "held_out_fingerprint": summary["held_out_fingerprint"]}
     if high_risk:
         experiment["high_risk_categories"] = list(PROTECTED_CATEGORIES)
     _write(root / "experiment.json", experiment)
@@ -102,6 +109,77 @@ def _reliability_sources(root: Path) -> dict[str, Path]:
     _write(root / "large.json", {"status": "PASS", "fifty_slide_pass": True})
     _write(root / "slo.json", {"status": "PASS", "slo_pass": True})
     return {"failure_injection": root / "failure.json", "concurrency": root / "concurrency.json", "large_deck": root / "large.json", "performance_slo": root / "slo.json"}
+
+
+def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model: str = "google/gemma-4-31b-it", asset_manifest: str = "UNSET", asset_hash: str = "UNSET") -> dict[str, object]:
+    target = "google/gemma-4-31b-it"
+    behavior = {
+        "model": target,
+        "ocr_provider": ocr_provider,
+        "prompt_version": "translation/v1",
+        "generation_settings": {"temperature": 0},
+        "normalization_behavior": {"render_dpi": 220},
+        "repair_policy": {"max_auto_repairs_per_unit": 2},
+    }
+    split = __import__("evals.scenarios", fromlist=["split_manifest"]).split_manifest()
+    return {
+        "candidate_spec_version": "1.0",
+        "subject_git_sha": subject,
+        "kslide_version": "0.3.5",
+        "opencode_version": "1.3.9",
+        "requested_model": target,
+        "effective_model": effective_model,
+        "provider": "test-provider",
+        "provider_backend": "test-backend",
+        "model_revision": "test-revision",
+        "quantization_or_dtype": "fp16",
+        "vision_settings": {"enabled": True},
+        "context_configuration": {"max_tokens": 4096},
+        "image_preprocessing_settings": {"dpi": 220},
+        "prompt_identity": {"version": "translation/v1", "hash": "p" * 64},
+        "generation_settings": {"temperature": 0},
+        "ocr_provider": ocr_provider,
+        "ocr_asset_manifest": asset_manifest,
+        "ocr_asset_manifest_sha256": asset_hash,
+        "normalization_behavior": {"render_dpi": 220},
+        "repair_policy": {"max_auto_repairs_per_unit": 2},
+        "python_version": "3.11",
+        "paddle_version": "3.0.0",
+        "paddleocr_version": "3.0.3",
+        "libreoffice_version": "25",
+        "termbase_identity": {"version": "core-v1", "hash": "t" * 64},
+        "termbase_version": "core-v1",
+        "termbase_hash": "t" * 64,
+        "model_policy": load_model_policy().as_dict(),
+        "schema_versions": {"evidence_ir": "1.0", "translation_patch": "1.0", "slide_ir": "1.0"},
+        "retention_days": 30,
+        "tenant_isolation": "workspace_per_session",
+        "network_egress": "approved_inference_only",
+        "corpus_identity": {"version": "1.0", "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]},
+        "constraints_sha256": "UNSET",
+        "behavior_configuration": behavior,
+    }
+
+
+def _candidate_model_sources(root: Path, *, split: str, repeats: int, subject: str, deployment: str, candidate: dict[str, object]) -> dict[str, Path]:
+    sources = _model_sources(root, split=split, repeats=repeats, subject=subject, deployment=deployment)
+    behavior = candidate["behavior_configuration"]
+    behavior_hash = behavior_configuration_hash(behavior)  # type: ignore[arg-type]
+    factors = canonical_candidate_factors(candidate)  # type: ignore[arg-type]
+    summary_path = sources["model_summary"]
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary.update({"candidate_spec": factors, "effective_model": candidate["effective_model"], "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash})
+    _write(summary_path, summary)
+    experiment_path = sources["experiment_manifest"]
+    experiment = json.loads(experiment_path.read_text(encoding="utf-8"))
+    experiment.update({"candidate_spec": factors, "candidate_identity_status": "FINAL", "effective_model": candidate["effective_model"], "behavior_configuration": behavior, "configuration": behavior, "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash})
+    _write(experiment_path, experiment)
+    rows_path = sources["results_jsonl"]
+    rows = [json.loads(line) for line in rows_path.read_text(encoding="utf-8").splitlines()]
+    for row in rows:
+        row.update({"subject_git_sha": subject, "deployment_fingerprint": deployment, "effective_model": candidate["effective_model"]})
+    rows_path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+    return sources
 
 
 class CertificationClosureTests(unittest.TestCase):
@@ -451,6 +529,283 @@ class CertificationClosureTests(unittest.TestCase):
             self.assertEqual(first, second)
             material = {**base, "behavior_configuration": {**behavior, "prompt_version": "test-v2"}}
             self.assertNotEqual(first, deployment_fingerprint(build_deployment_factors(root, subject_git_sha="a" * 40, profile=material, model_policy=load_model_policy(root), corpus={"version": "1.0", "corpus_fingerprint": "c" * 64, "held_out_fingerprint": "d" * 64})))
+
+    def test_candidate_spec_allowlist_aliases_and_material_behavior(self):
+        subject = "a" * 40
+        base = _candidate_spec(subject)
+        first = candidate_deployment_fingerprint(base)
+        metadata = {**base, "release_state": "PRODUCTION_CERTIFIED", "certification_fingerprint": "c" * 64, "release_manifest": "/tmp/release.json", "release_manifest_sha256": "d" * 64, "generated_at": "now", "split": "held_out", "repetitions": 99, "limit": 1}
+        self.assertEqual(first, candidate_deployment_fingerprint(metadata))
+        ambient_a = SimpleNamespace(as_dict=lambda: {"provider": "github", "reported_model_id": "runner-a"})
+        ambient_b = SimpleNamespace(as_dict=lambda: {"provider": "local", "reported_model_id": "runner-b"})
+        self.assertEqual(
+            candidate_deployment_fingerprint(build_deployment_factors(Path.cwd(), candidate_spec=base, runtime=ambient_a)),
+            candidate_deployment_fingerprint(build_deployment_factors(Path.cwd(), candidate_spec=base, runtime=ambient_b)),
+        )
+        changed_repair = {**base, "repair_policy": {"max_auto_repairs_per_unit": 3}, "behavior_configuration": {**base["behavior_configuration"], "repair_policy": {"max_auto_repairs_per_unit": 3}}}
+        changed_normalization = {**base, "normalization_behavior": {"render_dpi": 221}, "behavior_configuration": {**base["behavior_configuration"], "normalization_behavior": {"render_dpi": 221}}}
+        changed_prompt = {**base, "prompt_identity": {"version": "translation/v2", "hash": "q" * 64}}
+        changed_generation = {**base, "generation_settings": {"temperature": 0.1}, "behavior_configuration": {**base["behavior_configuration"], "generation_settings": {"temperature": 0.1}}}
+        changed_ocr = {**base, "ocr_provider": "paddle", "behavior_configuration": {**base["behavior_configuration"], "ocr_provider": "paddle"}}
+        self.assertNotEqual(first, candidate_deployment_fingerprint(changed_repair))
+        self.assertNotEqual(first, candidate_deployment_fingerprint(changed_normalization))
+        self.assertNotEqual(first, candidate_deployment_fingerprint(changed_prompt))
+        self.assertNotEqual(first, candidate_deployment_fingerprint(changed_generation))
+        self.assertNotEqual(first, candidate_deployment_fingerprint(changed_ocr))
+        alias = {**base}
+        alias.pop("repair_policy")
+        alias["repair"] = {"max_auto_repairs_per_unit": 2}
+        alias_behavior = {**base["behavior_configuration"]}
+        alias_behavior.pop("repair_policy")
+        alias_behavior["repair"] = {"max_auto_repairs_per_unit": 2}
+        alias["behavior_configuration"] = alias_behavior
+        self.assertEqual(first, candidate_deployment_fingerprint(alias))
+        self.assertNotEqual(behavior_configuration_hash({"repair": {"max_auto_repairs_per_unit": 2}}), behavior_configuration_hash({"repair": {"max_auto_repairs_per_unit": 3}}))
+
+    def test_candidate_profile_absent_malformed_and_unknown_fields_fail_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with self.assertRaises(EvidenceValidationError):
+                load_candidate_spec(root / "missing.json", root=root, require_identity=True)
+            malformed = root / "malformed.json"
+            malformed.write_text("{", encoding="utf-8")
+            with self.assertRaises(EvidenceValidationError):
+                load_candidate_spec(malformed, root=root, require_identity=True)
+            unknown = root / "unknown.json"
+            _write(unknown, {**_candidate_spec("a" * 40), "behavior_configuration": {"unclassified_runtime_switch": True}})
+            with self.assertRaises(EvidenceValidationError):
+                load_candidate_spec(unknown, root=root, require_identity=True)
+            top_level_unknown = root / "top-level-unknown.json"
+            _write(top_level_unknown, {**_candidate_spec("a" * 40), "new_runtime_switch": True})
+            with self.assertRaises(EvidenceValidationError):
+                load_candidate_spec(top_level_unknown, root=root, require_identity=True)
+
+    def test_certification_engine_split_requires_candidate_profile(self):
+        from evals.run_engine_eval import main as engine_main
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "engine"
+            self.assertEqual(engine_main(["--output", str(output), "--split", "validation", "--limit", "0"]), 2)
+            self.assertEqual(json.loads((output / "summary.json").read_text(encoding="utf-8"))["status"], "CANDIDATE_PROFILE_BLOCKED")
+
+    def test_effective_model_identity_is_required_and_mixed_models_are_rejected(self):
+        from k_slide.model_policy import ModelPolicy
+
+        target = "google/gemma-4-31b-it"
+        alternate = "provider/gemma-4-31b-it-r2"
+        alias_policy = ModelPolicy(approved_model_ids=(target,), approved_aliases=("private/gemma",), approved_alias_targets=(("private/gemma", (target,)),))
+        self.assertTrue(alias_policy.approved(requested="private/gemma", effective=target))
+        self.assertEqual(alias_policy.canonical_effective(requested="private/gemma", effective=target), target)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".k-slide-config").mkdir()
+            _write(root / ".k-slide-config" / "model-policy.local.json", {"approved_model_ids": [target, alternate]})
+            sources = _model_sources(root, repeats=3)
+            rows = [json.loads(line) for line in (root / "results.jsonl").read_text(encoding="utf-8").splitlines()]
+            rows[0]["opencode"]["diagnostics"]["effective_model"] = alternate
+            (root / "results.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "mixed.json", evidence_type="model_validation", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=root)
+            rows[0]["opencode"]["diagnostics"].pop("effective_model")
+            (root / "results.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "missing-effective.json", evidence_type="model_validation", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=root)
+            candidate = _candidate_spec("a" * 40)
+            candidate["model_policy"] = {"approved_model_ids": [target, alternate]}
+            changed = {**candidate, "effective_model": alternate}
+            self.assertNotEqual(candidate_deployment_fingerprint(candidate), candidate_deployment_fingerprint(changed))
+
+    def test_validation_and_high_risk_effective_models_must_match(self):
+        from evals.release import _champion
+
+        target = "google/gemma-4-31b-it"
+        alternate = "provider/gemma-4-31b-it-r2"
+        subject = "a" * 40
+        deployment = "b" * 64
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".k-slide-config").mkdir()
+            _write(root / ".k-slide-config" / "model-policy.local.json", {"approved_model_ids": [target, alternate]})
+            records = {}
+            for evidence_type, repeats in (("model_validation", 3), ("model_high_risk_stability", 5)):
+                folder = root / evidence_type
+                folder.mkdir()
+                sources = _model_sources(folder, repeats=repeats, subject=subject, deployment=deployment)
+                if evidence_type == "model_high_risk_stability":
+                    rows = [json.loads(line) for line in sources["results_jsonl"].read_text(encoding="utf-8").splitlines()]
+                    for row in rows:
+                        row["effective_model"] = alternate
+                        row["opencode"]["diagnostics"]["effective_model"] = alternate
+                    sources["results_jsonl"].write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+                    for name in ("summary.json", "experiment.json"):
+                        path = folder / name
+                        value = json.loads(path.read_text(encoding="utf-8"))
+                        value["effective_model"] = alternate
+                        _write(path, value)
+                envelope = folder / "evidence.json"
+                build_machine_evidence(envelope, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=root)
+                records[evidence_type] = load_evidence(envelope, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root)
+            (root / "evals").mkdir()
+            _write(root / "evals" / "champion.json", {"status": "FROZEN", "model": target, "effective_model": target, "deployment_fingerprint": deployment, "config_hash": records["model_validation"]["payload"]["behavior_configuration_hash"]})
+            _champ, _hash, blockers = _champion(root, records=records, policy=load_model_policy(root), deployment_fp=deployment)
+            self.assertIn("model evidence effective identities disagree", blockers)
+
+    def test_real_model_runner_high_risk_output_is_adapter_consumable(self):
+        from evals.model_eval import ModelEvaluationRunner
+
+        target = "google/gemma-4-31b-it"
+        subject = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidate = _candidate_spec(subject)
+            candidate_path = root / "candidate.json"
+            _write(candidate_path, candidate)
+
+            class FakeOpenCode:
+                def run(self, **_kwargs):
+                    return SimpleNamespace(
+                        status="PASS",
+                        reason=None,
+                        runtime_version="1.3.9",
+                        kslide_complete=True,
+                        media_compliance={"work_units": {"u1": {"media_sequence_valid": True}}},
+                        diagnostics={"effective_model": target, "model_identity_proven": True},
+                        as_dict=lambda: {"status": "PASS", "mode": "quality", "model": target, "runtime_version": "1.3.9", "diagnostics": {"effective_model": target, "model_identity_proven": True}},
+                    )
+
+            scored = {"coverage": 1.0, "numeric_fidelity": 1.0, "modality": 1.0, "table_cell_fidelity": 1.0, "visual_relation_recall": 1.0, "critical_failures": [], "unresolved_region_rate": 0.0, "unexpected_unresolved_rate": 0.0}
+            consistency = {"term_consistency_recall": 1.0, "inconsistent_alternate_count": 0, "critical_failures": []}
+            with patch("evals.model_eval.generate_artifacts"), patch("evals.model_eval.OpenCodeEvalRunner", return_value=FakeOpenCode()), patch("evals.model_eval._latest_run", return_value=None), patch("evals.model_eval.collect_run_artifacts", return_value=[{"work_unit_id": "u1", "evidence": {}, "patch": {}, "slide_ir": None}]), patch("evals.model_eval._engine_gate", return_value=("PASS", [])), patch("evals.model_eval._work_unit_contract", return_value=(True, [])), patch("evals.model_eval.score_translation_patch", return_value=scored), patch("evals.model_eval.score_deck_consistency", return_value=consistency):
+                output = root / "high-risk"
+                result = ModelEvaluationRunner(model=target, output=output, split="validation", repeats=5, mode="quality", candidate_profile=candidate_path, high_risk=True).run()
+            self.assertEqual(result["effective_model"], target)
+            experiment = json.loads((output / "experiment.json").read_text(encoding="utf-8"))
+            self.assertEqual(set(experiment["high_risk_categories"]), set(PROTECTED_CATEGORIES))
+            evidence = output / "evidence.json"
+            loaded_candidate = load_candidate_spec(candidate_path, root=Path.cwd(), require_identity=True)
+            finalized_candidate = {**loaded_candidate, **experiment["candidate_spec"]}
+            self.assertEqual(candidate_deployment_fingerprint(finalized_candidate), experiment["deployment_fingerprint"], msg=json.dumps({"loaded": canonical_candidate_factors(loaded_candidate), "runner": experiment["candidate_spec"]}, sort_keys=True))
+            build_machine_evidence(evidence, evidence_type="model_high_risk_stability", subject_git_sha=subject, deployment_fingerprint=experiment["deployment_fingerprint"], sources={"model_summary": output / "summary.json", "experiment_manifest": output / "experiment.json", "results_jsonl": output / "results.jsonl"}, root=Path.cwd(), candidate_spec=loaded_candidate)
+            self.assertEqual(load_evidence(evidence, expected_type="model_high_risk_stability")["payload"]["repetitions"], 5)
+
+    def test_runtime_engine_security_model_release_share_candidate_fingerprint(self):
+        from evals.opencode_diagnostics import run_diagnostic_ladder
+        from evals.run_engine_eval import main as engine_main
+
+        subject = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidate = _candidate_spec(subject)
+            candidate_path = root / "candidate.json"
+            _write(candidate_path, candidate)
+            loaded = load_candidate_spec(candidate_path, root=Path.cwd(), require_identity=True)
+            expected = candidate_deployment_fingerprint(loaded)
+            diagnostic = run_diagnostic_ladder(model=loaded["requested_model"], output=root / "diagnostic", opencode="/missing/opencode", candidate_profile=candidate_path)
+            self.assertEqual(diagnostic["deployment_fingerprint"], expected)
+            engine_output = root / "engine"
+            self.assertEqual(engine_main(["--output", str(engine_output), "--split", "development", "--limit", "0", "--candidate-profile", str(candidate_path)]), 0)
+            self.assertEqual(json.loads((engine_output / "summary.json").read_text(encoding="utf-8"))["deployment_fingerprint"], expected)
+            security_folder = root / "security"
+            security_folder.mkdir()
+            security_sources = _security_sources(security_folder)
+            security_path = security_folder / "evidence.json"
+            build_machine_evidence(security_path, evidence_type="security", subject_git_sha=subject, deployment_fingerprint=expected, sources=security_sources, root=Path.cwd(), candidate_spec=loaded)
+            self.assertEqual(json.loads(security_path.read_text(encoding="utf-8"))["deployment_fingerprint"], expected)
+            release = build_release_manifest(Path.cwd(), requested_state="DEVELOPMENT", subject_sha=subject, candidate_profile=candidate_path)
+            self.assertEqual(release["deployment_fingerprint"], expected)
+
+    def test_complete_release_materializes_profile_and_detects_candidate_staleness(self):
+        subject = "a" * 40
+        target = "google/gemma-4-31b-it"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            asset_dir = root / "ocr"
+            asset_dir.mkdir()
+            (asset_dir / "weights.bin").write_bytes(b"local-paddle-weights")
+            asset_hash = _sha(asset_dir / "weights.bin")
+            asset_manifest = asset_dir / "manifest.json"
+            _write(asset_manifest, {"provider": "paddle", "files": [{"path": "weights.bin", "sha256": asset_hash}]})
+            candidate = _candidate_spec(subject, ocr_provider="paddle", asset_manifest="ocr/manifest.json", asset_hash=_sha(asset_manifest))
+            candidate_dir = root / ".k-slide-config"
+            candidate_dir.mkdir()
+            candidate_path = candidate_dir / "production-candidate.json"
+            _write(candidate_path, candidate)
+            candidate = load_candidate_spec(candidate_path, root=root, require_identity=True)
+            deployment = candidate_deployment_fingerprint(candidate)
+            records: dict[str, dict[str, object]] = {}
+            for evidence_type, factory, full in (("runtime", _runtime_sources, False), ("heavy_runtime", _heavy_sources, True)):
+                folder = root / evidence_type
+                folder.mkdir()
+                sources = factory(folder, full=full) if evidence_type == "heavy_runtime" else factory(folder)
+                path = folder / "evidence.json"
+                build_machine_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=Path.cwd(), candidate_spec=candidate)
+                records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=Path.cwd(), candidate_spec=candidate, require_candidate_spec=True)
+            for evidence_type, split, repeats in (("model_validation", "validation", 3), ("model_high_risk_stability", "validation", 5), ("model_held_out", "held_out", 3)):
+                folder = root / evidence_type
+                folder.mkdir()
+                sources = _candidate_model_sources(folder, split=split, repeats=repeats, subject=subject, deployment=deployment, candidate=candidate)
+                path = folder / "evidence.json"
+                build_machine_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=Path.cwd(), candidate_spec=candidate)
+                records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=Path.cwd(), candidate_spec=candidate, require_candidate_spec=True)
+            (root / "evals").mkdir()
+            _write(root / "evals" / "champion.json", {"status": "FROZEN", "model": target, "effective_model": target, "deployment_fingerprint": deployment, "config_hash": records["model_validation"]["payload"]["behavior_configuration_hash"]})
+            attestations = {
+                "internal_bilingual": {"attestation_id": "internal-test", "artifact_count": 50, "work_unit_count": 200, "critical_business_meaning_errors": 0, "critical_numeric_date_unit_errors": 0, "critical_modality_escalations": 0, "critical_table_mapping_errors": 0, "critical_trend_reversals": 0, "unsupported_critical_executive_claims": 0, "overall_noncritical_semantic_fidelity": 0.99, "locked_terminology": 0.999},
+                "zero_korean_comprehension": {"attestation_id": "human-test", "users": 10, "answers": 100, "critical_question_accuracy": 1.0, "overall_comprehension": 0.95, "critical_misunderstanding": 0},
+                "model_data_policy": {"attestation_id": "policy-test", "approved_for_internal_artifacts": True},
+            }
+            for evidence_type, payload in attestations.items():
+                folder = root / evidence_type
+                folder.mkdir()
+                path = folder / "evidence.json"
+                write_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, payload=payload, generated_at="2026-09-10T00:00:00Z", candidate_spec=candidate)
+                records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate, require_candidate_spec=True)
+            for evidence_type, factory in (("security", _security_sources), ("reliability", _reliability_sources)):
+                folder = root / evidence_type
+                folder.mkdir()
+                path = folder / "evidence.json"
+                build_machine_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=factory(folder), root=Path.cwd(), candidate_spec=candidate)
+                records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=Path.cwd(), candidate_spec=candidate, require_candidate_spec=True)
+            governance_folder = root / "governance"
+            governance_folder.mkdir()
+            governance_source = governance_folder / "governance.json"
+            _write(governance_source, {"source_kind": "github_api", "codeowners_pass": True, "branch_protection_pass": True, "required_ci_pass": True, "review_required": True})
+            governance_path = governance_folder / "evidence.json"
+            build_machine_evidence(governance_path, evidence_type="governance", subject_git_sha=subject, deployment_fingerprint=deployment, sources={"governance_api": governance_source}, root=Path.cwd(), candidate_spec=candidate)
+            records["governance"] = load_evidence(governance_path, expected_type="governance", subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=Path.cwd(), candidate_spec=candidate, require_candidate_spec=True)
+            pilot_folder = root / "pilot_canary"
+            pilot_folder.mkdir()
+            pilot_path = pilot_folder / "evidence.json"
+            write_evidence(pilot_path, evidence_type="pilot_canary", subject_git_sha=subject, deployment_fingerprint=deployment, payload={"attestation_id": "pilot-test", "users": 5, "artifacts": 50, "critical_confirmed_errors": 0, "cross_user_exposure": 0, "security_incidents": 0, "silent_incomplete_output": 0}, generated_at="2026-09-10T00:00:00Z", candidate_spec=candidate)
+            records["pilot_canary"] = load_evidence(pilot_path, expected_type="pilot_canary", subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate, require_candidate_spec=True)
+            sbom_folder = root / ".k-slide-config"
+            _write(sbom_folder / "production-sbom.json", {"bomFormat": "CycloneDX", "complete": True, "metadata": {}, "components": [{"name": "k-slide"}]})
+            evidence_paths = {key: root / key / "evidence.json" for key in records}
+            manifest_path = root / "release" / "manifest.json"
+            profile_path = sbom_folder / "production-profile.json"
+            release_args = ["--root", str(root), "--output", str(manifest_path), "--requested-state", "PRODUCTION_CERTIFIED", "--require-certified", "--candidate-profile", str(candidate_path), "--certified-profile-output", str(profile_path)]
+            for option, evidence_type in (("--runtime-evidence", "runtime"), ("--heavy-runtime-evidence", "heavy_runtime"), ("--validation-evidence", "model_validation"), ("--high-risk-evidence", "model_high_risk_stability"), ("--held-out-evidence", "model_held_out")):
+                release_args.extend([option, str(evidence_paths[evidence_type])])
+            for option, evidence_type in (("--internal-bilingual-attestation", "internal_bilingual"), ("--zero-korean-attestation", "zero_korean_comprehension"), ("--model-data-policy-attestation", "model_data_policy"), ("--security-attestation", "security"), ("--reliability-attestation", "reliability"), ("--governance-attestation", "governance"), ("--pilot-attestation", "pilot_canary")):
+                release_args.extend([option, str(evidence_paths[evidence_type])])
+            self.assertEqual(release_main(release_args), 0)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["release_state"], "PRODUCTION_CERTIFIED")
+            self.assertEqual(manifest["deployment_fingerprint"], deployment)
+            self.assertNotIn("blocking_reasons", manifest)
+            profile = json.loads(profile_path.read_text(encoding="utf-8"))
+            self.assertEqual(profile["release_manifest_sha256"], _sha(manifest_path))
+            self.assertEqual(ProductionProfile.from_mapping(profile).deployment_fingerprint, deployment)
+            fingerprint_checks = _manifest_and_fingerprint_status(root, ProductionProfile.from_mapping(profile), SimpleNamespace())
+            self.assertEqual(next(item for item in fingerprint_checks if item["label"] == "Deployment fingerprint")["status"], "PASS")
+            self.assertEqual(next(item for item in fingerprint_checks if item["label"] == "Certification freshness")["status"], "PASS")
+            stale_candidate = json.loads(candidate_path.read_text(encoding="utf-8"))
+            stale_candidate["repair_policy"]["max_auto_repairs_per_unit"] = 3
+            stale_candidate["behavior_configuration"]["repair_policy"]["max_auto_repairs_per_unit"] = 3
+            _write(candidate_path, stale_candidate)
+            stale_checks = _manifest_and_fingerprint_status(root, ProductionProfile.from_mapping(profile), SimpleNamespace())
+            self.assertEqual(next(item for item in stale_checks if item["label"] == "Candidate source identity")["status"], "FAIL")
+            self.assertEqual(next(item for item in stale_checks if item["label"] == "Certification freshness")["status"], "FAIL")
 
     def test_model_identity_composes_across_validation_high_risk_and_held_out(self):
         subject = "a" * 40

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .certification import CATEGORY_POLICY, DEFAULT_REVIEW_RATE_TOLERANCE
+from k_slide.certification import canonical_behavior_configuration
 
 # Compatibility name retained for callers; values are the real Scenario.category
 # keys and are governed by CATEGORY_POLICY.
@@ -19,6 +20,7 @@ EXPERIMENT_ONLY_FIELDS = frozenset({
     "scenario_ids",
     "formats",
     "repetitions",
+    "repetition",
     "repeats",
     "categories",
     "category_filter",
@@ -53,6 +55,7 @@ BEHAVIOR_FIELDS = frozenset({
     "normalization",
     "normalization_behavior",
     "repair_policy",
+    "repair",
     "termbase_version",
     "termbase_hash",
     "evidence_ir_schema",
@@ -66,20 +69,14 @@ def _hash(value: dict[str, Any]) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def behavior_configuration(configuration: dict[str, Any], *, model: str | None = None, ocr_provider: str | None = None) -> dict[str, Any]:
+def behavior_configuration(configuration: dict[str, Any], *, model: str | None = None, ocr_provider: str | None = None, strict: bool = False) -> dict[str, Any]:
     """Return only material inference/translation behavior configuration."""
 
-    source = dict(configuration or {})
-    result = {key: source[key] for key in sorted(BEHAVIOR_FIELDS) if key in source}
-    if model is not None:
-        result["model"] = model
-    if ocr_provider is not None:
-        result["ocr_provider"] = ocr_provider
-    return result
+    return canonical_behavior_configuration(configuration, model=model, ocr_provider=ocr_provider, strict=strict)
 
 
-def behavior_configuration_hash(configuration: dict[str, Any], *, model: str | None = None, ocr_provider: str | None = None) -> str:
-    return _hash(behavior_configuration(configuration, model=model, ocr_provider=ocr_provider))
+def behavior_configuration_hash(configuration: dict[str, Any], *, model: str | None = None, ocr_provider: str | None = None, strict: bool = False) -> str:
+    return _hash(behavior_configuration(configuration, model=model, ocr_provider=ocr_provider, strict=strict))
 
 
 def experiment_plan(*, split: str, scenario_ids: list[str] | tuple[str, ...], formats: list[str] | tuple[str, ...], repetitions: int, categories: list[str] | tuple[str, ...] = (), limit: int | None = None, timeout: int | None = None, mode: str | None = None, scenario_filter: list[str] | tuple[str, ...] = (), filters: dict[str, Any] | None = None) -> dict[str, Any]:

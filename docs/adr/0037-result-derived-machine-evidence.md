@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted for K-Slide 0.3.5 certification closure; schema/adapter 2.0.
+Accepted for K-Slide 0.3.5 certification closure; schema/adapter 2.1.
 
 ## Decision
 
@@ -25,6 +25,15 @@ envelope timestamp and path.  The physical envelope hash remains available for
 tamper/audit checks, while the deterministic evidence identity participates in
 the certification fingerprint.
 
+Candidate deployment identity is loaded from one explicit, public-safe
+candidate specification. Every certification envelope embeds the normalized
+candidate factors; host runtime details are recorded as execution provenance
+and cannot redefine the candidate fingerprint. Model envelopes are emitted
+only after every authoritative case proves one compatible effective model
+identity. Release tooling derives the state first, writes the final manifest,
+then materializes a separate certified profile that references the manifest
+hash, avoiding profile/manifest hash recursion.
+
 Human, private, and organizational attestations remain source-free external
 evidence and are still required for the states that depend on them.
 
@@ -32,7 +41,6 @@ evidence and are still required for the states that depend on them.
 
 Changing a result, source role/hash, adapter version, or derived payload makes
 the evidence invalid.  Administrators cannot promote a release by editing
-machine metrics or selecting a higher requested state.  Old development-only
 machine metrics or selecting a higher requested state. Old development-only
-machine envelopes without adapter provenance, complete matrix proof, or the 2.0
+machine envelopes without adapter provenance, complete matrix proof, or the 2.1
 identity fields cannot satisfy certification.

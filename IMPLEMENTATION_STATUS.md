@@ -106,8 +106,8 @@ the generic attestation writer.
 ## Verification performed locally
 
 ```text
-Base unit/integration suite: PASS (`python -m unittest discover -s tests -q`; latest local execution: 140 tests passed, 2 optional dependency skips)
-Dependency-backed unit/integration suite: PASS (`/tmp/k-slide-phase32-venv/bin/python -m unittest discover -s tests -q`; latest local execution: 140 tests passed, no optional dependency skips)
+Base unit/integration suite: PASS (`python -m unittest discover -s tests -q`; latest local execution: 148 tests passed, 2 optional dependency skips)
+Dependency-backed unit/integration suite: PASS (`/tmp/k-slide-phase32-venv/bin/python -m unittest discover -s tests -q`; latest local execution: 148 tests passed, no optional dependency skips)
 Dependency-backed compile/import checks: PASS
 TranslationPatch JSON schema parse: PASS
 Stratified split manifest: PASS (100 specs; 60/20/20; protected categories in held-out)
@@ -155,8 +155,8 @@ The latest local closure run executed:
 
 ```text
 PYTHONPATH=src:. python -m unittest discover -s tests -q
-140 tests passed, 2 optional dependency skips
-140 tests passed, no optional dependency skips
+148 tests passed, 2 optional dependency skips
+148 tests passed, no optional dependency skips
 python -m compileall -q src evals tests: PASS
 git diff --check: PASS
 DEVELOPMENT release generation: PASS

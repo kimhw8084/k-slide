@@ -14,8 +14,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--opencode")
     parser.add_argument("--cold-timeout", type=int, default=300)
     parser.add_argument("--warm-timeout", type=int, default=60)
+    parser.add_argument("--candidate-profile", type=Path, help="Explicit candidate deployment specification")
     args = parser.parse_args(argv)
-    result = run_diagnostic_ladder(model=args.model, output=args.output, opencode=args.opencode, cold_timeout=args.cold_timeout, warm_timeout=args.warm_timeout)
+    result = run_diagnostic_ladder(model=args.model, output=args.output, opencode=args.opencode, cold_timeout=args.cold_timeout, warm_timeout=args.warm_timeout, candidate_profile=args.candidate_profile)
     print(json.dumps(result, ensure_ascii=False))
     return 0
 

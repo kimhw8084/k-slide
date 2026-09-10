@@ -19,8 +19,17 @@ from k_slide.ir import SlideIR
 from k_slide import __version__
 
 from .experiments import behavior_configuration, behavior_configuration_hash, experiment_plan, experiment_plan_hash
-from .certification import EvaluationState, certification_fingerprint, load_model_policy
-from k_slide.certification import build_deployment_factors, canonical_corpus_identity, canonical_bytes, deployment_fingerprint as deployment_identity, sha256_bytes
+from .certification import EvaluationState, load_model_policy
+from k_slide.certification import (
+    CANDIDATE_SPEC_SCHEMA_VERSION,
+    EvidenceValidationError,
+    candidate_deployment_fingerprint,
+    canonical_candidate_factors,
+    canonical_corpus_identity,
+    canonical_bytes,
+    load_candidate_spec,
+    sha256_bytes,
+)
 from k_slide.runtime import discover_runtime
 from .generator import DEFAULT_VARIANT, generate_artifacts
 from .model_results import aggregate_model_results, write_results
@@ -111,7 +120,7 @@ def _work_unit_contract(run: Path | None, artifacts: list[dict[str, Any]]) -> tu
 
 
 class ModelEvaluationRunner:
-    def __init__(self, *, model: str, output: Path, split: str = "development", formats: tuple[str, ...] = ("png",), repeats: int = 1, timeout: int = 180, mode: str = "quality", limit: int | None = None, categories: tuple[str, ...] = (), scenario_ids: tuple[str, ...] = (), configuration: dict[str, Any] | None = None, ocr_provider: str = "none"):
+    def __init__(self, *, model: str, output: Path, split: str = "development", formats: tuple[str, ...] = ("png",), repeats: int = 1, timeout: int = 180, mode: str = "quality", limit: int | None = None, categories: tuple[str, ...] = (), scenario_ids: tuple[str, ...] = (), configuration: dict[str, Any] | None = None, ocr_provider: str = "none", candidate_profile: Path | None = None, high_risk: bool = False):
         self.model = model
         self.output = output
         self.split = split
@@ -125,19 +134,69 @@ class ModelEvaluationRunner:
         self.ocr_provider = ocr_provider
         self.configuration = dict(configuration or {})
         self.behavior_configuration = behavior_configuration(self.configuration, model=model, ocr_provider=ocr_provider)
+        self.candidate_profile = candidate_profile.expanduser() if candidate_profile is not None else None
+        self.high_risk = high_risk
 
     def selected_scenarios(self) -> list[Scenario]:
         selected = scenario_specs()
         if self.split != "all":
             selected = [item for item in selected if item.split == self.split]
+        if self.high_risk:
+            protected = __import__("evals.scenarios", fromlist=["PROTECTED_CATEGORIES"]).PROTECTED_CATEGORIES
+            selected = [next(item for item in selected if item.category == category) for category in protected]
         if self.categories:
             selected = [item for item in selected if item.category in self.categories]
         if self.scenario_ids:
             selected = [item for item in selected if item.scenario_id in self.scenario_ids]
         return selected[: self.limit] if self.limit is not None else selected
 
+    def _candidate_spec(self, repo_root: Path, subject_sha: str, manifest: dict[str, Any], model_policy: Any) -> dict[str, Any]:
+        corpus = canonical_corpus_identity(manifest)
+        if self.candidate_profile is not None:
+            spec = load_candidate_spec(self.candidate_profile, root=repo_root, require_identity=False, strict=True)
+        else:
+            spec = {
+                "schema_version": CANDIDATE_SPEC_SCHEMA_VERSION,
+                "subject_git_sha": subject_sha,
+                "kslide_version": __version__,
+                "requested_model": self.model,
+                "effective_model": "UNSET",
+                "ocr_provider": self.ocr_provider,
+                "behavior_configuration": self.behavior_configuration,
+            }
+        if str(spec.get("requested_model") or self.model) != self.model:
+            raise EvidenceValidationError("candidate requested_model does not match evaluation model")
+        if spec.get("subject_git_sha") not in {None, "", "UNSET", subject_sha}:
+            raise EvidenceValidationError("candidate subject_git_sha does not match evaluation subject")
+        declared_ocr = str(spec.get("ocr_provider") or "")
+        if declared_ocr and declared_ocr.upper() != "UNSET" and declared_ocr != self.ocr_provider:
+            raise EvidenceValidationError("candidate ocr_provider does not match evaluation provider")
+        spec["subject_git_sha"] = subject_sha
+        spec["requested_model"] = self.model
+        spec["ocr_provider"] = self.ocr_provider
+        spec["model_policy"] = model_policy.as_dict()
+        spec["corpus_identity"] = corpus
+        spec["behavior_configuration"] = behavior_configuration(
+            spec.get("behavior_configuration") or self.behavior_configuration,
+            model=self.model,
+            ocr_provider=self.ocr_provider,
+            strict=self.candidate_profile is not None and self.mode == "quality",
+        )
+        return spec
+
+    @staticmethod
+    def _blocked_record(output: Path, *, model: str, split: str, reason: str) -> dict[str, Any]:
+        record = {"status": "CANDIDATE_PROFILE_BLOCKED", "evaluation_state": EvaluationState.CAPABILITY_BLOCKED.value, "reason": reason, "model": model, "split": split, "quality_metrics_authoritative": False}
+        write_results(output, [], {**record, "case_count": 0}, "# K-Slide Model Evaluation\n\n`CANDIDATE_PROFILE_BLOCKED`\n\n" + reason + "\n")
+        return record
+
     def run(self) -> dict[str, Any]:
         self.output.mkdir(parents=True, exist_ok=True)
+        certifying_request = self.mode == "quality" and self.split in {"validation", "held_out"} and self.limit is None and not self.categories and not self.scenario_ids
+        if certifying_request and self.candidate_profile is None:
+            return self._blocked_record(self.output, model=self.model, split=self.split, reason="certification-quality model evaluation requires --candidate-profile")
+        if self.high_risk and (self.split != "validation" or self.repeats < 5 or self.limit is not None or self.categories or self.scenario_ids):
+            return self._blocked_record(self.output, model=self.model, split=self.split, reason="high-risk evaluation requires validation protected categories, repetitions >= 5, and no filters")
         scenarios = self.selected_scenarios()
         manifest = split_manifest()
         model_policy = load_model_policy()
@@ -147,36 +206,42 @@ class ModelEvaluationRunner:
             subject_sha = subject_result.stdout.strip() if subject_result.returncode == 0 else "UNSET"
         except (OSError, subprocess.TimeoutExpired):
             subject_sha = "UNSET"
-        candidate_profile: dict[str, Any] = {
-            "requested_model": self.model,
-            "effective_model": self.model,
-            "ocr_provider": self.ocr_provider,
-            "behavior_configuration": self.behavior_configuration,
-        }
-        profile_path = repo_root / ".k-slide-config" / "production-profile.json"
-        if profile_path.is_file():
-            try:
-                loaded_profile = json.loads(profile_path.read_text(encoding="utf-8"))
-                if isinstance(loaded_profile, dict):
-                    candidate_profile.update(loaded_profile)
-                    candidate_profile["requested_model"] = self.model
-                    candidate_profile["effective_model"] = self.model
-                    candidate_profile["behavior_configuration"] = self.behavior_configuration
-            except (OSError, UnicodeError, json.JSONDecodeError):
-                pass
-        runtime_values = discover_runtime().as_dict()
-        runtime_values["reported_model_id"] = self.model
-        runtime_values["ocr_provider"] = self.ocr_provider
-        behavior_hash = behavior_configuration_hash(self.configuration, model=self.model, ocr_provider=self.ocr_provider)
-        plan = experiment_plan(split=self.split, scenario_ids=[item.scenario_id for item in scenarios], formats=self.formats, repetitions=self.repeats, categories=tuple(self.categories), limit=self.limit, timeout=self.timeout, mode=self.mode, scenario_filter=tuple(self.scenario_ids))
+        try:
+            candidate_spec = self._candidate_spec(repo_root, subject_sha, manifest, model_policy)
+        except (EvidenceValidationError, OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            if self.mode == "quality" and (self.split in {"validation", "held_out"} or self.high_risk):
+                return self._blocked_record(self.output, model=self.model, split=self.split, reason=str(exc))
+            candidate_spec = {
+                "schema_version": CANDIDATE_SPEC_SCHEMA_VERSION,
+                "subject_git_sha": subject_sha,
+                "kslide_version": __version__,
+                "requested_model": self.model,
+                "effective_model": "UNSET",
+                "ocr_provider": self.ocr_provider,
+                "behavior_configuration": self.behavior_configuration,
+                "model_policy": model_policy.as_dict(),
+                "corpus_identity": canonical_corpus_identity(manifest),
+            }
+        # The candidate file is authoritative for certifying behavior.  Keep
+        # the persisted experiment contract identical to the candidate inputs
+        # so changing a material setting cannot leave model evidence bound to
+        # a different execution configuration.
+        self.behavior_configuration = dict(candidate_spec["behavior_configuration"])
+        provisional_deployment = candidate_deployment_fingerprint(candidate_spec)
+        behavior_hash = behavior_configuration_hash(candidate_spec["behavior_configuration"], strict=True)
+        high_risk_categories = list(__import__("evals.scenarios", fromlist=["PROTECTED_CATEGORIES"]).PROTECTED_CATEGORIES) if self.high_risk else []
+        plan = experiment_plan(split=self.split, scenario_ids=[item.scenario_id for item in scenarios], formats=self.formats, repetitions=self.repeats, categories=tuple(high_risk_categories or self.categories), limit=self.limit, timeout=self.timeout, mode=self.mode, scenario_filter=tuple(self.scenario_ids))
         plan_hash = experiment_plan_hash(plan)
-        deployment = deployment_identity(build_deployment_factors(repo_root, subject_git_sha=subject_sha, runtime=runtime_values, profile=candidate_profile, model_policy=model_policy, corpus=canonical_corpus_identity(manifest)))
         run_manifest = {
             "experiment_id": self.output.name,
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "git_commit": subject_sha,
             "subject_git_sha": subject_sha,
-            "deployment_fingerprint": deployment,
+            "deployment_fingerprint": provisional_deployment,
+            "deployment_fingerprint_provisional": provisional_deployment,
+            "candidate_spec": canonical_candidate_factors(candidate_spec),
+            "effective_model": candidate_spec.get("effective_model", "UNSET"),
+            "candidate_identity_status": "PROVISIONAL",
             "k_slide_version": __version__,
             "corpus_version": DATASET_VERSION,
             "split": self.split,
@@ -191,16 +256,18 @@ class ModelEvaluationRunner:
             "configuration_hash": behavior_hash,
             "experiment_plan": plan,
             "experiment_plan_hash": plan_hash,
-            "certification_fingerprint": certification_fingerprint({"model": self.model, "configuration": self.behavior_configuration, "ocr_provider": self.ocr_provider, "normalization": self.behavior_configuration.get("normalization"), "vision": self.behavior_configuration.get("vision"), "repair_policy": self.behavior_configuration.get("repair_policy")}),
+            "high_risk_categories": high_risk_categories,
+            "experiment_identity": sha256_bytes(canonical_bytes({"model": self.model, "behavior_configuration": self.behavior_configuration, "ocr_provider": self.ocr_provider})),
             "split_manifest_hash": sha256_bytes(canonical_bytes(manifest)),
             "corpus_fingerprint": manifest["corpus_fingerprint"],
             "held_out_fingerprint": manifest["held_out_fingerprint"],
-            "model_policy": {"approved_model_ids": list(model_policy.approved_model_ids), "approved_aliases": list(model_policy.approved_aliases)},
+            "model_policy": model_policy.as_dict(),
+            "execution_runtime_provenance": discover_runtime().as_dict(),
         }
-        (self.output / "experiment.json").write_text(json.dumps(run_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        if self.mode == "quality" and not model_policy.approved(requested=self.model, effective=self.model):
+        if self.mode == "quality" and self.model not in set(model_policy.approved_model_ids) | set(model_policy.approved_aliases):
             record = {"status": "GEMMA_QUALITY_EVALUATION_BLOCKED", "evaluation_state": EvaluationState.CAPABILITY_BLOCKED.value, "reason": "GEMMA CERTIFICATION BLOCKED — target endpoint is not the selected model", "model": self.model, "split": self.split, "quality_metrics_authoritative": False}
             write_results(self.output, [], {**record, "case_count": 0}, "# K-Slide Model Evaluation\n\n`GEMMA CERTIFICATION BLOCKED`\n\nNon-target model runs are protocol smoke only.\n")
+            (self.output / "experiment.json").write_text(json.dumps(run_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             return record
         try:
             corpus_root = self.output / "corpus" / "artifacts"
@@ -263,8 +330,45 @@ class ModelEvaluationRunner:
                         "quality_metrics_authoritative": quality_contract,
                         "opencode": result.as_dict(),
                     })
+        raw_effective_models = [item.get("opencode", {}).get("diagnostics", {}).get("effective_model") for item in results]
+        runtime_versions = {str(item.get("opencode", {}).get("runtime_version")) for item in results if item.get("opencode", {}).get("runtime_version")}
+        canonical_effective_models: set[str] = set()
+        for effective in raw_effective_models:
+            canonical = model_policy.canonical_effective(requested=self.model, effective=effective) if effective else None
+            if canonical:
+                canonical_effective_models.add(canonical)
+        expected_effective = str(candidate_spec.get("effective_model") or "")
+        expected_canonical = model_policy.canonical_effective(requested=self.model, effective=expected_effective) if expected_effective and expected_effective.upper() != "UNSET" else None
+        effective_identity = next(iter(canonical_effective_models)) if len(canonical_effective_models) == 1 else None
+        if expected_canonical and effective_identity != expected_canonical:
+            effective_identity = None
+        expected_runtime = str(candidate_spec.get("opencode_version") or "")
+        runtime_identity = next(iter(runtime_versions)) if len(runtime_versions) == 1 else None
+        runtime_proven = bool(results) and len(runtime_versions) == 1 and (not expected_runtime or expected_runtime.upper() == "UNSET" or runtime_identity == expected_runtime)
+        authoritative_effective = bool(results) and runtime_proven and all(item.get("opencode", {}).get("diagnostics", {}).get("model_identity_proven") is True for item in results) and len(canonical_effective_models) == 1 and (expected_canonical is None or effective_identity == expected_canonical)
+        final_spec = dict(candidate_spec)
+        final_spec["effective_model"] = effective_identity or "UNSET"
+        if runtime_identity is not None:
+            final_spec["opencode_version"] = runtime_identity
+        final_deployment = candidate_deployment_fingerprint(final_spec)
+        for item in results:
+            item["subject_git_sha"] = subject_sha
+            item["deployment_fingerprint"] = final_deployment
+            item["candidate_deployment_fingerprint"] = final_deployment
+            item["effective_model"] = item.get("opencode", {}).get("diagnostics", {}).get("effective_model") or "UNSET"
+        run_manifest["deployment_fingerprint"] = final_deployment
+        run_manifest["candidate_spec"] = canonical_candidate_factors(final_spec)
+        run_manifest["effective_model"] = effective_identity or "UNSET"
+        run_manifest["runtime_identity_proven"] = runtime_proven
+        run_manifest["candidate_identity_status"] = "FINAL" if authoritative_effective else "UNPROVEN"
+        if not authoritative_effective:
+            run_manifest["deployment_fingerprint_provisional"] = provisional_deployment
+        (self.output / "experiment.json").write_text(json.dumps(run_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         summary = aggregate_model_results(results, model=self.model, split=self.split)
         summary["requested_model"] = self.model
+        summary["effective_model"] = effective_identity or "UNSET"
+        summary["effective_model_identity_proven"] = authoritative_effective
+        summary["candidate_spec"] = canonical_candidate_factors(final_spec)
         summary["configuration_hash"] = run_manifest["behavior_configuration_hash"]
         summary["behavior_configuration_hash"] = run_manifest["behavior_configuration_hash"]
         summary["experiment_plan_hash"] = run_manifest["experiment_plan_hash"]
@@ -272,8 +376,9 @@ class ModelEvaluationRunner:
         summary["held_out_fingerprint"] = manifest["held_out_fingerprint"]
         summary["repetitions"] = self.repeats
         summary["subject_git_sha"] = subject_sha
-        summary["deployment_fingerprint"] = deployment
-        summary["target_model_approved"] = model_policy.approved(requested=self.model, effective=next((item.get("opencode", {}).get("diagnostics", {}).get("effective_model") for item in results if item.get("opencode", {}).get("diagnostics", {}).get("effective_model")), None))
+        summary["deployment_fingerprint"] = final_deployment
+        summary["target_model_approved"] = authoritative_effective and model_policy.approved(requested=self.model, effective=effective_identity)
+        summary["execution_runtime_provenance"] = run_manifest["execution_runtime_provenance"]
         if summary["quality_metrics_authoritative"] and summary.get("critical_failure_count", 0):
             summary["status"] = EvaluationState.CERTIFICATION_FAIL.value
         elif summary["quality_metrics_authoritative"]:

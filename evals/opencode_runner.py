@@ -97,25 +97,21 @@ def _configured_model(opencode: str) -> str | None:
     return str(model) if isinstance(model, str) and model else None
 
 
-def _structured_model(events: list[dict[str, Any]]) -> str | None:
-    """Return model identity only from structured event fields."""
+def _structured_models(events: list[dict[str, Any]]) -> list[str]:
+    """Return every distinct structured model identity reported by OpenCode."""
 
-    keys = ("model", "model_id", "modelID", "reported_model_id")
+    values: list[str] = []
     for event in events:
         if not isinstance(event, dict):
             continue
-        for key in keys:
-            value = event.get(key)
-            if isinstance(value, str) and value:
-                return value
-        for child_key in ("data", "message", "payload", "part"):
-            child = event.get(child_key)
-            if isinstance(child, dict):
-                for key in keys:
-                    value = child.get(key)
-                    if isinstance(value, str) and value:
-                        return value
-    return None
+        candidates = [event]
+        candidates.extend(event.get(child_key) for child_key in ("data", "message", "payload", "part") if isinstance(event.get(child_key), dict))
+        for child in candidates:
+            for key in ("model", "model_id", "modelID", "reported_model_id"):
+                value = child.get(key)
+                if isinstance(value, str) and value and value not in values:
+                    values.append(value)
+    return values
 
 
 def _latest_run(root: Path) -> Path | None:
@@ -246,8 +242,9 @@ class OpenCodeEvalRunner:
             media = media_compliance(normalized)
             read_violations = _read_policy_violations(root, normalized)
             configured_model = _configured_model(self.opencode)
-            observed_model = _structured_model(raw_events)
-            effective_model = observed_model or (configured_model if configured_model == self.model else None)
+            observed_models = _structured_models(raw_events)
+            observed_model = observed_models[0] if len(observed_models) == 1 else None
+            effective_model = observed_model
             error_events = [event for raw, event in zip(raw_events, normalized) if is_error_event(event, raw)]
             structured_error_text = [json.dumps(raw.get("error"), ensure_ascii=False) for raw in raw_events if isinstance(raw, dict) and "error" in raw]
             latest_run = _latest_run(root)
@@ -283,8 +280,10 @@ class OpenCodeEvalRunner:
                 "read_policy_violations": read_violations,
                 "configured_model": configured_model,
                 "observed_model": observed_model,
+                "observed_model_ids": observed_models,
                 "effective_model": effective_model,
                 "model_identity_proven": effective_model is not None,
+                "mixed_effective_model_ids": len(observed_models) > 1,
             }
             return OpenCodeRunResult(status, mode, self.model, self.runtime_version, str(root), time.monotonic() - started, tuple(raw_events), tool_calls(normalized), forbidden, bool(media.get("read_count")) if media.get("planned") else None, final_text, artifact_count, reason, tuple(event.as_dict() for event in normalized), media, kslide_complete, False, diagnostics)
         finally:
