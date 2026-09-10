@@ -62,7 +62,9 @@ dependency skips); external OpenCode, heavy, Gemma, private, human,
 governance, and pilot gates remain unexecuted or blocked.
 
 The subsequent identity/coverage repair uses candidate-bound adapter version
-2.1. One explicit candidate-spec allowlist is shared by model evaluation,
+2.2. The 2.2 boundary adds candidate-bound multimodal execution proof and
+production dependency/ruleset provenance; 2.1 development envelopes are not
+silently migrated. One explicit candidate-spec allowlist is shared by model evaluation,
 release, engine diagnostics, security, and production verification. Host
 runtime details remain separate execution provenance. Behavior/configuration
 hashes no longer include split or sampling controls; each run has a separate

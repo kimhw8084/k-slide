@@ -68,6 +68,33 @@ The installed agent does not use model-generated shell commands for K-Slide life
 
 The current local environment reports `ollama/qwen3:14b`, not the target `google/gemma-4-31b-it`. K-Slide records that mismatch as a warning and does not certify the runtime as production-compatible. The target model is the instruction-tuned Gemma 4 31B model documented by [Google](https://ai.google.dev/gemma/docs/core/model_card_4).
 
+### Certification candidate resolution
+
+Certification-quality commands take an explicit candidate profile. Release
+tooling resolves repository-owned immutable hashes (including prompts,
+termbase, constraints, schema, policy, corpus, and OCR manifest inputs) without
+changing a declared value. To persist that resolved source-free object for
+subsequent evidence producers, use an explicitly private output path:
+
+```bash
+PYTHONPATH=src:. python -m evals.release \
+  --root . \
+  --output .k-slide-config/release-manifest.json \
+  --candidate-profile .k-slide-config/production-candidate.json \
+  --resolved-candidate-output .k-slide-config/resolved-candidate.json
+```
+
+An unresolved value remains `UNSET` and blocks any release state that requires
+it. `NOT_EXPOSED` and `NOT_APPLICABLE` are reserved for provider metadata that
+the provider genuinely cannot expose; they never resolve an ordinary required
+production field. Certification evidence and the final production manifest
+must be staged beneath the release root so the production doctor can reopen
+their relative paths; outside-root evidence is rejected. The tracked
+`evals/production-candidate.yaml` intentionally remains an incomplete
+DEVELOPMENT template. Accordingly, the public security workflow publishes
+scanner reports but marks its result `NOT_CERTIFYING` until a complete private
+candidate is supplied.
+
 ## Development checks
 
 ```bash

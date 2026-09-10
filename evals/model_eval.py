@@ -28,6 +28,7 @@ from k_slide.certification import (
     canonical_corpus_identity,
     canonical_bytes,
     load_candidate_spec,
+    resolve_candidate_spec,
     sha256_bytes,
 )
 from k_slide.runtime import discover_runtime
@@ -120,7 +121,7 @@ def _work_unit_contract(run: Path | None, artifacts: list[dict[str, Any]]) -> tu
 
 
 class ModelEvaluationRunner:
-    def __init__(self, *, model: str, output: Path, split: str = "development", formats: tuple[str, ...] = ("png",), repeats: int = 1, timeout: int = 180, mode: str = "quality", limit: int | None = None, categories: tuple[str, ...] = (), scenario_ids: tuple[str, ...] = (), configuration: dict[str, Any] | None = None, ocr_provider: str = "none", candidate_profile: Path | None = None, high_risk: bool = False):
+    def __init__(self, *, model: str, output: Path, split: str = "development", formats: tuple[str, ...] = ("png",), repeats: int = 1, timeout: int = 180, mode: str = "quality", limit: int | None = None, categories: tuple[str, ...] = (), scenario_ids: tuple[str, ...] = (), configuration: dict[str, Any] | None = None, ocr_provider: str = "none", candidate_profile: Path | None = None, high_risk: bool = False, model_policy: Any | None = None):
         self.model = model
         self.output = output
         self.split = split
@@ -136,6 +137,7 @@ class ModelEvaluationRunner:
         self.behavior_configuration = behavior_configuration(self.configuration, model=model, ocr_provider=ocr_provider)
         self.candidate_profile = candidate_profile.expanduser() if candidate_profile is not None else None
         self.high_risk = high_risk
+        self.authoritative_policy = model_policy
 
     def selected_scenarios(self) -> list[Scenario]:
         selected = scenario_specs()
@@ -174,8 +176,14 @@ class ModelEvaluationRunner:
         spec["subject_git_sha"] = subject_sha
         spec["requested_model"] = self.model
         spec["ocr_provider"] = self.ocr_provider
-        spec["model_policy"] = model_policy.as_dict()
-        spec["corpus_identity"] = corpus
+        spec = resolve_candidate_spec(
+            spec,
+            root=repo_root,
+            subject_git_sha=subject_sha,
+            model_policy=model_policy,
+            corpus=corpus,
+            require_sources=self.mode == "quality" and (self.split in {"validation", "held_out"} or self.high_risk),
+        )
         spec["behavior_configuration"] = behavior_configuration(
             spec.get("behavior_configuration") or self.behavior_configuration,
             model=self.model,
@@ -199,8 +207,8 @@ class ModelEvaluationRunner:
             return self._blocked_record(self.output, model=self.model, split=self.split, reason="high-risk evaluation requires validation protected categories, repetitions >= 5, and no filters")
         scenarios = self.selected_scenarios()
         manifest = split_manifest()
-        model_policy = load_model_policy()
         repo_root = Path(__file__).resolve().parents[1]
+        model_policy = self.authoritative_policy or load_model_policy(repo_root)
         try:
             subject_result = subprocess.run(["git", "-C", str(repo_root), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=5, check=False)
             subject_sha = subject_result.stdout.strip() if subject_result.returncode == 0 else "UNSET"
@@ -222,6 +230,10 @@ class ModelEvaluationRunner:
                 "model_policy": model_policy.as_dict(),
                 "corpus_identity": canonical_corpus_identity(manifest),
             }
+        if self.candidate_profile is not None and self.mode == "quality" and (self.split in {"validation", "held_out"} or self.high_risk):
+            unresolved = [field for field in ("effective_model", "opencode_version") if not str(candidate_spec.get(field) or "") or str(candidate_spec[field]).upper() == "UNSET"]
+            if unresolved:
+                return self._blocked_record(self.output, model=self.model, split=self.split, reason="certification candidate must be frozen before model execution: " + ", ".join(unresolved))
         # The candidate file is authoritative for certifying behavior.  Keep
         # the persisted experiment contract identical to the candidate inputs
         # so changing a material setting cannot leave model evidence bound to
@@ -277,7 +289,7 @@ class ModelEvaluationRunner:
             write_results(self.output, [], {**record, "case_count": 0}, "# K-Slide Model Evaluation\n\n`CAPABILITY_BLOCK`\n\n" + str(exc) + "\n")
             return record
         results: list[dict[str, Any]] = []
-        runner = OpenCodeEvalRunner(model=self.model, timeout_seconds=self.timeout, ocr_policy=self.ocr_provider)
+        runner = OpenCodeEvalRunner(model=self.model, timeout_seconds=self.timeout, ocr_policy=self.ocr_provider, policy=model_policy, policy_root=repo_root)
         for scenario in scenarios:
             for format_name in self.formats:
                 artifact = _artifact_path(corpus_root, scenario.scenario_id, format_name)

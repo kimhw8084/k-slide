@@ -18,7 +18,7 @@ from .generator import DEFAULT_VARIANT, generate_artifacts
 from .scenarios import scenario_specs, split_manifest, write_specs
 from .scorers import aggregate_engine_scores, score_artifact, score_engine_case
 from k_slide import __version__
-from k_slide.certification import CANDIDATE_SPEC_SCHEMA_VERSION, EvidenceValidationError, candidate_deployment_fingerprint, canonical_behavior_configuration, canonical_candidate_factors, canonical_corpus_identity, load_candidate_spec
+from k_slide.certification import CANDIDATE_SPEC_SCHEMA_VERSION, EvidenceValidationError, candidate_deployment_fingerprint, canonical_behavior_configuration, canonical_candidate_factors, canonical_corpus_identity, load_candidate_spec, resolve_candidate_spec
 from k_slide.model_policy import load_model_policy
 from k_slide.runtime import discover_runtime
 
@@ -96,8 +96,14 @@ def main(argv: list[str] | None = None) -> int:
         behavior = dict(candidate.get("behavior_configuration") or {})
         behavior["ocr_provider"] = args.ocr_provider
         candidate["behavior_configuration"] = canonical_behavior_configuration(behavior)
-        candidate["model_policy"] = load_model_policy(repo_root).as_dict()
-        candidate["corpus_identity"] = corpus
+        candidate = resolve_candidate_spec(
+            candidate,
+            root=repo_root,
+            subject_git_sha=subject_sha,
+            model_policy=load_model_policy(repo_root),
+            corpus=corpus,
+            require_sources=args.split in {"validation", "held_out"},
+        )
         deployment = candidate_deployment_fingerprint(candidate)
     except (EvidenceValidationError, OSError, UnicodeError, ValueError, TypeError, json.JSONDecodeError) as exc:
         blocked = {"evaluation_tier": "synthetic_engine_evidence", "status": "CANDIDATE_PROFILE_BLOCKED", "subject_git_sha": subject_sha, "split": args.split, "reason": str(exc), "model_evaluated": False, "semantic_translation_scored": False, "generated_at": datetime.now(timezone.utc).isoformat(), "results": []}

@@ -21,6 +21,8 @@ The certified profile must bind `subject_git_sha`,
 `deployment_fingerprint`, `certification_fingerprint`,
 `release_manifest`, and `release_manifest_sha256` to an evidence-derived
 release manifest. These values are release outputs, not hand-edited readiness
-flags. Runtime-enforced limits are not stored as decorative profile fields;
+flags. Certifying evidence and that manifest must remain under the release
+root with relative paths so a deployed doctor can re-open and re-derive every
+machine envelope. Runtime-enforced limits are not stored as decorative profile fields;
 measured SLOs remain in `production-slo.yaml` until the deployment wires them
 to a managed timeout policy.

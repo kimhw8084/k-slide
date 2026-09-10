@@ -40,21 +40,23 @@ The lightweight local SBOM remains explicitly development-only. Certified
 release generation requires a real CycloneDX environment/image SBOM produced
 by `cyclonedx-py` in the approved release environment.
 
-The current adapter identity is 2.1. Model evidence now separates the stable
+The current adapter identity is 2.2. Model evidence now separates the stable
 deployment/behavior identity from the experiment-plan identity. Validation and
 held-out evidence must cover the complete frozen scenario × format × repeat
 matrix; high-risk evidence uses `scenario_id + format` and evaluates every
 declared group. One canonical candidate specification binds all certifying
 producers; execution-host provenance remains separate. A candidate profile
 describes deployment inputs and need not pre-claim the release state later
-derived from its evidence.
+derived from its evidence. Model evidence also proves actual multimodal media
+execution, while security evidence binds a staged hash of the reviewed local
+Semgrep ruleset and the exact production constraints subject.
 
 ## Executed evidence
 
 ### Tests and static checks
 
-- Base interpreter: **148 tests passed, 2 optional dependency skips**.
-- Dependency-backed interpreter (`/tmp/k-slide-phase32-venv`): **148 tests
+- Base interpreter: **154 tests passed, 2 optional dependency skips**.
+- Dependency-backed interpreter (`/tmp/k-slide-phase32-venv`): **154 tests
   passed, no optional dependency skips** in this closure pass.
 - `compileall`: **PASS**.
 - `git diff --check`: **PASS** before implementation commit.

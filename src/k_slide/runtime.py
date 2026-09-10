@@ -34,6 +34,7 @@ class RuntimeMetadata:
     image_preprocessing_settings: dict[str, Any]
     model_compatibility: str
     discovery_warnings: list[str]
+    model_revision: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -159,4 +160,5 @@ def discover_runtime() -> RuntimeMetadata:
         image_preprocessing_settings={"source": "not_yet_configured"},
         model_compatibility=details["model_compatibility"],
         discovery_warnings=details["warnings"],
+        model_revision=provider_config.get("revision") if isinstance(provider_config.get("revision"), str) else None,
     )

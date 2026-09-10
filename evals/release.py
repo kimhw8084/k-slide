@@ -19,9 +19,11 @@ from k_slide.certification import (
     canonical_candidate_factors,
     canonical_corpus_identity,
     certification_fingerprint,
+    candidate_completeness,
     evidence_hashes,
     load_evidence,
     load_candidate_spec,
+    resolve_candidate_spec,
     sha256_file,
 )
 from k_slide.model_policy import load_model_policy
@@ -136,8 +138,7 @@ def _candidate_spec_for_release(root: Path, *, candidate_profile: Path | None, s
     candidate.setdefault("kslide_version", __version__)
     candidate.setdefault("effective_model", "UNSET")
     candidate.setdefault("ocr_provider", "none")
-    candidate["model_policy"] = policy.as_dict()
-    candidate["corpus_identity"] = canonical_corpus_identity(corpus)
+    candidate = resolve_candidate_spec(candidate, root=root, subject_git_sha=subject, model_policy=policy, corpus=corpus, require_sources=require_identity)
     if candidate.get("behavior_configuration") is None:
         candidate["behavior_configuration"] = {}
     if require_identity:
@@ -260,8 +261,12 @@ def _state_requirements(state: str) -> tuple[str, ...]:
     }[state]
 
 
-def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, root: Path, policy: Any, deployment_fp: str) -> list[str]:
+def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, root: Path, policy: Any, deployment_fp: str, candidate_spec: dict[str, Any] | None = None) -> list[str]:
     blockers = [f"missing validated {item} evidence" for item in _state_requirements(state) if item not in records]
+    if state != ReleaseState.DEVELOPMENT.value and candidate_spec is None:
+        blockers.append("candidate deployment specification is missing")
+    elif candidate_spec is not None:
+        blockers.extend(f"candidate field is unresolved: {field}" for field in candidate_completeness(candidate_spec, state))
     heavy = records.get("heavy_runtime")
     if state in {ReleaseState.SYNTHETIC_PRODUCTION_CANDIDATE.value, ReleaseState.INTERNAL_VALIDATED.value, ReleaseState.PILOT_APPROVED.value, ReleaseState.PRODUCTION_CERTIFIED.value} and heavy and heavy["payload"].get("full_engine_pass") is not True:
         blockers.append("full heavy engine evidence is required beyond GEMMA_EVAL_READY")
@@ -286,7 +291,7 @@ def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, 
     return sorted(set(blockers))
 
 
-def derive_release_state(requested_state: str, *, records: dict[str, dict[str, Any]], root: Path, policy: Any, deployment_fp: str) -> tuple[str, list[str]]:
+def derive_release_state(requested_state: str, *, records: dict[str, dict[str, Any]], root: Path, policy: Any, deployment_fp: str, candidate_spec: dict[str, Any] | None = None) -> tuple[str, list[str]]:
     """Return the highest state supported up to the requested maximum."""
 
     ordered = list(REQUESTABLE_STATES)
@@ -294,11 +299,11 @@ def derive_release_state(requested_state: str, *, records: dict[str, dict[str, A
         return ReleaseState.DEVELOPMENT.value, [f"release state is not requestable: {requested_state}"]
     available = ReleaseState.DEVELOPMENT.value
     for state in ordered[1:]:
-        blockers = _state_specific_blockers(state, records, root=root, policy=policy, deployment_fp=deployment_fp)
+        blockers = _state_specific_blockers(state, records, root=root, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate_spec)
         if blockers:
             break
         available = state
-    requested_blockers = _state_specific_blockers(requested_state, records, root=root, policy=policy, deployment_fp=deployment_fp)
+    requested_blockers = _state_specific_blockers(requested_state, records, root=root, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate_spec)
     if ordered.index(requested_state) > ordered.index(available):
         return available, sorted(set(requested_blockers + [f"requested {requested_state} exceeds evidence-derived maximum {available}"]))
     return requested_state, requested_blockers
@@ -310,13 +315,35 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
     policy = load_model_policy(root)
     split = split_manifest()
     corpus = canonical_corpus_identity({"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]})
-    candidate, subject = _candidate_spec_for_release(root, candidate_profile=candidate_profile, subject_sha=subject_sha, model=model, policy=policy, corpus=corpus)
     evidence_paths = evidence_paths or {}
-    candidate = _adopt_proven_effective_model(candidate, evidence_paths)
-    deployment_fp = candidate_deployment_fingerprint(candidate)
-    records, evidence_errors = _load_records(evidence_paths, subject_sha=subject, deployment_fp=deployment_fp, repository_root=root, candidate_spec=candidate, require_candidate_binding=candidate_profile is not None)
     requested = requested_state or state
-    derived, blockers = derive_release_state(requested, records=records, root=root, policy=policy, deployment_fp=deployment_fp)
+    candidate, subject = _candidate_spec_for_release(root, candidate_profile=candidate_profile, subject_sha=subject_sha, model=model, policy=policy, corpus=corpus, require_identity=requested != ReleaseState.DEVELOPMENT.value)
+    if requested == ReleaseState.DEVELOPMENT.value:
+        candidate = _adopt_proven_effective_model(candidate, evidence_paths)
+    completeness_blockers = candidate_completeness(candidate, requested)
+    if completeness_blockers:
+        raise EvidenceValidationError("candidate is incomplete for " + requested + ": " + ", ".join(completeness_blockers))
+    def release_relative(path: Path, label: str) -> str:
+        resolved = path.expanduser().resolve()
+        try:
+            return resolved.relative_to(root).as_posix()
+        except ValueError as exc:
+            raise EvidenceValidationError(f"release {label} must be staged beneath the release root") from exc
+
+    # Validate portability before opening any evidence.  A manifest must never
+    # disclose or depend on a private absolute evidence path.
+    for evidence_type, evidence_path in evidence_paths.items():
+        release_relative(evidence_path, f"evidence {evidence_type}")
+    deployment_fp = candidate_deployment_fingerprint(candidate)
+    records, evidence_errors = _load_records(
+        evidence_paths,
+        subject_sha=subject,
+        deployment_fp=deployment_fp,
+        repository_root=root,
+        candidate_spec=candidate,
+        require_candidate_binding=requested != ReleaseState.DEVELOPMENT.value or candidate_profile is not None,
+    )
+    derived, blockers = derive_release_state(requested, records=records, root=root, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate)
     if evidence_errors:
         blockers.extend(evidence_errors)
     champion, champion_hash, champion_blockers = _champion(root, records=records, policy=policy, deployment_fp=deployment_fp) if derived in {ReleaseState.SYNTHETIC_PRODUCTION_CANDIDATE.value, ReleaseState.INTERNAL_VALIDATED.value, ReleaseState.PILOT_APPROVED.value, ReleaseState.PRODUCTION_CERTIFIED.value} else (None, None, [])
@@ -339,14 +366,10 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
         manifest_ocr_asset = Path(str(candidate["ocr_asset_manifest"]))
         if not manifest_ocr_asset.is_absolute():
             manifest_ocr_asset = root / manifest_ocr_asset
-    def safe_relative(path: Path | None) -> str | None:
+    def safe_relative(path: Path | None, label: str) -> str | None:
         if path is None:
             return None
-        candidate = path.expanduser().resolve()
-        try:
-            return candidate.relative_to(root).as_posix()
-        except ValueError:
-            return candidate.name
+        return release_relative(path, label)
     manifest: dict[str, Any] = {
         "schema_version": "1.0",
         "release_state": derived,
@@ -360,12 +383,12 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
         "runtime_provenance": {"opencode_version": runtime.opencode_version, "model": runtime.reported_model_id, "provider": runtime.provider, "vision_support": runtime.vision_support},
         "runtime": {"opencode_version": candidate.get("opencode_version"), "model": candidate.get("effective_model"), "provider": candidate.get("provider"), "vision_support": candidate.get("vision_settings")},
         "model_policy": policy.as_dict(),
-        "ocr": {"provider": candidate.get("ocr_provider"), "asset_manifest": safe_relative(manifest_ocr_asset), "asset_manifest_sha256": candidate.get("ocr_asset_manifest_sha256") or _sha256(manifest_ocr_asset)},
+        "ocr": {"provider": candidate.get("ocr_provider"), "asset_manifest": safe_relative(manifest_ocr_asset, "OCR asset manifest"), "asset_manifest_sha256": candidate.get("ocr_asset_manifest_sha256") or _sha256(manifest_ocr_asset)},
         "schemas": {"translation_patch": "1.0", "evidence_ir": "1.0", "slide_ir": "1.0"},
         "dataset": {"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]},
         "evidence_hashes": hashes,
         "evidence_envelope_hashes": envelope_hashes,
-        "evidence_paths": {key: safe_relative(value) for key, value in evidence_paths.items()},
+        "evidence_paths": {key: safe_relative(value, f"evidence {key}") for key, value in evidence_paths.items()},
         "champion_hash": champion_hash,
         "constraints_file": "constraints-production.txt",
         "constraints_sha256": _sha256(root / "constraints-production.txt"),
@@ -394,6 +417,9 @@ def materialize_certified_profile(root: Path, *, candidate_spec: dict[str, Any],
     if not isinstance(finalized, dict):
         raise EvidenceValidationError("release manifest has no finalized candidate specification")
     candidate.update(finalized)
+    missing = candidate_completeness(candidate, ReleaseState.PRODUCTION_CERTIFIED.value)
+    if missing:
+        raise EvidenceValidationError("finalized candidate is incomplete: " + ", ".join(missing))
     dataset = manifest.get("dataset")
     if isinstance(dataset, dict):
         candidate["corpus_identity"] = canonical_corpus_identity(dataset)
@@ -441,6 +467,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--candidate-profile", type=Path, help="Explicit candidate deployment specification")
+    parser.add_argument("--resolved-candidate-output", type=Path, help="Persist centrally resolved candidate inputs for subsequent evidence producers")
     parser.add_argument("--certified-profile-output", type=Path, help="Materialize the certified production profile after the final manifest is written")
     parser.add_argument("--sbom", type=Path)
     parser.add_argument("--generate-production-sbom", action="store_true", help="Generate the required production environment SBOM with cyclonedx-py")
@@ -476,6 +503,18 @@ def main(argv: list[str] | None = None) -> int:
     if requested != ReleaseState.DEVELOPMENT.value and args.candidate_profile is None and not (root / ".k-slide-config" / "production-candidate.json").is_file():
         print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": ["certification-quality release requires --candidate-profile"]}, ensure_ascii=False, indent=2))
         return 2
+    if args.resolved_candidate_output:
+        try:
+            resolved_output = args.resolved_candidate_output.expanduser()
+            resolved_output.parent.mkdir(parents=True, exist_ok=True)
+            resolved_output.write_text(json.dumps(candidate, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        except (OSError, TypeError, ValueError) as exc:
+            print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": [f"resolved candidate could not be persisted: {exc}"]}, ensure_ascii=False, indent=2))
+            return 2
+    completeness_blockers = candidate_completeness(candidate, requested)
+    if completeness_blockers:
+        print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": ["candidate is incomplete for " + requested + ": " + ", ".join(completeness_blockers)]}, ensure_ascii=False, indent=2))
+        return 2
     if args.generate_production_sbom:
         try:
             build_production_sbom(root, root / ".k-slide-config" / "production-sbom.json")
@@ -483,10 +522,12 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"status": "BLOCKED", "reasons": [str(exc)]}, ensure_ascii=False, indent=2))
             return 2
     paths = _evidence_arguments(args)
-    candidate = _adopt_proven_effective_model(candidate, paths)
+    # A certifying candidate is frozen before any evidence is loaded.  Model
+    # evidence may only prove the already-declared effective identity; it may
+    # not opportunistically rewrite this candidate during release.
     deployment_fp = candidate_deployment_fingerprint(candidate)
     records, evidence_errors = _load_records(paths, subject_sha=subject, deployment_fp=deployment_fp, repository_root=root, candidate_spec=candidate, require_candidate_binding=requested != ReleaseState.DEVELOPMENT.value or args.candidate_profile is not None)
-    derived, blockers = derive_release_state(requested, records=records, root=root, policy=policy, deployment_fp=deployment_fp)
+    derived, blockers = derive_release_state(requested, records=records, root=root, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate)
     blockers.extend(evidence_errors)
     if args.validation_result and "model_validation" not in paths:
         blockers.append("raw --validation-result is not certification evidence; provide --validation-evidence envelope")
@@ -502,6 +543,12 @@ def main(argv: list[str] | None = None) -> int:
     if derived == ReleaseState.PRODUCTION_CERTIFIED.value and args.certified_profile_output is None:
         print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": derived, "reasons": ["PRODUCTION_CERTIFIED requires --certified-profile-output"]}, ensure_ascii=False, indent=2))
         return 2
+    if derived == ReleaseState.PRODUCTION_CERTIFIED.value:
+        try:
+            args.output.expanduser().resolve().relative_to(root)
+        except ValueError:
+            print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": derived, "reasons": ["PRODUCTION_CERTIFIED manifest must be staged beneath the release root"]}, ensure_ascii=False, indent=2))
+            return 2
     manifest = build_release_manifest(root, requested_state=requested, model=args.model, ocr_asset_manifest=args.ocr_asset_manifest, evidence_paths=paths, subject_sha=subject, candidate_profile=args.candidate_profile)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -509,6 +556,15 @@ def main(argv: list[str] | None = None) -> int:
         try:
             materialize_certified_profile(root, candidate_spec=candidate, manifest=manifest, manifest_path=args.output, output=args.certified_profile_output)
         except (EvidenceValidationError, OSError, ValueError) as exc:
+            # The manifest is only valid together with its materialized
+            # certified profile.  Do not leave a seemingly usable partial
+            # certification after a post-write filesystem failure.
+            try:
+                args.output.unlink(missing_ok=True)
+                if args.certified_profile_output:
+                    args.certified_profile_output.unlink(missing_ok=True)
+            except OSError:
+                pass
             print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": manifest["release_state"], "reasons": [str(exc)]}, ensure_ascii=False, indent=2))
             return 2
     if args.sbom:

@@ -56,13 +56,15 @@ class ModelPolicy:
     def approved(self, *, requested: str | None, effective: str | None) -> bool:
         if not requested or not effective:
             return False
-        approved = set(self.approved_model_ids) | set(self.approved_aliases)
-        if requested not in approved or effective not in approved:
-            return False
         if requested in self.approved_model_ids:
-            return effective == requested or effective in self.approved_model_ids
+            # Separately approved canonical IDs are not interchangeable.  A
+            # direct request must resolve to that exact deployment unless an
+            # explicit alias mapping says otherwise.
+            return effective == requested
+        if requested not in self.approved_aliases:
+            return False
         targets = dict(self.approved_alias_targets).get(requested, ())
-        return effective in targets or effective == requested
+        return effective in targets
 
     def canonical_effective(self, *, requested: str | None, effective: str | None) -> str | None:
         """Return the policy's canonical effective ID for one approved pair."""
@@ -72,7 +74,7 @@ class ModelPolicy:
         if effective in self.approved_model_ids:
             return effective
         targets = dict(self.approved_alias_targets).get(str(requested), ())
-        return targets[0] if targets else effective
+        return effective if effective in targets else None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -103,9 +105,25 @@ def load_model_policy(root: Path | None = None) -> ModelPolicy:
             return ModelPolicy.from_mapping(value)
         mapping: dict[str, Any] = {}
         current_list: str | None = None
+        current_map: str | None = None
+        current_alias: str | None = None
         for raw in text.splitlines():
             line = raw.split("#", 1)[0].rstrip()
             if not line.strip():
+                continue
+            indent = len(line) - len(line.lstrip())
+            content = line.strip()
+            if current_map == "approved_alias_targets" and current_alias and indent >= 4 and content.startswith("- "):
+                mapping["approved_alias_targets"][current_alias].append(content[2:].strip().strip("'\""))
+                continue
+            if current_map == "approved_alias_targets" and indent == 2 and ":" in content:
+                alias, raw_target = (item.strip() for item in content.split(":", 1))
+                if raw_target:
+                    mapping["approved_alias_targets"][alias] = [raw_target.strip("'\"")]
+                else:
+                    mapping["approved_alias_targets"][alias] = []
+                current_alias = alias
+                current_list = None
                 continue
             if line.startswith("  - ") and current_list:
                 mapping.setdefault(current_list, []).append(line[4:].strip().strip("'\""))
@@ -114,9 +132,13 @@ def load_model_policy(root: Path | None = None) -> ModelPolicy:
                 raise ValueError("invalid model policy line")
             key, raw_value = (item.strip() for item in line.split(":", 1))
             if not raw_value:
-                current_list = key
-                mapping[key] = []
+                current_map = key if key == "approved_alias_targets" else None
+                current_alias = None
+                current_list = None if current_map else key
+                mapping[key] = {} if current_map else []
             else:
+                current_map = None
+                current_alias = None
                 current_list = None
                 mapping[key] = raw_value.strip().strip("'\"")
         return ModelPolicy.from_mapping(mapping)

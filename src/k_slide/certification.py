@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-EVIDENCE_SCHEMA_VERSION = "2.1"
+EVIDENCE_SCHEMA_VERSION = "2.2"
 EVIDENCE_TYPES = (
     "runtime",
     "heavy_runtime",
@@ -46,6 +46,14 @@ _HEX64 = set("0123456789abcdef")
 # only fields that may affect the deployment fingerprint.  Paths are accepted
 # as lookup hints but their content hash, never the path, is fingerprinted.
 CANDIDATE_SPEC_SCHEMA_VERSION = "1.0"
+UNSET_VALUE = "UNSET"
+# Runtime discovery already uses ``not_exposed_by_runtime`` for structured
+# fields.  These scalar values make the same distinction explicit in a
+# frozen candidate specification; they are valid only for provider metadata
+# that the deployment actually cannot expose.
+NOT_EXPOSED_VALUE = "NOT_EXPOSED"
+NOT_APPLICABLE_VALUE = "NOT_APPLICABLE"
+PROVIDER_DEFAULTS_FROZEN = "provider_defaults_frozen"
 CANDIDATE_INPUT_FIELDS = (
     "candidate_spec_version",
     "subject_git_sha",
@@ -151,6 +159,31 @@ _EXPERIMENT_ONLY_FIELDS = frozenset({
 })
 _BEHAVIOR_ALIASES = {"repair": "repair_policy", "normalization": "normalization_behavior", "vision": "vision_settings"}
 _CANDIDATE_ALIASES = {"model": "requested_model", "model_id": "requested_model", **_BEHAVIOR_ALIASES}
+
+_CANDIDATE_COMPLETENESS_FIELDS: dict[str, tuple[str, ...]] = {
+    "RUNTIME_READY": ("subject_git_sha", "kslide_version", "opencode_version"),
+    "GEMMA_EVAL_READY": (
+        "subject_git_sha", "kslide_version", "opencode_version", "ocr_provider",
+        "python_version", "paddle_version", "paddleocr_version", "libreoffice_version",
+        "ocr_asset_manifest", "ocr_asset_manifest_sha256",
+    ),
+    "SYNTHETIC_PRODUCTION_CANDIDATE": (
+        "subject_git_sha", "kslide_version", "opencode_version", "requested_model", "effective_model", "provider",
+        "vision_settings", "context_configuration", "image_preprocessing_settings", "prompt_identity",
+        "generation_settings", "normalization_behavior", "repair_policy", "ocr_provider", "model_policy",
+        "schema_versions", "corpus_identity", "behavior_configuration",
+    ),
+}
+_PRODUCTION_COMPLETENESS_FIELDS = (
+    "subject_git_sha", "kslide_version", "opencode_version", "requested_model", "effective_model", "provider",
+    "provider_backend", "model_revision", "quantization_or_dtype", "vision_settings", "context_configuration",
+    "image_preprocessing_settings", "prompt_identity", "generation_settings", "ocr_provider", "ocr_asset_manifest",
+    "ocr_asset_manifest_sha256", "normalization_behavior", "repair_policy", "python_version", "paddle_version",
+    "paddleocr_version", "libreoffice_version", "termbase_identity", "termbase_version", "termbase_hash", "model_policy",
+    "schema_versions", "retention_days", "tenant_isolation", "network_egress", "corpus_identity", "constraints_sha256",
+    "behavior_configuration",
+)
+_OPTIONAL_PROVIDER_METADATA = frozenset({"provider_backend", "model_revision", "quantization_or_dtype"})
 
 # Deployment identity is deliberately an allowlist.  Sampling controls and
 # certification outputs must never become part of the behavior identity merely
@@ -302,20 +335,37 @@ def _normalize_candidate_mapping(value: dict[str, Any], *, strict: bool = False)
                 raise EvidenceValidationError(f"unknown candidate profile field: {raw_key}")
             continue
         if key in normalized and normalized[key] != raw_value:
-            raise EvidenceValidationError(f"conflicting candidate profile aliases: {raw_key}")
+            if _is_unset(normalized[key]):
+                normalized[key] = raw_value
+            elif _is_unset(raw_value):
+                continue
+            else:
+                raise EvidenceValidationError(f"conflicting candidate profile aliases: {raw_key}")
         normalized[key] = raw_value
     behavior = dict(normalized.get("behavior_configuration") or {})
     for key in _BEHAVIOR_FIELDS | set(_BEHAVIOR_ALIASES):
         if key in source_value:
             canonical = _BEHAVIOR_ALIASES.get(key, key)
             if canonical in behavior and behavior[canonical] != source_value[key]:
-                raise EvidenceValidationError(f"conflicting candidate behavior aliases: {key}")
-            behavior[canonical] = source_value[key]
+                if _is_unset(behavior[canonical]):
+                    behavior[canonical] = source_value[key]
+                elif _is_unset(source_value[key]):
+                    continue
+                else:
+                    raise EvidenceValidationError(f"conflicting candidate behavior aliases: {key}")
+            else:
+                behavior[canonical] = source_value[key]
     if "requested_model" in normalized:
         behavior.setdefault("model", normalized["requested_model"])
     if "ocr_provider" in normalized:
         behavior.setdefault("ocr_provider", normalized["ocr_provider"])
     normalized["behavior_configuration"] = _canonical_behavior_configuration(behavior, strict=strict)
+    if isinstance(normalized.get("model_policy"), dict):
+        from .model_policy import ModelPolicy
+
+        normalized["model_policy"] = ModelPolicy.from_mapping(normalized["model_policy"]).as_dict()
+    if isinstance(normalized.get("corpus_identity"), dict):
+        normalized["corpus_identity"] = canonical_corpus_identity(normalized["corpus_identity"])
     return normalized
 
 
@@ -341,6 +391,193 @@ def load_candidate_spec(path: Path, *, root: Path | None = None, require_identit
             if not str(value.get(field) or "") or str(value[field]).upper() == "UNSET":
                 raise EvidenceValidationError(f"candidate profile must declare {field}")
     return value
+
+
+def _is_unset(value: Any) -> bool:
+    return value is None or (isinstance(value, str) and value.strip().upper() == UNSET_VALUE)
+
+
+def _resolved_value(value: Any, *, field: str, allow_not_exposed: bool = False, _nested: bool = False) -> bool:
+    if _is_unset(value):
+        return False
+    if isinstance(value, str):
+        if value in {NOT_EXPOSED_VALUE, NOT_APPLICABLE_VALUE}:
+            return allow_not_exposed and field in _OPTIONAL_PROVIDER_METADATA
+        return bool(value.strip())
+    if isinstance(value, dict):
+        if not value:
+            return _nested
+        status = str(value.get("status") or "")
+        if status in {NOT_EXPOSED_VALUE, NOT_APPLICABLE_VALUE}:
+            return allow_not_exposed and field in _OPTIONAL_PROVIDER_METADATA
+        if field == "generation_settings" and value.get("source") == PROVIDER_DEFAULTS_FROZEN:
+            return value.get("resolved") is not False
+        return all(_resolved_value(item, field=field, allow_not_exposed=False, _nested=True) for item in value.values())
+    if isinstance(value, (list, tuple, set)):
+        return all(_resolved_value(item, field=field, allow_not_exposed=False, _nested=True) for item in value)
+    return True
+
+
+def _nested_hash(value: Any) -> str | None:
+    if not isinstance(value, dict):
+        return None
+    for key in ("hash", "sha256", "tree_sha256"):
+        raw = value.get(key)
+        if not _is_unset(raw):
+            return str(raw)
+    return None
+
+
+def _bind_value(result: dict[str, Any], field: str, actual: Any) -> None:
+    if actual is None:
+        return
+    current = result.get(field)
+    if _is_unset(current):
+        result[field] = actual
+    elif current != actual:
+        raise EvidenceValidationError(f"candidate {field} disagrees with deterministic repository input")
+
+
+def _bind_nested_hash(result: dict[str, Any], field: str, actual: str | None) -> None:
+    if actual is None:
+        return
+    current = _nested_hash(result.get(field))
+    if current is not None and current.lower() != actual.lower():
+        raise EvidenceValidationError(f"candidate {field} disagrees with deterministic repository input")
+    if current is None:
+        nested = dict(result.get(field) or {})
+        nested["hash"] = actual
+        result[field] = nested
+
+
+def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subject_git_sha: str | None = None, model_policy: Any | None = None, corpus: dict[str, Any] | None = None, require_sources: bool = False) -> dict[str, Any]:
+    """Resolve repository-owned candidate inputs once before certification.
+
+    Explicit values are never overwritten.  When an immutable repository
+    source is present, an explicit digest must match it.  Certification
+    callers set ``require_sources`` so a declared digest cannot stand in for
+    an unavailable local source.
+    """
+
+    root = root.expanduser().resolve()
+    result = _normalize_candidate_mapping(dict(candidate_spec), strict=True)
+    result.setdefault("candidate_spec_version", CANDIDATE_SPEC_SCHEMA_VERSION)
+    from . import __version__
+
+    _bind_value(result, "kslide_version", __version__)
+    _bind_value(result, "subject_git_sha", subject_git_sha)
+    constraints = root / "constraints-production.txt"
+    if constraints.is_file() and not constraints.is_symlink():
+        _bind_value(result, "constraints_sha256", sha256_file(constraints))
+    elif require_sources and not _is_unset(result.get("constraints_sha256")):
+        raise EvidenceValidationError("candidate constraints-production.txt is unavailable for verification")
+    prompt_hash = _tree_hash(root / "prompts")
+    if require_sources and prompt_hash is None and (not _is_unset(result.get("prompt_hash")) or _nested_hash(result.get("prompt_identity")) is not None):
+        raise EvidenceValidationError("candidate prompt tree is unavailable for verification")
+    _bind_nested_hash(result, "prompt_identity", prompt_hash)
+    if prompt_hash is not None:
+        _bind_value(result, "prompt_hash", prompt_hash)
+    termbase_hash = _tree_hash(root / "termbase")
+    if require_sources and termbase_hash is None and (not _is_unset(result.get("termbase_hash")) or _nested_hash(result.get("termbase_identity")) is not None):
+        raise EvidenceValidationError("candidate termbase is unavailable for verification")
+    _bind_nested_hash(result, "termbase_identity", termbase_hash)
+    if termbase_hash is not None:
+        _bind_value(result, "termbase_hash", termbase_hash)
+    if model_policy is not None:
+        actual_policy = model_policy.as_dict() if hasattr(model_policy, "as_dict") else model_policy
+        current_policy = result.get("model_policy")
+        from .model_policy import ModelPolicy
+
+        if isinstance(actual_policy, dict):
+            actual_policy = ModelPolicy.from_mapping(actual_policy).as_dict()
+        if isinstance(current_policy, dict):
+            current_policy = ModelPolicy.from_mapping(current_policy).as_dict()
+        if _is_unset(current_policy) or current_policy == {}:
+            result["model_policy"] = actual_policy
+        elif current_policy != actual_policy:
+            raise EvidenceValidationError("candidate model_policy disagrees with authoritative policy")
+        else:
+            result["model_policy"] = current_policy
+    if corpus is not None:
+        actual_corpus = canonical_corpus_identity(corpus)
+        current_corpus = result.get("corpus_identity")
+        if _is_unset(current_corpus) or current_corpus == {} or current_corpus == canonical_corpus_identity(None):
+            result["corpus_identity"] = actual_corpus
+        elif canonical_corpus_identity(current_corpus) != actual_corpus:
+            raise EvidenceValidationError("candidate corpus identity disagrees with frozen corpus")
+    raw_manifest = result.get("ocr_asset_manifest")
+    if not _is_unset(raw_manifest):
+        manifest = _resolve_candidate_path(root, str(raw_manifest))
+        if manifest.is_file() and not manifest.is_symlink():
+            _bind_value(result, "ocr_asset_manifest_sha256", sha256_file(manifest))
+        elif require_sources:
+            raise EvidenceValidationError("candidate OCR asset manifest is unavailable for verification")
+    behavior = dict(result.get("behavior_configuration") or {})
+    for field, actual in (("prompt_hash", prompt_hash), ("termbase_hash", termbase_hash)):
+        if actual is not None and field in behavior:
+            if _is_unset(behavior[field]):
+                behavior[field] = actual
+            elif behavior[field] != actual:
+                raise EvidenceValidationError(f"candidate behavior {field} disagrees with deterministic repository input")
+    result["behavior_configuration"] = _canonical_behavior_configuration(behavior, strict=True)
+    return result
+
+
+def _hash_field_resolved(candidate: dict[str, Any], field: str, nested_field: str | None = None) -> bool:
+    value = candidate.get(field)
+    if not _resolved_value(value, field=field):
+        return False
+    raw = _nested_hash(value) if nested_field else value
+    if raw is None:
+        return False
+    try:
+        _require_hex(raw, field)
+    except EvidenceValidationError:
+        return False
+    return True
+
+
+def candidate_completeness(candidate_spec: dict[str, Any], state: str) -> list[str]:
+    """Return unresolved candidate inputs for a requested release state."""
+
+    if state in {"DEVELOPMENT", "CERTIFICATION_STALE"}:
+        return []
+    fields = _CANDIDATE_COMPLETENESS_FIELDS.get(state, _PRODUCTION_COMPLETENESS_FIELDS)
+    missing: list[str] = []
+    for field in fields:
+        allow_not_exposed = field in _OPTIONAL_PROVIDER_METADATA
+        if field == "subject_git_sha":
+            raw_subject = str(candidate_spec.get(field) or "")
+            valid = len(raw_subject) == 40 and not (set(raw_subject.lower()) - set("0123456789abcdef"))
+        elif field == "prompt_identity":
+            identity = candidate_spec.get(field)
+            identity_version = identity.get("version") if isinstance(identity, dict) else None
+            valid = _hash_field_resolved(candidate_spec, field, nested_field="hash") and (
+                _resolved_value(identity_version, field=field) or _resolved_value(candidate_spec.get("prompt_version"), field=field)
+            )
+        elif field == "ocr_asset_manifest_sha256" or field == "constraints_sha256" or field == "termbase_hash":
+            valid = _hash_field_resolved(candidate_spec, field)
+        elif field == "termbase_identity":
+            valid = _hash_field_resolved(candidate_spec, field, nested_field="hash")
+        else:
+            valid = _resolved_value(candidate_spec.get(field), field=field, allow_not_exposed=allow_not_exposed)
+        if not valid:
+            missing.append(field)
+    if state in {"GEMMA_EVAL_READY", "SYNTHETIC_PRODUCTION_CANDIDATE"} and candidate_spec.get("ocr_provider") == "paddle":
+        for field in ("ocr_asset_manifest", "ocr_asset_manifest_sha256"):
+            if field not in missing and not _resolved_value(candidate_spec.get(field), field=field):
+                missing.append(field)
+    if state == "PRODUCTION_CERTIFIED" and candidate_spec.get("ocr_provider") != "paddle":
+        missing.append("ocr_provider")
+    if state == "PRODUCTION_CERTIFIED":
+        retention = candidate_spec.get("retention_days")
+        if isinstance(retention, bool) or not isinstance(retention, int) or retention <= 0:
+            missing.append("retention_days")
+        if candidate_spec.get("tenant_isolation") != "workspace_per_session":
+            missing.append("tenant_isolation")
+        if candidate_spec.get("network_egress") != "approved_inference_only":
+            missing.append("network_egress")
+    return sorted(set(missing))
 
 
 def _resolve_candidate_path(root: Path, raw: str) -> Path:
@@ -403,12 +640,12 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
     requirements: dict[str, tuple[str, ...]] = {
         "runtime": ("runtime_pass", "required_media_compliance", "run_complete", "simple_pass", "three_slide_pass", "five_slide_pass"),
         "heavy_runtime": ("heavy_pass", "networkless_pass", "representative_engine_pass", "full_engine_pass", "unexpected_capability_blocks"),
-        "model_validation": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_media_compliance", "locked_terminology_recall", "unexpected_unresolved_rate"),
-        "model_high_risk_stability": ("requested_model", "effective_model", "target_model_approved", "critical_failure_count", "worst_critical_frequency", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_group_coverage", "group_critical_frequency", "category_coverage"),
-        "model_held_out": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "corpus_fingerprint", "held_out_fingerprint", "required_media_compliance", "locked_terminology_recall", "unexpected_unresolved_rate"),
+        "model_validation": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_media_compliance", "vision_input_proven", "locked_terminology_recall", "unexpected_unresolved_rate"),
+        "model_high_risk_stability": ("requested_model", "effective_model", "target_model_approved", "critical_failure_count", "worst_critical_frequency", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_group_coverage", "group_critical_frequency", "category_coverage", "vision_input_proven"),
+        "model_held_out": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "corpus_fingerprint", "held_out_fingerprint", "required_media_compliance", "vision_input_proven", "locked_terminology_recall", "unexpected_unresolved_rate"),
         "internal_bilingual": ("attestation_id", "artifact_count", "work_unit_count", "critical_business_meaning_errors", "critical_numeric_date_unit_errors", "critical_modality_escalations", "critical_table_mapping_errors", "critical_trend_reversals", "unsupported_critical_executive_claims", "overall_noncritical_semantic_fidelity", "locked_terminology"),
         "zero_korean_comprehension": ("attestation_id", "users", "answers", "critical_question_accuracy", "overall_comprehension", "critical_misunderstanding"),
-        "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings"),
+        "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings", "audited_dependency_set_sha256", "candidate_constraints_sha256", "pip_audit_version", "semgrep_version", "semgrep_ruleset_identity", "semgrep_ruleset_sha256"),
         "reliability": ("timeout_recovery_pass", "resume_pass", "fifty_slide_pass", "concurrency_pass", "slo_pass", "concurrent_runs"),
         "model_data_policy": ("attestation_id", "approved_for_internal_artifacts"),
         "pilot_canary": ("attestation_id", "users", "artifacts", "critical_confirmed_errors", "cross_user_exposure", "security_incidents", "silent_incomplete_output"),
@@ -428,6 +665,8 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
             raise EvidenceValidationError("validation evidence is not authoritative target-model evidence")
         if payload["critical_failure_count"] != 0 or not _positive_int(payload["repetitions"], 3):
             raise EvidenceValidationError("validation evidence fails critical/repetition gates")
+        if not _is_true(payload["vision_input_proven"]):
+            raise EvidenceValidationError("validation evidence does not prove multimodal execution")
         if float(payload["locked_terminology_recall"]) + 1e-12 < 0.995 or float(payload["unexpected_unresolved_rate"]) != 0:
             raise EvidenceValidationError("validation evidence fails terminology or unexpected-unresolved gates")
     elif evidence_type == "model_high_risk_stability":
@@ -440,15 +679,15 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
         categories = payload["category_coverage"]
         if not isinstance(categories, dict) or any(not _positive_int(value, 1) for value in categories.values()):
             raise EvidenceValidationError("high-risk evidence has incomplete protected-category coverage")
-        if not _is_true(payload["target_model_approved"]) or payload["critical_failure_count"] != 0 or payload["worst_critical_frequency"] != 0 or not _positive_int(payload["repetitions"], 5):
+        if not _is_true(payload["target_model_approved"]) or not _is_true(payload["vision_input_proven"]) or payload["critical_failure_count"] != 0 or payload["worst_critical_frequency"] != 0 or not _positive_int(payload["repetitions"], 5):
             raise EvidenceValidationError("high-risk stability evidence fails target, critical-frequency, or repetition gates")
     elif evidence_type == "model_held_out":
         if payload["split"] != "held_out" or not _is_true(payload["target_model_approved"]) or not _is_true(payload["quality_metrics_authoritative"]):
             raise EvidenceValidationError("held-out evidence is not authoritative target-model evidence")
         if payload["critical_failure_count"] != 0:
             raise EvidenceValidationError("held-out evidence fails critical gate")
-        if not _is_true(payload["required_media_compliance"]) or float(payload["locked_terminology_recall"]) + 1e-12 < 0.995 or float(payload["unexpected_unresolved_rate"]) != 0:
-            raise EvidenceValidationError("held-out evidence fails media, terminology, or unexpected-unresolved gates")
+        if not _is_true(payload["required_media_compliance"]) or not _is_true(payload["vision_input_proven"]) or float(payload["locked_terminology_recall"]) + 1e-12 < 0.995 or float(payload["unexpected_unresolved_rate"]) != 0:
+            raise EvidenceValidationError("held-out evidence fails media, vision, terminology, or unexpected-unresolved gates")
     elif evidence_type == "internal_bilingual":
         if not str(payload["attestation_id"]) or payload["attestation_id"] == "UNSET" or not _positive_int(payload["artifact_count"], 50) or not _positive_int(payload["work_unit_count"], 200):
             raise EvidenceValidationError("internal bilingual sample/attestation is insufficient")
@@ -573,7 +812,15 @@ def _tree_hash(root: Path) -> str | None:
     if not root.is_dir():
         return None
     entries: list[dict[str, str]] = []
-    for path in sorted(item for item in root.rglob("*") if item.is_file() and not item.is_symlink()):
+    for item in sorted(root.rglob("*")):
+        if item.is_symlink():
+            # A symlink could hide an unbounded or mutable source from the
+            # candidate identity.  Treat the tree as unavailable instead of
+            # hashing only the visible regular files.
+            return None
+        if not item.is_file():
+            continue
+        path = item
         entries.append({"path": path.relative_to(root).as_posix(), "sha256": sha256_file(path)})
     return sha256_bytes(canonical_bytes(entries))
 

@@ -14,7 +14,7 @@ from typing import Any
 from .opencode_events import normalize_events, parse_json_events
 from .process_control import terminate_process_group
 from k_slide import __version__
-from k_slide.certification import CANDIDATE_SPEC_SCHEMA_VERSION, candidate_deployment_fingerprint, canonical_candidate_factors, canonical_corpus_identity, load_candidate_spec
+from k_slide.certification import CANDIDATE_SPEC_SCHEMA_VERSION, candidate_deployment_fingerprint, canonical_candidate_factors, canonical_corpus_identity, load_candidate_spec, resolve_candidate_spec
 from k_slide.model_policy import load_model_policy
 from k_slide.runtime import discover_runtime
 from k_slide.redaction import redact_text, redact_value
@@ -136,8 +136,8 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
         return result
     candidate["subject_git_sha"] = subject_sha
     candidate["requested_model"] = model
-    candidate["model_policy"] = load_model_policy(repo_root).as_dict()
-    candidate["corpus_identity"] = corpus
+    policy = load_model_policy(repo_root)
+    candidate = resolve_candidate_spec(candidate, root=repo_root, subject_git_sha=subject_sha, model_policy=policy, corpus=corpus, require_sources=candidate_profile is not None)
     deployment = candidate_deployment_fingerprint(candidate)
     executable = opencode or shutil.which("opencode")
     if not executable or (opencode is not None and not Path(executable).is_file()):
@@ -197,7 +197,7 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
 
                 source = kslide_workspace / "simple.png"
                 Image.new("RGB", (1280, 720), "white").save(source)
-                runner = OpenCodeEvalRunner(model=model, timeout_seconds=warm_timeout, opencode=executable)
+                runner = OpenCodeEvalRunner(model=model, timeout_seconds=warm_timeout, opencode=executable, policy=policy, policy_root=repo_root)
                 level4 = runner.run(source=source, workspace=kslide_workspace, mode="protocol")
                 level4_result = {"level": "level4_k_slide_command", "status": level4.status, "command": runner.command(kslide_workspace), "exit_code": None, "duration_seconds": level4.duration_seconds, "event_count": len(level4.events), "last_event": (level4.normalized_events[-1] if level4.normalized_events else None), "last_tool": level4.normalized_events[-1].get("tool_name") if level4.normalized_events else None, "stdout": "", "stderr": level4.reason or "", "events": list(level4.normalized_events), "process_cleanup": level4.diagnostics.get("process_cleanup", {}), "reason": level4.reason, "diagnostics": level4.diagnostics}
                 levels.append(level4_result)

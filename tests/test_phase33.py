@@ -56,7 +56,9 @@ class Phase33CertificationTests(unittest.TestCase):
 
     def test_model_policy_requires_approved_effective_identity(self):
         policy = ModelPolicy.from_mapping({"approved_model_ids": ["google/gemma-4-31b-it"], "approved_aliases": ["corp/gemma-prod"]})
-        self.assertTrue(policy.approved(requested="corp/gemma-prod", effective="corp/gemma-prod"))
+        self.assertFalse(policy.approved(requested="corp/gemma-prod", effective="corp/gemma-prod"))
+        mapped = ModelPolicy.from_mapping({"approved_model_ids": ["google/gemma-4-31b-it"], "approved_aliases": ["corp/gemma-prod"], "approved_alias_targets": {"corp/gemma-prod": ["google/gemma-4-31b-it"]}})
+        self.assertTrue(mapped.approved(requested="corp/gemma-prod", effective="google/gemma-4-31b-it"))
         self.assertFalse(policy.approved(requested="corp/gemma-prod", effective="ollama/qwen3:14b"))
         self.assertFalse(policy.approved(requested="unknown/gemma", effective="unknown/gemma"))
 

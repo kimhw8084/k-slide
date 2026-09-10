@@ -169,11 +169,13 @@ def _read_policy_violations(root: Path, normalized: tuple[Any, ...]) -> list[str
 class OpenCodeEvalRunner:
     """Run the actual OpenCode CLI slash-command surface in isolation."""
 
-    def __init__(self, *, model: str, timeout_seconds: int = 180, opencode: str | None = None, ocr_policy: str | None = None):
+    def __init__(self, *, model: str, timeout_seconds: int = 180, opencode: str | None = None, ocr_policy: str | None = None, policy: Any | None = None, policy_root: Path | None = None):
         self.model = model
         self.timeout_seconds = timeout_seconds
         self.opencode = opencode or shutil.which("opencode")
         self.ocr_policy = ocr_policy
+        self.policy = policy
+        self.policy_root = policy_root.expanduser().resolve() if policy_root is not None else None
 
     @property
     def runtime_version(self) -> str | None:
@@ -251,6 +253,7 @@ class OpenCodeEvalRunner:
             kslide_complete, contract = _completion_contract(latest_run)
             final_text = next((event.text for event in reversed(normalized) if event.text), None)
             artifact_count = sum(1 for item in (root / ".k-slide-runs").rglob("*") if item.is_file()) if (root / ".k-slide-runs").is_dir() else 0
+            policy = self.policy or load_model_policy(self.policy_root or root)
             if completed_returncode != 0:
                 status = "FAILED"
                 reason = f"opencode exit code {completed_returncode}"
@@ -266,7 +269,7 @@ class OpenCodeEvalRunner:
             elif not kslide_complete:
                 status = "FAILED"
                 reason = "OpenCode exited successfully without a complete K-Slide run."
-            elif mode == "quality" and not load_model_policy(root).approved(requested=self.model, effective=effective_model):
+            elif mode == "quality" and not policy.approved(requested=self.model, effective=effective_model):
                 status = "PROTOCOL_SMOKE_ONLY"
                 reason = "Non-target model execution is protocol smoke only."
             else:

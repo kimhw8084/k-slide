@@ -15,11 +15,15 @@ from typing import Any
 from .certification import (
     CANDIDATE_INPUT_FIELDS,
     EvidenceValidationError,
+    NOT_APPLICABLE_VALUE,
+    NOT_EXPOSED_VALUE,
     canonical_corpus_identity,
+    candidate_completeness,
     certification_fingerprint,
     candidate_deployment_fingerprint,
     load_candidate_spec,
     load_evidence,
+    resolve_candidate_spec,
     sha256_file,
 )
 from .errors import ErrorCode, KSlideError
@@ -97,7 +101,7 @@ class ProductionProfile:
             release_manifest_sha256=str(value["release_manifest_sha256"]),
             model_data_attestation=str(value["model_data_attestation"]),
             behavior_configuration=value.get("behavior_configuration") if isinstance(value.get("behavior_configuration"), dict) else None,
-            candidate_spec=value.get("candidate_spec") if isinstance(value.get("candidate_spec"), dict) else {key: value[key] for key in CANDIDATE_INPUT_FIELDS if key in value},
+            candidate_spec={**(value.get("candidate_spec") if isinstance(value.get("candidate_spec"), dict) else {}), **{key: value[key] for key in CANDIDATE_INPUT_FIELDS if key in value}},
         )
 
     def as_dict(self) -> dict[str, Any]:
@@ -245,7 +249,10 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
         checks.append(_check("Certification fingerprint", certification_match, f"expected={expected_certification}; profile={profile.certification_fingerprint}"))
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError, EvidenceValidationError) as exc:
         checks.append(_check("Release manifest", False, str(exc)))
-    policy = load_model_policy(root)
+    from .model_policy import ModelPolicy
+
+    candidate_policy = (profile.candidate_spec or {}).get("model_policy")
+    policy = ModelPolicy.from_mapping(candidate_policy) if isinstance(candidate_policy, dict) else load_model_policy(root)
     try:
         from evals.scenarios import split_manifest
 
@@ -274,25 +281,98 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
     if candidate_source is not None:
         try:
             source_candidate = load_candidate_spec(candidate_source, root=root, require_identity=False, strict=True)
-            for field in CANDIDATE_INPUT_FIELDS:
-                current = source_candidate.get(field)
-                if current is None or str(current).upper() == "UNSET":
-                    if field in candidate:
+            source_candidate = resolve_candidate_spec(source_candidate, root=root, subject_git_sha=profile.subject_git_sha, model_policy=policy, corpus=corpus, require_sources=True)
+            source_missing = candidate_completeness(source_candidate, ReleaseState.PRODUCTION_CERTIFIED.value)
+            if candidate_source == root / "evals" / "production-candidate.yaml" and source_missing:
+                # The tracked public template is deliberately a development
+                # input and must not stale a separately materialized private
+                # certified profile.
+                checks.append(_check("Candidate source identity", True, "tracked DEVELOPMENT template is incomplete and non-authoritative"))
+            else:
+                for field in CANDIDATE_INPUT_FIELDS:
+                    current = source_candidate.get(field)
+                    unresolved = current is None or current == {} or (isinstance(current, str) and current.upper() == "UNSET")
+                    if unresolved and field in candidate:
                         source_candidate[field] = candidate[field]
-            source_candidate["subject_git_sha"] = profile.subject_git_sha
-            source_candidate["requested_model"] = profile.requested_model
-            source_candidate["effective_model"] = profile.effective_model
-            source_candidate["opencode_version"] = profile.opencode_version
-            source_candidate["ocr_provider"] = profile.ocr_provider
-            source_candidate["model_policy"] = policy.as_dict()
-            source_match = candidate_deployment_fingerprint(source_candidate) == profile.deployment_fingerprint
-            candidate_source_match = source_match
-            checks.append(_check("Candidate source identity", source_match, str(candidate_source)))
+                source_candidate["subject_git_sha"] = profile.subject_git_sha
+                source_candidate["requested_model"] = profile.requested_model
+                source_candidate["effective_model"] = profile.effective_model
+                source_candidate["opencode_version"] = profile.opencode_version
+                source_candidate["ocr_provider"] = profile.ocr_provider
+                source_candidate["model_policy"] = policy.as_dict()
+                source_match = candidate_deployment_fingerprint(source_candidate) == profile.deployment_fingerprint
+                candidate_source_match = source_match
+                checks.append(_check("Candidate source identity", source_match, str(candidate_source)))
         except (EvidenceValidationError, OSError, UnicodeError, ValueError, TypeError) as exc:
             candidate_source_match = False
             checks.append(_check("Candidate source identity", False, str(exc)))
     checks.append(_check("Certification freshness", deployment_match and certification_match and candidate_source_match, "current" if deployment_match and certification_match and candidate_source_match else "CERTIFICATION_STALE"))
     return checks
+
+
+def _runtime_identity_checks(profile: ProductionProfile, runtime: RuntimeMetadata) -> list[dict[str, str]]:
+    candidate = profile.candidate_spec or {}
+    checks: list[dict[str, str]] = []
+
+    def compare(label: str, field: str, actual: Any, *, optional: bool = False) -> None:
+        expected = candidate.get(field)
+        if expected in (None, "", "UNSET"):
+            checks.append(_check(label, False, f"candidate {field} is unresolved"))
+            return
+        if optional and expected in {NOT_EXPOSED_VALUE, NOT_APPLICABLE_VALUE}:
+            exposed = actual not in (None, "", {})
+            checks.append(_check(label, not exposed, "not exposed by current runtime" if not exposed else f"runtime exposes {actual!r}"))
+            return
+        if actual in (None, "", {}):
+            checks.append(_check(label, False, f"expected={expected!r}; actual=unavailable"))
+            return
+        checks.append(_check(label, actual == expected, f"expected={expected!r}; actual={actual!r}"))
+
+    compare("Provider identity", "provider", runtime.provider)
+    compare("Provider backend identity", "provider_backend", runtime.provider_backend, optional=True)
+    compare("Provider revision identity", "model_revision", getattr(runtime, "model_revision", None), optional=True)
+    compare("Provider quantization/dtype identity", "quantization_or_dtype", runtime.quantization_or_dtype, optional=True)
+    compare("Context configuration identity", "context_configuration", runtime.context_configuration)
+    compare("Image preprocessing identity", "image_preprocessing_settings", runtime.image_preprocessing_settings)
+    return checks
+
+
+def _vision_evidence_status(root: Path, profile: ProductionProfile) -> tuple[bool, str]:
+    """Find candidate-bound multimodal proof in the finalized model evidence."""
+
+    manifest_path = _resolve_path(root, profile.release_manifest)
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False, "release manifest is unavailable"
+    evidence_paths = manifest.get("evidence_paths") if isinstance(manifest, dict) else None
+    if not isinstance(evidence_paths, dict):
+        return False, "release manifest has no evidence paths"
+    for evidence_type in ("model_validation", "model_high_risk_stability", "model_held_out"):
+        raw_path = evidence_paths.get(evidence_type)
+        if not raw_path:
+            continue
+        try:
+            record = load_evidence(
+                _resolve_path(root, str(raw_path)),
+                expected_type=evidence_type,
+                subject_git_sha=profile.subject_git_sha,
+                deployment_fingerprint=profile.deployment_fingerprint,
+                repository_root=root,
+                candidate_spec=profile.candidate_spec,
+                require_candidate_spec=True,
+            )
+        except (EvidenceValidationError, OSError, ValueError):
+            continue
+        payload = record.get("payload", {})
+        if (
+            payload.get("vision_input_proven") is True
+            and payload.get("target_model_approved") is True
+            and payload.get("quality_metrics_authoritative") is True
+            and payload.get("effective_model") == profile.effective_model
+        ):
+            return True, f"candidate-bound multimodal proof from {evidence_type}"
+    return False, "no candidate-bound authoritative multimodal proof"
 
 
 def _installed_build_status(root: Path, profile: ProductionProfile) -> tuple[bool, str]:
@@ -318,13 +398,24 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
         return [_check("Production profile", False, exc.message)]
     checks.append(_check("Production profile schema", profile.schema_version == "1.0", profile.schema_version))
     checks.append(_check("Release state", profile.release_state == ReleaseState.PRODUCTION_CERTIFIED.value, profile.release_state))
+    candidate_missing = candidate_completeness(profile.candidate_spec or {}, ReleaseState.PRODUCTION_CERTIFIED.value)
+    checks.append(_check("Candidate completeness", not candidate_missing, "complete" if not candidate_missing else "unresolved=" + ",".join(candidate_missing)))
+    expected_kslide = (profile.candidate_spec or {}).get("kslide_version")
+    checks.append(_check("K-Slide version", runtime.kslide_version == expected_kslide, f"expected={expected_kslide}; actual={runtime.kslide_version}"))
     checks.append(_check("OpenCode version", runtime.opencode_version == profile.opencode_version, f"expected={profile.opencode_version}; actual={runtime.opencode_version or 'unknown'}"))
-    policy = load_model_policy(root)
+    from .model_policy import ModelPolicy
+
+    candidate_policy = (profile.candidate_spec or {}).get("model_policy")
+    policy = ModelPolicy.from_mapping(candidate_policy) if isinstance(candidate_policy, dict) else load_model_policy(root)
     checks.append(_check("Requested/effective model policy", policy.approved(requested=profile.requested_model, effective=profile.effective_model), f"requested={profile.requested_model}; effective={profile.effective_model}"))
     checks.append(_check("Runtime model match", runtime.reported_model_id == profile.effective_model, runtime.reported_model_id or "unknown"))
+    checks.extend(_runtime_identity_checks(profile, runtime))
     installed_ok, installed_detail = _installed_build_status(root, profile)
     checks.append(_check("Installed build identity", installed_ok, installed_detail))
-    checks.append(_check("Vision capability", runtime.vision_support is True, "proven" if runtime.vision_support is True else "not proven"))
+    vision_evidence_ok, vision_evidence_detail = _vision_evidence_status(root, profile)
+    vision_runtime_ok = runtime.vision_support is not False
+    vision_identity_ok = runtime.reported_model_id == profile.effective_model
+    checks.append(_check("Vision capability", vision_identity_ok and vision_runtime_ok and vision_evidence_ok, vision_evidence_detail if vision_evidence_ok else "not proven: " + vision_evidence_detail))
     checks.append(_check("OCR policy", profile.ocr_provider == "paddle", profile.ocr_provider))
     asset_manifest = Path(profile.ocr_asset_manifest).expanduser()
     if not asset_manifest.is_absolute():
@@ -341,7 +432,8 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
     checks.append(_check("LibreOffice", bool(shutil.which("libreoffice") or shutil.which("soffice")), "binary discovered" if (shutil.which("libreoffice") or shutil.which("soffice")) else "not discovered"))
     checks.append(_check("Paddle runtime", importlib.util.find_spec("paddle") is not None and importlib.util.find_spec("paddleocr") is not None, "packages discovered" if importlib.util.find_spec("paddle") and importlib.util.find_spec("paddleocr") else "packages missing"))
     try:
-        checks.append(_check("Python version", os.sys.version.split()[0] == profile.python_version, f"expected={profile.python_version}; actual={os.sys.version.split()[0]}"))
+        actual_python = os.sys.version.split()[0]
+        checks.append(_check("Python version", actual_python == profile.python_version or actual_python.startswith(profile.python_version + "."), f"expected={profile.python_version}; actual={actual_python}"))
         checks.append(_check("Paddle version", importlib.metadata.version("paddlepaddle") == profile.paddle_version, f"expected={profile.paddle_version}"))
         checks.append(_check("PaddleOCR version", importlib.metadata.version("paddleocr") == profile.paddleocr_version, f"expected={profile.paddleocr_version}"))
     except importlib.metadata.PackageNotFoundError as exc:

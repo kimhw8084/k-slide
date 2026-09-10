@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted for K-Slide 0.3.5 certification closure; schema/adapter 2.1.
+Accepted for K-Slide 0.3.5 certification closure; schema/adapter 2.2.
 
 ## Decision
 
@@ -32,7 +32,9 @@ and cannot redefine the candidate fingerprint. Model envelopes are emitted
 only after every authoritative case proves one compatible effective model
 identity. Release tooling derives the state first, writes the final manifest,
 then materializes a separate certified profile that references the manifest
-hash, avoiding profile/manifest hash recursion.
+hash, avoiding profile/manifest hash recursion. Model envelopes must include
+candidate-bound multimodal execution proof, and security envelopes must include
+the production dependency subject plus a staged, hashed local Semgrep ruleset.
 
 Human, private, and organizational attestations remain source-free external
 evidence and are still required for the states that depend on them.
@@ -43,4 +45,5 @@ Changing a result, source role/hash, adapter version, or derived payload makes
 the evidence invalid.  Administrators cannot promote a release by editing
 machine metrics or selecting a higher requested state. Old development-only
 machine envelopes without adapter provenance, complete matrix proof, or the 2.1
-identity fields cannot satisfy certification.
+identity fields cannot satisfy certification. Development-only 2.1 envelopes
+are not silently migrated to 2.2.

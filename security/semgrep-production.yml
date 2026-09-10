@@ -1,0 +1,16 @@
+rules:
+  - id: kslide-no-dynamic-eval
+    languages: [python]
+    message: Dynamic eval is not permitted in production K-Slide code.
+    severity: ERROR
+    pattern: eval(...)
+  - id: kslide-no-dynamic-exec
+    languages: [python]
+    message: Dynamic exec is not permitted in production K-Slide code.
+    severity: ERROR
+    pattern: exec(...)
+  - id: kslide-no-shell-command
+    languages: [python]
+    message: Shell command execution must not be enabled by default.
+    severity: ERROR
+    pattern: subprocess.$FUNC(..., shell=True, ...)

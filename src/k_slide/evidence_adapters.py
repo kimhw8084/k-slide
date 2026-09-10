@@ -13,13 +13,14 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
-from .certification import EvidenceValidationError, candidate_deployment_fingerprint
+from .certification import EvidenceValidationError, candidate_deployment_fingerprint, NOT_APPLICABLE_VALUE, NOT_EXPOSED_VALUE, sha256_file
 from .model_policy import load_model_policy
 
-# 2.1 adds candidate-bound identity/provenance to the behavior/experiment
+# 2.2 adds candidate-bound multimodal and production dependency proof to the
+# candidate-bound identity/provenance contract introduced in 2.1.
 # separation and exact frozen scenario matrices. No production-certified v1
 # or 2.0 evidence exists, so ambiguous development envelopes are not migrated.
-ADAPTER_VERSION = "2.1"
+ADAPTER_VERSION = "2.2"
 
 _ROLES: dict[str, tuple[str, ...]] = {
     "runtime": ("diagnostic_ladder", "simple_run", "three_slide", "five_slide"),
@@ -27,7 +28,7 @@ _ROLES: dict[str, tuple[str, ...]] = {
     "model_validation": ("model_summary", "experiment_manifest", "results_jsonl"),
     "model_high_risk_stability": ("model_summary", "experiment_manifest", "results_jsonl"),
     "model_held_out": ("model_summary", "experiment_manifest", "results_jsonl"),
-    "security": ("pip_audit", "gitleaks", "semgrep", "scanner_exits"),
+    "security": ("pip_audit", "gitleaks", "semgrep", "scanner_exits", "audit_context", "semgrep_ruleset"),
     "reliability": ("failure_injection", "concurrency", "large_deck", "performance_slo"),
     "governance": ("governance_api",),
 }
@@ -49,7 +50,7 @@ def _read_json(path: Path) -> Any:
         raise AdapterError(f"source result is missing or symlinked: {path.name}")
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-        if isinstance(value, dict) and value.get("schema_version") not in (None, "1.0", "2.0", "2.1"):
+        if isinstance(value, dict) and value.get("schema_version") not in (None, "1.0", "2.0", "2.1", "2.2"):
             raise AdapterError(f"unsupported source result schema version: {path.name}")
         return value
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
@@ -367,8 +368,7 @@ def _model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]], *, exp
     return {"scenario_ids": sorted(scenario_ids), "formats": formats, "repetitions": repetitions, "case_count": len(rows), "matrix_hash": _sha256_text(experiment.get("experiment_plan_hash"), "experiment_plan_hash")}
 
 
-def _model_identity(summary: dict[str, Any], experiment: dict[str, Any], rows: list[dict[str, Any]], root: Path | None) -> tuple[str, list[str], bool]:
-    from .model_policy import load_model_policy
+def _model_identity(summary: dict[str, Any], experiment: dict[str, Any], rows: list[dict[str, Any]], policy: Any) -> tuple[str, list[str], bool]:
 
     requested = str(summary.get("requested_model") or experiment.get("model") or summary.get("model") or "")
     requested_values = {str(item.get("opencode", {}).get("model")) for item in rows if item.get("opencode", {}).get("model")}
@@ -382,7 +382,6 @@ def _model_identity(summary: dict[str, Any], experiment: dict[str, Any], rows: l
         raise AdapterError("model result does not prove requested/effective identity")
     if any(item.get("opencode", {}).get("diagnostics", {}).get("model_identity_proven") is not True for item in rows):
         raise AdapterError("model result does not prove effective identity from every case")
-    policy = load_model_policy(root) if root else load_model_policy()
     effective = sorted({canonical for item in raw_effective if (canonical := policy.canonical_effective(requested=requested, effective=item))})
     if not effective:
         raise AdapterError("model result effective identity is not approved")
@@ -399,6 +398,30 @@ def _model_identity(summary: dict[str, Any], experiment: dict[str, Any], rows: l
     return requested, effective, approved
 
 
+def _vision_input_proven(rows: list[dict[str, Any]]) -> bool:
+    """Require actual image reads from the authoritative OpenCode cases."""
+
+    if not rows:
+        return False
+    for row in rows:
+        opencode = row.get("opencode")
+        diagnostics = opencode.get("diagnostics") if isinstance(opencode, dict) else None
+        media = opencode.get("media_compliance") if isinstance(opencode, dict) else None
+        if (
+            not isinstance(diagnostics, dict)
+            or diagnostics.get("model_identity_proven") is not True
+            or not isinstance(media, dict)
+            or media.get("planned") is not True
+            or media.get("required_context_image_read") is not True
+            or media.get("media_sequence_valid") is not True
+            or not isinstance(media.get("required_count"), int)
+            or media.get("required_count", 0) < 1
+            or media.get("read_count") != media.get("required_count")
+        ):
+            return False
+    return True
+
+
 def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path | None) -> dict[str, Any]:
     summary, experiment, rows = _model_rows(values)
     if any(not isinstance(item.get("subject_git_sha"), str) or not item.get("subject_git_sha") or not isinstance(item.get("deployment_fingerprint"), str) or not item.get("deployment_fingerprint") for item in rows):
@@ -411,9 +434,14 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
         raise AdapterError("model result provenance disagrees between summary and experiment")
     if summary.get("split") != expected_split or experiment.get("split") != expected_split or any(item.get("split") != expected_split for item in rows):
         raise AdapterError(f"model result split is not {expected_split}")
-    requested, effective, approved = _model_identity(summary, experiment, rows, root)
-    policy = load_model_policy(root) if root else load_model_policy()
     candidate_specs = [item.get("candidate_spec") for item in (summary, experiment) if isinstance(item.get("candidate_spec"), dict)]
+    if candidate_specs and isinstance(candidate_specs[0].get("model_policy"), dict):
+        from .model_policy import ModelPolicy
+
+        policy = ModelPolicy.from_mapping(candidate_specs[0]["model_policy"])
+    else:
+        policy = load_model_policy(root) if root else load_model_policy()
+    requested, effective, approved = _model_identity(summary, experiment, rows, policy)
     if candidate_specs:
         if any(item != candidate_specs[0] for item in candidate_specs[1:]):
             raise AdapterError("model candidate specifications disagree")
@@ -504,6 +532,7 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
         "scenario_ids": matrix["scenario_ids"],
         "formats": matrix["formats"],
         "required_media_compliance": bool(media_rates) and all(media_rates),
+        "vision_input_proven": _vision_input_proven(rows),
         "media_compliance_rate": sum(media_rates) / len(media_rates) if media_rates else 0.0,
         "review_rate": sum(review_rates) / len(review_rates) if review_rates else 0.0,
         "unresolved_region_rate": sum(unresolved_rates) / len(unresolved_rates) if unresolved_rates else 0.0,
@@ -527,10 +556,11 @@ def _derive_validation(sources: dict[str, Path], *, root: Path | None) -> dict[s
         or payload["critical_failure_count"] != 0
         or payload["repetitions"] < 3
         or not payload["required_media_compliance"]
+        or not payload["vision_input_proven"]
         or payload["locked_terminology_recall"] + 1e-12 < 0.995
         or payload["unexpected_unresolved_rate"] != 0
     ):
-        raise AdapterError("validation result fails target, authority, critical, repeat, media, terminology, or unresolved gates")
+        raise AdapterError("validation result fails target, authority, critical, repeat, media, vision, terminology, or unresolved gates")
     return payload
 
 
@@ -585,6 +615,8 @@ def _derive_high_risk(sources: dict[str, Path], *, root: Path | None) -> dict[st
             raise AdapterError(f"high-risk group fails critical gate: {key}")
     if payload["critical_failure_count"] != 0:
         raise AdapterError("high-risk result has critical failures outside the selected group summaries")
+    if not payload["vision_input_proven"]:
+        raise AdapterError("high-risk result does not prove candidate-bound multimodal execution")
     payload.update({"required_group_coverage": coverage, "group_critical_frequency": frequencies, "category_coverage": category_coverage, "worst_critical_frequency": max(frequencies.values(), default=0.0), "repetitions": min(coverage.values()), "scenario_ids": matrix["scenario_ids"], "formats": matrix["formats"]})
     return payload
 
@@ -609,22 +641,69 @@ def _derive_held_out(sources: dict[str, Path], *, root: Path | None) -> dict[str
         or not payload["quality_metrics_authoritative"]
         or payload["critical_failure_count"] != 0
         or not payload["required_media_compliance"]
+        or not payload["vision_input_proven"]
         or payload["locked_terminology_recall"] + 1e-12 < 0.995
         or payload["unexpected_unresolved_rate"] != 0
     ):
-        raise AdapterError("held-out result fails target, authority, critical, media, terminology, or unresolved gates")
+        raise AdapterError("held-out result fails target, authority, critical, media, vision, terminology, or unresolved gates")
     payload.update({"corpus_fingerprint": frozen["corpus_fingerprint"], "held_out_fingerprint": frozen["held_out_fingerprint"]})
     return payload
 
 
-def _derive_security(sources: dict[str, Path]) -> dict[str, Any]:
+def _derive_security(sources: dict[str, Path], *, root: Path | None = None, candidate_spec: dict[str, Any] | None = None) -> dict[str, Any]:
     values, _ = source_records(sources, expected=_ROLES["security"])
     pip = _read_json(values["pip_audit"])
     leaks = _read_json(values["gitleaks"])
     semgrep = _read_json(values["semgrep"])
     exits = _read_json(values["scanner_exits"])
-    if not isinstance(pip, dict) or not isinstance(leaks, list) or not isinstance(semgrep, dict) or not isinstance(exits, dict):
+    context = _read_json(values["audit_context"])
+    if not isinstance(pip, dict) or not isinstance(leaks, list) or not isinstance(semgrep, dict) or not isinstance(exits, dict) or not isinstance(context, dict):
         raise AdapterError("security scanner output has an unexpected schema")
+    constraints_hash = str(context.get("candidate_constraints_sha256") or "").lower()
+    audited_hash = str(context.get("audited_dependency_set_sha256") or "").lower()
+    if len(constraints_hash) != 64 or len(audited_hash) != 64 or constraints_hash != audited_hash:
+        raise AdapterError("security audit input is not bound to one production constraints hash")
+    if candidate_spec is not None:
+        expected_constraints = str(candidate_spec.get("constraints_sha256") or "").lower()
+        if expected_constraints != constraints_hash:
+            raise AdapterError("security audit input hash disagrees with candidate constraints identity")
+    for key in ("pip_audit_version", "semgrep_version", "semgrep_ruleset_identity"):
+        value = context.get(key)
+        if not isinstance(value, str) or not value or value.upper() in {"UNSET", NOT_EXPOSED_VALUE, NOT_APPLICABLE_VALUE}:
+            raise AdapterError(f"security audit context is missing immutable {key}")
+    ruleset_hash = str(context.get("semgrep_ruleset_sha256") or "").lower()
+    if len(ruleset_hash) != 64:
+        raise AdapterError("security audit context is missing Semgrep ruleset hash")
+    ruleset_source = values["semgrep_ruleset"]
+    if sha256_file(ruleset_source) != ruleset_hash:
+        raise AdapterError("Semgrep ruleset hash does not match the staged ruleset source")
+    if root is not None:
+        ruleset_identity = Path(context["semgrep_ruleset_identity"]).expanduser()
+        if ruleset_identity.is_absolute():
+            raise AdapterError("Semgrep ruleset identity must be repository-relative")
+        repository_root = root.expanduser().resolve()
+        try:
+            repository_ruleset_input = repository_root / ruleset_identity
+            if repository_ruleset_input.is_symlink():
+                raise AdapterError("Semgrep production ruleset is symlinked")
+            repository_ruleset = repository_ruleset_input.resolve()
+            repository_ruleset.relative_to(repository_root)
+        except ValueError as exc:
+            raise AdapterError("Semgrep ruleset identity escapes the repository root") from exc
+        if repository_ruleset.is_file() and sha256_file(repository_ruleset) != ruleset_hash:
+            raise AdapterError("Semgrep ruleset hash does not match the repository ruleset")
+    dependencies = pip.get("dependencies")
+    if not isinstance(dependencies, list):
+        raise AdapterError("pip-audit did not report a dependency set")
+    audited_names = {str(item.get("name", "")).lower().replace("_", "-") for item in dependencies if isinstance(item, dict)}
+    declared_names = {str(item).lower().replace("_", "-") for item in context.get("audited_dependency_names", [])} if isinstance(context.get("audited_dependency_names"), list) else set()
+    required_names = {"pillow", "pymupdf", "python-pptx", "paddlepaddle", "paddleocr"}
+    if not required_names.issubset(audited_names) or not required_names.issubset(declared_names):
+        raise AdapterError("production dependency audit does not include the deployed K-Slide dependency lock")
+    constraint_versions = {str(key).lower().replace("_", "-"): str(value) for key, value in context.get("constraint_versions", {}).items()} if isinstance(context.get("constraint_versions"), dict) else {}
+    audited_versions = {str(item.get("name", "")).lower().replace("_", "-"): str(item.get("version")) for item in dependencies if isinstance(item, dict) and item.get("version") is not None}
+    if any(not constraint_versions.get(name) or audited_versions.get(name) != constraint_versions.get(name) for name in required_names):
+        raise AdapterError("production dependency audit versions do not match constraints-production.txt")
     dependency_findings = sum(len(item.get("vulns", [])) for item in pip.get("dependencies", []) if isinstance(item, dict))
     if not isinstance(semgrep.get("results"), list) or not isinstance(semgrep.get("errors", []), list) or semgrep.get("errors"):
         raise AdapterError("semgrep result is malformed or contains scan errors")
@@ -636,7 +715,7 @@ def _derive_security(sources: dict[str, Path]) -> dict[str, Any]:
         raise AdapterError("one or more security scanners failed to execute cleanly")
     if dependency_findings or secret_findings or static_findings:
         raise AdapterError("security scanner findings fail the production security gate")
-    return {"dependency_audit_pass": exit_ok and dependency_findings == 0, "secret_scan_pass": exit_ok and secret_findings == 0, "static_scan_pass": exit_ok and static_findings == 0, "dependency_findings": dependency_findings, "unresolved_high_findings": high_findings, "unresolved_critical_findings": sum(1 for item in semgrep.get("results", []) if isinstance(item, dict) and str(item.get("extra", {}).get("metadata", {}).get("severity", "")).upper() == "CRITICAL"), "secret_findings": secret_findings, "scanner_exit_codes": {key: exits.get(key) for key in sorted(exits)}}
+    return {"dependency_audit_pass": exit_ok and dependency_findings == 0, "secret_scan_pass": exit_ok and secret_findings == 0, "static_scan_pass": exit_ok and static_findings == 0, "dependency_findings": dependency_findings, "unresolved_high_findings": high_findings, "unresolved_critical_findings": sum(1 for item in semgrep.get("results", []) if isinstance(item, dict) and str(item.get("extra", {}).get("metadata", {}).get("severity", "")).upper() == "CRITICAL"), "secret_findings": secret_findings, "scanner_exit_codes": {key: exits.get(key) for key in sorted(exits)}, "audited_dependency_set_sha256": audited_hash, "candidate_constraints_sha256": constraints_hash, "audited_dependency_versions": audited_versions, "pip_audit_version": context["pip_audit_version"], "semgrep_version": context["semgrep_version"], "semgrep_ruleset_identity": context["semgrep_ruleset_identity"], "semgrep_ruleset_sha256": ruleset_hash}
 
 
 def _derive_reliability(sources: dict[str, Path]) -> dict[str, Any]:
@@ -705,8 +784,8 @@ def derive_held_out_evidence(sources: dict[str, Path], *, root: Path | None = No
     return derive_payload("model_held_out", sources, root=root)
 
 
-def derive_security_evidence(sources: dict[str, Path], *, root: Path | None = None) -> dict[str, Any]:
-    return derive_payload("security", sources, root=root)
+def derive_security_evidence(sources: dict[str, Path], *, root: Path | None = None, candidate_spec: dict[str, Any] | None = None) -> dict[str, Any]:
+    return derive_payload("security", sources, root=root, candidate_spec=candidate_spec)
 
 
 def derive_reliability_evidence(sources: dict[str, Path], *, root: Path | None = None) -> dict[str, Any]:
@@ -717,13 +796,15 @@ def derive_governance_evidence(sources: dict[str, Path], *, root: Path | None = 
     return derive_payload("governance", sources, root=root)
 
 
-def derive_payload(evidence_type: str, sources: dict[str, Path], *, root: Path | None = None) -> dict[str, Any]:
+def derive_payload(evidence_type: str, sources: dict[str, Path], *, root: Path | None = None, candidate_spec: dict[str, Any] | None = None) -> dict[str, Any]:
     try:
         deriver = _DERIVERS[evidence_type]
     except KeyError as exc:
         raise AdapterError(f"no machine deriver for {evidence_type}") from exc
     if evidence_type in {"model_validation", "model_high_risk_stability", "model_held_out"}:
         return deriver(sources, root=root)
+    if evidence_type == "security":
+        return deriver(sources, root=root, candidate_spec=candidate_spec)
     return deriver(sources)
 
 
@@ -830,7 +911,7 @@ def build_machine_evidence(output: Path, *, evidence_type: str, subject_git_sha:
         _verify_candidate_execution_provenance(candidate_spec, evidence_type=evidence_type, sources=sources)
     _check_embedded_identity(sources, subject_git_sha=subject_git_sha, deployment_fingerprint=deployment_fingerprint)
     descriptors = _source_descriptors(sources, output)
-    payload = derive_payload(evidence_type, sources, root=root)
+    payload = derive_payload(evidence_type, sources, root=root, candidate_spec=candidate_spec)
     envelope = {"schema_version": EVIDENCE_SCHEMA_VERSION, "evidence_type": evidence_type, "status": "PASS", "subject_git_sha": subject_git_sha, "deployment_fingerprint": _require_hex(deployment_fingerprint, "deployment_fingerprint"), "generated_at": generated_at or datetime.now(timezone.utc).isoformat(), "adapter_version": ADAPTER_VERSION, "sources": descriptors, "payload": payload}
     if candidate_factors is not None:
         envelope["candidate_spec"] = candidate_factors
@@ -858,7 +939,7 @@ def verify_machine_envelope(path: Path, envelope: dict[str, Any], *, subject_git
             raise AdapterError("machine evidence candidate specification is inconsistent")
         _verify_candidate_execution_provenance(candidate_spec, evidence_type=evidence_type, sources=sources)
     _check_embedded_identity(sources, subject_git_sha=subject_git_sha, deployment_fingerprint=deployment_fingerprint)
-    derived = derive_payload(evidence_type, sources, root=root)
+    derived = derive_payload(evidence_type, sources, root=root, candidate_spec=candidate_spec)
     if envelope.get("payload") != derived:
         raise AdapterError("machine evidence payload does not match derived source result")
     return {"sources": descriptors, "payload": derived}
@@ -881,10 +962,12 @@ def main(argv: list[str] | None = None) -> int:
             if not separator or not role or not raw or role in sources:
                 raise AdapterError("--source must be unique ROLE=PATH entries")
             sources[role] = Path(raw)
-        from .certification import load_candidate_spec
+        from .certification import load_candidate_spec, resolve_candidate_spec
 
-        candidate = load_candidate_spec(args.candidate_profile, root=args.root, require_identity=True)
+        candidate_root = args.root or args.candidate_profile.expanduser().resolve().parent
+        candidate = load_candidate_spec(args.candidate_profile, root=candidate_root, require_identity=True)
         subject = args.subject_sha or str(candidate.get("subject_git_sha"))
+        candidate = resolve_candidate_spec(candidate, root=candidate_root, subject_git_sha=subject, require_sources=True)
         candidate = _finalize_candidate_spec(candidate, evidence_type=args.evidence_type, sources=sources)
         deployment = args.deployment_fingerprint or candidate_deployment_fingerprint(candidate)
         build_machine_evidence(args.output, evidence_type=args.evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=args.root, candidate_spec=candidate)
