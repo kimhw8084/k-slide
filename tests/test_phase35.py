@@ -170,6 +170,13 @@ class Phase35Tests(unittest.TestCase):
         self.assertIn("freeze_production_dependencies", workflow)
         self.assertIn("Freeze exact production dependency subject", workflow)
         self.assertIn("Verify heavy image dependency identity", workflow)
+        self.assertIn("certification_bundle_run_id", workflow)
+        self.assertIn("materialize_certification_bundle", workflow)
+        self.assertIn("built-image-inventory.json", workflow)
+        self.assertIn("dependency-context.json", workflow)
+        self.assertIn("heavy_runtime.evidence.json", workflow)
+        self.assertIn("set -o pipefail", workflow)
+        self.assertNotIn("production_dependency_lock:", workflow)
 
     def test_heavy_doctor_distinguishes_local_blocked_from_required_failure(self):
         with patch("evals.heavy.doctor._command_version", return_value=None):

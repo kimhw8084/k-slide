@@ -296,6 +296,20 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
                     except (EvidenceValidationError, OSError, ValueError):
                         security_ok = False
                 checks.append(_check("Production dependency evidence binding", security_ok, "resolved dependency inventory and SBOM are re-verifiable" if security_ok else "security evidence does not match release dependency binding"))
+                heavy_raw = manifest.get("evidence_paths", {}).get("heavy_runtime") if isinstance(manifest.get("evidence_paths"), dict) else None
+                heavy_ok = False
+                if heavy_raw:
+                    try:
+                        heavy_record = load_evidence(_resolve_path(root, str(heavy_raw)), expected_type="heavy_runtime", subject_git_sha=profile.subject_git_sha, deployment_fingerprint=profile.deployment_fingerprint, repository_root=root, candidate_spec=profile.candidate_spec, require_candidate_spec=True)
+                        heavy_payload = heavy_record.get("payload", {})
+                        heavy_ok = (
+                            heavy_payload.get("resolved_dependency_set_sha256") == production_dependencies.get("inventory_sha256")
+                            and heavy_payload.get("built_image_dependency_set_sha256") == production_dependencies.get("heavy_inventory_sha256")
+                            and heavy_payload.get("resolved_dependency_lock_sha256") == production_dependencies.get("heavy_lock_sha256") == production_dependencies.get("lock_sha256")
+                        )
+                    except (EvidenceValidationError, OSError, ValueError):
+                        heavy_ok = False
+                checks.append(_check("Heavy dependency evidence binding", heavy_ok, "built-image dependency subject is re-verifiable" if heavy_ok else "heavy evidence does not match security/candidate dependency binding"))
         expected_certification = certification_fingerprint(
             deployment=profile.deployment_fingerprint,
             evidence_hashes={str(key): str(value) for key, value in evidence_hashes.items()},

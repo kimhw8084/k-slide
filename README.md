@@ -100,11 +100,16 @@ subject: `.k-slide-config/production-requirements.lock` and its canonical
 `.k-slide-config/production-dependency-inventory.json`. The shared
 `evals.freeze_production_dependencies` command derives both from the active
 production interpreter and, for a private certifying run, verifies them
-against an already-approved lock. The security workflow accepts
-`candidate_profile` together with `production_dependency_lock`; without those
-private inputs its public report is explicitly `NOT_CERTIFYING`. The heavy
-Docker image installs the same lock and fails if its installed inventory
-differs. The production SBOM is then generated from that inventory with
+against an already-approved lock. The certifying security and heavy workflows
+accept an authorized private `certification_bundle_run_id` plus artifact name,
+download the artifact, and verify/materialize its bytes before use. The bundle
+contains a relative `certification-bundle.json` manifest with the resolved
+candidate, exact lock, and optional private termbase/OCR inputs; filesystem
+paths and secret contents are not workflow-dispatch inputs. Without that
+private artifact, public scans still enforce scanner findings but a clean
+result is explicitly `NOT_CERTIFYING`. The heavy Docker image installs the
+same lock and fails if its installed inventory differs. The production SBOM is
+then generated from that inventory with
 `--production-dependency-inventory` and `--generate-production-sbom`.
 
 ## Development checks

@@ -53,10 +53,21 @@ place confidential candidate material in the Docker build context. The current
 development machine has not built this image, so this repository does not claim
 that heavy integration has executed locally.
 
-For a certifying run, stage the approved private lock, install that lock in the
-isolated environment, and invoke `evals.freeze_production_dependencies` with
-`--lock-input` before building. The security workflow exposes the same contract
-as its `candidate_profile` plus `production_dependency_lock` dispatch inputs.
+For a certifying run, an authorized preparation job packages the resolved
+candidate, exact production lock, optional private termbase overlay, and OCR
+assets into a private `certification-bundle.json` artifact. The security and
+heavy workflows accept only that artifact's run ID and name; a hosted-runner
+filesystem path is not a transport mechanism. `evals.materialize_certification_bundle`
+verifies the subject SHA, per-file hashes, and safe relative paths before
+materializing the files under `.k-slide-config` with restrictive permissions.
+The public development workflow has no private bundle and therefore cannot
+produce candidate-bound production evidence.
+
+The heavy workflow invokes `evals.freeze_production_dependencies` against the
+same exact lock used by the image and retains the production inventory, lock,
+built-image inventory, and dependency context beside its machine-evidence
+envelope. The heavy adapter re-derives equality from those retained sources;
+it does not trust a one-time Docker build assertion.
 
 The image build runs `evals.heavy.prefetch_ocr_models`, exports a local
 PaddleX pipeline configuration, and writes an OCR asset manifest. The managed
@@ -73,10 +84,11 @@ docker run --rm --network none \
   k-slide-heavy --required --networkless
 ```
 
-The manual GitHub workflow mounts its engine output under `${RUNNER_TEMP}` and
-uploads that host directory, so results remain available after the container
-exits. Local/development doctor mode reports missing heavy capabilities as
-`BLOCKED`; required image mode reports them as `FAIL`.
+The manual GitHub workflow mounts its engine output under `${RUNNER_TEMP}`,
+copies the required doctor/engine results and image inventory into one private
+evidence directory, and uploads only that retained evidence. Local/development
+doctor mode reports missing heavy capabilities as `BLOCKED`; required image
+mode reports them as `FAIL`.
 
 Suggested bootstrap on Ubuntu:
 

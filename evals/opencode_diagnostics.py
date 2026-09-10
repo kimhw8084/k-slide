@@ -197,7 +197,7 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
 
                 source = kslide_workspace / "simple.png"
                 Image.new("RGB", (1280, 720), "white").save(source)
-                runner = OpenCodeEvalRunner(model=model, timeout_seconds=warm_timeout, opencode=executable, policy=policy, policy_root=repo_root)
+                runner = OpenCodeEvalRunner(model=model, timeout_seconds=warm_timeout, opencode=executable, policy=policy, policy_root=repo_root, candidate_spec=candidate if candidate_profile is not None else None, candidate_root=repo_root)
                 level4 = runner.run(source=source, workspace=kslide_workspace, mode="protocol")
                 level4_result = {"level": "level4_k_slide_command", "status": level4.status, "command": runner.command(kslide_workspace), "exit_code": None, "duration_seconds": level4.duration_seconds, "event_count": len(level4.events), "last_event": (level4.normalized_events[-1] if level4.normalized_events else None), "last_tool": level4.normalized_events[-1].get("tool_name") if level4.normalized_events else None, "stdout": "", "stderr": level4.reason or "", "events": list(level4.normalized_events), "process_cleanup": level4.diagnostics.get("process_cleanup", {}), "reason": level4.reason, "diagnostics": level4.diagnostics}
                 levels.append(level4_result)

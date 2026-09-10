@@ -30,17 +30,18 @@ from .certification import (
 )
 from .model_policy import load_model_policy
 
-# 2.3 binds the resolved production lock and standards-valid SBOM to the
-# portable security evidence bundle. 2.2 added candidate-bound multimodal and
+# 2.4 retains and re-derives the heavy image dependency subject alongside the
+# portable security evidence bundle. 2.3 binds the resolved production lock
+# and standards-valid SBOM. 2.2 added candidate-bound multimodal and
 # production dependency proof to the
 # candidate-bound identity/provenance contract introduced in 2.1.
 # separation and exact frozen scenario matrices. No production-certified v1
 # or 2.0 evidence exists, so ambiguous development envelopes are not migrated.
-ADAPTER_VERSION = "2.3"
+ADAPTER_VERSION = "2.4"
 
 _ROLES: dict[str, tuple[str, ...]] = {
     "runtime": ("diagnostic_ladder", "simple_run", "three_slide", "five_slide"),
-    "heavy_runtime": ("required_doctor", "networkless_doctor", "representative_engine"),
+    "heavy_runtime": ("required_doctor", "networkless_doctor", "representative_engine", "production_inventory", "production_lock", "built_image_inventory", "dependency_context"),
     "model_validation": ("model_summary", "experiment_manifest", "results_jsonl"),
     "model_high_risk_stability": ("model_summary", "experiment_manifest", "results_jsonl"),
     "model_held_out": ("model_summary", "experiment_manifest", "results_jsonl"),
@@ -48,6 +49,9 @@ _ROLES: dict[str, tuple[str, ...]] = {
     "reliability": ("failure_injection", "concurrency", "large_deck", "performance_slo"),
     "governance": ("governance_api",),
 }
+
+_SECURITY_SCANNER_ROLES = ("pip_audit", "gitleaks", "semgrep", "scanner_exits")
+_SCANNER_EXIT_KEYS = ("pip_audit", "gitleaks", "semgrep")
 
 
 class AdapterError(ValueError):
@@ -94,6 +98,52 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not rows:
         raise AdapterError(f"source result is empty: {path.name}")
     return rows
+
+
+def enforce_security_scanners(sources: dict[str, Path]) -> dict[str, Any]:
+    """Enforce scanner execution/results independently of candidate eligibility.
+
+    This is intentionally separate from ``_derive_security``: an incomplete
+    public candidate may be ``NOT_CERTIFYING``, but it must never turn a dirty
+    or failed scanner run into a successful workflow.
+    """
+
+    values, _ = source_records(sources, expected=_SECURITY_SCANNER_ROLES)
+    pip = _read_json(values["pip_audit"])
+    leaks = _read_json(values["gitleaks"])
+    semgrep = _read_json(values["semgrep"])
+    exits = _read_json(values["scanner_exits"])
+    if not isinstance(pip, dict) or not isinstance(pip.get("dependencies"), list) or not pip["dependencies"]:
+        raise AdapterError("pip-audit output is missing or has an empty dependency set")
+    for item in pip["dependencies"]:
+        if not isinstance(item, dict) or not isinstance(item.get("name"), str) or not item["name"] or not isinstance(item.get("version"), str) or not item["version"] or not isinstance(item.get("vulns", []), list):
+            raise AdapterError("pip-audit output is malformed")
+    if not isinstance(leaks, list):
+        raise AdapterError("gitleaks output is malformed")
+    if not isinstance(semgrep, dict) or not isinstance(semgrep.get("results"), list) or not isinstance(semgrep.get("errors"), list):
+        raise AdapterError("Semgrep output is malformed")
+    if not isinstance(exits, dict) or set(exits) != set(_SCANNER_EXIT_KEYS):
+        raise AdapterError("scanner exit-code evidence is missing or malformed")
+    if any(isinstance(exits.get(name), bool) or not isinstance(exits.get(name), int) for name in _SCANNER_EXIT_KEYS):
+        raise AdapterError("scanner exit-code evidence is malformed")
+    if any(exits[name] != 0 for name in _SCANNER_EXIT_KEYS):
+        raise AdapterError("one or more security scanners failed to execute cleanly")
+    vulnerability_count = sum(len(item.get("vulns", [])) for item in pip["dependencies"])
+    if vulnerability_count:
+        raise AdapterError("production dependency vulnerabilities were found")
+    if leaks:
+        raise AdapterError("secret findings were found")
+    if semgrep["errors"]:
+        raise AdapterError("Semgrep reported scan errors")
+    if semgrep["results"]:
+        raise AdapterError("Semgrep findings were found")
+    return {
+        "dependency_count": len(pip["dependencies"]),
+        "vulnerability_count": vulnerability_count,
+        "secret_count": len(leaks),
+        "semgrep_finding_count": len(semgrep["results"]),
+        "scanner_exit_codes": {name: exits[name] for name in sorted(_SCANNER_EXIT_KEYS)},
+    }
 
 
 def _bool(value: Any, label: str) -> bool:
@@ -236,7 +286,7 @@ def _engine_pass(value: dict[str, Any], label: str) -> None:
             raise AdapterError(f"{label}.{key} is incomplete")
 
 
-def _derive_heavy(sources: dict[str, Path]) -> dict[str, Any]:
+def _derive_heavy(sources: dict[str, Path], *, root: Path | None = None, candidate_spec: dict[str, Any] | None = None) -> dict[str, Any]:
     values, _ = source_records(sources, expected=_ROLES["heavy_runtime"] + (("full_engine",) if "full_engine" in sources else ()))
     _doctor_pass(_read_json(values["required_doctor"]))
     _doctor_pass(_read_json(values["networkless_doctor"]), networkless=True)
@@ -244,7 +294,49 @@ def _derive_heavy(sources: dict[str, Path]) -> dict[str, Any]:
     full = "full_engine" in values
     if full:
         _engine_pass(_read_json(values["full_engine"]), "full_engine")
-    return {"heavy_pass": True, "networkless_pass": True, "representative_engine_pass": True, "full_engine_pass": full, "unexpected_capability_blocks": 0}
+    inventory = load_dependency_inventory(values["production_inventory"])
+    lock_inventory = load_dependency_lock(values["production_lock"])
+    built_inventory = load_dependency_inventory(values["built_image_inventory"])
+    context = _read_json(values["dependency_context"])
+    if not isinstance(context, dict):
+        raise AdapterError("heavy dependency context is malformed")
+    inventory_hash = dependency_inventory_hash(inventory)
+    lock_hash = sha256_file(values["production_lock"])
+    if lock_inventory != inventory:
+        raise AdapterError("heavy production lock does not equal the frozen production inventory")
+    if built_inventory != inventory:
+        raise AdapterError("heavy image dependency inventory does not equal the frozen production inventory")
+    required_hashes = {
+        "expected_dependency_set_sha256": inventory_hash,
+        "frozen_dependency_set_sha256": inventory_hash,
+        "built_image_dependency_set_sha256": inventory_hash,
+        "production_lock_sha256": lock_hash,
+    }
+    for key, expected in required_hashes.items():
+        if str(context.get(key) or "").lower() != expected:
+            raise AdapterError(f"heavy dependency context {key} does not match retained sources")
+    if str(context.get("dependency_subject") or "") != "production-env":
+        raise AdapterError("heavy dependency context does not identify the production subject")
+    if candidate_spec is not None:
+        if context.get("subject_git_sha") != candidate_spec.get("subject_git_sha"):
+            raise AdapterError("heavy dependency context subject does not match candidate")
+        context_deployment = context.get("deployment_fingerprint")
+        if context_deployment != candidate_deployment_fingerprint(candidate_spec):
+            raise AdapterError("heavy dependency context deployment does not match candidate")
+        expected_candidate = str(candidate_spec.get("resolved_dependency_set_sha256") or "").lower()
+        if expected_candidate != inventory_hash:
+            raise AdapterError("heavy dependency identity does not match candidate")
+    return {
+        "heavy_pass": True,
+        "networkless_pass": True,
+        "representative_engine_pass": True,
+        "full_engine_pass": full,
+        "unexpected_capability_blocks": 0,
+        "dependency_subject": "production-env",
+        "resolved_dependency_set_sha256": inventory_hash,
+        "resolved_dependency_lock_sha256": lock_hash,
+        "built_image_dependency_set_sha256": inventory_hash,
+    }
 
 
 def _execution_provenance(sources: dict[str, Path], *, evidence_type: str) -> dict[str, set[str]]:
@@ -670,6 +762,10 @@ def _derive_held_out(sources: dict[str, Path], *, root: Path | None) -> dict[str
 
 def _derive_security(sources: dict[str, Path], *, root: Path | None = None, candidate_spec: dict[str, Any] | None = None) -> dict[str, Any]:
     values, _ = source_records(sources, expected=_ROLES["security"])
+    # Apply the same scanner enforcement used by the workflow before deriving
+    # candidate-bound evidence.  Certification eligibility must not create a
+    # second, weaker interpretation of scanner output.
+    enforce_security_scanners({role: values[role] for role in _SECURITY_SCANNER_ROLES})
     pip = _read_json(values["pip_audit"])
     leaks = _read_json(values["gitleaks"])
     semgrep = _read_json(values["semgrep"])
@@ -877,6 +973,8 @@ def derive_payload(evidence_type: str, sources: dict[str, Path], *, root: Path |
         raise AdapterError(f"no machine deriver for {evidence_type}") from exc
     if evidence_type in {"model_validation", "model_high_risk_stability", "model_held_out"}:
         return deriver(sources, root=root)
+    if evidence_type == "heavy_runtime":
+        return deriver(sources, root=root, candidate_spec=candidate_spec)
     if evidence_type == "security":
         return deriver(sources, root=root, candidate_spec=candidate_spec)
     return deriver(sources)
@@ -955,6 +1053,8 @@ def verify_envelope_sources(envelope_path: Path, envelope: dict[str, Any]) -> tu
         if relative.is_absolute() or ".." in relative.parts:
             raise AdapterError("machine evidence source path escapes evidence root")
         path = root / relative
+        if path.is_symlink():
+            raise AdapterError("machine evidence source path is symlinked")
         try:
             path.resolve().relative_to(root)
         except ValueError as exc:

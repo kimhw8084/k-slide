@@ -340,6 +340,13 @@ def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, 
             blockers.append("security evidence is not bound to the staged production SBOM")
         if candidate_spec is not None and security.get("resolved_dependency_set_sha256") != candidate_spec.get("resolved_dependency_set_sha256"):
             blockers.append("security evidence dependency set does not match candidate")
+        heavy_payload = records.get("heavy_runtime", {}).get("payload", {}) if isinstance(records.get("heavy_runtime"), dict) else {}
+        expected_dependency = candidate_spec.get("resolved_dependency_set_sha256") if candidate_spec is not None else None
+        for field in ("resolved_dependency_set_sha256", "built_image_dependency_set_sha256"):
+            if heavy_payload.get(field) != expected_dependency or heavy_payload.get(field) != security.get("resolved_dependency_set_sha256"):
+                blockers.append(f"heavy evidence {field} does not match the security and candidate dependency subject")
+        if heavy_payload.get("resolved_dependency_lock_sha256") != security.get("resolved_dependency_lock_sha256"):
+            blockers.append("heavy evidence lock does not match the security dependency subject")
         # The candidate profile describes deployment inputs.  A certified
         # profile is materialized/bound after this evidence-derived state is
         # generated; requiring it here would make certification circular.
@@ -467,6 +474,8 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
             "inventory": safe_relative(production_inventory, "production dependency inventory"),
             "lock": safe_relative(production_lock, "production dependency lock"),
             "lock_sha256": security_payload.get("resolved_dependency_lock_sha256"),
+            "heavy_inventory_sha256": records.get("heavy_runtime", {}).get("payload", {}).get("built_image_dependency_set_sha256"),
+            "heavy_lock_sha256": records.get("heavy_runtime", {}).get("payload", {}).get("resolved_dependency_lock_sha256"),
             "sbom": safe_relative(production_sbom, "production SBOM"),
             "sbom_sha256": security_payload.get("production_sbom_sha256") or _sha256(production_sbom),
             "pip_audit_version": security_payload.get("pip_audit_version"),

@@ -14,9 +14,12 @@ from pathlib import Path
 
 from k_slide.certification import (
     EvidenceValidationError,
+    dependency_inventory_hash,
     dependency_lock_text,
     installed_dependency_inventory,
     load_dependency_lock,
+    load_dependency_inventory,
+    sha256_file,
 )
 from k_slide.io import atomic_write_json, atomic_write_text
 
@@ -32,11 +35,47 @@ def freeze(*, inventory_output: Path, lock_output: Path, lock_input: Path | None
     return inventory
 
 
+def retain_heavy_dependency_context(*, inventory_path: Path, lock_path: Path, built_image_inventory_path: Path, output: Path, subject_git_sha: str, deployment_fingerprint: str | None = None) -> dict[str, object]:
+    """Persist the dependency proof that a later heavy adapter can rederive."""
+
+    if len(subject_git_sha) != 40 or set(subject_git_sha.lower()) - set("0123456789abcdef"):
+        raise EvidenceValidationError("heavy dependency proof subject SHA is invalid")
+    inventory = load_dependency_inventory(inventory_path)
+    lock_inventory = load_dependency_lock(lock_path)
+    built_inventory = load_dependency_inventory(built_image_inventory_path)
+    if not inventory["packages"]:
+        raise EvidenceValidationError("heavy dependency inventory is empty")
+    if lock_inventory != inventory:
+        raise EvidenceValidationError("heavy production lock does not equal the frozen inventory")
+    if built_inventory != inventory:
+        raise EvidenceValidationError("built heavy image inventory does not equal the frozen inventory")
+    inventory_hash = dependency_inventory_hash(inventory)
+    lock_hash = sha256_file(lock_path)
+    context: dict[str, object] = {
+        "schema_version": "1.0",
+        "dependency_subject": "production-env",
+        "subject_git_sha": subject_git_sha,
+        "expected_dependency_set_sha256": inventory_hash,
+        "frozen_dependency_set_sha256": inventory_hash,
+        "built_image_dependency_set_sha256": inventory_hash,
+        "production_lock_sha256": lock_hash,
+        "package_count": len(inventory["packages"]),
+    }
+    if deployment_fingerprint is not None:
+        context["deployment_fingerprint"] = deployment_fingerprint
+    atomic_write_json(output, context, mode=0o600)
+    return context
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Freeze the exact production Python dependency subject")
     parser.add_argument("--inventory-output", type=Path, required=True)
     parser.add_argument("--lock-output", type=Path, required=True)
     parser.add_argument("--lock-input", type=Path, help="Approved private exact lock to verify against the active interpreter")
+    parser.add_argument("--built-image-inventory", type=Path, help="Installed package inventory extracted from the built heavy image")
+    parser.add_argument("--dependency-context-output", type=Path, help="Retained heavy dependency proof context output")
+    parser.add_argument("--subject-sha", default="UNSET")
+    parser.add_argument("--deployment-fingerprint")
     args = parser.parse_args(argv)
     try:
         inventory = freeze(
@@ -44,6 +83,17 @@ def main(argv: list[str] | None = None) -> int:
             lock_output=args.lock_output.expanduser(),
             lock_input=args.lock_input.expanduser() if args.lock_input else None,
         )
+        if (args.built_image_inventory is None) != (args.dependency_context_output is None):
+            raise EvidenceValidationError("built image inventory and dependency context output must be supplied together")
+        if args.built_image_inventory is not None and args.dependency_context_output is not None:
+            retain_heavy_dependency_context(
+                inventory_path=args.inventory_output.expanduser(),
+                lock_path=args.lock_output.expanduser(),
+                built_image_inventory_path=args.built_image_inventory.expanduser(),
+                output=args.dependency_context_output.expanduser(),
+                subject_git_sha=args.subject_sha,
+                deployment_fingerprint=args.deployment_fingerprint,
+            )
     except (EvidenceValidationError, OSError, UnicodeError, ValueError) as exc:
         print(json.dumps({"status": "BLOCKED", "reason": str(exc)}, ensure_ascii=False))
         return 2

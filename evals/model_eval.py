@@ -291,7 +291,7 @@ class ModelEvaluationRunner:
             write_results(self.output, [], {**record, "case_count": 0}, "# K-Slide Model Evaluation\n\n`CAPABILITY_BLOCK`\n\n" + str(exc) + "\n")
             return record
         results: list[dict[str, Any]] = []
-        runner = OpenCodeEvalRunner(model=self.model, timeout_seconds=self.timeout, ocr_policy=self.ocr_provider, policy=model_policy, policy_root=repo_root)
+        runner = OpenCodeEvalRunner(model=self.model, timeout_seconds=self.timeout, ocr_policy=self.ocr_provider, policy=model_policy, policy_root=repo_root, candidate_spec=candidate_spec, candidate_root=repo_root)
         for scenario in scenarios:
             for format_name in self.formats:
                 artifact = _artifact_path(corpus_root, scenario.scenario_id, format_name)
