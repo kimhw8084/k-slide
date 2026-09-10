@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -16,6 +17,8 @@ from .fonts import KoreanFontUnavailable
 from .generator import DEFAULT_VARIANT, generate_artifacts
 from .scenarios import scenario_specs, write_specs
 from .scorers import aggregate_engine_scores, score_artifact, score_engine_case
+from k_slide.certification import build_deployment_factors, deployment_fingerprint
+from k_slide.model_policy import load_model_policy
 
 
 def _selected_scenarios(split: str, limit: int | None, scenario_ids: tuple[str, ...] = ()):
@@ -48,11 +51,18 @@ def main(argv: list[str] | None = None) -> int:
     scenarios = scenario_specs()
     selected = _selected_scenarios(args.split, args.limit, tuple(args.scenario_ids))
     args.output.mkdir(parents=True, exist_ok=True)
+    repo_root = Path(__file__).resolve().parents[1]
+    try:
+        git_result = subprocess.run(["git", "-C", str(repo_root), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=5, check=False)
+        subject_sha = git_result.stdout.strip() if git_result.returncode == 0 else "UNSET"
+    except (OSError, subprocess.TimeoutExpired):
+        subject_sha = "UNSET"
+    deployment = deployment_fingerprint(build_deployment_factors(repo_root, subject_git_sha=subject_sha, runtime={}, profile={"ocr_provider": args.ocr_provider}, model_policy=load_model_policy(repo_root), corpus={"split": args.split}))
     write_specs(args.output / "specs")
     try:
         counts = generate_artifacts(selected, args.output / "artifacts", formats=tuple(args.formats), variants=(DEFAULT_VARIANT,))
     except KoreanFontUnavailable as exc:
-        summary = {"evaluation_tier": "synthetic_engine_evidence", "status": "CAPABILITY_BLOCK", "model_evaluated": False, "semantic_translation_scored": False, "scenario_specs": len(scenarios), "split": args.split, "scenarios_selected": len(selected), "case_count": 0, "formats_requested": [item.lower() for item in args.formats], "generated_artifacts": {}, "engine": {"capability_block": str(exc)}, "generated_at": datetime.now(timezone.utc).isoformat(), "results": []}
+        summary = {"evaluation_tier": "synthetic_engine_evidence", "status": "CAPABILITY_BLOCK", "subject_git_sha": subject_sha, "deployment_fingerprint": deployment, "model_evaluated": False, "semantic_translation_scored": False, "scenario_specs": len(scenarios), "split": args.split, "scenarios_selected": len(selected), "case_count": 0, "formats_requested": [item.lower() for item in args.formats], "generated_artifacts": {}, "engine": {"capability_block": str(exc)}, "generated_at": datetime.now(timezone.utc).isoformat(), "results": []}
         args.output.mkdir(parents=True, exist_ok=True)
         (args.output / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         (args.output / "EVAL_REPORT.md").write_text(f"# K-Slide Engine Evidence Evaluation\n\n`CAPABILITY_BLOCK`\n\n{exc}\n", encoding="utf-8")
@@ -86,6 +96,8 @@ def main(argv: list[str] | None = None) -> int:
     aggregate = aggregate_engine_scores(results)
     summary = {
         "evaluation_tier": "synthetic_engine_evidence",
+        "subject_git_sha": subject_sha,
+        "deployment_fingerprint": deployment,
         "model_evaluated": False,
         "semantic_translation_scored": False,
         "scenario_specs": len(scenarios),

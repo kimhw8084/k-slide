@@ -46,6 +46,14 @@ def aggregate_model_results(results: Iterable[dict[str, Any]], *, model: str, sp
         )
         for item in cases
     )
+    requested_models = sorted({str(item.get("opencode", {}).get("model")) for item in cases if item.get("opencode", {}).get("model")})
+    effective_models = sorted({str(item.get("opencode", {}).get("diagnostics", {}).get("effective_model")) for item in cases if item.get("opencode", {}).get("diagnostics", {}).get("effective_model")})
+    media_cases = []
+    for item in cases:
+        media_units = item.get("media_by_work_unit", {})
+        media_cases.append(bool(media_units) and all(value.get("media_sequence_valid") is True for value in media_units.values() if isinstance(value, dict)))
+    locked_terms = [float(item.get("semantic", {}).get("term_consistency_recall", 1.0)) for item in scored]
+    unexpected_unresolved = [float(item.get("semantic", {}).get("unexpected_unresolved_rate", 0.0)) for item in scored]
     review_case_count = sum(1 for item in scored if float(item.get("semantic", {}).get("unresolved_region_rate", 0.0)) > 0)
     stability_groups = {
         f"{scenario}/{format_name}": {
@@ -73,6 +81,8 @@ def aggregate_model_results(results: Iterable[dict[str, Any]], *, model: str, sp
         evaluation_state = EvaluationState.NOT_MEASURED.value
     return {
         "model": model,
+        "requested_model": requested_models[0] if len(requested_models) == 1 else model,
+        "effective_model_ids": effective_models,
         "split": split,
         "case_count": len(cases),
         "semantic_scored_case_count": len(scored),
@@ -89,6 +99,10 @@ def aggregate_model_results(results: Iterable[dict[str, Any]], *, model: str, sp
         "review_case_count": review_case_count,
         "review_rate": review_case_count / len(scored) if scored else 0.0,
         "unresolved_region_rate": sum(float(item.get("semantic", {}).get("unresolved_region_rate", 0.0)) for item in scored) / len(scored) if scored else 0.0,
+        "unexpected_unresolved_rate": sum(unexpected_unresolved) / len(unexpected_unresolved) if unexpected_unresolved else 0.0,
+        "required_media_compliance": bool(media_cases) and all(media_cases),
+        "media_compliance_rate": sum(media_cases) / len(media_cases) if media_cases else 0.0,
+        "locked_terminology_recall": sum(locked_terms) / len(locked_terms) if locked_terms else 1.0,
         "stability_groups": stability_groups,
         "by_category": {key: summarize(value) for key, value in sorted(category_values.items())},
         "by_format": {key: summarize(value) for key, value in sorted(format_values.items())},

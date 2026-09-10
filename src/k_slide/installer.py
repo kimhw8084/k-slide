@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,14 @@ def _load_manifest(path: Path) -> dict[str, Any]:
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise KSlideError(ErrorCode.INSTALL_INVALID, "Existing K-Slide install manifest is unreadable.", {"path": str(path)}) from exc
     return value if isinstance(value, dict) else {}
+
+
+def _source_git_sha(source_root: Path) -> str:
+    try:
+        result = subprocess.run(["git", "-C", str(source_root), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=5, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return "UNSET"
+    return result.stdout.strip() if result.returncode == 0 else "UNSET"
 
 
 def _copy_owned(source: Path, destination: Path, *, target_root: Path, previous: dict[str, str]) -> dict[str, str]:
@@ -105,6 +114,7 @@ def install(source_root: Path, target: Path, *, scope: str = "project") -> Path:
     manifest = {
         "schema_version": "1.0",
         "installer_version": __version__,
+        "source_git_sha": _source_git_sha(source_root),
         "scope": scope,
         "source_root": str(source_root),
         "files": files,

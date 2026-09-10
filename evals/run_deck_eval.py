@@ -66,6 +66,7 @@ def main(argv: list[str] | None = None) -> int:
         "deck_semantics": score_deck_consistency([item["patch"] for item in artifacts], deck.gold),
         "media": result.media_compliance,
         "tool_calls": list(result.tool_calls),
+        "forbidden_attempts": list(result.forbidden_attempts),
         "diagnostics": result.diagnostics,
     }
     payload["completion_contract"] = deck_completion_contract(result, expected_units=deck.slide_count, artifact_units=len(artifacts))

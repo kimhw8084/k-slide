@@ -220,8 +220,11 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
                 checks.append(_check(f"Evidence {evidence_type}", False, "path is missing"))
                 continue
             try:
-                record = load_evidence(_resolve_path(root, str(evidence_path)), expected_type=str(evidence_type), subject_git_sha=profile.subject_git_sha, deployment_fingerprint=profile.deployment_fingerprint)
-                checks.append(_check(f"Evidence {evidence_type}", record["sha256"] == expected_hash, f"sha256={record['sha256']}"))
+                record = load_evidence(_resolve_path(root, str(evidence_path)), expected_type=str(evidence_type), subject_git_sha=profile.subject_git_sha, deployment_fingerprint=profile.deployment_fingerprint, repository_root=root)
+                checks.append(_check(f"Evidence {evidence_type}", record.get("evidence_identity") == expected_hash, f"identity={record.get('evidence_identity')}"))
+                expected_envelope = manifest.get("evidence_envelope_hashes", {}).get(evidence_type) if isinstance(manifest.get("evidence_envelope_hashes"), dict) else None
+                if expected_envelope:
+                    checks.append(_check(f"Evidence {evidence_type} envelope hash", record.get("envelope_sha256") == expected_envelope, f"sha256={record.get('envelope_sha256')}"))
             except (EvidenceValidationError, OSError, ValueError) as exc:
                 checks.append(_check(f"Evidence {evidence_type}", False, str(exc)))
         expected_certification = certification_fingerprint(
@@ -243,6 +246,19 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
     return checks
 
 
+def _installed_build_status(root: Path, profile: ProductionProfile) -> tuple[bool, str]:
+    path = root.expanduser().resolve() / ".k-slide-install.json"
+    if path.is_symlink() or not path.is_file():
+        return False, "installed build manifest is missing"
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False, "installed build manifest is unreadable"
+    if not isinstance(value, dict) or value.get("source_git_sha") != profile.subject_git_sha:
+        return False, f"installed build subject mismatch: {value.get('source_git_sha') if isinstance(value, dict) else 'invalid'}"
+    return True, str(value.get("source_git_sha"))
+
+
 def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, str]]:
     """Return fail-closed production checks without changing run state."""
 
@@ -257,6 +273,8 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
     policy = load_model_policy(root)
     checks.append(_check("Requested/effective model policy", policy.approved(requested=profile.requested_model, effective=profile.effective_model), f"requested={profile.requested_model}; effective={profile.effective_model}"))
     checks.append(_check("Runtime model match", runtime.reported_model_id in {profile.requested_model, profile.effective_model}, runtime.reported_model_id or "unknown"))
+    installed_ok, installed_detail = _installed_build_status(root, profile)
+    checks.append(_check("Installed build identity", installed_ok, installed_detail))
     checks.append(_check("Vision capability", runtime.vision_support is True, "proven" if runtime.vision_support is True else "not proven"))
     checks.append(_check("OCR policy", profile.ocr_provider == "paddle", profile.ocr_provider))
     asset_manifest = Path(profile.ocr_asset_manifest).expanduser()

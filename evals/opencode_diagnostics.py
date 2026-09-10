@@ -13,6 +13,9 @@ from typing import Any
 
 from .opencode_events import normalize_events, parse_json_events
 from .process_control import terminate_process_group
+from k_slide.certification import build_deployment_factors, deployment_fingerprint
+from k_slide.model_policy import load_model_policy
+from k_slide.runtime import discover_runtime
 from k_slide.redaction import redact_text, redact_value
 
 
@@ -103,9 +106,16 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
     """Run clean-provider levels before installing any K-Slide project files."""
 
     output.mkdir(parents=True, exist_ok=True)
+    repo_root = Path(__file__).resolve().parents[1]
+    try:
+        git = subprocess.run(["git", "-C", str(repo_root), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=5, check=False)
+        subject_sha = git.stdout.strip() if git.returncode == 0 else "UNSET"
+    except (OSError, subprocess.TimeoutExpired):
+        subject_sha = "UNSET"
+    deployment = deployment_fingerprint(build_deployment_factors(repo_root, subject_git_sha=subject_sha, runtime={**discover_runtime().as_dict(), "reported_model_id": model}, profile={}, model_policy=load_model_policy(repo_root), corpus={}))
     executable = opencode or shutil.which("opencode")
     if not executable or (opencode is not None and not Path(executable).is_file()):
-        result = {"status": "BLOCKED", "model": model, "reason": "OpenCode executable is unavailable.", "levels": [], "first_failed_level": "level0_opencode", "conclusion": "OPENCODE_EXECUTABLE_UNAVAILABLE"}
+        result = {"status": "BLOCKED", "model": model, "subject_git_sha": subject_sha, "deployment_fingerprint": deployment, "reason": "OpenCode executable is unavailable.", "levels": [], "first_failed_level": "level0_opencode", "conclusion": "OPENCODE_EXECUTABLE_UNAVAILABLE"}
         (output / "diagnostics.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return result
 
@@ -176,6 +186,8 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
             "status": "PASS" if conclusion == "PASS" else "BLOCKED_OR_FAILED",
             "model": model,
             "requested_model": model,
+            "subject_git_sha": subject_sha,
+            "deployment_fingerprint": deployment,
             "provider": provider_result,
             "workspace_paths": {"clean": "workspace-clean", "k_slide": "workspace-kslide"},
             "workspace_assertions": {

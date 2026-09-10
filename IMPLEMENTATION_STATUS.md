@@ -18,6 +18,14 @@ ModelPolicy, and verify OCR asset content hashes. The lightweight SBOM remains
 explicitly development-only; certified release generation requires a real
 CycloneDX environment SBOM from the approved release environment.
 
+The result-derived evidence closure adds type-specific adapters for runtime,
+heavy, model, security, reliability, and governance results. Machine evidence
+records unique source roles and hashes; loading it re-parses those source
+files and compares a deterministic derived payload. Envelope timestamps and
+packaging paths do not affect evidence identity; adapter version and
+source-result hashes do. A machine PASS envelope cannot be authored through
+the generic attestation writer.
+
 ## Implemented and tested
 
 - Engine-owned, versioned `EvidenceIR` with deterministic SHA-256 revisions.
@@ -74,11 +82,13 @@ CycloneDX environment SBOM from the approved release environment.
 - Production doctor verification of release-manifest hashes, evidence hashes, authoritative model policy, exact dependency identities, and OCR asset content hashes.
 - Pinned public security workflow for dependency, secret, and static scans; CODEOWNERS for production-sensitive paths.
 - Production SBOM generation path using `cyclonedx-py`; the existing package inventory remains labeled as non-certified development metadata.
+- Result-derived machine evidence adapters with source-role validation, payload re-derivation, deterministic evidence identities, and runtime/heavy/model/security/reliability/governance coverage.
+- Spoof/tamper regressions covering contradictory metrics, result mutation, envelope mutation, critical model results, scanner findings, and non-authoritative governance input.
 
 ## Verification performed locally
 
 ```text
-Dependency-backed unit/integration suite: PASS (`python -m unittest discover -s tests -q`; latest local execution: 115 tests passed, 2 optional dependency skips)
+Dependency-backed unit/integration suite: PASS (`python -m unittest discover -s tests -q`; latest local execution: 124 tests passed, 2 optional dependency skips)
 Dependency-backed compile/import checks: PASS
 TranslationPatch JSON schema parse: PASS
 Stratified split manifest: PASS (100 specs; 60/20/20; protected categories in held-out)
@@ -126,7 +136,7 @@ The latest local closure run executed:
 
 ```text
 PYTHONPATH=src:. python -m unittest discover -s tests -q
-115 tests passed, 2 optional dependency skips
+124 tests passed, 2 optional dependency skips
 python -m compileall -q src evals tests: PASS
 git diff --check: PASS
 DEVELOPMENT release generation: PASS
@@ -222,3 +232,4 @@ materialized by these tests.
 - [ADR 0033 — OpenCode diagnostic ladder](docs/adr/0033-opencode-diagnostic-ladder.md)
 - [ADR 0034 — Execution isolation and heavy proof](docs/adr/0034-execution-isolation-and-heavy-proof.md)
 - [ADR 0036 — Evidence-bound release state](docs/adr/0036-evidence-bound-release-state.md)
+- [ADR 0037 — Result-derived machine evidence](docs/adr/0037-result-derived-machine-evidence.md)

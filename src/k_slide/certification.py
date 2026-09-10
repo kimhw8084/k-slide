@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-EVIDENCE_SCHEMA_VERSION = "1.0"
+EVIDENCE_SCHEMA_VERSION = "2.0"
 EVIDENCE_TYPES = (
     "runtime",
     "heavy_runtime",
@@ -85,18 +85,18 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
     if not isinstance(payload, dict) or not payload:
         raise EvidenceValidationError(f"{evidence_type} evidence has no payload")
     requirements: dict[str, tuple[str, ...]] = {
-        "runtime": ("runtime_pass", "required_media_compliance", "run_complete", "result_path", "result_sha256"),
-        "heavy_runtime": ("heavy_pass", "networkless_pass", "representative_engine_pass", "result_path", "result_sha256"),
-        "model_validation": ("split", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "repetitions", "champion_config_hash", "result_path", "result_sha256"),
-        "model_high_risk_stability": ("target_model_approved", "critical_failure_frequency", "repetitions", "champion_config_hash", "result_path", "result_sha256"),
-        "model_held_out": ("split", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "champion_config_hash", "result_path", "result_sha256"),
-        "internal_bilingual": ("attestation_id", "artifact_count", "work_unit_count", "critical_business_meaning_errors", "overall_noncritical_semantic_fidelity", "locked_terminology"),
+        "runtime": ("runtime_pass", "required_media_compliance", "run_complete", "simple_pass", "three_slide_pass", "five_slide_pass"),
+        "heavy_runtime": ("heavy_pass", "networkless_pass", "representative_engine_pass", "full_engine_pass", "unexpected_capability_blocks"),
+        "model_validation": ("split", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "repetitions", "configuration_hash", "required_media_compliance"),
+        "model_high_risk_stability": ("target_model_approved", "worst_critical_frequency", "repetitions", "configuration_hash", "required_group_coverage"),
+        "model_held_out": ("split", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "configuration_hash", "corpus_fingerprint", "held_out_fingerprint"),
+        "internal_bilingual": ("attestation_id", "artifact_count", "work_unit_count", "critical_business_meaning_errors", "critical_numeric_date_unit_errors", "critical_modality_escalations", "critical_table_mapping_errors", "critical_trend_reversals", "unsupported_critical_executive_claims", "overall_noncritical_semantic_fidelity", "locked_terminology"),
         "zero_korean_comprehension": ("attestation_id", "users", "answers", "critical_question_accuracy", "overall_comprehension", "critical_misunderstanding"),
-        "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings", "result_path", "result_sha256"),
-        "reliability": ("timeout_recovery_pass", "resume_pass", "fifty_slide_pass", "concurrency_pass", "slo_pass", "concurrent_runs", "result_path", "result_sha256"),
+        "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings"),
+        "reliability": ("timeout_recovery_pass", "resume_pass", "fifty_slide_pass", "concurrency_pass", "slo_pass", "concurrent_runs"),
         "model_data_policy": ("attestation_id", "approved_for_internal_artifacts"),
         "pilot_canary": ("attestation_id", "users", "artifacts", "critical_confirmed_errors", "cross_user_exposure", "security_incidents", "silent_incomplete_output"),
-        "governance": ("codeowners_pass", "branch_protection_pass", "required_ci_pass", "result_path", "result_sha256"),
+        "governance": ("codeowners_pass", "branch_protection_pass", "required_ci_pass", "review_required"),
     }
     missing = [key for key in requirements.get(evidence_type, ()) if key not in payload]
     if missing:
@@ -113,17 +113,18 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
         if payload["critical_failure_count"] != 0 or not _positive_int(payload["repetitions"], 3):
             raise EvidenceValidationError("validation evidence fails critical/repetition gates")
     elif evidence_type == "model_high_risk_stability":
-        if not _is_true(payload["target_model_approved"]) or payload["critical_failure_frequency"] != 0 or not _positive_int(payload["repetitions"], 5):
+        if not _is_true(payload["target_model_approved"]) or payload["worst_critical_frequency"] != 0 or not _positive_int(payload["repetitions"], 5):
             raise EvidenceValidationError("high-risk stability evidence fails target, critical-frequency, or repetition gates")
     elif evidence_type == "model_held_out":
         if payload["split"] != "held_out" or not _is_true(payload["target_model_approved"]) or not _is_true(payload["quality_metrics_authoritative"]):
             raise EvidenceValidationError("held-out evidence is not authoritative target-model evidence")
-        if payload["critical_failure_count"] != 0 or not str(payload["champion_config_hash"]):
-            raise EvidenceValidationError("held-out evidence fails critical or champion binding")
+        if payload["critical_failure_count"] != 0:
+            raise EvidenceValidationError("held-out evidence fails critical gate")
     elif evidence_type == "internal_bilingual":
         if not str(payload["attestation_id"]) or payload["attestation_id"] == "UNSET" or not _positive_int(payload["artifact_count"], 50) or not _positive_int(payload["work_unit_count"], 200):
             raise EvidenceValidationError("internal bilingual sample/attestation is insufficient")
-        if payload["critical_business_meaning_errors"] != 0 or float(payload["overall_noncritical_semantic_fidelity"]) < 0.98 or float(payload["locked_terminology"]) < 0.995:
+        critical = ("critical_business_meaning_errors", "critical_numeric_date_unit_errors", "critical_modality_escalations", "critical_table_mapping_errors", "critical_trend_reversals", "unsupported_critical_executive_claims")
+        if any(payload[key] != 0 for key in critical) or float(payload["overall_noncritical_semantic_fidelity"]) < 0.98 or float(payload["locked_terminology"]) < 0.995:
             raise EvidenceValidationError("internal bilingual quality gates failed")
     elif evidence_type == "zero_korean_comprehension":
         if not str(payload["attestation_id"]) or payload["attestation_id"] == "UNSET" or not _positive_int(payload["users"], 10) or not _positive_int(payload["answers"], 100):
@@ -144,11 +145,11 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
             raise EvidenceValidationError("pilot sample/attestation is insufficient")
         if any(payload[key] != 0 for key in ("critical_confirmed_errors", "cross_user_exposure", "security_incidents", "silent_incomplete_output")):
             raise EvidenceValidationError("pilot safety gate failed")
-    elif evidence_type == "governance" and not all(_is_true(payload[key]) for key in ("codeowners_pass", "branch_protection_pass", "required_ci_pass")):
+    elif evidence_type == "governance" and not all(_is_true(payload[key]) for key in ("codeowners_pass", "branch_protection_pass", "required_ci_pass", "review_required")):
         raise EvidenceValidationError("repository governance evidence is incomplete")
 
 
-def load_evidence(path: Path, *, expected_type: str | None = None, subject_git_sha: str | None = None, deployment_fingerprint: str | None = None) -> dict[str, Any]:
+def load_evidence(path: Path, *, expected_type: str | None = None, subject_git_sha: str | None = None, deployment_fingerprint: str | None = None, repository_root: Path | None = None) -> dict[str, Any]:
     """Load and validate one immutable evidence envelope."""
 
     path = path.expanduser()
@@ -179,18 +180,21 @@ def load_evidence(path: Path, *, expected_type: str | None = None, subject_git_s
     if not str(value.get("generated_at") or ""):
         raise EvidenceValidationError("evidence generated_at is missing")
     payload = value.get("payload")
-    validate_evidence_payload(str(evidence_type), payload)
     if evidence_type in MACHINE_EVIDENCE_TYPES:
-        expected_result_hash = _require_hex(payload.get("result_sha256"), f"{evidence_type}.result_sha256")
-        result_path = Path(str(payload.get("result_path"))).expanduser()
-        if not result_path.is_absolute():
-            result_path = path.parent / result_path
-        if result_path.is_symlink():
-            raise EvidenceValidationError(f"{evidence_type} source result is symlinked")
-        actual_result_hash = sha256_file(result_path.resolve())
-        if actual_result_hash != expected_result_hash:
-            raise EvidenceValidationError(f"{evidence_type} source result hash does not match")
-    return {**value, "path": str(path), "sha256": sha256_file(path)}
+        from .evidence_adapters import AdapterError, verify_machine_envelope
+
+        try:
+            verified = verify_machine_envelope(path, value, subject_git_sha=subject_git_sha, deployment_fingerprint=deployment_fingerprint, root=repository_root)
+        except AdapterError as exc:
+            raise EvidenceValidationError(str(exc)) from exc
+        if payload != verified["payload"]:
+            raise EvidenceValidationError("machine evidence payload is not the adapter-derived payload")
+        validate_evidence_payload(str(evidence_type), payload)
+        identity = evidence_identity(value, sources=verified["sources"])
+        return {**value, "path": str(path), "sha256": sha256_file(path), "envelope_sha256": sha256_file(path), "evidence_identity": identity}
+    validate_evidence_payload(str(evidence_type), payload)
+    physical = sha256_file(path)
+    return {**value, "path": str(path), "sha256": physical, "envelope_sha256": physical, "evidence_identity": evidence_identity(value)}
 
 
 def write_evidence(path: Path, *, evidence_type: str, subject_git_sha: str, deployment_fingerprint: str, payload: dict[str, Any], generated_at: str, attestation_id: str | None = None) -> Path:
@@ -198,6 +202,8 @@ def write_evidence(path: Path, *, evidence_type: str, subject_git_sha: str, depl
 
     if evidence_type not in EVIDENCE_TYPES:
         raise EvidenceValidationError("unknown evidence type")
+    if evidence_type in MACHINE_EVIDENCE_TYPES:
+        raise EvidenceValidationError("machine evidence must be derived from source results by evidence_adapters")
     validate_evidence_payload(evidence_type, payload)
     envelope: dict[str, Any] = {
         "schema_version": EVIDENCE_SCHEMA_VERSION,
@@ -283,4 +289,22 @@ def certification_fingerprint(*, deployment: str, evidence_hashes: dict[str, str
 
 
 def evidence_hashes(records: Iterable[dict[str, Any]]) -> dict[str, str]:
-    return {str(item["evidence_type"]): str(item["sha256"]) for item in records}
+    return {str(item["evidence_type"]): str(item.get("evidence_identity") or item["sha256"]) for item in records}
+
+
+def evidence_identity(envelope: dict[str, Any], *, sources: list[dict[str, str]] | None = None) -> str:
+    """Stable evidence identity excluding packaging metadata such as timestamps."""
+
+    identity = {
+        "schema_version": envelope.get("schema_version"),
+        "evidence_type": envelope.get("evidence_type"),
+        "adapter_version": envelope.get("adapter_version"),
+        "subject_git_sha": envelope.get("subject_git_sha"),
+        "deployment_fingerprint": envelope.get("deployment_fingerprint"),
+        "sources": sorted(
+            [{"role": item.get("role"), "sha256": item.get("sha256")} for item in (sources if sources is not None else envelope.get("sources", []))],
+            key=lambda item: item.get("role", ""),
+        ),
+        "payload": envelope.get("payload"),
+    }
+    return sha256_bytes(canonical_bytes(identity))

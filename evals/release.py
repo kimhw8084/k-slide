@@ -129,12 +129,12 @@ def _evidence_arguments(args: argparse.Namespace) -> dict[str, Path]:
     return result
 
 
-def _load_records(paths: dict[str, Path], *, subject_sha: str, deployment_fp: str) -> tuple[dict[str, dict[str, Any]], list[str]]:
+def _load_records(paths: dict[str, Path], *, subject_sha: str, deployment_fp: str, repository_root: Path | None = None) -> tuple[dict[str, dict[str, Any]], list[str]]:
     records: dict[str, dict[str, Any]] = {}
     errors: list[str] = []
     for evidence_type, path in paths.items():
         try:
-            records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject_sha, deployment_fingerprint=deployment_fp)
+                records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject_sha, deployment_fingerprint=deployment_fp, repository_root=repository_root or path.parent)
         except EvidenceValidationError as exc:
             errors.append(f"{evidence_type}: {exc}")
     return records, errors
@@ -160,7 +160,7 @@ def _champion(root: Path, *, records: dict[str, dict[str, Any]], policy: Any, de
         blockers.append("champion config_hash is missing")
     for evidence_type in ("model_validation", "model_high_risk_stability", "model_held_out"):
         record = records.get(evidence_type)
-        if record and record["payload"].get("champion_config_hash") not in {None, config_hash}:
+        if record and record["payload"].get("configuration_hash") != config_hash:
             blockers.append(f"champion config hash does not match {evidence_type} evidence")
     return value, _sha256(path), blockers
 
@@ -234,7 +234,7 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
         runtime_values["reported_model_id"] = model
     factors = build_deployment_factors(root, subject_git_sha=subject, runtime=runtime_values, profile=profile, model_policy=policy, corpus={"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]})
     deployment_fp = deployment_fingerprint(factors)
-    records, evidence_errors = _load_records(evidence_paths or {}, subject_sha=subject, deployment_fp=deployment_fp)
+    records, evidence_errors = _load_records(evidence_paths or {}, subject_sha=subject, deployment_fp=deployment_fp, repository_root=root)
     requested = requested_state or state
     derived, blockers = derive_release_state(requested, records=records, root=root, policy=policy, deployment_fp=deployment_fp)
     if evidence_errors:
@@ -242,10 +242,19 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
     champion, champion_hash, champion_blockers = _champion(root, records=records, policy=policy, deployment_fp=deployment_fp) if derived in {ReleaseState.SYNTHETIC_PRODUCTION_CANDIDATE.value, ReleaseState.INTERNAL_VALIDATED.value, ReleaseState.PILOT_APPROVED.value, ReleaseState.PRODUCTION_CERTIFIED.value} else (None, None, [])
     blockers.extend(champion_blockers)
     hashes = evidence_hashes(records.values())
+    envelope_hashes = {str(item["evidence_type"]): str(item.get("envelope_sha256") or item["sha256"]) for item in records.values()}
     cert_fp = "UNSET" if derived == ReleaseState.DEVELOPMENT.value else certification_fingerprint(deployment=deployment_fp, evidence_hashes=hashes, release_state=derived, champion_hash=champion_hash)
     manifest_ocr_asset = ocr_asset_manifest
     if manifest_ocr_asset is None and profile.get("ocr_asset_manifest") and not str(profile["ocr_asset_manifest"]).startswith("UNSET"):
         manifest_ocr_asset = Path(str(profile["ocr_asset_manifest"]))
+    def safe_relative(path: Path | None) -> str | None:
+        if path is None:
+            return None
+        candidate = path.expanduser().resolve()
+        try:
+            return candidate.relative_to(root).as_posix()
+        except ValueError:
+            return candidate.name
     manifest: dict[str, Any] = {
         "schema_version": "1.0",
         "release_state": derived,
@@ -257,11 +266,12 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
         "certification_fingerprint": cert_fp,
         "runtime": {"opencode_version": runtime.opencode_version, "model": model or runtime.reported_model_id, "provider": runtime.provider, "vision_support": runtime.vision_support},
         "model_policy": policy.as_dict(),
-        "ocr": {"provider": "paddle", "asset_manifest": str(manifest_ocr_asset) if manifest_ocr_asset else None, "asset_manifest_sha256": _sha256(manifest_ocr_asset)},
+        "ocr": {"provider": "paddle", "asset_manifest": safe_relative(manifest_ocr_asset), "asset_manifest_sha256": _sha256(manifest_ocr_asset)},
         "schemas": {"translation_patch": "1.0", "evidence_ir": "1.0", "slide_ir": "1.0"},
         "dataset": {"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]},
         "evidence_hashes": hashes,
-        "evidence_paths": {key: str(value) for key, value in (evidence_paths or {}).items()},
+        "evidence_envelope_hashes": envelope_hashes,
+        "evidence_paths": {key: safe_relative(value) for key, value in (evidence_paths or {}).items()},
         "champion_hash": champion_hash,
         "constraints_file": "constraints-production.txt",
         "constraints_sha256": _sha256(root / "constraints-production.txt"),
@@ -320,7 +330,7 @@ def main(argv: list[str] | None = None) -> int:
     factors = build_deployment_factors(root, subject_git_sha=subject, runtime=runtime_values, profile=profile, model_policy=policy, corpus={"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]})
     deployment_fp = deployment_fingerprint(factors)
     paths = _evidence_arguments(args)
-    records, evidence_errors = _load_records(paths, subject_sha=subject, deployment_fp=deployment_fp)
+    records, evidence_errors = _load_records(paths, subject_sha=subject, deployment_fp=deployment_fp, repository_root=root)
     derived, blockers = derive_release_state(requested, records=records, root=root, policy=policy, deployment_fp=deployment_fp)
     blockers.extend(evidence_errors)
     if args.validation_result and "model_validation" not in paths:

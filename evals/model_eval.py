@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,7 @@ from k_slide import __version__
 
 from .experiments import configuration_hash
 from .certification import EvaluationState, certification_fingerprint, load_model_policy
+from k_slide.certification import build_deployment_factors, deployment_fingerprint as deployment_identity
 from .generator import DEFAULT_VARIANT, generate_artifacts
 from .model_results import aggregate_model_results, write_results
 from .model_scorers import score_translation_patch
@@ -137,10 +139,19 @@ class ModelEvaluationRunner:
         scenarios = self.selected_scenarios()
         manifest = split_manifest()
         model_policy = load_model_policy()
+        repo_root = Path(__file__).resolve().parents[1]
+        try:
+            subject_result = subprocess.run(["git", "-C", str(repo_root), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=5, check=False)
+            subject_sha = subject_result.stdout.strip() if subject_result.returncode == 0 else "UNSET"
+        except (OSError, subprocess.TimeoutExpired):
+            subject_sha = "UNSET"
+        deployment = deployment_identity(build_deployment_factors(repo_root, subject_git_sha=subject_sha, runtime={"reported_model_id": self.model}, profile={"evaluation_configuration_hash": configuration_hash(self.configuration), "ocr_provider": self.ocr_provider}, model_policy=model_policy, corpus=manifest))
         run_manifest = {
             "experiment_id": self.output.name,
             "generated_at": datetime.now(timezone.utc).isoformat(),
-            "git_commit": None,
+            "git_commit": subject_sha,
+            "subject_git_sha": subject_sha,
+            "deployment_fingerprint": deployment,
             "k_slide_version": __version__,
             "corpus_version": DATASET_VERSION,
             "split": self.split,
@@ -220,6 +231,13 @@ class ModelEvaluationRunner:
                         "opencode": result.as_dict(),
                     })
         summary = aggregate_model_results(results, model=self.model, split=self.split)
+        summary["requested_model"] = self.model
+        summary["configuration_hash"] = run_manifest["configuration_hash"]
+        summary["corpus_fingerprint"] = manifest["corpus_fingerprint"]
+        summary["held_out_fingerprint"] = manifest["held_out_fingerprint"]
+        summary["repetitions"] = self.repeats
+        summary["subject_git_sha"] = subject_sha
+        summary["deployment_fingerprint"] = deployment
         summary["target_model_approved"] = model_policy.approved(requested=self.model, effective=next((item.get("opencode", {}).get("diagnostics", {}).get("effective_model") for item in results if item.get("opencode", {}).get("diagnostics", {}).get("effective_model")), None))
         if summary["quality_metrics_authoritative"] and summary.get("critical_failure_count", 0):
             summary["status"] = EvaluationState.CERTIFICATION_FAIL.value
