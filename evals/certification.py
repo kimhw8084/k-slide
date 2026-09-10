@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Iterable
+
+from k_slide.model_policy import ModelPolicy, load_model_policy
 
 
 class EvaluationState(str, Enum):
@@ -35,81 +36,6 @@ CATEGORY_POLICY: dict[str, dict[str, tuple[str, ...]]] = {
 PROTECTED_CATEGORIES = tuple(CATEGORY_POLICY)
 DEFAULT_REVIEW_RATE_TOLERANCE = 0.05
 CORPUS_GENERATOR_VERSION = "visual-corpus-v1"
-
-
-@dataclass(frozen=True)
-class ModelPolicy:
-    target_family: str = "Gemma 4"
-    target_size: str = "31B"
-    target_variant: str = "instruction_tuned"
-    approved_model_ids: tuple[str, ...] = ("google/gemma-4-31b-it",)
-    approved_aliases: tuple[str, ...] = ()
-
-    @classmethod
-    def from_mapping(cls, value: dict[str, Any] | None) -> "ModelPolicy":
-        value = value or {}
-        def values(key: str, default: tuple[str, ...]) -> tuple[str, ...]:
-            raw = value.get(key, default)
-            if isinstance(raw, str):
-                return (raw,)
-            if isinstance(raw, (list, tuple)):
-                return tuple(str(item) for item in raw)
-            return default
-        return cls(
-            target_family=str(value.get("target_family", cls.target_family)),
-            target_size=str(value.get("target_size", cls.target_size)),
-            target_variant=str(value.get("target_variant", cls.target_variant)),
-            approved_model_ids=values("approved_model_ids", cls.approved_model_ids),
-            approved_aliases=values("approved_aliases", ()),
-        )
-
-    def approved(self, *, requested: str | None, effective: str | None) -> bool:
-        if not requested or not effective:
-            return False
-        approved = set(self.approved_model_ids) | set(self.approved_aliases)
-        return requested in approved and effective in approved
-
-
-def load_model_policy(root: Path | None = None) -> ModelPolicy:
-    """Load a public policy plus an optional ignored local JSON/YAML overlay.
-
-    The public repository keeps the default policy exact. The local overlay is
-    intentionally small and supports the list/scalar subset needed for private
-    provider aliases without requiring PyYAML at runtime.
-    """
-
-    root = root or Path.cwd()
-    local = root / ".k-slide-config" / "model-policy.local.yaml"
-    if not local.is_file():
-        local = root / ".k-slide-config" / "model-policy.local.json"
-    if not local.is_file():
-        return ModelPolicy()
-    try:
-        text = local.read_text(encoding="utf-8")
-        if local.suffix == ".json":
-            return ModelPolicy.from_mapping(json.loads(text))
-        mapping: dict[str, Any] = {}
-        current_list: str | None = None
-        for raw in text.splitlines():
-            line = raw.split("#", 1)[0].rstrip()
-            if not line.strip():
-                continue
-            if line.startswith("  - ") and current_list:
-                mapping.setdefault(current_list, []).append(line[4:].strip().strip("'\""))
-                continue
-            if ":" not in line:
-                continue
-            key, raw_value = (item.strip() for item in line.split(":", 1))
-            if not raw_value:
-                current_list = key
-                mapping[key] = []
-            else:
-                current_list = None
-                mapping[key] = raw_value.strip().strip("'\"")
-        return ModelPolicy.from_mapping(mapping)
-    except (OSError, json.JSONDecodeError, ValueError):
-        # A malformed private overlay must not silently certify a model.
-        return ModelPolicy(approved_model_ids=(), approved_aliases=())
 
 
 def _stable_payload(value: Any) -> bytes:

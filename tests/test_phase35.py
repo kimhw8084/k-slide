@@ -249,6 +249,9 @@ class Phase35Tests(unittest.TestCase):
             root = Path(directory)
             manifest = build_release_manifest(root)
             self.assertEqual(manifest["release_state"], "DEVELOPMENT")
+            self.assertEqual(len(manifest["deployment_fingerprint"]), 64)
+            self.assertEqual(manifest["certification_fingerprint"], "UNSET")
+            self.assertIn("subject_git_sha", manifest)
             self.assertEqual(manifest["attestations"]["internal_bilingual"], "UNSET")
             self.assertEqual(manifest["attestations"]["zero_korean_comprehension"], "UNSET")
             sbom = build_sbom(root)
@@ -260,6 +263,7 @@ class Phase35Tests(unittest.TestCase):
         self.assertIn("workflow_dispatch", workflow)
         self.assertNotIn("on:\n  push:", workflow)
         self.assertIn("--require-certified", workflow)
+        self.assertIn("--requested-state", workflow)
         self.assertIn("SBOM.json", workflow)
 
 

@@ -8,6 +8,16 @@ The repository now has a coherent, tested boundary from validated immutable inpu
 
 The current production-certification hardening pass also adds explicit noninteractive permissions, centralized diagnostic redaction, restrictive artifact permissions, fail-closed retention cleanup, a source-free admin support bundle, a production profile/doctor gate, provisional production constraints/SLO metadata, and offline release-manifest/SBOM generation. These controls are implemented and unit-tested; they are not evidence that their external runtime, model, internal-data, human-study, or pilot gates have passed.
 
+The certification-closure pass adds a single evidence envelope and fingerprint
+implementation shared by release tooling and the production doctor. Release
+states are derived from validated evidence bound to an explicit subject Git SHA
+and deployment fingerprint; a requested state cannot promote itself. Machine
+evidence must also hash-match its underlying result file. Production profiles
+bind to the release manifest and both fingerprints, use the authoritative
+ModelPolicy, and verify OCR asset content hashes. The lightweight SBOM remains
+explicitly development-only; certified release generation requires a real
+CycloneDX environment SBOM from the approved release environment.
+
 ## Implemented and tested
 
 - Engine-owned, versioned `EvidenceIR` with deterministic SHA-256 revisions.
@@ -60,11 +70,15 @@ The current production-certification hardening pass also adds explicit nonintera
 - Sanitized `support-bundle` command that excludes source snapshots, renders, crops, evidence, translations, reports, and raw transcripts.
 - Fail-closed production profile checks for target model identity, OCR assets/provider initialization, OpenCode, retention, tenancy, egress, permissions, and certification fingerprint.
 - Provisional pinned production constraints, SLO configuration, deployment profile template, and offline release manifest/SBOM generator.
+- Evidence-bound release states, subject-SHA/deployment/certification fingerprints, validated machine/human evidence envelopes, champion binding, and stale-certification detection.
+- Production doctor verification of release-manifest hashes, evidence hashes, authoritative model policy, exact dependency identities, and OCR asset content hashes.
+- Pinned public security workflow for dependency, secret, and static scans; CODEOWNERS for production-sensitive paths.
+- Production SBOM generation path using `cyclonedx-py`; the existing package inventory remains labeled as non-certified development metadata.
 
 ## Verification performed locally
 
 ```text
-Dependency-backed unit/integration suite: PASS (`python -m unittest discover -s tests -q`; exact count is emitted by the test runner)
+Dependency-backed unit/integration suite: PASS (`python -m unittest discover -s tests -q`; latest local execution: 115 tests passed, 2 optional dependency skips)
 Dependency-backed compile/import checks: PASS
 TranslationPatch JSON schema parse: PASS
 Stratified split manifest: PASS (100 specs; 60/20/20; protected categories in held-out)
@@ -104,7 +118,23 @@ The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pp
 | Production certification | DEVELOPMENT | No target-model or human gates passed |
 | Production doctor/profile | BLOCKED as expected | No certified profile; target model, Paddle/LibreOffice, retention attestation, and fingerprint are not proven locally |
 | Support bundle/redaction/retention controls | PASS (unit-tested) | Metadata-only support bundle and fail-closed cleanup are implemented; deployment enforcement remains required |
-| Release manifest/SBOM tooling | PASS (offline smoke) | Generates DEVELOPMENT metadata and explicitly refuses certified release state without evidence |
+| Release manifest/SBOM tooling | PASS (offline smoke) | Generates DEVELOPMENT metadata with deployment fingerprint; certified release state is evidence-derived and blocked without complete evidence; production SBOM generator requires `cyclonedx-py` |
+
+## Certification closure verification
+
+The latest local closure run executed:
+
+```text
+PYTHONPATH=src:. python -m unittest discover -s tests -q
+115 tests passed, 2 optional dependency skips
+python -m compileall -q src evals tests: PASS
+git diff --check: PASS
+DEVELOPMENT release generation: PASS
+PRODUCTION_CERTIFIED request with incomplete evidence: BLOCKED (expected)
+```
+
+No runtime/heavy/Gemma/private/human/pilot evidence was fabricated or
+materialized by these tests.
 
 ## Phase 3.5 execution matrix
 
@@ -191,3 +221,4 @@ The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pp
 - [ADR 0032 — Source-bound visual evidence](docs/adr/0032-source-bound-visual-evidence.md)
 - [ADR 0033 — OpenCode diagnostic ladder](docs/adr/0033-opencode-diagnostic-ladder.md)
 - [ADR 0034 — Execution isolation and heavy proof](docs/adr/0034-execution-isolation-and-heavy-proof.md)
+- [ADR 0036 — Evidence-bound release state](docs/adr/0036-evidence-bound-release-state.md)

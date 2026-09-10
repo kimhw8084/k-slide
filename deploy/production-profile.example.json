@@ -13,13 +13,10 @@
   "retention_days": 30,
   "tenant_isolation": "workspace_per_session",
   "network_egress": "approved_inference_only",
-  "resource_limits": {
-    "normalization_seconds": 120,
-    "ocr_seconds": 120,
-    "model_seconds": 600,
-    "work_unit_seconds": 900,
-    "run_seconds": 3600
-  },
+  "subject_git_sha": "UNSET",
+  "deployment_fingerprint": "UNSET",
   "certification_fingerprint": "UNSET",
+  "release_manifest": "UNSET",
+  "release_manifest_sha256": "UNSET",
   "model_data_attestation": "UNSET"
 }
