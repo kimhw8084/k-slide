@@ -84,11 +84,21 @@ the generic attestation writer.
 - Production SBOM generation path using `cyclonedx-py`; the existing package inventory remains labeled as non-certified development metadata.
 - Result-derived machine evidence adapters with source-role validation, payload re-derivation, deterministic evidence identities, and runtime/heavy/model/security/reliability/governance coverage.
 - Spoof/tamper regressions covering contradictory metrics, result mutation, envelope mutation, critical model results, scanner findings, and non-authoritative governance input.
+- Reliability adapters require explicit substantive proof for timeout recovery,
+  resume, concurrency, 50-slide execution, and SLO compliance; missing proof
+  cannot default to PASS.
+- High-risk adapters evaluate every declared and observed scenario/format group
+  under the repository protected-category policy rather than selecting a best
+  format, and model validation/held-out adapters enforce locked terminology
+  recall `>=0.995` plus zero unexpected unresolved rate.
+- Security workflow scanner exit codes are captured in per-tool files and
+  assembled structurally; missing scanner output is not synthesized as clean.
 
 ## Verification performed locally
 
 ```text
-Dependency-backed unit/integration suite: PASS (`python -m unittest discover -s tests -q`; latest local execution: 124 tests passed, 2 optional dependency skips)
+Base unit/integration suite: PASS (`python -m unittest discover -s tests -q`; latest local execution: 134 tests passed, 2 optional dependency skips)
+Dependency-backed unit/integration suite: PASS (`/tmp/k-slide-phase32-venv/bin/python -m unittest discover -s tests -q`; latest local execution: 134 tests passed, no optional dependency skips)
 Dependency-backed compile/import checks: PASS
 TranslationPatch JSON schema parse: PASS
 Stratified split manifest: PASS (100 specs; 60/20/20; protected categories in held-out)
@@ -100,7 +110,7 @@ Artifact generation: 500/500 PASS
 PNG/JPEG/WebP/PDF normalization + EvidenceIR: 320/400 PASS; 80 CAPABILITY_BLOCKED because image-only financial-table cases require OCR when explicitly pinned to `none`
 PPTX visual normalization: 100 CAPABILITY_BLOCKED (LibreOffice unavailable)
 Lightweight engine algorithmic failures: 0; all 180 findings were capability blocks in this run
-OpenCode 1.3.9 isolated diagnostic ladder: pure and normal clean OpenCode TIMEOUT with zero structured events; Levels 3/4 intentionally not reached after the provider-level failure
+OpenCode 1.3.9 isolated diagnostic ladder: pure and normal clean OpenCode TIMEOUT with zero structured events; explicit model TIMEOUT; Levels 3/4 intentionally not reached after the provider-level failure
 Gemma quality evaluation: CAPABILITY_BLOCKED — target endpoint unavailable
 ```
 
@@ -136,7 +146,8 @@ The latest local closure run executed:
 
 ```text
 PYTHONPATH=src:. python -m unittest discover -s tests -q
-124 tests passed, 2 optional dependency skips
+134 tests passed, 2 optional dependency skips
+134 tests passed, no optional dependency skips
 python -m compileall -q src evals tests: PASS
 git diff --check: PASS
 DEVELOPMENT release generation: PASS

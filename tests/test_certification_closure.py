@@ -58,14 +58,14 @@ def _heavy_sources(root: Path, *, full: bool = False) -> dict[str, Path]:
 
 def _model_sources(root: Path, split: str = "validation", critical: int = 0, repeats: int = 3) -> dict[str, Path]:
     rows = []
-    categories = ("financial_table", "modality_decision_state", "chart", "process_diagram", "visual_degradation", "simple_mixed_text")
+    categories = ("financial_table", "modality_decision_state", "chart", "process_diagram", "visual_degradation", "simple_mixed_text", "state_resume")
     for category in categories:
         for repeat in range(1, repeats + 1):
-            rows.append({"scenario_id": category, "category": category, "split": split, "format": "png", "repeat": repeat, "semantic_scored": True, "quality_metrics_authoritative": True, "semantic": {"critical_failures": (["CRITICAL"] if critical else []), "unresolved_region_rate": 0.0, "unexpected_unresolved_rate": 0.0}, "media_by_work_unit": {"u1": {"media_sequence_valid": True}}, "opencode": {"model": "google/gemma-4-31b-it", "diagnostics": {"effective_model": "google/gemma-4-31b-it"}}})
+            rows.append({"scenario_id": category, "category": category, "split": split, "format": "png", "repeat": repeat, "semantic_scored": True, "quality_metrics_authoritative": True, "semantic": {"critical_failures": (["CRITICAL"] if critical else []), "unresolved_region_rate": 0.0, "unexpected_unresolved_rate": 0.0, "term_consistency_recall": 1.0}, "media_by_work_unit": {"u1": {"media_sequence_valid": True}}, "opencode": {"model": "google/gemma-4-31b-it", "diagnostics": {"effective_model": "google/gemma-4-31b-it"}}})
     (root / "results.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
-    summary = {"model": "google/gemma-4-31b-it", "requested_model": "google/gemma-4-31b-it", "split": split, "quality_metrics_authoritative": True, "corpus_fingerprint": "698b471fa9dffe9f79af40a61c3546d6455889b90063a02bc2e270b90402f7ac", "held_out_fingerprint": "c2dee1ba1b03fead1a6641cfa8c7ceea27eb51b0ed80c0879c07bc3ee29bcc4e"}
+    summary = {"model": "google/gemma-4-31b-it", "requested_model": "google/gemma-4-31b-it", "split": split, "quality_metrics_authoritative": True, "locked_terminology_recall": 1.0, "unexpected_unresolved_rate": 0.0, "corpus_fingerprint": "698b471fa9dffe9f79af40a61c3546d6455889b90063a02bc2e270b90402f7ac", "held_out_fingerprint": "c2dee1ba1b03fead1a6641cfa8c7ceea27eb51b0ed80c0879c07bc3ee29bcc4e"}
     _write(root / "summary.json", summary)
-    _write(root / "experiment.json", {"model": "google/gemma-4-31b-it", "split": split, "repetitions": repeats, "configuration_hash": "c" * 64, "corpus_fingerprint": summary["corpus_fingerprint"], "held_out_fingerprint": summary["held_out_fingerprint"]})
+    _write(root / "experiment.json", {"model": "google/gemma-4-31b-it", "split": split, "repetitions": repeats, "scenario_ids": list(categories), "formats": ["png"], "configuration_hash": "c" * 64, "corpus_fingerprint": summary["corpus_fingerprint"], "held_out_fingerprint": summary["held_out_fingerprint"]})
     return {"model_summary": root / "summary.json", "experiment_manifest": root / "experiment.json", "results_jsonl": root / "results.jsonl"}
 
 
@@ -78,8 +78,8 @@ def _security_sources(root: Path, *, vulnerable: bool = False) -> dict[str, Path
 
 
 def _reliability_sources(root: Path) -> dict[str, Path]:
-    _write(root / "failure.json", {"status": "PASS", "resume_pass": True})
-    _write(root / "concurrency.json", {"status": "PASS", "concurrent_runs": 5})
+    _write(root / "failure.json", {"status": "PASS", "timeout_recovery_pass": True, "resume_pass": True})
+    _write(root / "concurrency.json", {"status": "PASS", "concurrency_pass": True, "concurrent_runs": 5})
     _write(root / "large.json", {"status": "PASS", "fifty_slide_pass": True})
     _write(root / "slo.json", {"status": "PASS", "slo_pass": True})
     return {"failure_injection": root / "failure.json", "concurrency": root / "concurrency.json", "large_deck": root / "large.json", "performance_slo": root / "slo.json"}
@@ -161,6 +161,110 @@ class CertificationClosureTests(unittest.TestCase):
             with self.assertRaises(AdapterError):
                 build_machine_evidence(root / "high-risk.json", evidence_type="model_high_risk_stability", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=_model_sources(root, repeats=4), root=Path.cwd())
 
+    def test_reliability_missing_substantive_proof_fails_closed(self):
+        cases = (
+            ("failure.json", "timeout_recovery_pass", None),
+            ("failure.json", "resume_pass", None),
+            ("concurrency.json", "concurrency_pass", None),
+            ("concurrency.json", "concurrent_runs", 4),
+            ("large.json", "fifty_slide_pass", None),
+            ("slo.json", "slo_pass", None),
+        )
+        for filename, key, replacement in cases:
+            with self.subTest(filename=filename, key=key), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                sources = _reliability_sources(root)
+                value = json.loads((root / filename).read_text(encoding="utf-8"))
+                if replacement is None:
+                    value.pop(key, None)
+                else:
+                    value[key] = replacement
+                _write(root / filename, value)
+                with self.assertRaises(AdapterError):
+                    build_machine_evidence(root / "reliability.json", evidence_type="reliability", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+
+    def test_reliability_false_substantive_proof_fails_closed(self):
+        for filename, key in (("failure.json", "timeout_recovery_pass"), ("failure.json", "resume_pass"), ("concurrency.json", "concurrency_pass"), ("large.json", "fifty_slide_pass"), ("slo.json", "slo_pass")):
+            with self.subTest(filename=filename, key=key), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                sources = _reliability_sources(root)
+                value = json.loads((root / filename).read_text(encoding="utf-8"))
+                value[key] = False
+                _write(root / filename, value)
+                with self.assertRaises(AdapterError):
+                    build_machine_evidence(root / "reliability.json", evidence_type="reliability", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+
+    def test_high_risk_does_not_cherry_pick_best_format(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = _model_sources(root, repeats=5)
+            rows = [json.loads(line) for line in (root / "results.jsonl").read_text(encoding="utf-8").splitlines()]
+            failing = dict(rows[0])
+            failing["format"] = "pdf"
+            failing["semantic"] = {**failing["semantic"], "critical_failures": ["CRITICAL"]}
+            rows.extend([{**failing, "repeat": repeat} for repeat in range(1, 6)])
+            (root / "results.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            experiment = json.loads((root / "experiment.json").read_text(encoding="utf-8"))
+            experiment["formats"] = ["png", "pdf"]
+            _write(root / "experiment.json", experiment)
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "high-risk.json", evidence_type="model_high_risk_stability", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
+
+    def test_high_risk_declared_group_missing_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = _model_sources(root, repeats=5)
+            experiment = json.loads((root / "experiment.json").read_text(encoding="utf-8"))
+            experiment["formats"] = ["png", "pdf"]
+            _write(root / "experiment.json", experiment)
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "high-risk.json", evidence_type="model_high_risk_stability", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
+
+    def test_validation_and_held_out_safety_metrics_are_gated(self):
+        for split, evidence_type, field, value in (
+            ("validation", "model_validation", "locked_terminology_recall", 0.994),
+            ("validation", "model_validation", "unexpected_unresolved_rate", 0.01),
+            ("held_out", "model_held_out", "locked_terminology_recall", 0.994),
+            ("held_out", "model_held_out", "unexpected_unresolved_rate", 0.01),
+        ):
+            with self.subTest(split=split, field=field), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                sources = _model_sources(root, split=split, repeats=3)
+                rows = [json.loads(line) for line in (root / "results.jsonl").read_text(encoding="utf-8").splitlines()]
+                for row in rows:
+                    row["semantic"][field] = value
+                (root / "results.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+                summary = json.loads((root / "summary.json").read_text(encoding="utf-8"))
+                summary[field] = value
+                _write(root / "summary.json", summary)
+                with self.assertRaises(AdapterError):
+                    build_machine_evidence(root / "model.json", evidence_type=evidence_type, subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
+
+    def test_validation_locked_terminology_boundary_is_inclusive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = _model_sources(root, repeats=3)
+            rows = [json.loads(line) for line in (root / "results.jsonl").read_text(encoding="utf-8").splitlines()]
+            for row in rows:
+                row["semantic"]["term_consistency_recall"] = 0.995
+            (root / "results.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            summary = json.loads((root / "summary.json").read_text(encoding="utf-8"))
+            summary["locked_terminology_recall"] = 0.995
+            _write(root / "summary.json", summary)
+            path = root / "validation.json"
+            build_machine_evidence(path, evidence_type="model_validation", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
+            self.assertEqual(load_evidence(path, expected_type="model_validation")["payload"]["locked_terminology_recall"], 0.995)
+
+    def test_model_summary_and_rows_safety_metrics_must_agree(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = _model_sources(root, repeats=3)
+            summary = json.loads((root / "summary.json").read_text(encoding="utf-8"))
+            summary["locked_terminology_recall"] = 0.995
+            _write(root / "summary.json", summary)
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "validation.json", evidence_type="model_validation", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
+
     def test_security_evidence_is_derived_from_scanner_outputs(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -170,6 +274,33 @@ class CertificationClosureTests(unittest.TestCase):
             _security_sources(root, vulnerable=True)
             with self.assertRaises(EvidenceValidationError):
                 load_evidence(path, expected_type="security")
+
+    def test_security_scanner_failure_is_not_a_clean_scan(self):
+        for scanner in ("pip_audit", "gitleaks", "semgrep"):
+            with self.subTest(scanner=scanner), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                sources = _security_sources(root)
+                exits = {**json.loads((root / "scanner-exits.json").read_text(encoding="utf-8")), scanner: 1}
+                _write(root / "scanner-exits.json", exits)
+                with self.assertRaises(AdapterError):
+                    build_machine_evidence(root / "security.json", evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+
+    def test_security_missing_gitleaks_report_is_not_an_empty_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = _security_sources(root)
+            (root / "gitleaks.json").unlink()
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "security.json", evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+
+    def test_security_workflow_captures_exit_codes_without_text_mutation_or_clean_fallback(self):
+        workflow = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "k-slide-security.yml").read_text(encoding="utf-8")
+        self.assertIn("pip-audit.exit", workflow)
+        self.assertIn("gitleaks.exit", workflow)
+        self.assertIn("semgrep.exit", workflow)
+        self.assertIn("Assemble scanner exit codes", workflow)
+        self.assertNotIn("sed -i", workflow)
+        self.assertNotIn("printf '[]\\n'", workflow)
 
     def test_reliability_requires_actual_concurrency_result(self):
         with tempfile.TemporaryDirectory() as directory:

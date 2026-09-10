@@ -261,18 +261,36 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
     review_rates = []
     unresolved_rates = []
     unexpected_rates = []
+    terminology_rates = []
     categories: set[str] = set()
     for item in rows:
         categories.add(str(item.get("category")))
         semantic = item.get("semantic", {})
         unresolved_rates.append(float(semantic.get("unresolved_region_rate", 0.0)))
-        unexpected_rates.append(float(semantic.get("unexpected_unresolved_rate", semantic.get("unexpected_unresolved", 0.0))))
+        if "unexpected_unresolved_rate" not in semantic:
+            raise AdapterError("model result is missing semantic.unexpected_unresolved_rate")
+        if "term_consistency_recall" not in semantic:
+            raise AdapterError("model result is missing semantic.term_consistency_recall")
+        unexpected_rates.append(_number(semantic["unexpected_unresolved_rate"], "semantic.unexpected_unresolved_rate"))
+        terminology_rates.append(_number(semantic["term_consistency_recall"], "semantic.term_consistency_recall"))
         review_rates.append(float(semantic.get("unresolved_region_rate", 0.0)) > 0)
         media = item.get("media_by_work_unit", {})
         media_rates.append(bool(media) and all(value.get("media_sequence_valid") is True for value in media.values() if isinstance(value, dict)))
     configuration_hash = _sha256_text(experiment.get("configuration_hash") or summary.get("configuration_hash"), "model configuration_hash")
     if summary.get("configuration_hash") not in (None, configuration_hash):
         raise AdapterError("model summary configuration hash disagrees with experiment")
+    if not terminology_rates or not unexpected_rates:
+        raise AdapterError("model result has no certifiable semantic safety metrics")
+    derived_terminology = sum(terminology_rates) / len(terminology_rates)
+    derived_unexpected = sum(unexpected_rates) / len(unexpected_rates)
+    if not isinstance(summary.get("locked_terminology_recall"), (int, float)) or isinstance(summary.get("locked_terminology_recall"), bool):
+        raise AdapterError("model summary is missing locked_terminology_recall")
+    if abs(float(summary["locked_terminology_recall"]) - derived_terminology) > 1e-9:
+        raise AdapterError("model summary locked terminology disagrees with case results")
+    if not isinstance(summary.get("unexpected_unresolved_rate"), (int, float)) or isinstance(summary.get("unexpected_unresolved_rate"), bool):
+        raise AdapterError("model summary is missing unexpected_unresolved_rate")
+    if abs(float(summary["unexpected_unresolved_rate"]) - derived_unexpected) > 1e-9:
+        raise AdapterError("model summary unexpected unresolved rate disagrees with case results")
     repetitions = int(experiment.get("repetitions", max((int(item.get("repeat", 1)) for item in rows), default=0)))
     return {
         "split": expected_split,
@@ -287,7 +305,8 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
         "media_compliance_rate": sum(media_rates) / len(media_rates) if media_rates else 0.0,
         "review_rate": sum(review_rates) / len(review_rates) if review_rates else 0.0,
         "unresolved_region_rate": sum(unresolved_rates) / len(unresolved_rates) if unresolved_rates else 0.0,
-        "unexpected_unresolved_rate": sum(unexpected_rates) / len(unexpected_rates) if unexpected_rates else 0.0,
+        "unexpected_unresolved_rate": derived_unexpected,
+        "locked_terminology_recall": derived_terminology,
         "categories": sorted(categories),
         "case_count": len(rows),
     }
@@ -295,31 +314,65 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
 
 def _derive_validation(sources: dict[str, Path], *, root: Path | None) -> dict[str, Any]:
     payload = _aggregate_model(sources, expected_split="validation", root=root)
-    if not payload["target_model_approved"] or not payload["quality_metrics_authoritative"] or payload["critical_failure_count"] != 0 or payload["repetitions"] < 3 or not payload["required_media_compliance"]:
-        raise AdapterError("validation result fails target, authority, critical, repeat, or media gates")
+    if (
+        not payload["target_model_approved"]
+        or not payload["quality_metrics_authoritative"]
+        or payload["critical_failure_count"] != 0
+        or payload["repetitions"] < 3
+        or not payload["required_media_compliance"]
+        or payload["locked_terminology_recall"] < 0.995
+        or payload["unexpected_unresolved_rate"] != 0
+    ):
+        raise AdapterError("validation result fails target, authority, critical, repeat, media, terminology, or unresolved gates")
     return payload
 
 
 def _derive_high_risk(sources: dict[str, Path], *, root: Path | None) -> dict[str, Any]:
     payload = _aggregate_model(sources, expected_split="validation", root=root)
+    try:
+        from evals.scenarios import PROTECTED_CATEGORIES
+    except ImportError as exc:
+        raise AdapterError("high-risk adapter requires repository evaluation policy") from exc
+    _summary, experiment, _ = _model_rows(sources)
     rows = _read_jsonl(sources["results_jsonl"])
-    required = {"financial_table", "modality_decision_state", "chart", "process_diagram", "visual_degradation", "simple_mixed_text"}
     groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for item in rows:
         key = (str(item.get("category")), str(item.get("format")))
         groups.setdefault(key, []).append(item)
+    scenario_ids = experiment.get("scenario_ids")
+    formats = experiment.get("formats")
+    if not isinstance(scenario_ids, list) or not scenario_ids or not isinstance(formats, list) or not formats:
+        raise AdapterError("high-risk experiment manifest must declare scenario_ids and formats")
+    declared = {(str(scenario_id), str(format_name)) for scenario_id in scenario_ids for format_name in formats}
+    observed = set(groups)
+    missing = sorted(declared - observed)
+    if missing:
+        raise AdapterError(f"high-risk declared groups are missing: {missing}")
+    selected_categories = set(PROTECTED_CATEGORIES)
+    declared_categories = experiment.get("high_risk_categories")
+    if declared_categories is not None and (not isinstance(declared_categories, list) or set(declared_categories) != selected_categories):
+        raise AdapterError("high-risk experiment does not declare the complete protected-category policy")
+    observed_categories = {category for category, _format_name in observed}
+    missing_categories = sorted(selected_categories - observed_categories)
+    if missing_categories:
+        raise AdapterError(f"high-risk protected categories are missing: {missing_categories}")
     coverage: dict[str, int] = {}
     frequencies: dict[str, float] = {}
-    for category in required:
-        candidates = [items for (cat, _), items in groups.items() if cat == category]
-        if not candidates:
-            raise AdapterError(f"high-risk protected group is missing: {category}")
-        best = max(candidates, key=len)
-        coverage[category] = len(best)
-        frequencies[category] = sum(bool(item.get("semantic", {}).get("critical_failures")) for item in best) / len(best)
-        if len(best) < 5 or frequencies[category] != 0:
-            raise AdapterError(f"high-risk group fails repetition/critical gate: {category}")
-    payload.update({"required_group_coverage": coverage, "group_critical_frequency": frequencies, "worst_critical_frequency": max(frequencies.values(), default=0.0), "repetitions": min(coverage.values())})
+    category_coverage: dict[str, int] = {category: 0 for category in sorted(selected_categories)}
+    for scenario_id, format_name in sorted(declared | observed):
+        items = groups.get((scenario_id, format_name), [])
+        if len(items) < 5:
+            raise AdapterError(f"high-risk group fails repetition gate: {scenario_id}/{format_name}")
+        frequency = sum(bool(item.get("semantic", {}).get("critical_failures")) for item in items) / len(items)
+        key = f"{scenario_id}/{format_name}"
+        coverage[key] = len(items)
+        frequencies[key] = frequency
+        category_coverage[str(items[0].get("category"))] = category_coverage.get(str(items[0].get("category")), 0) + 1
+        if frequency != 0:
+            raise AdapterError(f"high-risk group fails critical gate: {key}")
+    if payload["critical_failure_count"] != 0:
+        raise AdapterError("high-risk result has critical failures outside the selected group summaries")
+    payload.update({"required_group_coverage": coverage, "group_critical_frequency": frequencies, "category_coverage": category_coverage, "worst_critical_frequency": max(frequencies.values(), default=0.0), "repetitions": min(coverage.values())})
     return payload
 
 
@@ -334,8 +387,15 @@ def _derive_held_out(sources: dict[str, Path], *, root: Path | None) -> dict[str
     frozen = split_manifest()
     if summary.get("corpus_fingerprint", experiment.get("corpus_fingerprint")) != frozen["corpus_fingerprint"] or summary.get("held_out_fingerprint", experiment.get("held_out_fingerprint")) != frozen["held_out_fingerprint"]:
         raise AdapterError("held-out corpus fingerprints do not match frozen corpus")
-    if not payload["target_model_approved"] or not payload["quality_metrics_authoritative"] or payload["critical_failure_count"] != 0 or not payload["required_media_compliance"]:
-        raise AdapterError("held-out result fails target, authority, critical, or media gates")
+    if (
+        not payload["target_model_approved"]
+        or not payload["quality_metrics_authoritative"]
+        or payload["critical_failure_count"] != 0
+        or not payload["required_media_compliance"]
+        or payload["locked_terminology_recall"] < 0.995
+        or payload["unexpected_unresolved_rate"] != 0
+    ):
+        raise AdapterError("held-out result fails target, authority, critical, media, terminology, or unresolved gates")
     payload.update({"corpus_fingerprint": frozen["corpus_fingerprint"], "held_out_fingerprint": frozen["held_out_fingerprint"]})
     return payload
 
@@ -355,6 +415,10 @@ def _derive_security(sources: dict[str, Path]) -> dict[str, Any]:
     high_findings = sum(1 for item in semgrep.get("results", []) if isinstance(item, dict) and str(item.get("extra", {}).get("metadata", {}).get("severity", "")).upper() in {"HIGH", "CRITICAL"})
     secret_findings = len(leaks)
     exit_ok = all(isinstance(exits.get(name), int) and exits.get(name) == 0 for name in ("pip_audit", "gitleaks", "semgrep"))
+    if not exit_ok:
+        raise AdapterError("one or more security scanners failed to execute cleanly")
+    if dependency_findings or secret_findings or static_findings:
+        raise AdapterError("security scanner findings fail the production security gate")
     return {"dependency_audit_pass": exit_ok and dependency_findings == 0, "secret_scan_pass": exit_ok and secret_findings == 0, "static_scan_pass": exit_ok and static_findings == 0, "dependency_findings": dependency_findings, "unresolved_high_findings": high_findings, "unresolved_critical_findings": sum(1 for item in semgrep.get("results", []) if isinstance(item, dict) and str(item.get("extra", {}).get("metadata", {}).get("severity", "")).upper() == "CRITICAL"), "secret_findings": secret_findings, "scanner_exit_codes": {key: exits.get(key) for key in sorted(exits)}}
 
 
@@ -366,10 +430,19 @@ def _derive_reliability(sources: dict[str, Path]) -> dict[str, Any]:
     slo = _read_json(values["performance_slo"])
     for value, label in ((failure, "failure_injection"), (concurrency, "concurrency"), (deck, "large_deck"), (slo, "performance_slo")):
         _status(value, label)
+    for key in ("timeout_recovery_pass", "resume_pass"):
+        if failure.get(key) is not True:
+            raise AdapterError(f"failure_injection.{key} must be explicitly true")
+    if concurrency.get("concurrency_pass") is not True:
+        raise AdapterError("concurrency.concurrency_pass must be explicitly true")
     runs = concurrency.get("concurrent_runs")
     if not isinstance(runs, int) or runs < 5:
         raise AdapterError("reliability concurrency coverage is below five isolated runs")
-    return {"timeout_recovery_pass": True, "resume_pass": bool(failure.get("resume_pass", True)), "fifty_slide_pass": bool(deck.get("fifty_slide_pass", True)), "concurrency_pass": True, "slo_pass": bool(slo.get("slo_pass", True)), "concurrent_runs": runs}
+    if deck.get("fifty_slide_pass") is not True:
+        raise AdapterError("large_deck.fifty_slide_pass must be explicitly true")
+    if slo.get("slo_pass") is not True:
+        raise AdapterError("performance_slo.slo_pass must be explicitly true")
+    return {"timeout_recovery_pass": True, "resume_pass": True, "fifty_slide_pass": True, "concurrency_pass": True, "slo_pass": True, "concurrent_runs": runs}
 
 
 def _derive_governance(sources: dict[str, Path]) -> dict[str, Any]:

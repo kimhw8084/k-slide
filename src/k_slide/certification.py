@@ -87,9 +87,9 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
     requirements: dict[str, tuple[str, ...]] = {
         "runtime": ("runtime_pass", "required_media_compliance", "run_complete", "simple_pass", "three_slide_pass", "five_slide_pass"),
         "heavy_runtime": ("heavy_pass", "networkless_pass", "representative_engine_pass", "full_engine_pass", "unexpected_capability_blocks"),
-        "model_validation": ("split", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "repetitions", "configuration_hash", "required_media_compliance"),
-        "model_high_risk_stability": ("target_model_approved", "worst_critical_frequency", "repetitions", "configuration_hash", "required_group_coverage"),
-        "model_held_out": ("split", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "configuration_hash", "corpus_fingerprint", "held_out_fingerprint"),
+        "model_validation": ("split", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "repetitions", "configuration_hash", "required_media_compliance", "locked_terminology_recall", "unexpected_unresolved_rate"),
+        "model_high_risk_stability": ("target_model_approved", "critical_failure_count", "worst_critical_frequency", "repetitions", "configuration_hash", "required_group_coverage", "group_critical_frequency", "category_coverage"),
+        "model_held_out": ("split", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "configuration_hash", "corpus_fingerprint", "held_out_fingerprint", "required_media_compliance", "locked_terminology_recall", "unexpected_unresolved_rate"),
         "internal_bilingual": ("attestation_id", "artifact_count", "work_unit_count", "critical_business_meaning_errors", "critical_numeric_date_unit_errors", "critical_modality_escalations", "critical_table_mapping_errors", "critical_trend_reversals", "unsupported_critical_executive_claims", "overall_noncritical_semantic_fidelity", "locked_terminology"),
         "zero_korean_comprehension": ("attestation_id", "users", "answers", "critical_question_accuracy", "overall_comprehension", "critical_misunderstanding"),
         "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings"),
@@ -112,14 +112,27 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
             raise EvidenceValidationError("validation evidence is not authoritative target-model evidence")
         if payload["critical_failure_count"] != 0 or not _positive_int(payload["repetitions"], 3):
             raise EvidenceValidationError("validation evidence fails critical/repetition gates")
+        if float(payload["locked_terminology_recall"]) < 0.995 or float(payload["unexpected_unresolved_rate"]) != 0:
+            raise EvidenceValidationError("validation evidence fails terminology or unexpected-unresolved gates")
     elif evidence_type == "model_high_risk_stability":
-        if not _is_true(payload["target_model_approved"]) or payload["worst_critical_frequency"] != 0 or not _positive_int(payload["repetitions"], 5):
+        coverage = payload["required_group_coverage"]
+        frequencies = payload["group_critical_frequency"]
+        if not isinstance(coverage, dict) or not coverage or not isinstance(frequencies, dict) or set(coverage) != set(frequencies):
+            raise EvidenceValidationError("high-risk evidence has incomplete repeated-group coverage")
+        if any(not _positive_int(value, 5) for value in coverage.values()) or any(float(value) != 0 for value in frequencies.values()):
+            raise EvidenceValidationError("high-risk evidence has an under-repeated or failing group")
+        categories = payload["category_coverage"]
+        if not isinstance(categories, dict) or any(not _positive_int(value, 1) for value in categories.values()):
+            raise EvidenceValidationError("high-risk evidence has incomplete protected-category coverage")
+        if not _is_true(payload["target_model_approved"]) or payload["critical_failure_count"] != 0 or payload["worst_critical_frequency"] != 0 or not _positive_int(payload["repetitions"], 5):
             raise EvidenceValidationError("high-risk stability evidence fails target, critical-frequency, or repetition gates")
     elif evidence_type == "model_held_out":
         if payload["split"] != "held_out" or not _is_true(payload["target_model_approved"]) or not _is_true(payload["quality_metrics_authoritative"]):
             raise EvidenceValidationError("held-out evidence is not authoritative target-model evidence")
         if payload["critical_failure_count"] != 0:
             raise EvidenceValidationError("held-out evidence fails critical gate")
+        if not _is_true(payload["required_media_compliance"]) or float(payload["locked_terminology_recall"]) < 0.995 or float(payload["unexpected_unresolved_rate"]) != 0:
+            raise EvidenceValidationError("held-out evidence fails media, terminology, or unexpected-unresolved gates")
     elif evidence_type == "internal_bilingual":
         if not str(payload["attestation_id"]) or payload["attestation_id"] == "UNSET" or not _positive_int(payload["artifact_count"], 50) or not _positive_int(payload["work_unit_count"], 200):
             raise EvidenceValidationError("internal bilingual sample/attestation is insufficient")

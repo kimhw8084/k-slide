@@ -47,3 +47,15 @@ passes executable/config/model-inventory discovery but pure and normal clean
 Qwen runs time out with zero structured events. Docker is also unavailable in
 the local environment, so heavy runtime results remain unexecuted rather than
 being inferred from the Dockerfile.
+
+The final repository-side certification micro-closure requires reliability
+evidence to contain explicit timeout-recovery, resume, concurrency, 50-slide,
+and SLO proof fields. High-risk model evidence now evaluates every declared
+and observed scenario/format repeated group under the protected-category
+policy, without best-format selection. Validation and held-out evidence
+require locked terminology recall of at least 0.995 and zero unexpected
+unresolved rate. Security scanner exit codes are captured structurally by the
+workflow; failed scanners or missing reports cannot be normalized into clean
+evidence. Base and dependency-backed suites both executed with 134 passing
+tests during this closure; external OpenCode, heavy, Gemma, private, human,
+governance, and pilot gates remain unexecuted or blocked.

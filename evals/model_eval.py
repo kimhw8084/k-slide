@@ -23,7 +23,7 @@ from .certification import EvaluationState, certification_fingerprint, load_mode
 from k_slide.certification import build_deployment_factors, deployment_fingerprint as deployment_identity
 from .generator import DEFAULT_VARIANT, generate_artifacts
 from .model_results import aggregate_model_results, write_results
-from .model_scorers import score_translation_patch
+from .model_scorers import score_deck_consistency, score_translation_patch
 from .opencode_runner import OpenCodeEvalRunner, _latest_run
 from .scenarios import DATASET_VERSION, Scenario, scenario_specs, split_manifest
 
@@ -199,6 +199,10 @@ class ModelEvaluationRunner:
                         for item in artifacts
                     ]
                     semantic = _aggregate_unit_semantics(unit_scores)
+                    term_consistency = score_deck_consistency([item["patch"] for item in artifacts], scenario.gold)
+                    semantic["term_consistency_recall"] = float(term_consistency["term_consistency_recall"])
+                    semantic["inconsistent_alternate_count"] = int(term_consistency["inconsistent_alternate_count"])
+                    semantic["critical_failures"] = sorted(set(semantic.get("critical_failures", [])) | set(term_consistency.get("critical_failures", [])))
                     effective_model = result.diagnostics.get("effective_model")
                     media_units = result.media_compliance.get("work_units", {})
                     media_valid = bool(artifacts) and all(media_units.get(item["work_unit_id"], {}).get("media_sequence_valid") is True for item in artifacts)

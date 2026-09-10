@@ -44,10 +44,9 @@ by `cyclonedx-py` in the approved release environment.
 
 ### Tests and static checks
 
-- Base interpreter: **124 tests passed, 2 optional dependency skips**.
-- Dependency-backed interpreter (`/tmp/k-slide-phase32-venv`): **not rerun in
-  this closure pass**; prior boundary was 115 tests
-  passed**.
+- Base interpreter: **134 tests passed, 2 optional dependency skips**.
+- Dependency-backed interpreter (`/tmp/k-slide-phase32-venv`): **134 tests
+  passed, no optional dependency skips** in this closure pass.
 - `compileall`: **PASS**.
 - `git diff --check`: **PASS** before implementation commit.
 - Development release generation: **PASS**; manifest contains a deterministic
@@ -63,6 +62,17 @@ by `cyclonedx-py` in the approved release environment.
   model, security, reliability, and governance fixtures reject contradictory
   payloads, modified results, wrong splits/models, insufficient repetitions,
   scanner findings, and non-authoritative governance input.
+- Reliability evidence: **PASS**; missing or false timeout-recovery, resume,
+  concurrency, 50-slide, SLO, and minimum-concurrency proof is rejected.
+- High-risk stability evidence: **PASS**; declared scenario/format groups and
+  all observed groups are evaluated under the protected-category policy; no
+  best-format cherry-picking remains.
+- Validation/held-out safety gates: **PASS**; locked terminology is required
+  at `>=0.995`, unexpected unresolved rate is required to be zero, and row /
+  summary metric disagreement is rejected.
+- Security workflow hardening: **IMPLEMENTED, NOT EXECUTED LOCALLY**; each
+  scanner writes a direct exit-code file, a structured assembly step creates
+  the exit manifest, and missing gitleaks output cannot become `[]`.
 
 ### OpenCode runtime
 
@@ -110,7 +120,9 @@ Classification: `OPENCODE_PROVIDER_RUNTIME_BLOCKED`.
 - Model-data-policy approval: **NOT PRESENT**.
 - Security scans: **NOT EXECUTED LOCALLY**; `pip-audit`, `gitleaks`,
   `semgrep`, and `cyclonedx-py` are unavailable. A pinned public workflow now
-  provides the reproducible execution path.
+  provides the reproducible execution path. Its Semgrep `p/python` registry
+  ruleset remains an external ruleset identity and is a documented
+  reproducibility limitation until a reviewed local ruleset is approved.
 - Reliability, governance administration, and pilot/canary: **NOT PROVEN**.
 
 ## Frozen dataset evidence
