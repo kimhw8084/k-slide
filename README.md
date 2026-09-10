@@ -95,13 +95,17 @@ DEVELOPMENT template. Accordingly, the public security workflow publishes
 scanner reports but marks its result `NOT_CERTIFYING` until a complete private
 candidate is supplied.
 
-The approved deployment environment must first persist its exact package
-inventory at `.k-slide-config/production-dependency-inventory.json` (the
-security workflow creates this from its isolated production environment).
-Candidate resolution derives its inventory hash and constraints hash from
-those files; the production SBOM can then be generated without copying hashes
-by passing `--production-dependency-inventory` together with
-`--generate-production-sbom`.
+The approved deployment environment must first persist one exact package
+subject: `.k-slide-config/production-requirements.lock` and its canonical
+`.k-slide-config/production-dependency-inventory.json`. The shared
+`evals.freeze_production_dependencies` command derives both from the active
+production interpreter and, for a private certifying run, verifies them
+against an already-approved lock. The security workflow accepts
+`candidate_profile` together with `production_dependency_lock`; without those
+private inputs its public report is explicitly `NOT_CERTIFYING`. The heavy
+Docker image installs the same lock and fails if its installed inventory
+differs. The production SBOM is then generated from that inventory with
+`--production-dependency-inventory` and `--generate-production-sbom`.
 
 ## Development checks
 

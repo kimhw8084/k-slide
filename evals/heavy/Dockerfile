@@ -1,7 +1,6 @@
 FROM python:3.11-slim
 
-ARG PADDLEPADDLE_VERSION=3.0.0
-ARG PADDLEOCR_VERSION=3.0.3
+ARG PRODUCTION_LOCK=.k-slide-config/production-requirements.lock
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -29,13 +28,19 @@ RUN apt-get update \
 COPY . /opt/k-slide
 WORKDIR /opt/k-slide
 
-RUN python -m pip install --no-cache-dir --upgrade pip \
-    && python -m pip install --no-cache-dir \
-        "Pillow>=10,<13" \
-        "PyMuPDF>=1.24,<2" \
-        "python-pptx>=0.6.23,<2" \
-        "paddlepaddle==${PADDLEPADDLE_VERSION}" \
-        "paddleocr==${PADDLEOCR_VERSION}"
+RUN test -f "/opt/k-slide/${PRODUCTION_LOCK}" \
+    && python -m pip install --no-cache-dir -r "/opt/k-slide/${PRODUCTION_LOCK}" \
+    && PYTHONPATH=/opt/k-slide/src:/opt/k-slide python - <<'PY'
+import json
+from pathlib import Path
+
+from k_slide.certification import installed_dependency_inventory, load_dependency_inventory
+
+expected = load_dependency_inventory(Path("/opt/k-slide/.k-slide-config/production-dependency-inventory.json"))
+actual = installed_dependency_inventory()
+if actual != expected:
+    raise SystemExit(json.dumps({"expected": expected, "actual": actual}, sort_keys=True))
+PY
 
 RUN mkdir -p /opt/k-slide-ocr-assets \
     && python -m evals.heavy.prefetch_ocr_models

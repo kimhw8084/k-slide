@@ -22,7 +22,12 @@ from .certification import (
     candidate_completeness,
     certification_fingerprint,
     candidate_deployment_fingerprint,
+    cyclonedx_dependency_set_hash,
+    dependency_inventory_hash,
+    installed_dependency_inventory,
     load_candidate_spec,
+    load_dependency_inventory,
+    load_dependency_lock,
     load_evidence,
     resolve_candidate_spec,
     repository_execution_configuration,
@@ -30,6 +35,7 @@ from .certification import (
     explicit_unavailable_value,
     parse_libreoffice_version,
     sha256_file,
+    validate_cyclonedx_1_5,
 )
 from .errors import ErrorCode, KSlideError
 from .model_policy import load_model_policy
@@ -250,14 +256,31 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
             else:
                 sbom_raw = production_dependencies.get("sbom")
                 sbom_path = _resolve_path(root, str(sbom_raw)) if isinstance(sbom_raw, str) and sbom_raw else None
+                sbom_value = None
                 try:
                     sbom_hash = sha256_file(sbom_path) if sbom_path is not None else None
                     sbom_value = json.loads(sbom_path.read_text(encoding="utf-8")) if sbom_path is not None else None
-                    sbom_ok = isinstance(sbom_value, dict) and sbom_value.get("bomFormat") == "CycloneDX" and sbom_value.get("complete") is True
-                except (OSError, UnicodeError, json.JSONDecodeError, EvidenceValidationError):
+                    validate_cyclonedx_1_5(sbom_value)
+                    sbom_ok = True
+                except (OSError, UnicodeError, json.JSONDecodeError, EvidenceValidationError, TypeError):
                     sbom_hash, sbom_ok = None, False
                 checks.append(_check("Production SBOM binding", bool(sbom_ok and sbom_hash == production_dependencies.get("sbom_sha256")), f"expected={production_dependencies.get('sbom_sha256')}; actual={sbom_hash}"))
                 checks.append(_check("Production constraints binding", production_dependencies.get("constraints_sha256") == (profile.candidate_spec or {}).get("constraints_sha256"), f"expected={(profile.candidate_spec or {}).get('constraints_sha256')}; manifest={production_dependencies.get('constraints_sha256')}"))
+                inventory_raw = production_dependencies.get("inventory")
+                lock_raw = production_dependencies.get("lock")
+                inventory_path = _resolve_path(root, str(inventory_raw)) if isinstance(inventory_raw, str) and inventory_raw else None
+                lock_path = _resolve_path(root, str(lock_raw)) if isinstance(lock_raw, str) and lock_raw else None
+                inventory_ok = False
+                lock_ok = False
+                try:
+                    inventory = load_dependency_inventory(inventory_path) if inventory_path is not None else None
+                    lock_inventory = load_dependency_lock(lock_path) if lock_path is not None else None
+                    inventory_ok = inventory is not None and dependency_inventory_hash(inventory) == production_dependencies.get("inventory_sha256")
+                    lock_ok = lock_inventory is not None and dependency_inventory_hash(lock_inventory) == production_dependencies.get("inventory_sha256") and sha256_file(lock_path) == production_dependencies.get("lock_sha256")
+                except (EvidenceValidationError, OSError):
+                    inventory_ok = lock_ok = False
+                checks.append(_check("Production dependency inventory binding", inventory_ok, "canonical resolved inventory is re-verifiable" if inventory_ok else "inventory is missing or inconsistent"))
+                checks.append(_check("Production dependency lock binding", lock_ok, "exact production lock is re-verifiable" if lock_ok else "lock is missing or inconsistent"))
                 security_raw = manifest.get("evidence_paths", {}).get("security") if isinstance(manifest.get("evidence_paths"), dict) else None
                 security_ok = False
                 if security_raw:
@@ -266,7 +289,9 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
                         security_payload = security_record.get("payload", {})
                         security_ok = (
                             security_payload.get("resolved_dependency_set_sha256") == production_dependencies.get("inventory_sha256")
+                            and security_payload.get("resolved_dependency_lock_sha256") == production_dependencies.get("lock_sha256")
                             and security_payload.get("production_sbom_sha256") == production_dependencies.get("sbom_sha256")
+                            and cyclonedx_dependency_set_hash(sbom_value) == production_dependencies.get("inventory_sha256")
                         )
                     except (EvidenceValidationError, OSError, ValueError):
                         security_ok = False
@@ -523,6 +548,12 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
         checks.append(_check("PaddleOCR version", actual_paddleocr == profile.paddleocr_version, f"expected={profile.paddleocr_version}; actual={actual_paddleocr}"))
     except importlib.metadata.PackageNotFoundError as exc:
         checks.append(_check("Pinned OCR dependency versions", False, str(exc)))
+    try:
+        expected_inventory = str((profile.candidate_spec or {}).get("resolved_dependency_set_sha256") or "")
+        actual_inventory = dependency_inventory_hash(installed_dependency_inventory())
+        checks.append(_check("Production dependency subject", actual_inventory == expected_inventory, f"expected={expected_inventory}; actual={actual_inventory}"))
+    except (EvidenceValidationError, OSError, ValueError) as exc:
+        checks.append(_check("Production dependency subject", False, str(exc)))
     office_version = getattr(runtime, "libreoffice_version", None) or _version_from_command("libreoffice") or _version_from_command("soffice")
     try:
         canonical_exact_version(profile.libreoffice_version, "libreoffice_version")

@@ -21,7 +21,21 @@ evaluation summary and run native PPTX conversion plus actual Korean OCR.
 Reproducible container:
 
 ```bash
-docker build -f evals/heavy/Dockerfile -t k-slide-heavy .
+production_env="$(mktemp -d)"
+python -m venv "$production_env"
+"$production_env/bin/python" -m pip install --disable-pip-version-check --no-input -r constraints-production.txt
+PYTHONPATH=src:. "$production_env/bin/python" - <<'PY'
+import json
+from pathlib import Path
+from k_slide.certification import dependency_lock_text, installed_dependency_inventory
+
+config = Path(".k-slide-config")
+config.mkdir(parents=True, exist_ok=True)
+inventory = installed_dependency_inventory()
+(config / "production-dependency-inventory.json").write_text(json.dumps(inventory, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+(config / "production-requirements.lock").write_text(dependency_lock_text(inventory), encoding="utf-8")
+PY
+docker build --build-arg PRODUCTION_LOCK=.k-slide-config/production-requirements.lock -f evals/heavy/Dockerfile -t k-slide-heavy .
 docker run --rm k-slide-heavy
 ```
 
@@ -32,10 +46,17 @@ adapter. Package import success alone is not sufficient. After OCR assets are
 prefetched in an approved image, run the doctor with `--network none` where
 the deployment permits it to verify local-only runtime behavior.
 
-The Dockerfile pins the initial CPU-tested target versions as build arguments;
-update them only after the self-test and record the resulting versions in the
-evaluation report. The current development machine has not built this image,
-so this repository does not claim that heavy integration has executed locally.
+The Dockerfile installs the exact private lock and fails the build unless the
+image's installed package inventory equals the staged canonical inventory.
+The lock and inventory are ignored release artifacts; never commit them or
+place confidential candidate material in the Docker build context. The current
+development machine has not built this image, so this repository does not claim
+that heavy integration has executed locally.
+
+For a certifying run, stage the approved private lock, install that lock in the
+isolated environment, and invoke `evals.freeze_production_dependencies` with
+`--lock-input` before building. The security workflow exposes the same contract
+as its `candidate_profile` plus `production_dependency_lock` dispatch inputs.
 
 The image build runs `evals.heavy.prefetch_ocr_models`, exports a local
 PaddleX pipeline configuration, and writes an OCR asset manifest. The managed

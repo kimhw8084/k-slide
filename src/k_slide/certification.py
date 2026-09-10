@@ -12,6 +12,7 @@ import json
 import subprocess
 import ast
 import re
+import uuid
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -203,9 +204,8 @@ _PRODUCTION_COMPLETENESS_FIELDS = (
 _OPTIONAL_PROVIDER_METADATA = frozenset({"provider_backend", "model_revision", "quantization_or_dtype"})
 _NOT_EXPOSED_SOURCES = frozenset({"not_exposed_by_runtime", "not_exposed"})
 _NOT_APPLICABLE_SOURCES = frozenset({"not_applicable", "not_applicable_by_runtime"})
-_NON_DEPLOYED_TOOL_PACKAGES = frozenset({
-    "pip", "setuptools", "wheel", "pip-audit", "semgrep", "cyclonedx-bom", "cyclonedx-python-lib",
-})
+_NON_DEPLOYED_BASE_PACKAGES = frozenset({"pip", "setuptools", "wheel"})
+_SCANNER_PACKAGES = frozenset({"pip-audit", "semgrep", "cyclonedx-bom", "cyclonedx-python-lib"})
 
 
 def repository_schema_versions() -> dict[str, str]:
@@ -277,15 +277,119 @@ def canonical_dependency_inventory(packages: Iterable[dict[str, Any]]) -> dict[s
         version = str(item.get("version") or "").strip()
         if not name or not version:
             raise EvidenceValidationError("dependency inventory package name/version is missing")
-        if name in _NON_DEPLOYED_TOOL_PACKAGES:
+        if name in _SCANNER_PACKAGES:
+            raise EvidenceValidationError(f"scanner package {name} is not part of the production dependency subject")
+        if name in _NON_DEPLOYED_BASE_PACKAGES:
             continue
-        if name in records and records[name] != version:
-            raise EvidenceValidationError(f"dependency inventory contains conflicting versions for {name}")
+        if name in records:
+            if records[name] != version:
+                raise EvidenceValidationError(f"dependency inventory contains conflicting versions for {name}")
+            raise EvidenceValidationError(f"dependency inventory contains a duplicate package: {name}")
         records[name] = version
     return {
         "schema_version": DEPENDENCY_INVENTORY_SCHEMA_VERSION,
         "packages": [{"name": name, "version": records[name]} for name in sorted(records)],
     }
+
+
+def installed_dependency_inventory() -> dict[str, Any]:
+    """Return the canonical package set visible to this Python interpreter."""
+
+    from importlib.metadata import distributions
+
+    return canonical_dependency_inventory(
+        [{"name": item.metadata.get("Name"), "version": item.version} for item in distributions()]
+    )
+
+
+def dependency_lock_text(inventory: dict[str, Any]) -> str:
+    """Serialize a deterministic exact lock for the deployed package set."""
+
+    canonical = canonical_dependency_inventory(inventory.get("packages", []))
+    if not canonical["packages"]:
+        raise EvidenceValidationError("production dependency inventory is empty")
+    return "".join(f"{item['name']}=={item['version']}\n" for item in canonical["packages"])
+
+
+def load_dependency_lock(path: Path) -> dict[str, Any]:
+    """Load the exact requirements lock used to build the production image."""
+
+    if path.is_symlink() or not path.is_file():
+        raise EvidenceValidationError(f"production dependency lock is missing or symlinked: {path.name}")
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError) as exc:
+        raise EvidenceValidationError(f"production dependency lock is unreadable: {path.name}") from exc
+    packages: list[dict[str, str]] = []
+    for raw in lines:
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        name, separator, version = line.partition("==")
+        if not separator or not name.strip() or not version.strip() or " @ " in line or line.startswith(("-", "--")):
+            raise EvidenceValidationError("production dependency lock contains an unsupported requirement")
+        packages.append({"name": name.strip(), "version": version.strip()})
+    inventory = canonical_dependency_inventory(packages)
+    if not inventory["packages"]:
+        raise EvidenceValidationError("production dependency lock is empty")
+    return inventory
+
+
+def cyclonedx_dependency_set_hash(value: dict[str, Any]) -> str | None:
+    metadata = value.get("metadata") if isinstance(value, dict) else None
+    component = metadata.get("component") if isinstance(metadata, dict) else None
+    properties = component.get("properties") if isinstance(component, dict) else None
+    if not isinstance(properties, list):
+        return None
+    for item in properties:
+        if isinstance(item, dict) and item.get("name") == "k-slide:dependency-set-sha256" and isinstance(item.get("value"), str):
+            return item["value"].lower()
+    return None
+
+
+def validate_cyclonedx_1_5(value: dict[str, Any]) -> None:
+    """Validate the strict CycloneDX 1.5 shape emitted by K-Slide."""
+
+    if not isinstance(value, dict) or set(value) - {"bomFormat", "specVersion", "serialNumber", "version", "metadata", "components"}:
+        raise EvidenceValidationError("production SBOM has non-CycloneDX root fields")
+    if value.get("bomFormat") != "CycloneDX" or value.get("specVersion") != "1.5" or not isinstance(value.get("version"), int) or isinstance(value.get("version"), bool) or value["version"] < 1:
+        raise EvidenceValidationError("production SBOM is not CycloneDX 1.5")
+    serial = str(value.get("serialNumber") or "")
+    if not serial.startswith("urn:uuid:"):
+        raise EvidenceValidationError("production SBOM serialNumber is invalid")
+    try:
+        uuid.UUID(serial.removeprefix("urn:uuid:"))
+    except (ValueError, AttributeError):
+        raise EvidenceValidationError("production SBOM serialNumber is invalid")
+    metadata = value.get("metadata")
+    if not isinstance(metadata, dict) or set(metadata) - {"timestamp", "component"}:
+        raise EvidenceValidationError("production SBOM metadata is not a supported CycloneDX 1.5 object")
+    if "timestamp" in metadata and (not isinstance(metadata["timestamp"], str) or not metadata["timestamp"].strip()):
+        raise EvidenceValidationError("production SBOM metadata timestamp is invalid")
+    application = metadata.get("component")
+    if not isinstance(application, dict) or set(application) - {"type", "name", "version", "properties"}:
+        raise EvidenceValidationError("production SBOM application component is invalid")
+    if application.get("type") != "application" or not isinstance(application.get("name"), str) or not isinstance(application.get("version"), str):
+        raise EvidenceValidationError("production SBOM application component is incomplete")
+    properties = application.get("properties")
+    if not isinstance(properties, list) or any(not isinstance(item, dict) or not isinstance(item.get("name"), str) or not isinstance(item.get("value"), str) for item in properties):
+        raise EvidenceValidationError("production SBOM properties are invalid")
+    components = value.get("components")
+    if not isinstance(components, list) or not components:
+        raise EvidenceValidationError("production SBOM has no components")
+    seen_components: set[str] = set()
+    for component in components:
+        if not isinstance(component, dict) or set(component) - {"type", "name", "version"}:
+            raise EvidenceValidationError("production SBOM contains an invalid component")
+        if component.get("type") != "library" or not isinstance(component.get("name"), str) or not component["name"] or not isinstance(component.get("version"), str) or not component["version"]:
+            raise EvidenceValidationError("production SBOM component name/version is invalid")
+        component_name = canonical_package_name(component["name"])
+        if component_name in seen_components:
+            raise EvidenceValidationError("production SBOM contains a duplicate component")
+        seen_components.add(component_name)
+    dependency_hash = cyclonedx_dependency_set_hash(value)
+    if dependency_hash is None or len(dependency_hash) != 64 or set(dependency_hash) - _HEX64:
+        raise EvidenceValidationError("production SBOM has no valid dependency-set identity")
 
 
 def dependency_inventory_hash(inventory: dict[str, Any]) -> str:
@@ -348,17 +452,34 @@ def _source_path(root: Path, relative: str) -> Path:
     return root / relative
 
 
+def effective_termbase_identity(root: Path) -> dict[str, Any] | None:
+    """Hash the normalized merged terminology configuration, not its paths."""
+
+    from .terminology import load_effective_termbase
+
+    try:
+        termbase = load_effective_termbase(root)
+    except Exception as exc:
+        raise EvidenceValidationError(f"effective termbase could not be resolved: {exc}") from exc
+    if not termbase.records:
+        return None
+    records = []
+    for record in termbase.records:
+        records.append({
+            "source": record.source,
+            "preferred": {key: record.preferred[key] for key in sorted(record.preferred)},
+            "status": record.status,
+            "scope": sorted(record.scope),
+            "avoid": sorted(record.avoid),
+            "term_id": record.term_id,
+        })
+    payload = {"version": termbase.version, "records": sorted(records, key=lambda item: (item["source"], item["term_id"] or ""))}
+    return {"version": termbase.version, "hash": sha256_bytes(canonical_bytes(payload))}
+
+
 def _repository_termbase_version(root: Path) -> str | None:
-    """Read the effective termbase version from the installed source tree."""
-
-    from .terminology import load_termbase, merge_termbases
-
-    paths = [_source_path(root, "termbase/core.json")]
-    private = root / ".k-slide-config" / "termbase.local.json"
-    if private.is_file() and not private.is_symlink():
-        paths.append(private)
-    loaded = [load_termbase(path) for path in paths if path.is_file() and not path.is_symlink()]
-    return merge_termbases(*loaded).version if loaded else None
+    identity = effective_termbase_identity(root)
+    return identity.get("version") if identity else None
 
 
 def repository_execution_configuration(root: Path) -> dict[str, Any]:
@@ -739,24 +860,46 @@ def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subjec
         root / "production-dependency-inventory.json",
     )
     inventory_path = next((path for path in inventory_candidates if path.is_file() and not path.is_symlink()), None)
+    inventory = None
     if inventory_path is not None:
         inventory = load_dependency_inventory(inventory_path)
         _bind_value(result, "resolved_dependency_set_sha256", dependency_inventory_hash(inventory))
     elif require_sources and not _is_unset(result.get("resolved_dependency_set_sha256")):
         raise EvidenceValidationError("production dependency inventory is unavailable for verification")
+    lock_candidates = (
+        root / ".k-slide-config" / "production-requirements.lock",
+        root / "production-requirements.lock",
+    )
+    lock_path = next((path for path in lock_candidates if path.is_file() and not path.is_symlink()), None)
+    if lock_path is not None:
+        lock_inventory = load_dependency_lock(lock_path)
+        if inventory_path is not None and lock_inventory != inventory:
+            raise EvidenceValidationError("production dependency lock disagrees with the canonical inventory")
+        if inventory_path is None:
+            _bind_value(result, "resolved_dependency_set_sha256", dependency_inventory_hash(lock_inventory))
     prompt_hash = _tree_hash(_source_path(root, "prompts"))
     if require_sources and prompt_hash is None and (not _is_unset(result.get("prompt_hash")) or _nested_hash(result.get("prompt_identity")) is not None):
         raise EvidenceValidationError("candidate prompt tree is unavailable for verification")
     _bind_nested_hash(result, "prompt_identity", prompt_hash)
     if prompt_hash is not None:
         _bind_value(result, "prompt_hash", prompt_hash)
-    termbase_hash = _tree_hash(_source_path(root, "termbase"))
+    termbase_identity = effective_termbase_identity(root)
+    termbase_hash = termbase_identity.get("hash") if termbase_identity else None
     if require_sources and termbase_hash is None and (not _is_unset(result.get("termbase_hash")) or _nested_hash(result.get("termbase_identity")) is not None):
         raise EvidenceValidationError("candidate termbase is unavailable for verification")
-    _bind_nested_hash(result, "termbase_identity", termbase_hash)
+    if termbase_identity is not None:
+        current_identity = result.get("termbase_identity")
+        if current_identity is not None and not _is_unset(current_identity) and not isinstance(current_identity, dict):
+            raise EvidenceValidationError("candidate termbase_identity must be an object")
+        if isinstance(current_identity, dict):
+            for key in ("version", "hash"):
+                declared = current_identity.get(key)
+                if not _is_unset(declared) and declared != termbase_identity[key]:
+                    raise EvidenceValidationError("candidate termbase_identity disagrees with effective terminology")
+        result["termbase_identity"] = dict(termbase_identity)
     if termbase_hash is not None:
         _bind_value(result, "termbase_hash", termbase_hash)
-    termbase_version = _repository_termbase_version(root)
+    termbase_version = termbase_identity.get("version") if termbase_identity else None
     if termbase_version is not None:
         _bind_value(result, "termbase_version", termbase_version)
         identity = dict(result.get("termbase_identity") or {})
@@ -989,7 +1132,7 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
         "model_held_out": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "corpus_fingerprint", "held_out_fingerprint", "required_media_compliance", "vision_input_proven", "locked_terminology_recall", "unexpected_unresolved_rate"),
         "internal_bilingual": ("attestation_id", "artifact_count", "work_unit_count", "critical_business_meaning_errors", "critical_numeric_date_unit_errors", "critical_modality_escalations", "critical_table_mapping_errors", "critical_trend_reversals", "unsupported_critical_executive_claims", "overall_noncritical_semantic_fidelity", "locked_terminology"),
         "zero_korean_comprehension": ("attestation_id", "users", "answers", "critical_question_accuracy", "overall_comprehension", "critical_misunderstanding"),
-        "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings", "audited_dependency_set_sha256", "resolved_dependency_set_sha256", "production_sbom_sha256", "candidate_constraints_sha256", "pip_audit_version", "semgrep_version", "semgrep_ruleset_identity", "semgrep_ruleset_sha256"),
+        "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings", "audited_dependency_set_sha256", "resolved_dependency_set_sha256", "resolved_dependency_lock_sha256", "production_sbom_sha256", "candidate_constraints_sha256", "pip_audit_version", "semgrep_version", "semgrep_ruleset_identity", "semgrep_ruleset_sha256"),
         "reliability": ("timeout_recovery_pass", "resume_pass", "fifty_slide_pass", "concurrency_pass", "slo_pass", "concurrent_runs"),
         "model_data_policy": ("attestation_id", "approved_for_internal_artifacts"),
         "pilot_canary": ("attestation_id", "users", "artifacts", "critical_confirmed_errors", "cross_user_exposure", "security_incidents", "silent_incomplete_output"),
@@ -1240,7 +1383,7 @@ def build_deployment_factors(root: Path, *, subject_git_sha: str | None = None, 
         if corpus is not None:
             source.setdefault("corpus_identity", canonical_corpus_identity(corpus))
         source.setdefault("prompt_identity", {"tree_sha256": _tree_hash(_source_path(root, "prompts"))})
-        source.setdefault("termbase_identity", {"tree_sha256": _tree_hash(_source_path(root, "termbase"))})
+        source.setdefault("termbase_identity", effective_termbase_identity(root) or {})
         source.setdefault("schema_versions", repository_schema_versions())
         constraints = _source_path(root, "constraints-production.txt")
         source.setdefault("constraints_sha256", sha256_file(constraints) if constraints.is_file() else None)

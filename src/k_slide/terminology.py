@@ -98,9 +98,20 @@ def merge_termbases(*termbases: Termbase) -> Termbase:
 
 
 def load_effective_termbase(project_root: Path, *, run_override: Path | None = None) -> Termbase:
-    paths = [Path(__file__).resolve().parents[2] / "termbase" / "core.json"]
+    project_root = project_root.expanduser().resolve()
+    package_core = Path(__file__).resolve().parents[2] / "termbase" / "core.json"
+    core_candidates = (project_root / "termbase" / "core.json", project_root / ".k-slide-engine" / "termbase" / "core.json", package_core)
+    paths: list[Path] = []
+    for path in core_candidates:
+        if path.is_symlink():
+            raise KSlideError(ErrorCode.SCHEMA_INVALID, "Termbase core must not be symlinked.", {"path": str(path)})
+        if path.is_file() and not path.is_symlink() and path not in paths:
+            paths.append(path)
+            break
     private = run_override or project_root / ".k-slide-config" / "termbase.local.json"
+    if private.is_symlink():
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Private termbase overlay must not be symlinked.", {"path": str(private)})
     if private.is_file():
         paths.append(private)
-    loaded = [load_termbase(path) for path in paths if path.is_file()]
+    loaded = [load_termbase(path) for path in paths]
     return merge_termbases(*loaded) if loaded else Termbase("1.0", (), "empty")

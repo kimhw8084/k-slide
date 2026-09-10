@@ -18,8 +18,10 @@ from .certification import (
     candidate_deployment_fingerprint,
     canonical_dependency_inventory,
     canonical_package_name,
+    cyclonedx_dependency_set_hash,
     dependency_inventory_hash,
     explicit_unavailable_value,
+    load_dependency_lock,
     load_dependency_inventory,
     resolve_candidate_spec,
     NOT_APPLICABLE_VALUE,
@@ -28,11 +30,13 @@ from .certification import (
 )
 from .model_policy import load_model_policy
 
-# 2.2 adds candidate-bound multimodal and production dependency proof to the
+# 2.3 binds the resolved production lock and standards-valid SBOM to the
+# portable security evidence bundle. 2.2 added candidate-bound multimodal and
+# production dependency proof to the
 # candidate-bound identity/provenance contract introduced in 2.1.
 # separation and exact frozen scenario matrices. No production-certified v1
 # or 2.0 evidence exists, so ambiguous development envelopes are not migrated.
-ADAPTER_VERSION = "2.2"
+ADAPTER_VERSION = "2.3"
 
 _ROLES: dict[str, tuple[str, ...]] = {
     "runtime": ("diagnostic_ladder", "simple_run", "three_slide", "five_slide"),
@@ -40,7 +44,7 @@ _ROLES: dict[str, tuple[str, ...]] = {
     "model_validation": ("model_summary", "experiment_manifest", "results_jsonl"),
     "model_high_risk_stability": ("model_summary", "experiment_manifest", "results_jsonl"),
     "model_held_out": ("model_summary", "experiment_manifest", "results_jsonl"),
-    "security": ("pip_audit", "gitleaks", "semgrep", "scanner_exits", "audit_context", "semgrep_ruleset", "dependency_inventory", "production_sbom"),
+    "security": ("pip_audit", "gitleaks", "semgrep", "scanner_exits", "audit_context", "semgrep_ruleset", "dependency_inventory", "production_lock", "production_sbom"),
     "reliability": ("failure_injection", "concurrency", "large_deck", "performance_slo"),
     "governance": ("governance_api",),
 }
@@ -672,12 +676,19 @@ def _derive_security(sources: dict[str, Path], *, root: Path | None = None, cand
     exits = _read_json(values["scanner_exits"])
     context = _read_json(values["audit_context"])
     inventory = load_dependency_inventory(values["dependency_inventory"])
+    lock_inventory = load_dependency_lock(values["production_lock"])
     sbom = _read_json(values["production_sbom"])
     if not isinstance(pip, dict) or not isinstance(leaks, list) or not isinstance(semgrep, dict) or not isinstance(exits, dict) or not isinstance(context, dict) or not isinstance(sbom, dict):
         raise AdapterError("security scanner output has an unexpected schema")
     constraints_hash = str(context.get("candidate_constraints_sha256") or "").lower()
     audited_hash = str(context.get("audited_dependency_set_sha256") or "").lower()
     inventory_hash = dependency_inventory_hash(inventory)
+    lock_hash = sha256_file(values["production_lock"])
+    if lock_inventory != inventory:
+        raise AdapterError("production dependency lock does not equal the resolved production inventory")
+    context_lock_hash = str(context.get("resolved_dependency_lock_sha256") or "").lower()
+    if context_lock_hash != lock_hash:
+        raise AdapterError("security audit context is not bound to the production dependency lock")
     resolved_context_hash = str(context.get("resolved_dependency_set_sha256") or "").lower()
     audited_subject = str(context.get("audited_dependency_subject") or "").strip().lower()
     if len(constraints_hash) != 64 or len(audited_hash) != 64 or audited_hash != inventory_hash or resolved_context_hash != inventory_hash:
@@ -743,9 +754,13 @@ def _derive_security(sources: dict[str, Path], *, root: Path | None = None, cand
     constraint_versions = {str(key).lower().replace("_", "-"): str(value) for key, value in context.get("constraint_versions", {}).items()} if isinstance(context.get("constraint_versions"), dict) else {}
     if any(not constraint_versions.get(name) or inventory_packages.get(name) != constraint_versions.get(name) for name in required_names):
         raise AdapterError("production dependency audit versions do not match constraints-production.txt")
-    if sbom.get("bomFormat") != "CycloneDX" or sbom.get("complete") is not True or not isinstance(sbom.get("components"), list):
-        raise AdapterError("production SBOM is incomplete")
-    if sbom.get("dependency_set_sha256") != inventory_hash:
+    try:
+        from .certification import validate_cyclonedx_1_5
+
+        validate_cyclonedx_1_5(sbom)
+    except EvidenceValidationError as exc:
+        raise AdapterError("production SBOM is not a valid CycloneDX 1.5 document") from exc
+    if cyclonedx_dependency_set_hash(sbom) != inventory_hash:
         raise AdapterError("production SBOM is not bound to the resolved production inventory")
     sbom_records: list[dict[str, Any]] = []
     for item in sbom["components"]:
@@ -774,7 +789,7 @@ def _derive_security(sources: dict[str, Path], *, root: Path | None = None, cand
         raise AdapterError("one or more security scanners failed to execute cleanly")
     if dependency_findings or secret_findings or static_findings:
         raise AdapterError("security scanner findings fail the production security gate")
-    return {"dependency_audit_pass": exit_ok and dependency_findings == 0, "secret_scan_pass": exit_ok and secret_findings == 0, "static_scan_pass": exit_ok and static_findings == 0, "dependency_findings": dependency_findings, "unresolved_high_findings": high_findings, "unresolved_critical_findings": sum(1 for item in semgrep.get("results", []) if isinstance(item, dict) and str(item.get("extra", {}).get("metadata", {}).get("severity", "")).upper() == "CRITICAL"), "secret_findings": secret_findings, "scanner_exit_codes": {key: exits.get(key) for key in sorted(exits)}, "audited_dependency_set_sha256": audited_hash, "resolved_dependency_set_sha256": inventory_hash, "candidate_constraints_sha256": constraints_hash, "production_sbom_sha256": sbom_hash, "audited_dependency_versions": inventory_packages, "pip_audit_version": context["pip_audit_version"], "semgrep_version": context["semgrep_version"], "semgrep_ruleset_identity": context["semgrep_ruleset_identity"], "semgrep_ruleset_sha256": ruleset_hash}
+    return {"dependency_audit_pass": exit_ok and dependency_findings == 0, "secret_scan_pass": exit_ok and secret_findings == 0, "static_scan_pass": exit_ok and static_findings == 0, "dependency_findings": dependency_findings, "unresolved_high_findings": high_findings, "unresolved_critical_findings": sum(1 for item in semgrep.get("results", []) if isinstance(item, dict) and str(item.get("extra", {}).get("metadata", {}).get("severity", "")).upper() == "CRITICAL"), "secret_findings": secret_findings, "scanner_exit_codes": {key: exits.get(key) for key in sorted(exits)}, "audited_dependency_set_sha256": audited_hash, "resolved_dependency_set_sha256": inventory_hash, "resolved_dependency_lock_sha256": lock_hash, "candidate_constraints_sha256": constraints_hash, "production_sbom_sha256": sbom_hash, "audited_dependency_versions": inventory_packages, "pip_audit_version": context["pip_audit_version"], "semgrep_version": context["semgrep_version"], "semgrep_ruleset_identity": context["semgrep_ruleset_identity"], "semgrep_ruleset_sha256": ruleset_hash}
 
 
 def _derive_reliability(sources: dict[str, Path]) -> dict[str, Any]:

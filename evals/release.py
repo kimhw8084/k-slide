@@ -5,8 +5,8 @@ from __future__ import annotations
 import argparse
 import importlib.metadata
 import json
-import shutil
 import subprocess
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -24,15 +24,18 @@ from k_slide.certification import (
     evidence_hashes,
     load_evidence,
     load_candidate_spec,
+    load_dependency_lock,
     load_dependency_inventory,
     repository_schema_versions,
     resolve_candidate_spec,
     sha256_file,
+    validate_cyclonedx_1_5,
 )
 from k_slide.model_policy import load_model_policy
 from k_slide.production import ReleaseState
 from k_slide.runtime import discover_runtime
 from k_slide.io import atomic_write_json
+from k_slide.errors import KSlideError
 
 from .scenarios import DATASET_VERSION, split_manifest
 
@@ -44,6 +47,25 @@ def _sha256(path: Path | None) -> str | None:
     if path is None or not path.is_file() or path.is_symlink():
         return None
     return sha256_file(path)
+
+
+def _evidence_source_path(record: dict[str, Any] | None, role: str) -> Path | None:
+    if not isinstance(record, dict) or not isinstance(record.get("path"), str) or not isinstance(record.get("sources"), list):
+        return None
+    envelope = Path(record["path"]).expanduser().resolve()
+    for descriptor in record["sources"]:
+        if not isinstance(descriptor, dict) or descriptor.get("role") != role or not isinstance(descriptor.get("path"), str):
+            continue
+        relative = Path(descriptor["path"])
+        if relative.is_absolute() or ".." in relative.parts:
+            return None
+        path = (envelope.parent / relative).resolve()
+        try:
+            path.relative_to(envelope.parent)
+        except ValueError:
+            return None
+        return path
+    return None
 
 
 def _git_sha(root: Path) -> str | None:
@@ -69,53 +91,44 @@ def _packages() -> list[dict[str, str]]:
 def build_sbom(root: Path) -> dict[str, Any]:
     """Build a development inventory; it is explicitly not a certified SBOM."""
 
+    subject = _git_sha(root) or "unknown"
     return {
         "bomFormat": "CycloneDX",
         "specVersion": "1.5",
-        "serialNumber": f"urn:uuid:k-slide-{_git_sha(root) or 'unknown'}",
-        "metadata": {"timestamp": datetime.now(timezone.utc).isoformat(), "component": {"type": "application", "name": "k-slide", "version": __version__}},
+        "serialNumber": f"urn:uuid:{uuid.uuid5(uuid.NAMESPACE_URL, 'k-slide-development:' + subject)}",
+        "version": 1,
+        "metadata": {"timestamp": datetime.now(timezone.utc).isoformat(), "component": {"type": "application", "name": "k-slide", "version": __version__, "properties": [{"name": "k-slide:completeness", "value": "development"}]}},
         "components": [{"type": "library", "name": item["name"], "version": item["version"]} for item in _packages()],
-        "complete": False,
-        "notes": ["Development inventory only; this does not claim an executed production environment/image SBOM.", "OCR model asset hashes are separately validated from the heavy image manifest."],
     }
 
 
 def build_production_sbom(root: Path, output: Path, *, inventory_path: Path | None = None) -> dict[str, Any]:
-    """Generate a real environment SBOM with the pinned CycloneDX tool.
+    """Generate a CycloneDX 1.5 SBOM from the frozen production inventory.
 
-    The tool is intentionally an approved release-environment dependency rather
-    than a development dependency.  A missing generator is a release blocker,
-    never a reason to fall back to the lightweight development inventory.
+    The inventory is produced by the production interpreter and independently
+    checked against the exact lock and audit result by the security adapter.
+    This function only serializes that already-resolved subject; it never
+    substitutes the ambient scanner environment or a development package list.
     """
 
-    if inventory_path is not None:
-        inventory = load_dependency_inventory(inventory_path.expanduser())
-        inventory_sha = dependency_inventory_hash(inventory)
-        value = {
-            "bomFormat": "CycloneDX",
-            "specVersion": "1.5",
-            "metadata": {"component": {"type": "application", "name": "k-slide", "version": __version__}},
-            "components": [{"type": "library", "name": item["name"], "version": item["version"]} for item in inventory["packages"]],
-            "complete": True,
-            "dependency_set_sha256": inventory_sha,
-            "notes": ["Generated from the exact isolated production dependency inventory."],
-        }
-        output.parent.mkdir(parents=True, exist_ok=True)
-        atomic_write_json(output, value, mode=0o600)
-        return value
-    executable = shutil.which("cyclonedx-py")
-    if not executable:
-        raise RuntimeError("cyclonedx-py is unavailable; production SBOM was not generated")
+    if inventory_path is None:
+        candidates = (root / ".k-slide-config" / "production-dependency-inventory.json", root / "production-dependency-inventory.json")
+        inventory_path = next((path for path in candidates if path.is_file() and not path.is_symlink()), None)
+    if inventory_path is None:
+        raise RuntimeError("exact resolved production dependency inventory is required")
+    inventory = load_dependency_inventory(inventory_path.expanduser())
+    inventory_sha = dependency_inventory_hash(inventory)
+    value = {
+        "bomFormat": "CycloneDX",
+        "specVersion": "1.5",
+        "serialNumber": f"urn:uuid:{uuid.uuid5(uuid.NAMESPACE_URL, f'k-slide-production:{inventory_sha}')}",
+        "version": 1,
+        "metadata": {"component": {"type": "application", "name": "k-slide", "version": __version__, "properties": [{"name": "k-slide:dependency-set-sha256", "value": inventory_sha}]}},
+        "components": [{"type": "library", "name": item["name"], "version": item["version"]} for item in inventory["packages"]],
+    }
+    validate_cyclonedx_1_5(value)
     output.parent.mkdir(parents=True, exist_ok=True)
-    result = subprocess.run([executable, "environment", "--of", "JSON", "--output-file", str(output)], cwd=root, capture_output=True, text=True, timeout=120, check=False)
-    if result.returncode != 0 or not output.is_file():
-        raise RuntimeError((result.stderr or result.stdout or "cyclonedx-py failed").strip())
-    try:
-        value = json.loads(output.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise RuntimeError("production SBOM is not valid JSON") from exc
-    if not isinstance(value, dict) or value.get("bomFormat") != "CycloneDX" or not value.get("components"):
-        raise RuntimeError("production SBOM is incomplete")
+    atomic_write_json(output, value, mode=0o600)
     return value
 
 
@@ -294,23 +307,35 @@ def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, 
         if champion is None or champion_blockers:
             blockers.extend(champion_blockers or ["champion evidence is missing"])
     if state == ReleaseState.PRODUCTION_CERTIFIED.value:
-        sbom = root / ".k-slide-config" / "production-sbom.json"
-        if not sbom.is_file():
+        security_record = records.get("security")
+        sbom = _evidence_source_path(security_record, "production_sbom")
+        lock = _evidence_source_path(security_record, "production_lock")
+        inventory = _evidence_source_path(security_record, "dependency_inventory")
+        if sbom is None or not sbom.is_file():
             blockers.append("production SBOM is missing; development inventory is not sufficient")
         else:
             try:
                 parsed = json.loads(sbom.read_text(encoding="utf-8"))
-                if parsed.get("bomFormat") != "CycloneDX" or not parsed.get("components") or parsed.get("complete") is not True or not isinstance(parsed.get("metadata"), dict):
-                    blockers.append("production SBOM is incomplete")
-            except (OSError, UnicodeError, json.JSONDecodeError, AttributeError):
+                validate_cyclonedx_1_5(parsed)
+            except (OSError, UnicodeError, json.JSONDecodeError, EvidenceValidationError, AttributeError):
                 blockers.append("production SBOM is malformed")
         security = records.get("security", {}).get("payload", {}) if isinstance(records.get("security"), dict) else {}
         try:
-            sbom_hash = sha256_file(sbom)
+            sbom_hash = sha256_file(sbom) if sbom is not None else None
         except EvidenceValidationError:
             sbom_hash = None
         if not security.get("resolved_dependency_set_sha256"):
             blockers.append("security evidence has no resolved dependency-set identity")
+        if not security.get("resolved_dependency_lock_sha256") or lock is None or not lock.is_file():
+            blockers.append("security evidence has no portable resolved dependency lock")
+        else:
+            try:
+                if sha256_file(lock) != security.get("resolved_dependency_lock_sha256") or dependency_inventory_hash(load_dependency_lock(lock)) != security.get("resolved_dependency_set_sha256"):
+                    blockers.append("security evidence lock does not match the resolved dependency set")
+            except (EvidenceValidationError, OSError):
+                blockers.append("security evidence dependency lock is malformed")
+        if inventory is None or not inventory.is_file():
+            blockers.append("security evidence has no portable dependency inventory")
         if not security.get("production_sbom_sha256") or security.get("production_sbom_sha256") != sbom_hash:
             blockers.append("security evidence is not bound to the staged production SBOM")
         if candidate_spec is not None and security.get("resolved_dependency_set_sha256") != candidate_spec.get("resolved_dependency_set_sha256"):
@@ -432,10 +457,16 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
     }
     if derived == ReleaseState.PRODUCTION_CERTIFIED.value:
         security_payload = records.get("security", {}).get("payload", {}) if isinstance(records.get("security"), dict) else {}
-        production_sbom = root / ".k-slide-config" / "production-sbom.json"
+        security_record = records.get("security")
+        production_sbom = _evidence_source_path(security_record, "production_sbom")
+        production_inventory = _evidence_source_path(security_record, "dependency_inventory")
+        production_lock = _evidence_source_path(security_record, "production_lock")
         manifest["production_dependencies"] = {
             "constraints_sha256": candidate.get("constraints_sha256"),
             "inventory_sha256": security_payload.get("resolved_dependency_set_sha256") or candidate.get("resolved_dependency_set_sha256"),
+            "inventory": safe_relative(production_inventory, "production dependency inventory"),
+            "lock": safe_relative(production_lock, "production dependency lock"),
+            "lock_sha256": security_payload.get("resolved_dependency_lock_sha256"),
             "sbom": safe_relative(production_sbom, "production SBOM"),
             "sbom_sha256": security_payload.get("production_sbom_sha256") or _sha256(production_sbom),
             "pip_audit_version": security_payload.get("pip_audit_version"),
@@ -521,7 +552,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--resolved-candidate-output", type=Path, help="Persist centrally resolved candidate inputs for subsequent evidence producers")
     parser.add_argument("--certified-profile-output", type=Path, help="Materialize the certified production profile after the final manifest is written")
     parser.add_argument("--sbom", type=Path)
-    parser.add_argument("--generate-production-sbom", action="store_true", help="Generate the required production environment SBOM with cyclonedx-py")
+    parser.add_argument("--generate-production-sbom", action="store_true", help="Generate the required CycloneDX 1.5 SBOM from the resolved production inventory")
     parser.add_argument("--production-dependency-inventory", type=Path, help="Exact resolved production dependency inventory used for the production SBOM")
     parser.add_argument("--requested-state", choices=REQUESTABLE_STATES, default=None)
     parser.add_argument("--state", choices=REQUESTABLE_STATES, default=None, help="Deprecated alias for --requested-state")
@@ -619,13 +650,13 @@ def main(argv: list[str] | None = None) -> int:
             _certified_profile_mapping(root, candidate_spec=candidate, manifest=manifest, manifest_path=args.output, manifest_sha256="0" * 64)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         atomic_write_json(args.output, manifest, mode=0o600)
-    except (EvidenceValidationError, OSError, TypeError, ValueError) as exc:
+    except (EvidenceValidationError, KSlideError, OSError, TypeError, ValueError) as exc:
         print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": [str(exc)]}, ensure_ascii=False, indent=2))
         return 2
     if manifest["release_state"] == ReleaseState.PRODUCTION_CERTIFIED.value:
         try:
             materialize_certified_profile(root, candidate_spec=candidate, manifest=manifest, manifest_path=args.output, output=args.certified_profile_output)
-        except (EvidenceValidationError, OSError, ValueError) as exc:
+        except (EvidenceValidationError, KSlideError, OSError, ValueError) as exc:
             # The manifest is only valid together with its materialized
             # certified profile.  Do not leave a seemingly usable partial
             # certification after a post-write filesystem failure.

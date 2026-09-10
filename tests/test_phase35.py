@@ -163,6 +163,13 @@ class Phase35Tests(unittest.TestCase):
         dockerfile = (ROOT / "evals" / "heavy" / "Dockerfile").read_text(encoding="utf-8")
         self.assertIn("prefetch_ocr_models", dockerfile)
         self.assertIn("KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS=1", dockerfile)
+        self.assertIn("PRODUCTION_LOCK", dockerfile)
+        self.assertIn("installed_dependency_inventory", dockerfile)
+        self.assertNotIn("Pillow>=10,<13", dockerfile)
+        self.assertNotIn("paddlepaddle==${PADDLEPADDLE_VERSION}", dockerfile)
+        self.assertIn("freeze_production_dependencies", workflow)
+        self.assertIn("Freeze exact production dependency subject", workflow)
+        self.assertIn("Verify heavy image dependency identity", workflow)
 
     def test_heavy_doctor_distinguishes_local_blocked_from_required_failure(self):
         with patch("evals.heavy.doctor._command_version", return_value=None):
@@ -256,7 +263,7 @@ class Phase35Tests(unittest.TestCase):
             self.assertEqual(manifest["attestations"]["zero_korean_comprehension"], "UNSET")
             sbom = build_sbom(root)
             self.assertEqual(sbom["bomFormat"], "CycloneDX")
-            self.assertTrue(any("does not claim" in note for note in sbom["notes"]))
+            self.assertIn({"name": "k-slide:completeness", "value": "development"}, sbom["metadata"]["component"]["properties"])
 
     def test_release_workflow_is_manual_and_certification_gated(self):
         workflow = (ROOT.parent / ".github" / "workflows" / "k-slide-release.yml").read_text(encoding="utf-8")

@@ -11,7 +11,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from evals.release import build_release_manifest, derive_release_state, main as release_main
+from evals.release import build_production_sbom, build_release_manifest, derive_release_state, main as release_main
 from evals.experiments import behavior_configuration_hash, experiment_plan, experiment_plan_hash
 from evals.scenarios import PROTECTED_CATEGORIES, scenario_specs
 from k_slide.certification import (
@@ -24,12 +24,16 @@ from k_slide.certification import (
     candidate_deployment_fingerprint,
     canonical_candidate_factors,
     certification_fingerprint,
+    dependency_lock_text,
     deployment_fingerprint,
+    effective_termbase_identity,
     load_candidate_spec,
     load_evidence,
     resolve_candidate_spec,
     dependency_inventory_hash,
+    load_dependency_lock,
     repository_schema_versions,
+    validate_cyclonedx_1_5,
     write_evidence,
 )
 from k_slide.evidence_adapters import AdapterError, build_machine_evidence
@@ -111,7 +115,9 @@ def _security_sources(root: Path, *, vulnerable: bool = False, constraints_hash:
     packages = [{"name": name, "version": "1.0"} for name in ("Pillow", "PyMuPDF", "python-pptx", "paddlepaddle", "paddleocr")]
     inventory = canonical_dependency_inventory(packages)
     _write(root / "dependency-inventory.json", inventory)
-    _write(root / "production-sbom.json", {"bomFormat": "CycloneDX", "specVersion": "1.5", "metadata": {"component": {"name": "k-slide"}}, "components": [{"type": "library", "name": item["name"], "version": item["version"]} for item in inventory["packages"]], "complete": True, "dependency_set_sha256": dependency_inventory_hash(inventory)})
+    (root / "production-requirements.lock").write_text(dependency_lock_text(inventory), encoding="utf-8")
+    build_production_sbom(root, root / "production-sbom.json", inventory_path=root / "dependency-inventory.json")
+    validate_cyclonedx_1_5(json.loads((root / "production-sbom.json").read_text(encoding="utf-8")))
     _write(root / "pip-audit.json", {"dependencies": [{"name": name, "version": "1.0", "vulns": ([{"id": "CVE-TEST"}] if vulnerable and name == "Pillow" else [])} for name in ("Pillow", "PyMuPDF", "python-pptx", "paddlepaddle", "paddleocr")]})
     _write(root / "gitleaks.json", [])
     _write(root / "semgrep.json", {"results": [], "errors": []})
@@ -125,8 +131,8 @@ def _security_sources(root: Path, *, vulnerable: bool = False, constraints_hash:
     else:
         staged_ruleset.write_text("rules: []\n", encoding="utf-8")
     inventory_sha = dependency_inventory_hash(inventory)
-    _write(root / "audit-context.json", {"schema_version": "1.0", "audited_dependency_subject": "production-env", "audited_dependency_set_sha256": inventory_sha, "resolved_dependency_set_sha256": inventory_sha, "production_sbom_sha256": _sha(root / "production-sbom.json"), "candidate_constraints_sha256": constraints_hash, "audited_dependency_names": list(versions), "constraint_versions": versions, "pip_audit_version": "pip-audit 2.9.0", "semgrep_version": "semgrep 1.89.0", "semgrep_ruleset_identity": "security/semgrep-production.yml", "semgrep_ruleset_sha256": ruleset_hash})
-    return {"pip_audit": root / "pip-audit.json", "gitleaks": root / "gitleaks.json", "semgrep": root / "semgrep.json", "scanner_exits": root / "scanner-exits.json", "audit_context": root / "audit-context.json", "semgrep_ruleset": staged_ruleset, "dependency_inventory": root / "dependency-inventory.json", "production_sbom": root / "production-sbom.json"}
+    _write(root / "audit-context.json", {"schema_version": "1.0", "audited_dependency_subject": "production-env", "audited_dependency_set_sha256": inventory_sha, "resolved_dependency_set_sha256": inventory_sha, "resolved_dependency_lock_sha256": _sha(root / "production-requirements.lock"), "production_sbom_sha256": _sha(root / "production-sbom.json"), "candidate_constraints_sha256": constraints_hash, "audited_dependency_names": list(versions), "constraint_versions": versions, "pip_audit_version": "pip-audit 2.9.0", "semgrep_version": "semgrep 1.89.0", "semgrep_ruleset_identity": "security/semgrep-production.yml", "semgrep_ruleset_sha256": ruleset_hash})
+    return {"pip_audit": root / "pip-audit.json", "gitleaks": root / "gitleaks.json", "semgrep": root / "semgrep.json", "scanner_exits": root / "scanner-exits.json", "audit_context": root / "audit-context.json", "semgrep_ruleset": staged_ruleset, "dependency_inventory": root / "dependency-inventory.json", "production_lock": root / "production-requirements.lock", "production_sbom": root / "production-sbom.json"}
 
 
 def _reliability_sources(root: Path) -> dict[str, Path]:
@@ -251,6 +257,54 @@ class CertificationClosureTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(EvidenceValidationError):
                 resolve_candidate_spec({**candidate, "schema_versions": value}, root=Path.cwd(), subject_git_sha="a" * 40, model_policy=load_model_policy(), corpus=candidate["corpus_identity"])
 
+    def test_effective_termbase_identity_includes_private_semantics_and_is_path_independent(self):
+        core = {"version": "1.0", "records": [{"term_id": "core", "source": "검토", "preferred": {"default": "under review"}, "status": "PREFERRED", "scope": ["modality"]}]}
+        overlay = {"version": "1.0", "records": [{"term_id": "private", "source": "고도화", "preferred": {"default": "enhancement"}, "status": "LOCKED", "scope": ["corporate"]}]}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "termbase").mkdir()
+            _write(root / "termbase" / "core.json", core)
+            (root / ".k-slide-config").mkdir()
+            _write(root / ".k-slide-config" / "termbase.local.json", overlay)
+            first = effective_termbase_identity(root)
+            self.assertIsNotNone(first)
+            moved = root / "moved"
+            (moved / "termbase").mkdir(parents=True)
+            _write(moved / "termbase" / "core.json", core)
+            (moved / ".k-slide-config").mkdir()
+            _write(moved / ".k-slide-config" / "termbase.local.json", overlay)
+            self.assertEqual(first, effective_termbase_identity(moved))
+            overlay["records"][0]["preferred"]["default"] = "upgrade"
+            _write(root / ".k-slide-config" / "termbase.local.json", overlay)
+            changed = effective_termbase_identity(root)
+            self.assertNotEqual(first, changed)
+            overlay["records"][0]["status"] = "PREFERRED"
+            _write(root / ".k-slide-config" / "termbase.local.json", overlay)
+            self.assertNotEqual(changed, effective_termbase_identity(root))
+            (root / ".k-slide-config" / "termbase.local.json").unlink()
+            self.assertNotEqual(first, effective_termbase_identity(root))
+            conflicting = {"version": "1.0", "records": [{"source": "검토", "preferred": {"default": "review"}, "status": "LOCKED"}]}
+            _write(root / ".k-slide-config" / "termbase.local.json", conflicting)
+            _write(root / "termbase" / "core.json", {**core, "records": [{**core["records"][0], "status": "LOCKED"}]})
+            with self.assertRaises(EvidenceValidationError):
+                effective_termbase_identity(root)
+
+    def test_effective_termbase_hash_is_bound_by_candidate_resolution(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "termbase").mkdir()
+            (root / "termbase" / "core.json").write_bytes((Path.cwd() / "termbase" / "core.json").read_bytes())
+            candidate = _candidate_spec("a" * 40, root=root)
+            before = effective_termbase_identity(root)
+            self.assertEqual(candidate["termbase_hash"], before["hash"])
+            (root / ".k-slide-config").mkdir()
+            _write(root / ".k-slide-config" / "termbase.local.json", {"version": "1.0", "records": [{"source": "비공개", "preferred": {"default": "private"}, "status": "PREFERRED"}]})
+            after = effective_termbase_identity(root)
+            self.assertNotEqual(before, after)
+            candidate["termbase_hash"] = "a" * 64
+            with self.assertRaises(EvidenceValidationError):
+                resolve_candidate_spec(candidate, root=root, subject_git_sha="a" * 40, model_policy=load_model_policy(), corpus=candidate["corpus_identity"])
+
     def test_production_completeness_rejects_unset_fields_even_with_valid_shape(self):
         candidate = _candidate_spec("a" * 40, ocr_provider="paddle")
         candidate["ocr_asset_manifest"] = "ocr/manifest.json"
@@ -284,7 +338,9 @@ class CertificationClosureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             sources = _security_sources(root)
-            build_machine_evidence(root / "security.json", evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+            evidence = root / "security.json"
+            build_machine_evidence(evidence, evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+            self.assertEqual(load_evidence(evidence, expected_type="security")["payload"]["resolved_dependency_set_sha256"], dependency_inventory_hash(json.loads((root / "dependency-inventory.json").read_text(encoding="utf-8"))))
             inventory = json.loads((root / "dependency-inventory.json").read_text(encoding="utf-8"))
             inventory["packages"][0]["version"] = "2.0"
             _write(root / "dependency-inventory.json", inventory)
@@ -306,6 +362,47 @@ class CertificationClosureTests(unittest.TestCase):
             _write(root / "audit-context.json", context)
             with self.assertRaises(AdapterError):
                 build_machine_evidence(root / "runner-only.json", evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+
+    def test_security_workflow_layout_is_portable_and_all_sources_are_reverified(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "evidence"
+            root.mkdir()
+            sources = _security_sources(root)
+            evidence = root / "security.evidence.json"
+            build_machine_evidence(evidence, evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+            loaded = load_evidence(evidence, expected_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64)
+            self.assertEqual(loaded["payload"]["resolved_dependency_lock_sha256"], _sha(root / "production-requirements.lock"))
+            self.assertEqual(load_dependency_lock(root / "production-requirements.lock")["packages"], json.loads((root / "dependency-inventory.json").read_text(encoding="utf-8"))["packages"])
+            outside = root.parent / "outside.json"
+            outside.write_text((root / "production-requirements.lock").read_text(encoding="utf-8"), encoding="utf-8")
+            unsafe = dict(sources)
+            unsafe["production_lock"] = outside
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "unsafe.json", evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=unsafe)
+
+    def test_security_rejects_empty_audit_lock_drift_and_nonstandard_sbom(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = _security_sources(root)
+            _write(root / "pip-audit.json", {"dependencies": []})
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "empty-audit.json", evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+            sources = _security_sources(root)
+            (root / "production-requirements.lock").write_text("Pillow==2.0\n", encoding="utf-8")
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "lock-drift.json", evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+            sources = _security_sources(root)
+            sbom = json.loads((root / "production-sbom.json").read_text(encoding="utf-8"))
+            sbom["complete"] = True
+            _write(root / "production-sbom.json", sbom)
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "invalid-sbom.json", evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+
+    def test_dependency_inventory_rejects_scanner_environment_tools(self):
+        with self.assertRaises(EvidenceValidationError):
+            canonical_dependency_inventory([{"name": "pip-audit", "version": "2.9.0"}, {"name": "semgrep", "version": "1.89.0"}, {"name": "Pillow", "version": "1.0"}])
+        inventory = canonical_dependency_inventory([{"name": "pip", "version": "24.0"}, {"name": "setuptools", "version": "70.0"}, {"name": "Pillow", "version": "1.0"}])
+        self.assertEqual(inventory["packages"], [{"name": "pillow", "version": "1.0"}])
 
     def test_security_constraints_identity_mismatch_is_rejected(self):
         candidate = _candidate_spec("a" * 40)
@@ -684,6 +781,10 @@ class CertificationClosureTests(unittest.TestCase):
         self.assertIn("-r constraints-production.txt", workflow)
         self.assertIn("security/semgrep-production.yml", workflow)
         self.assertIn("audit_context", workflow)
+        self.assertIn("candidate_profile", workflow)
+        self.assertIn("production_site", workflow)
+        self.assertIn("evidence/production-requirements.lock", workflow)
+        self.assertNotIn("--path \"$RUNNER_TEMP/k-slide-security/production-env\"", workflow)
         self.assertIn("production_evidence_eligible", workflow)
         self.assertIn("NOT_CERTIFYING", workflow)
         self.assertNotIn("sed -i", workflow)
@@ -1119,6 +1220,10 @@ class CertificationClosureTests(unittest.TestCase):
             from k_slide.doctor import diagnose
             from k_slide.production import production_checks
             package_versions = {"paddlepaddle": "3.0.0", "paddleocr": "3.0.3"}
+            production_inventory = canonical_dependency_inventory([{"name": name, "version": version} for name, version in {"Pillow": "1.0", "PyMuPDF": "1.0", "python-pptx": "1.0", "paddlepaddle": "1.0", "paddleocr": "1.0"}.items()])
+            inventory_patch = patch("k_slide.production.installed_dependency_inventory", return_value=production_inventory)
+            inventory_patch.start()
+            self.addCleanup(inventory_patch.stop)
             with patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
                 runtime = discover_runtime(root)
                 doctor_result = diagnose(root, production=True)
