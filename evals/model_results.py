@@ -10,6 +10,18 @@ from typing import Any, Iterable
 from .certification import EvaluationState, certification_status
 
 
+def repeated_group_key(row: dict[str, Any]) -> tuple[str, str]:
+    """Canonical repeated-run identity shared by aggregation and certification."""
+
+    scenario_id = row.get("scenario_id")
+    format_name = row.get("format")
+    if not isinstance(scenario_id, str) or not scenario_id:
+        raise ValueError("model result row is missing scenario_id")
+    if not isinstance(format_name, str) or not format_name:
+        raise ValueError("model result row is missing format")
+    return scenario_id, format_name.lower()
+
+
 def aggregate_model_results(results: Iterable[dict[str, Any]], *, model: str, split: str) -> dict[str, Any]:
     cases = list(results)
     scored = [item for item in cases if item.get("semantic_scored")]
@@ -22,7 +34,7 @@ def aggregate_model_results(results: Iterable[dict[str, Any]], *, model: str, sp
     for item in scored:
         category_values[str(item.get("category"))].append(item)
         format_values[str(item.get("format"))].append(item)
-        repeated_groups[(str(item.get("scenario_id")), str(item.get("format")))].append(item)
+        repeated_groups[repeated_group_key(item)].append(item)
         critical_types.update(item.get("semantic", {}).get("critical_failures", []))
 
     def summarize(values: list[dict[str, Any]]) -> dict[str, Any]:

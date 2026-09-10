@@ -15,6 +15,7 @@ from k_slide import __version__
 from k_slide.certification import (
     EvidenceValidationError,
     build_deployment_factors,
+    canonical_corpus_identity,
     certification_fingerprint,
     deployment_fingerprint,
     evidence_hashes,
@@ -155,13 +156,20 @@ def _champion(root: Path, *, records: dict[str, dict[str, Any]], policy: Any, de
         blockers.append("champion model is not approved by ModelPolicy")
     if value.get("deployment_fingerprint") != deployment_fp:
         blockers.append("champion deployment fingerprint does not match candidate")
-    config_hash = str(value.get("config_hash") or "")
+    config_hash = str(value.get("behavior_configuration_hash") or value.get("config_hash") or "")
     if not config_hash:
         blockers.append("champion config_hash is missing")
     for evidence_type in ("model_validation", "model_high_risk_stability", "model_held_out"):
         record = records.get(evidence_type)
-        if record and record["payload"].get("configuration_hash") != config_hash:
+        if record and record["payload"].get("behavior_configuration_hash", record["payload"].get("configuration_hash")) != config_hash:
             blockers.append(f"champion config hash does not match {evidence_type} evidence")
+    model_records = [records.get(item) for item in ("model_validation", "model_high_risk_stability", "model_held_out") if records.get(item)]
+    behavior_hashes = {record["payload"].get("behavior_configuration_hash", record["payload"].get("configuration_hash")) for record in model_records}
+    if len(behavior_hashes) > 1:
+        blockers.append("model evidence behavior configuration hashes disagree")
+    format_plans = {tuple(record["payload"].get("formats", ())) for record in model_records}
+    if len(format_plans) > 1:
+        blockers.append("model evidence format plans disagree")
     return value, _sha256(path), blockers
 
 
@@ -198,9 +206,9 @@ def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, 
                     blockers.append("production SBOM is incomplete")
             except (OSError, UnicodeError, json.JSONDecodeError, AttributeError):
                 blockers.append("production SBOM is malformed")
-        profile = _raw_profile(root)
-        if not profile or profile.get("release_state") != ReleaseState.PRODUCTION_CERTIFIED.value:
-            blockers.append("certified production profile is missing")
+        # The candidate profile describes deployment inputs.  A certified
+        # profile is materialized/bound after this evidence-derived state is
+        # generated; requiring it here would make certification circular.
     return sorted(set(blockers))
 
 
@@ -232,7 +240,8 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
     runtime_values = runtime.as_dict()
     if model:
         runtime_values["reported_model_id"] = model
-    factors = build_deployment_factors(root, subject_git_sha=subject, runtime=runtime_values, profile=profile, model_policy=policy, corpus={"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]})
+    runtime_values["ocr_provider"] = profile.get("ocr_provider", "none")
+    factors = build_deployment_factors(root, subject_git_sha=subject, runtime=runtime_values, profile=profile, model_policy=policy, corpus=canonical_corpus_identity({"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]}))
     deployment_fp = deployment_fingerprint(factors)
     records, evidence_errors = _load_records(evidence_paths or {}, subject_sha=subject, deployment_fp=deployment_fp, repository_root=root)
     requested = requested_state or state
@@ -327,7 +336,8 @@ def main(argv: list[str] | None = None) -> int:
     runtime_values = runtime.as_dict()
     if args.model:
         runtime_values["reported_model_id"] = args.model
-    factors = build_deployment_factors(root, subject_git_sha=subject, runtime=runtime_values, profile=profile, model_policy=policy, corpus={"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]})
+    runtime_values["ocr_provider"] = profile.get("ocr_provider", "none")
+    factors = build_deployment_factors(root, subject_git_sha=subject, runtime=runtime_values, profile=profile, model_policy=policy, corpus=canonical_corpus_identity({"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]}))
     deployment_fp = deployment_fingerprint(factors)
     paths = _evidence_arguments(args)
     records, evidence_errors = _load_records(paths, subject_sha=subject, deployment_fp=deployment_fp, repository_root=root)

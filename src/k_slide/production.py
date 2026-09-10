@@ -15,6 +15,7 @@ from typing import Any
 from .certification import (
     EvidenceValidationError,
     build_deployment_factors,
+    canonical_corpus_identity,
     certification_fingerprint,
     deployment_fingerprint,
     load_evidence,
@@ -59,6 +60,7 @@ class ProductionProfile:
     release_manifest: str
     release_manifest_sha256: str
     model_data_attestation: str
+    behavior_configuration: dict[str, Any] | None = None
 
     @classmethod
     def from_mapping(cls, value: dict[str, Any]) -> "ProductionProfile":
@@ -92,6 +94,7 @@ class ProductionProfile:
             release_manifest=str(value["release_manifest"]),
             release_manifest_sha256=str(value["release_manifest_sha256"]),
             model_data_attestation=str(value["model_data_attestation"]),
+            behavior_configuration=value.get("behavior_configuration") if isinstance(value.get("behavior_configuration"), dict) else None,
         )
 
     def as_dict(self) -> dict[str, Any]:
@@ -116,6 +119,7 @@ class ProductionProfile:
             "release_manifest": self.release_manifest,
             "release_manifest_sha256": self.release_manifest_sha256,
             "model_data_attestation": self.model_data_attestation,
+            **({"behavior_configuration": self.behavior_configuration} if self.behavior_configuration is not None else {}),
         }
 
 
@@ -238,7 +242,13 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError, EvidenceValidationError) as exc:
         checks.append(_check("Release manifest", False, str(exc)))
     policy = load_model_policy(root)
-    factors = build_deployment_factors(root, subject_git_sha=profile.subject_git_sha, runtime=runtime, profile=profile.as_dict(), model_policy=policy)
+    try:
+        from evals.scenarios import split_manifest
+
+        corpus = canonical_corpus_identity(split_manifest())
+    except ImportError:
+        corpus = canonical_corpus_identity(None)
+    factors = build_deployment_factors(root, subject_git_sha=profile.subject_git_sha, runtime=runtime, profile=profile.as_dict(), model_policy=policy, corpus=corpus)
     expected_deployment = deployment_fingerprint(factors)
     deployment_match = expected_deployment == profile.deployment_fingerprint
     checks.append(_check("Deployment fingerprint", deployment_match, f"expected={expected_deployment}; profile={profile.deployment_fingerprint}"))

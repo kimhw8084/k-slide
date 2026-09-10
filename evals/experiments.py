@@ -14,9 +14,99 @@ from .certification import CATEGORY_POLICY, DEFAULT_REVIEW_RATE_TOLERANCE
 PROTECTED = tuple(CATEGORY_POLICY)
 
 
-def configuration_hash(configuration: dict[str, Any]) -> str:
-    payload = json.dumps(configuration, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+EXPERIMENT_ONLY_FIELDS = frozenset({
+    "split",
+    "scenario_ids",
+    "formats",
+    "repetitions",
+    "repeats",
+    "categories",
+    "category_filter",
+    "scenario_filter",
+    "limit",
+    "timeout",
+    "evaluation_timeout",
+    "mode",
+    "output",
+    "output_path",
+    "filters",
+})
+
+BEHAVIOR_FIELDS = frozenset({
+    "model",
+    "provider",
+    "prompt_version",
+    "prompt_hash",
+    "generation",
+    "generation_settings",
+    "temperature",
+    "top_p",
+    "top_k",
+    "thinking",
+    "reasoning",
+    "visual_budget",
+    "visual_detail",
+    "vision",
+    "vision_settings",
+    "image_preprocessing_settings",
+    "ocr_provider",
+    "normalization",
+    "normalization_behavior",
+    "repair_policy",
+    "termbase_version",
+    "termbase_hash",
+    "evidence_ir_schema",
+    "translation_patch_schema",
+    "slide_ir_schema",
+})
+
+
+def _hash(value: dict[str, Any]) -> str:
+    payload = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+def behavior_configuration(configuration: dict[str, Any], *, model: str | None = None, ocr_provider: str | None = None) -> dict[str, Any]:
+    """Return only material inference/translation behavior configuration."""
+
+    source = dict(configuration or {})
+    result = {key: source[key] for key in sorted(BEHAVIOR_FIELDS) if key in source}
+    if model is not None:
+        result["model"] = model
+    if ocr_provider is not None:
+        result["ocr_provider"] = ocr_provider
+    return result
+
+
+def behavior_configuration_hash(configuration: dict[str, Any], *, model: str | None = None, ocr_provider: str | None = None) -> str:
+    return _hash(behavior_configuration(configuration, model=model, ocr_provider=ocr_provider))
+
+
+def experiment_plan(*, split: str, scenario_ids: list[str] | tuple[str, ...], formats: list[str] | tuple[str, ...], repetitions: int, categories: list[str] | tuple[str, ...] = (), limit: int | None = None, timeout: int | None = None, mode: str | None = None, scenario_filter: list[str] | tuple[str, ...] = (), filters: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Canonical sampling contract; never used as a champion behavior hash."""
+
+    return {
+        "split": split,
+        "scenario_ids": sorted({str(item) for item in scenario_ids}),
+        "formats": sorted({str(item).lower() for item in formats}),
+        "repetitions": int(repetitions),
+        "categories": sorted({str(item) for item in categories}),
+        "limit": limit,
+        "timeout": timeout,
+        "mode": mode,
+        "scenario_filter": sorted({str(item) for item in scenario_filter}),
+        "filters": dict(filters or {}),
+    }
+
+
+def experiment_plan_hash(plan: dict[str, Any]) -> str:
+    return _hash({key: plan.get(key) for key in sorted(EXPERIMENT_ONLY_FIELDS | {"split", "scenario_ids", "formats", "repetitions", "categories", "scenario_filter"}) if key in plan})
+
+
+def configuration_hash(configuration: dict[str, Any]) -> str:
+    """Compatibility alias with explicit behavior-hash semantics."""
+
+    return behavior_configuration_hash(configuration)
 
 
 def _category_metrics(value: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -103,13 +193,15 @@ def promote_champion(path: Path, candidate: dict[str, Any], *, baseline: dict[st
     comparison = compare_aggregate(baseline, candidate)
     if not comparison["accepted"]:
         return False
-    configuration = candidate.get("configuration", {})
+    configuration = behavior_configuration(candidate.get("configuration", {}), model=candidate.get("model"))
+    behavior_hash = candidate.get("behavior_configuration_hash") or candidate.get("configuration_hash") or behavior_configuration_hash(configuration)
     record = {
         "schema_version": "1.0",
         "status": "candidate",
         "comparison": comparison,
         "configuration": configuration,
-        "configuration_hash": candidate.get("configuration_hash") or configuration_hash(configuration),
+        "behavior_configuration_hash": behavior_hash,
+        "configuration_hash": behavior_hash,
         "result_hash": candidate.get("result_hash"),
         "model": candidate.get("model"),
         "split": candidate.get("split", "validation"),

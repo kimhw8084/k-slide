@@ -15,9 +15,9 @@ from pathlib import Path
 
 from .fonts import KoreanFontUnavailable
 from .generator import DEFAULT_VARIANT, generate_artifacts
-from .scenarios import scenario_specs, write_specs
+from .scenarios import scenario_specs, split_manifest, write_specs
 from .scorers import aggregate_engine_scores, score_artifact, score_engine_case
-from k_slide.certification import build_deployment_factors, deployment_fingerprint
+from k_slide.certification import build_deployment_factors, canonical_corpus_identity, deployment_fingerprint
 from k_slide.model_policy import load_model_policy
 
 
@@ -57,7 +57,7 @@ def main(argv: list[str] | None = None) -> int:
         subject_sha = git_result.stdout.strip() if git_result.returncode == 0 else "UNSET"
     except (OSError, subprocess.TimeoutExpired):
         subject_sha = "UNSET"
-    deployment = deployment_fingerprint(build_deployment_factors(repo_root, subject_git_sha=subject_sha, runtime={}, profile={"ocr_provider": args.ocr_provider}, model_policy=load_model_policy(repo_root), corpus={"split": args.split}))
+    deployment = deployment_fingerprint(build_deployment_factors(repo_root, subject_git_sha=subject_sha, runtime={"ocr_provider": args.ocr_provider}, profile={"ocr_provider": args.ocr_provider}, model_policy=load_model_policy(repo_root), corpus=canonical_corpus_identity(split_manifest())))
     write_specs(args.output / "specs")
     try:
         counts = generate_artifacts(selected, args.output / "artifacts", formats=tuple(args.formats), variants=(DEFAULT_VARIANT,))

@@ -13,7 +13,10 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
-ADAPTER_VERSION = "1.0"
+# 2.0 separates behavior identity from experiment-plan identity and requires
+# exact frozen scenario matrices.  No production-certified v1 evidence exists,
+# so ambiguous development envelopes are intentionally not migrated.
+ADAPTER_VERSION = "2.0"
 
 _ROLES: dict[str, tuple[str, ...]] = {
     "runtime": ("diagnostic_ladder", "simple_run", "three_slide", "five_slide"),
@@ -233,6 +236,77 @@ def _model_rows(values: dict[str, Path]) -> tuple[dict[str, Any], dict[str, Any]
     return summary, experiment, rows
 
 
+def _model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]], *, expected_split: str, require_full_split: bool, root: Path | None) -> dict[str, Any]:
+    """Validate the declared scenario × format × repeat matrix exactly."""
+
+    scenario_ids = experiment.get("scenario_ids")
+    formats = experiment.get("formats")
+    repetitions = experiment.get("repetitions")
+    if not isinstance(scenario_ids, list) or not scenario_ids or any(not isinstance(item, str) or not item for item in scenario_ids) or len(set(scenario_ids)) != len(scenario_ids):
+        raise AdapterError("model experiment must declare unique scenario_ids")
+    if not isinstance(formats, list) or not formats or any(not isinstance(item, str) or not item for item in formats) or len(set(str(item).lower() for item in formats)) != len(formats):
+        raise AdapterError("model experiment must declare unique formats")
+    if not isinstance(repetitions, int) or isinstance(repetitions, bool) or repetitions < 1:
+        raise AdapterError("model experiment repetitions must be a positive integer")
+    formats = [str(item).lower() for item in formats]
+    plan = experiment.get("experiment_plan")
+    if not isinstance(plan, dict):
+        raise AdapterError("model experiment plan is missing")
+    try:
+        from evals.experiments import experiment_plan as build_plan, experiment_plan_hash as hash_plan
+        expected_plan = build_plan(
+            split=expected_split,
+            scenario_ids=scenario_ids,
+            formats=formats,
+            repetitions=repetitions,
+            categories=experiment.get("categories", plan.get("categories", ())),
+            limit=plan.get("limit"),
+            timeout=plan.get("timeout"),
+            mode=plan.get("mode"),
+            scenario_filter=plan.get("scenario_filter", ()),
+            filters=plan.get("filters", {}),
+        )
+    except (ImportError, TypeError, ValueError) as exc:
+        raise AdapterError("model experiment plan cannot be canonicalized") from exc
+    if plan != expected_plan or experiment.get("experiment_plan_hash") != hash_plan(expected_plan):
+        raise AdapterError("model experiment plan hash does not match its declared sampling contract")
+    try:
+        from evals.scenarios import scenario_specs
+    except ImportError as exc:
+        raise AdapterError("model matrix requires the frozen scenario manifest") from exc
+    frozen = {item.scenario_id: item for item in scenario_specs()}
+    if any(item not in frozen for item in scenario_ids):
+        raise AdapterError("model experiment contains an unknown scenario_id")
+    if any(frozen[item].split != expected_split for item in scenario_ids):
+        raise AdapterError("model experiment scenario_ids do not belong to its split")
+    expected_ids = {item.scenario_id for item in frozen.values() if item.split == expected_split}
+    declared_ids = set(scenario_ids)
+    if require_full_split and declared_ids != expected_ids:
+        raise AdapterError("model experiment does not declare the complete frozen split")
+    declared = {(scenario_id, format_name, repeat) for scenario_id in scenario_ids for format_name in formats for repeat in range(1, repetitions + 1)}
+    observed: set[tuple[str, str, int]] = set()
+    for row in rows:
+        scenario_id = row.get("scenario_id")
+        format_name = str(row.get("format", "")).lower()
+        repeat = row.get("repeat")
+        if not isinstance(scenario_id, str) or not isinstance(repeat, int) or isinstance(repeat, bool):
+            raise AdapterError("model result row has invalid scenario_id/format/repeat")
+        key = (scenario_id, format_name, repeat)
+        if key in observed:
+            raise AdapterError(f"duplicate model result row: {scenario_id}/{format_name}/{repeat}")
+        observed.add(key)
+        if row.get("split") != expected_split:
+            raise AdapterError("model result row split disagrees with experiment")
+        scenario = frozen.get(scenario_id)
+        if scenario is None or row.get("category") != scenario.category:
+            raise AdapterError(f"model result category does not match frozen scenario: {scenario_id}")
+    missing = sorted(declared - observed)
+    extra = sorted(observed - declared)
+    if missing or extra:
+        raise AdapterError(f"model result matrix mismatch; missing={missing[:3]}; extra={extra[:3]}")
+    return {"scenario_ids": sorted(scenario_ids), "formats": formats, "repetitions": repetitions, "case_count": len(rows), "matrix_hash": _sha256_text(experiment.get("experiment_plan_hash"), "experiment_plan_hash")}
+
+
 def _model_identity(summary: dict[str, Any], experiment: dict[str, Any], rows: list[dict[str, Any]], root: Path | None) -> tuple[str, list[str], bool]:
     from .model_policy import load_model_policy
 
@@ -247,7 +321,9 @@ def _model_identity(summary: dict[str, Any], experiment: dict[str, Any], rows: l
 
 def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path | None) -> dict[str, Any]:
     summary, experiment, rows = _model_rows(values)
-    identities = {(str(item.get("subject_git_sha")), str(item.get("deployment_fingerprint"))) for item in (summary, experiment) if item.get("subject_git_sha") or item.get("deployment_fingerprint")}
+    identities = {(item.get("subject_git_sha"), item.get("deployment_fingerprint")) for item in (summary, experiment)}
+    if any(not isinstance(subject, str) or not subject or not isinstance(deployment, str) or not deployment for subject, deployment in identities):
+        raise AdapterError("model result subject/deployment provenance is missing")
     if len(identities) > 1:
         raise AdapterError("model result provenance disagrees between summary and experiment")
     if summary.get("split") != expected_split or experiment.get("split") != expected_split or any(item.get("split") != expected_split for item in rows):
@@ -276,13 +352,26 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
         review_rates.append(float(semantic.get("unresolved_region_rate", 0.0)) > 0)
         media = item.get("media_by_work_unit", {})
         media_rates.append(bool(media) and all(value.get("media_sequence_valid") is True for value in media.values() if isinstance(value, dict)))
-    configuration_hash = _sha256_text(experiment.get("configuration_hash") or summary.get("configuration_hash"), "model configuration_hash")
-    if summary.get("configuration_hash") not in (None, configuration_hash):
-        raise AdapterError("model summary configuration hash disagrees with experiment")
+    behavior_hash = _sha256_text(experiment.get("behavior_configuration_hash") or experiment.get("configuration_hash"), "model behavior_configuration_hash")
+    behavior_config = experiment.get("behavior_configuration")
+    if not isinstance(behavior_config, dict):
+        raise AdapterError("model behavior configuration is missing")
+    try:
+        from evals.experiments import behavior_configuration_hash as hash_behavior
+        expected_behavior_hash = hash_behavior(behavior_config)
+    except (ImportError, TypeError, ValueError) as exc:
+        raise AdapterError("model behavior configuration cannot be canonicalized") from exc
+    if behavior_hash != expected_behavior_hash:
+        raise AdapterError("model behavior configuration hash does not match its declared behavior")
+    if summary.get("behavior_configuration_hash", summary.get("configuration_hash")) != behavior_hash:
+        raise AdapterError("model summary behavior configuration hash disagrees with experiment")
+    plan_hash = _sha256_text(experiment.get("experiment_plan_hash"), "experiment_plan_hash")
+    if summary.get("experiment_plan_hash") not in (None, plan_hash):
+        raise AdapterError("model summary experiment plan hash disagrees with experiment")
     if not terminology_rates or not unexpected_rates:
         raise AdapterError("model result has no certifiable semantic safety metrics")
-    derived_terminology = sum(terminology_rates) / len(terminology_rates)
-    derived_unexpected = sum(unexpected_rates) / len(unexpected_rates)
+    derived_terminology = round(sum(terminology_rates) / len(terminology_rates), 12)
+    derived_unexpected = round(sum(unexpected_rates) / len(unexpected_rates), 12)
     if not isinstance(summary.get("locked_terminology_recall"), (int, float)) or isinstance(summary.get("locked_terminology_recall"), bool):
         raise AdapterError("model summary is missing locked_terminology_recall")
     if abs(float(summary["locked_terminology_recall"]) - derived_terminology) > 1e-9:
@@ -292,6 +381,14 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
     if abs(float(summary["unexpected_unresolved_rate"]) - derived_unexpected) > 1e-9:
         raise AdapterError("model summary unexpected unresolved rate disagrees with case results")
     repetitions = int(experiment.get("repetitions", max((int(item.get("repeat", 1)) for item in rows), default=0)))
+    matrix = _model_matrix(experiment, rows, expected_split=expected_split, require_full_split=False, root=root)
+    if summary.get("case_count") is not None and summary.get("case_count") != len(rows):
+        raise AdapterError("model summary case_count disagrees with result rows")
+    if summary.get("semantic_scored_case_count") is not None and summary.get("semantic_scored_case_count") != sum(item.get("semantic_scored") is True for item in rows):
+        raise AdapterError("model summary semantic_scored_case_count disagrees with result rows")
+    for field, derived in (("critical_failure_count", critical_count), ("repetitions", repetitions), ("required_media_compliance", bool(media_rates) and all(media_rates))):
+        if field in summary and summary[field] != derived:
+            raise AdapterError(f"model summary {field} disagrees with result rows")
     return {
         "split": expected_split,
         "requested_model": requested,
@@ -300,7 +397,11 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
         "quality_metrics_authoritative": authoritative,
         "critical_failure_count": critical_count,
         "repetitions": repetitions,
-        "configuration_hash": configuration_hash,
+        "configuration_hash": behavior_hash,
+        "behavior_configuration_hash": behavior_hash,
+        "experiment_plan_hash": plan_hash,
+        "scenario_ids": matrix["scenario_ids"],
+        "formats": matrix["formats"],
         "required_media_compliance": bool(media_rates) and all(media_rates),
         "media_compliance_rate": sum(media_rates) / len(media_rates) if media_rates else 0.0,
         "review_rate": sum(review_rates) / len(review_rates) if review_rates else 0.0,
@@ -314,13 +415,18 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
 
 def _derive_validation(sources: dict[str, Path], *, root: Path | None) -> dict[str, Any]:
     payload = _aggregate_model(sources, expected_split="validation", root=root)
+    _summary, experiment, rows = _model_rows(sources)
+    _model_matrix(experiment, rows, expected_split="validation", require_full_split=True, root=root)
+    plan = experiment["experiment_plan"]
+    if plan.get("limit") is not None or plan.get("categories") or plan.get("scenario_filter") or plan.get("filters"):
+        raise AdapterError("validation certification cannot use a reduced or filtered experiment plan")
     if (
         not payload["target_model_approved"]
         or not payload["quality_metrics_authoritative"]
         or payload["critical_failure_count"] != 0
         or payload["repetitions"] < 3
         or not payload["required_media_compliance"]
-        or payload["locked_terminology_recall"] < 0.995
+        or payload["locked_terminology_recall"] + 1e-12 < 0.995
         or payload["unexpected_unresolved_rate"] != 0
     ):
         raise AdapterError("validation result fails target, authority, critical, repeat, media, terminology, or unresolved gates")
@@ -335,33 +441,39 @@ def _derive_high_risk(sources: dict[str, Path], *, root: Path | None) -> dict[st
         raise AdapterError("high-risk adapter requires repository evaluation policy") from exc
     _summary, experiment, _ = _model_rows(sources)
     rows = _read_jsonl(sources["results_jsonl"])
+    matrix = _model_matrix(experiment, rows, expected_split="validation", require_full_split=False, root=root)
     groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for item in rows:
-        key = (str(item.get("category")), str(item.get("format")))
+        from evals.model_results import repeated_group_key
+
+        key = repeated_group_key(item)
         groups.setdefault(key, []).append(item)
     scenario_ids = experiment.get("scenario_ids")
     formats = experiment.get("formats")
     if not isinstance(scenario_ids, list) or not scenario_ids or not isinstance(formats, list) or not formats:
         raise AdapterError("high-risk experiment manifest must declare scenario_ids and formats")
-    declared = {(str(scenario_id), str(format_name)) for scenario_id in scenario_ids for format_name in formats}
+    declared = {(str(scenario_id), str(format_name).lower()) for scenario_id in scenario_ids for format_name in formats}
     observed = set(groups)
-    missing = sorted(declared - observed)
-    if missing:
-        raise AdapterError(f"high-risk declared groups are missing: {missing}")
+    if observed != declared:
+        raise AdapterError(f"high-risk declared groups do not exactly match observed groups; missing={sorted(declared - observed)}; extra={sorted(observed - declared)}")
     selected_categories = set(PROTECTED_CATEGORIES)
     declared_categories = experiment.get("high_risk_categories")
-    if declared_categories is not None and (not isinstance(declared_categories, list) or set(declared_categories) != selected_categories):
+    if not isinstance(declared_categories, list) or set(declared_categories) != selected_categories:
         raise AdapterError("high-risk experiment does not declare the complete protected-category policy")
-    observed_categories = {category for category, _format_name in observed}
+    observed_categories = {str(item.get("category")) for item in rows}
     missing_categories = sorted(selected_categories - observed_categories)
     if missing_categories:
         raise AdapterError(f"high-risk protected categories are missing: {missing_categories}")
+    unexpected_categories = sorted(observed_categories - selected_categories)
+    if unexpected_categories:
+        raise AdapterError(f"high-risk result contains categories outside the protected policy: {unexpected_categories}")
     coverage: dict[str, int] = {}
     frequencies: dict[str, float] = {}
     category_coverage: dict[str, int] = {category: 0 for category in sorted(selected_categories)}
-    for scenario_id, format_name in sorted(declared | observed):
+    for scenario_id, format_name in sorted(declared):
         items = groups.get((scenario_id, format_name), [])
-        if len(items) < 5:
+        repeats = sorted(item.get("repeat") for item in items)
+        if repeats != list(range(1, int(experiment["repetitions"]) + 1)) or len(items) < 5:
             raise AdapterError(f"high-risk group fails repetition gate: {scenario_id}/{format_name}")
         frequency = sum(bool(item.get("semantic", {}).get("critical_failures")) for item in items) / len(items)
         key = f"{scenario_id}/{format_name}"
@@ -372,7 +484,7 @@ def _derive_high_risk(sources: dict[str, Path], *, root: Path | None) -> dict[st
             raise AdapterError(f"high-risk group fails critical gate: {key}")
     if payload["critical_failure_count"] != 0:
         raise AdapterError("high-risk result has critical failures outside the selected group summaries")
-    payload.update({"required_group_coverage": coverage, "group_critical_frequency": frequencies, "category_coverage": category_coverage, "worst_critical_frequency": max(frequencies.values(), default=0.0), "repetitions": min(coverage.values())})
+    payload.update({"required_group_coverage": coverage, "group_critical_frequency": frequencies, "category_coverage": category_coverage, "worst_critical_frequency": max(frequencies.values(), default=0.0), "repetitions": min(coverage.values()), "scenario_ids": matrix["scenario_ids"], "formats": matrix["formats"]})
     return payload
 
 
@@ -383,16 +495,20 @@ def _derive_held_out(sources: dict[str, Path], *, root: Path | None) -> dict[str
     except ImportError as exc:
         raise AdapterError("held-out adapter requires repository evaluation schemas") from exc
 
-    summary, experiment, _ = _model_rows(sources)
+    summary, experiment, rows = _model_rows(sources)
+    _model_matrix(experiment, rows, expected_split="held_out", require_full_split=True, root=root)
+    plan = experiment["experiment_plan"]
+    if plan.get("limit") is not None or plan.get("categories") or plan.get("scenario_filter") or plan.get("filters"):
+        raise AdapterError("held-out certification cannot use a reduced or filtered experiment plan")
     frozen = split_manifest()
-    if summary.get("corpus_fingerprint", experiment.get("corpus_fingerprint")) != frozen["corpus_fingerprint"] or summary.get("held_out_fingerprint", experiment.get("held_out_fingerprint")) != frozen["held_out_fingerprint"]:
+    if summary.get("corpus_fingerprint", experiment.get("corpus_fingerprint")) != frozen["corpus_fingerprint"] or summary.get("held_out_fingerprint", experiment.get("held_out_fingerprint")) != frozen["held_out_fingerprint"] or experiment.get("corpus_fingerprint") != frozen["corpus_fingerprint"] or experiment.get("held_out_fingerprint") != frozen["held_out_fingerprint"]:
         raise AdapterError("held-out corpus fingerprints do not match frozen corpus")
     if (
         not payload["target_model_approved"]
         or not payload["quality_metrics_authoritative"]
         or payload["critical_failure_count"] != 0
         or not payload["required_media_compliance"]
-        or payload["locked_terminology_recall"] < 0.995
+        or payload["locked_terminology_recall"] + 1e-12 < 0.995
         or payload["unexpected_unresolved_rate"] != 0
     ):
         raise AdapterError("held-out result fails target, authority, critical, media, terminology, or unresolved gates")
@@ -545,7 +661,9 @@ def _check_embedded_identity(sources: dict[str, Path], *, subject_git_sha: str |
         embedded_subject = value.get("subject_git_sha")
         embedded_deployment = value.get("deployment_fingerprint")
         if embedded_subject is not None or embedded_deployment is not None:
-            if embedded_subject != subject_git_sha or embedded_deployment != deployment_fingerprint:
+            if subject_git_sha is not None and embedded_subject != subject_git_sha:
+                raise AdapterError(f"source provenance mismatch: {role}")
+            if deployment_fingerprint is not None and embedded_deployment != deployment_fingerprint:
                 raise AdapterError(f"source provenance mismatch: {role}")
 
 

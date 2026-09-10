@@ -40,12 +40,19 @@ The lightweight local SBOM remains explicitly development-only. Certified
 release generation requires a real CycloneDX environment/image SBOM produced
 by `cyclonedx-py` in the approved release environment.
 
+The current adapter identity is 2.0. Model evidence now separates the stable
+deployment/behavior identity from the experiment-plan identity. Validation and
+held-out evidence must cover the complete frozen scenario × format × repeat
+matrix; high-risk evidence uses `scenario_id + format` and evaluates every
+declared group. A candidate profile describes deployment inputs and need not
+pre-claim the release state later derived from its evidence.
+
 ## Executed evidence
 
 ### Tests and static checks
 
-- Base interpreter: **134 tests passed, 2 optional dependency skips**.
-- Dependency-backed interpreter (`/tmp/k-slide-phase32-venv`): **134 tests
+- Base interpreter: **140 tests passed, 2 optional dependency skips**.
+- Dependency-backed interpreter (`/tmp/k-slide-phase32-venv`): **140 tests
   passed, no optional dependency skips** in this closure pass.
 - `compileall`: **PASS**.
 - `git diff --check`: **PASS** before implementation commit.
@@ -70,6 +77,10 @@ by `cyclonedx-py` in the approved release environment.
 - Validation/held-out safety gates: **PASS**; locked terminology is required
   at `>=0.995`, unexpected unresolved rate is required to be zero, and row /
   summary metric disagreement is rejected.
+- Identity/matrix closure: **PASS**; validation N=3, high-risk N=5, and
+  held-out fixtures share behavior/deployment identity while retaining
+  distinct experiment-plan hashes; partial, duplicate, extra, or category-
+  mismatched rows are rejected.
 - Security workflow hardening: **IMPLEMENTED, NOT EXECUTED LOCALLY**; each
   scanner writes a direct exit-code file, a structured assembly step creates
   the exit manifest, and missing gitleaks output cannot become `[]`.

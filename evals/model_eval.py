@@ -18,9 +18,10 @@ from k_slide.evidence_ir import load_evidence
 from k_slide.ir import SlideIR
 from k_slide import __version__
 
-from .experiments import configuration_hash
+from .experiments import behavior_configuration, behavior_configuration_hash, experiment_plan, experiment_plan_hash
 from .certification import EvaluationState, certification_fingerprint, load_model_policy
-from k_slide.certification import build_deployment_factors, deployment_fingerprint as deployment_identity
+from k_slide.certification import build_deployment_factors, canonical_corpus_identity, canonical_bytes, deployment_fingerprint as deployment_identity, sha256_bytes
+from k_slide.runtime import discover_runtime
 from .generator import DEFAULT_VARIANT, generate_artifacts
 from .model_results import aggregate_model_results, write_results
 from .model_scorers import score_deck_consistency, score_translation_patch
@@ -122,7 +123,8 @@ class ModelEvaluationRunner:
         self.categories = set(categories)
         self.scenario_ids = set(scenario_ids)
         self.ocr_provider = ocr_provider
-        self.configuration = {"formats": self.formats, "repeats": repeats, "timeout": timeout, "mode": mode, "ocr_provider": ocr_provider, **(configuration or {})}
+        self.configuration = dict(configuration or {})
+        self.behavior_configuration = behavior_configuration(self.configuration, model=model, ocr_provider=ocr_provider)
 
     def selected_scenarios(self) -> list[Scenario]:
         selected = scenario_specs()
@@ -145,7 +147,30 @@ class ModelEvaluationRunner:
             subject_sha = subject_result.stdout.strip() if subject_result.returncode == 0 else "UNSET"
         except (OSError, subprocess.TimeoutExpired):
             subject_sha = "UNSET"
-        deployment = deployment_identity(build_deployment_factors(repo_root, subject_git_sha=subject_sha, runtime={"reported_model_id": self.model}, profile={"evaluation_configuration_hash": configuration_hash(self.configuration), "ocr_provider": self.ocr_provider}, model_policy=model_policy, corpus=manifest))
+        candidate_profile: dict[str, Any] = {
+            "requested_model": self.model,
+            "effective_model": self.model,
+            "ocr_provider": self.ocr_provider,
+            "behavior_configuration": self.behavior_configuration,
+        }
+        profile_path = repo_root / ".k-slide-config" / "production-profile.json"
+        if profile_path.is_file():
+            try:
+                loaded_profile = json.loads(profile_path.read_text(encoding="utf-8"))
+                if isinstance(loaded_profile, dict):
+                    candidate_profile.update(loaded_profile)
+                    candidate_profile["requested_model"] = self.model
+                    candidate_profile["effective_model"] = self.model
+                    candidate_profile["behavior_configuration"] = self.behavior_configuration
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                pass
+        runtime_values = discover_runtime().as_dict()
+        runtime_values["reported_model_id"] = self.model
+        runtime_values["ocr_provider"] = self.ocr_provider
+        behavior_hash = behavior_configuration_hash(self.configuration, model=self.model, ocr_provider=self.ocr_provider)
+        plan = experiment_plan(split=self.split, scenario_ids=[item.scenario_id for item in scenarios], formats=self.formats, repetitions=self.repeats, categories=tuple(self.categories), limit=self.limit, timeout=self.timeout, mode=self.mode, scenario_filter=tuple(self.scenario_ids))
+        plan_hash = experiment_plan_hash(plan)
+        deployment = deployment_identity(build_deployment_factors(repo_root, subject_git_sha=subject_sha, runtime=runtime_values, profile=candidate_profile, model_policy=model_policy, corpus=canonical_corpus_identity(manifest)))
         run_manifest = {
             "experiment_id": self.output.name,
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -160,10 +185,14 @@ class ModelEvaluationRunner:
             "model": self.model,
             "runtime": "opencode",
             "repetitions": self.repeats,
-            "configuration": self.configuration,
-            "configuration_hash": configuration_hash(self.configuration),
-            "certification_fingerprint": certification_fingerprint({"model": self.model, "configuration": self.configuration, "prompt_version": self.configuration.get("prompt_version"), "ocr_provider": self.configuration.get("ocr_provider"), "normalization": self.configuration.get("normalization"), "vision": self.configuration.get("vision"), "repair_policy": self.configuration.get("repair_policy")}),
-            "split_manifest_hash": configuration_hash(manifest),
+            "configuration": self.behavior_configuration,
+            "behavior_configuration": self.behavior_configuration,
+            "behavior_configuration_hash": behavior_hash,
+            "configuration_hash": behavior_hash,
+            "experiment_plan": plan,
+            "experiment_plan_hash": plan_hash,
+            "certification_fingerprint": certification_fingerprint({"model": self.model, "configuration": self.behavior_configuration, "ocr_provider": self.ocr_provider, "normalization": self.behavior_configuration.get("normalization"), "vision": self.behavior_configuration.get("vision"), "repair_policy": self.behavior_configuration.get("repair_policy")}),
+            "split_manifest_hash": sha256_bytes(canonical_bytes(manifest)),
             "corpus_fingerprint": manifest["corpus_fingerprint"],
             "held_out_fingerprint": manifest["held_out_fingerprint"],
             "model_policy": {"approved_model_ids": list(model_policy.approved_model_ids), "approved_aliases": list(model_policy.approved_aliases)},
@@ -236,7 +265,9 @@ class ModelEvaluationRunner:
                     })
         summary = aggregate_model_results(results, model=self.model, split=self.split)
         summary["requested_model"] = self.model
-        summary["configuration_hash"] = run_manifest["configuration_hash"]
+        summary["configuration_hash"] = run_manifest["behavior_configuration_hash"]
+        summary["behavior_configuration_hash"] = run_manifest["behavior_configuration_hash"]
+        summary["experiment_plan_hash"] = run_manifest["experiment_plan_hash"]
         summary["corpus_fingerprint"] = manifest["corpus_fingerprint"]
         summary["held_out_fingerprint"] = manifest["held_out_fingerprint"]
         summary["repetitions"] = self.repeats

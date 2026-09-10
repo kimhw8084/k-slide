@@ -41,6 +41,44 @@ MACHINE_EVIDENCE_TYPES = {
 }
 _HEX64 = set("0123456789abcdef")
 
+# Deployment identity is deliberately an allowlist.  Sampling controls and
+# certification outputs must never become part of the behavior identity merely
+# because a caller added another field to its experiment manifest/profile.
+DEPLOYMENT_PROFILE_FIELDS = (
+    "kslide_version",
+    "opencode_version",
+    "requested_model",
+    "effective_model",
+    "ocr_provider",
+    "python_version",
+    "paddle_version",
+    "paddleocr_version",
+    "libreoffice_version",
+    "retention_days",
+    "tenant_isolation",
+    "network_egress",
+    "normalization_behavior",
+    "repair_policy",
+    "generation_settings",
+    "vision_settings",
+    "behavior_configuration",
+)
+DEPLOYMENT_RUNTIME_FIELDS = (
+    "opencode_version",
+    "provider",
+    "reported_model_id",
+    "model_family",
+    "model_size",
+    "instruction_tuned_status",
+    "vision_support",
+    "thinking_support",
+    "provider_backend",
+    "quantization_or_dtype",
+    "context_configuration",
+    "image_preprocessing_settings",
+    "ocr_provider",
+)
+
 
 class EvidenceValidationError(ValueError):
     """Raised when evidence is missing, malformed, stale, or insufficient."""
@@ -87,9 +125,9 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
     requirements: dict[str, tuple[str, ...]] = {
         "runtime": ("runtime_pass", "required_media_compliance", "run_complete", "simple_pass", "three_slide_pass", "five_slide_pass"),
         "heavy_runtime": ("heavy_pass", "networkless_pass", "representative_engine_pass", "full_engine_pass", "unexpected_capability_blocks"),
-        "model_validation": ("split", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "repetitions", "configuration_hash", "required_media_compliance", "locked_terminology_recall", "unexpected_unresolved_rate"),
-        "model_high_risk_stability": ("target_model_approved", "critical_failure_count", "worst_critical_frequency", "repetitions", "configuration_hash", "required_group_coverage", "group_critical_frequency", "category_coverage"),
-        "model_held_out": ("split", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "configuration_hash", "corpus_fingerprint", "held_out_fingerprint", "required_media_compliance", "locked_terminology_recall", "unexpected_unresolved_rate"),
+        "model_validation": ("split", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_media_compliance", "locked_terminology_recall", "unexpected_unresolved_rate"),
+        "model_high_risk_stability": ("target_model_approved", "critical_failure_count", "worst_critical_frequency", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_group_coverage", "group_critical_frequency", "category_coverage"),
+        "model_held_out": ("split", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "corpus_fingerprint", "held_out_fingerprint", "required_media_compliance", "locked_terminology_recall", "unexpected_unresolved_rate"),
         "internal_bilingual": ("attestation_id", "artifact_count", "work_unit_count", "critical_business_meaning_errors", "critical_numeric_date_unit_errors", "critical_modality_escalations", "critical_table_mapping_errors", "critical_trend_reversals", "unsupported_critical_executive_claims", "overall_noncritical_semantic_fidelity", "locked_terminology"),
         "zero_korean_comprehension": ("attestation_id", "users", "answers", "critical_question_accuracy", "overall_comprehension", "critical_misunderstanding"),
         "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings"),
@@ -112,7 +150,7 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
             raise EvidenceValidationError("validation evidence is not authoritative target-model evidence")
         if payload["critical_failure_count"] != 0 or not _positive_int(payload["repetitions"], 3):
             raise EvidenceValidationError("validation evidence fails critical/repetition gates")
-        if float(payload["locked_terminology_recall"]) < 0.995 or float(payload["unexpected_unresolved_rate"]) != 0:
+        if float(payload["locked_terminology_recall"]) + 1e-12 < 0.995 or float(payload["unexpected_unresolved_rate"]) != 0:
             raise EvidenceValidationError("validation evidence fails terminology or unexpected-unresolved gates")
     elif evidence_type == "model_high_risk_stability":
         coverage = payload["required_group_coverage"]
@@ -131,7 +169,7 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
             raise EvidenceValidationError("held-out evidence is not authoritative target-model evidence")
         if payload["critical_failure_count"] != 0:
             raise EvidenceValidationError("held-out evidence fails critical gate")
-        if not _is_true(payload["required_media_compliance"]) or float(payload["locked_terminology_recall"]) < 0.995 or float(payload["unexpected_unresolved_rate"]) != 0:
+        if not _is_true(payload["required_media_compliance"]) or float(payload["locked_terminology_recall"]) + 1e-12 < 0.995 or float(payload["unexpected_unresolved_rate"]) != 0:
             raise EvidenceValidationError("held-out evidence fails media, terminology, or unexpected-unresolved gates")
     elif evidence_type == "internal_bilingual":
         if not str(payload["attestation_id"]) or payload["attestation_id"] == "UNSET" or not _positive_int(payload["artifact_count"], 50) or not _positive_int(payload["work_unit_count"], 200):
@@ -264,14 +302,32 @@ def _manifest_hash(profile: dict[str, Any], root: Path) -> str | None:
         return None
 
 
+def canonical_corpus_identity(corpus: dict[str, Any] | None) -> dict[str, Any]:
+    """Return the one compact corpus identity used by every caller."""
+
+    value = corpus or {}
+    return {
+        "version": value.get("version") or value.get("corpus_version"),
+        "corpus_fingerprint": value.get("corpus_fingerprint"),
+        "held_out_fingerprint": value.get("held_out_fingerprint") or value.get("heldout_fingerprint"),
+    }
+
+
+def canonical_behavior_profile(profile: dict[str, Any] | None) -> dict[str, Any]:
+    """Select material candidate behavior fields from a deployment profile."""
+
+    value = profile or {}
+    return {key: value.get(key) for key in DEPLOYMENT_PROFILE_FIELDS if key in value}
+
+
 def build_deployment_factors(root: Path, *, subject_git_sha: str | None = None, runtime: Any | None = None, profile: dict[str, Any] | None = None, model_policy: Any | None = None, corpus: dict[str, Any] | None = None) -> dict[str, Any]:
     """Build stable, path/timestamp-free material deployment identity."""
 
     root = root.expanduser().resolve()
     profile = dict(profile or {})
     runtime_dict = runtime.as_dict() if hasattr(runtime, "as_dict") else dict(runtime or {})
-    runtime_material = {key: runtime_dict.get(key) for key in ("opencode_version", "provider", "reported_model_id", "model_family", "model_size", "instruction_tuned_status", "vision_support", "thinking_support", "provider_backend", "quantization_or_dtype", "context_configuration", "image_preprocessing_settings")}
-    profile_material = {key: value for key, value in profile.items() if key not in {"certification_fingerprint", "deployment_fingerprint", "subject_git_sha", "release_manifest", "release_manifest_sha256", "generated_at"}}
+    runtime_material = {key: runtime_dict.get(key) for key in DEPLOYMENT_RUNTIME_FIELDS}
+    profile_material = canonical_behavior_profile(profile)
     from . import __version__
 
     factors: dict[str, Any] = {
@@ -285,7 +341,7 @@ def build_deployment_factors(root: Path, *, subject_git_sha: str | None = None, 
         "termbase_tree_sha256": _tree_hash(root / "termbase"),
         "model_policy": model_policy.as_dict() if hasattr(model_policy, "as_dict") else model_policy,
         "schemas": {"evidence_ir": "1.0", "translation_patch": "1.0", "slide_ir": "1.0"},
-        "corpus": corpus or {},
+        "corpus": canonical_corpus_identity(corpus),
     }
     constraints = root / "constraints-production.txt"
     if constraints.is_file():

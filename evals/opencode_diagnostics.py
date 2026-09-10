@@ -13,10 +13,11 @@ from typing import Any
 
 from .opencode_events import normalize_events, parse_json_events
 from .process_control import terminate_process_group
-from k_slide.certification import build_deployment_factors, deployment_fingerprint
+from k_slide.certification import build_deployment_factors, canonical_corpus_identity, deployment_fingerprint
 from k_slide.model_policy import load_model_policy
 from k_slide.runtime import discover_runtime
 from k_slide.redaction import redact_text, redact_value
+from .scenarios import split_manifest
 
 
 def _persist_level(output: Path, name: str, result: dict[str, Any]) -> None:
@@ -112,7 +113,7 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
         subject_sha = git.stdout.strip() if git.returncode == 0 else "UNSET"
     except (OSError, subprocess.TimeoutExpired):
         subject_sha = "UNSET"
-    deployment = deployment_fingerprint(build_deployment_factors(repo_root, subject_git_sha=subject_sha, runtime={**discover_runtime().as_dict(), "reported_model_id": model}, profile={}, model_policy=load_model_policy(repo_root), corpus={}))
+    deployment = deployment_fingerprint(build_deployment_factors(repo_root, subject_git_sha=subject_sha, runtime={**discover_runtime().as_dict(), "reported_model_id": model}, profile={}, model_policy=load_model_policy(repo_root), corpus=canonical_corpus_identity(split_manifest())))
     executable = opencode or shutil.which("opencode")
     if not executable or (opencode is not None and not Path(executable).is_file()):
         result = {"status": "BLOCKED", "model": model, "subject_git_sha": subject_sha, "deployment_fingerprint": deployment, "reason": "OpenCode executable is unavailable.", "levels": [], "first_failed_level": "level0_opencode", "conclusion": "OPENCODE_EXECUTABLE_UNAVAILABLE"}
