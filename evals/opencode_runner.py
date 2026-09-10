@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -79,7 +80,9 @@ def _version(opencode: str) -> str | None:
         result = subprocess.run([opencode, "--version"], capture_output=True, text=True, timeout=5, check=False)
     except (OSError, subprocess.TimeoutExpired):
         return None
-    return (result.stdout or result.stderr).strip() or None
+    output = (result.stdout or result.stderr).strip()
+    match = re.search(r"(?<!\d)(\d+\.\d+\.\d+(?:\.\d+)?)(?!\d)", output)
+    return match.group(1) if match else None
 
 
 def _configured_model(opencode: str) -> str | None:

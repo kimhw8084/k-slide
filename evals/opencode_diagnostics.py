@@ -141,7 +141,7 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
     deployment = candidate_deployment_fingerprint(candidate)
     executable = opencode or shutil.which("opencode")
     if not executable or (opencode is not None and not Path(executable).is_file()):
-        result = {"status": "BLOCKED", "model": model, "subject_git_sha": subject_sha, "deployment_fingerprint": deployment, "candidate_spec": canonical_candidate_factors(candidate), "runtime_provenance": discover_runtime().as_dict(), "reason": "OpenCode executable is unavailable.", "levels": [], "first_failed_level": "level0_opencode", "conclusion": "OPENCODE_EXECUTABLE_UNAVAILABLE"}
+        result = {"status": "BLOCKED", "model": model, "subject_git_sha": subject_sha, "deployment_fingerprint": deployment, "candidate_spec": canonical_candidate_factors(candidate), "runtime_provenance": discover_runtime(repo_root).as_dict(), "reason": "OpenCode executable is unavailable.", "levels": [], "first_failed_level": "level0_opencode", "conclusion": "OPENCODE_EXECUTABLE_UNAVAILABLE"}
         (output / "diagnostics.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return result
 
@@ -215,7 +215,7 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
             "subject_git_sha": subject_sha,
             "deployment_fingerprint": deployment,
             "candidate_spec": canonical_candidate_factors(candidate),
-            "runtime_provenance": discover_runtime().as_dict(),
+            "runtime_provenance": discover_runtime(repo_root).as_dict(),
             "provider": provider_result,
             "workspace_paths": {"clean": "workspace-clean", "k_slide": "workspace-kslide"},
             "workspace_assertions": {

@@ -26,7 +26,7 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
     default_engine = root / ".k-slide-engine" if (root / ".k-slide-engine").is_dir() else root
     engine_root = (engine_root or default_engine).resolve()
     opencode_root = (opencode_root or (root / ".opencode")).resolve()
-    runtime = discover_runtime()
+    runtime = discover_runtime(root)
     checks: list[dict[str, str]] = []
     required = [
         opencode_root / "commands" / "k-slide.md",
@@ -42,7 +42,9 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
     model_status = "PASS" if runtime.model_compatibility == "production_candidate" else "WARN"
     checks.append(_check("Model identity", model_status, runtime.reported_model_id or "not discovered"))
     checks.append(_check("Model compatibility", model_status, runtime.model_compatibility))
-    checks.append(_check("Vision support", "PASS" if runtime.vision_support is True else "WARN", "feature-detected" if runtime.vision_support is not None else "not proven"))
+    vision_status = "PASS" if runtime.vision_support is True or (production and runtime.vision_support is None) else "WARN"
+    vision_detail = "feature-detected" if runtime.vision_support is not None else ("candidate-bound production evidence is evaluated below" if production else "not proven")
+    checks.append(_check("Vision support", vision_status, vision_detail))
     image_status = "FAIL"
     image_detail = "install K-Slide core dependencies for image normalization"
     if importlib.util.find_spec("PIL"):

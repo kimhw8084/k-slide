@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import platform
+import shutil
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -18,6 +19,7 @@ from k_slide.certification import (
     NOT_APPLICABLE_VALUE,
     NOT_EXPOSED_VALUE,
     build_deployment_factors,
+    canonical_dependency_inventory,
     candidate_completeness,
     candidate_deployment_fingerprint,
     canonical_candidate_factors,
@@ -26,6 +28,8 @@ from k_slide.certification import (
     load_candidate_spec,
     load_evidence,
     resolve_candidate_spec,
+    dependency_inventory_hash,
+    repository_schema_versions,
     write_evidence,
 )
 from k_slide.evidence_adapters import AdapterError, build_machine_evidence
@@ -37,7 +41,7 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-TEST_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
+TEST_PYTHON_VERSION = platform.python_version()
 
 
 def _write(path: Path, value: object) -> Path:
@@ -45,8 +49,8 @@ def _write(path: Path, value: object) -> Path:
     return path
 
 
-def _runtime_sources(root: Path) -> dict[str, Path]:
-    _write(root / "diagnostic.json", {"levels": [{"level": name, "status": "PASS"} for name in ("level1a_pure_opencode", "level1_plain_opencode", "level2_explicit_model", "level3_k_slide_agent")], "runtime_provenance": {"opencode_version": "1.3.9", "python_version": TEST_PYTHON_VERSION}})
+def _runtime_sources(root: Path, *, provider: str = "google", ocr_provider: str = "none") -> dict[str, Path]:
+    _write(root / "diagnostic.json", {"levels": [{"level": name, "status": "PASS"} for name in ("level1a_pure_opencode", "level1_plain_opencode", "level2_explicit_model", "level3_k_slide_agent")], "runtime_provenance": {"opencode_version": "1.3.9", "python_version": TEST_PYTHON_VERSION, "provider": provider, "ocr_provider": ocr_provider}})
     contract = {"status": "PASS", "kslide_complete": True, "run_complete": True, "required_media_compliance": True, "forbidden_tool_attempts": []}
     _write(root / "simple.json", contract)
     _write(root / "three.json", {**contract, "expected_units": 3, "artifact_units": 3})
@@ -57,7 +61,7 @@ def _runtime_sources(root: Path) -> dict[str, Path]:
 def _doctor(networkless: bool = False) -> dict[str, object]:
     value = {key: {"status": "PASS"} for key in ("libreoffice", "pymupdf", "python_pptx", "pillow", "paddleocr", "paddlepaddle", "korean_font", "paddle_load", "libreoffice_roundtrip", "paddle_ocr_roundtrip")}
     value["network"] = {"networkless_asserted": networkless, "network_required": not networkless}
-    value["runtime_provenance"] = {"python_version": TEST_PYTHON_VERSION, "paddle_version": "3.0.0", "paddleocr_version": "3.0.3", "libreoffice_version": "25"}
+    value["runtime_provenance"] = {"python_version": TEST_PYTHON_VERSION, "paddle_version": "3.0.0", "paddleocr_version": "3.0.3", "libreoffice_version": "25.2.3"}
     return value
 
 
@@ -104,6 +108,10 @@ def _model_sources(root: Path, split: str = "validation", critical: int = 0, rep
 
 
 def _security_sources(root: Path, *, vulnerable: bool = False, constraints_hash: str = "c" * 64) -> dict[str, Path]:
+    packages = [{"name": name, "version": "1.0"} for name in ("Pillow", "PyMuPDF", "python-pptx", "paddlepaddle", "paddleocr")]
+    inventory = canonical_dependency_inventory(packages)
+    _write(root / "dependency-inventory.json", inventory)
+    _write(root / "production-sbom.json", {"bomFormat": "CycloneDX", "specVersion": "1.5", "metadata": {"component": {"name": "k-slide"}}, "components": [{"type": "library", "name": item["name"], "version": item["version"]} for item in inventory["packages"]], "complete": True, "dependency_set_sha256": dependency_inventory_hash(inventory)})
     _write(root / "pip-audit.json", {"dependencies": [{"name": name, "version": "1.0", "vulns": ([{"id": "CVE-TEST"}] if vulnerable and name == "Pillow" else [])} for name in ("Pillow", "PyMuPDF", "python-pptx", "paddlepaddle", "paddleocr")]})
     _write(root / "gitleaks.json", [])
     _write(root / "semgrep.json", {"results": [], "errors": []})
@@ -116,8 +124,9 @@ def _security_sources(root: Path, *, vulnerable: bool = False, constraints_hash:
         staged_ruleset.write_bytes(ruleset.read_bytes())
     else:
         staged_ruleset.write_text("rules: []\n", encoding="utf-8")
-    _write(root / "audit-context.json", {"schema_version": "1.0", "audited_dependency_subject": "constraints-production.txt", "audited_dependency_set_sha256": constraints_hash, "candidate_constraints_sha256": constraints_hash, "audited_dependency_names": list(versions), "constraint_versions": versions, "pip_audit_version": "pip-audit 2.9.0", "semgrep_version": "semgrep 1.89.0", "semgrep_ruleset_identity": "security/semgrep-production.yml", "semgrep_ruleset_sha256": ruleset_hash})
-    return {"pip_audit": root / "pip-audit.json", "gitleaks": root / "gitleaks.json", "semgrep": root / "semgrep.json", "scanner_exits": root / "scanner-exits.json", "audit_context": root / "audit-context.json", "semgrep_ruleset": staged_ruleset}
+    inventory_sha = dependency_inventory_hash(inventory)
+    _write(root / "audit-context.json", {"schema_version": "1.0", "audited_dependency_subject": "production-env", "audited_dependency_set_sha256": inventory_sha, "resolved_dependency_set_sha256": inventory_sha, "production_sbom_sha256": _sha(root / "production-sbom.json"), "candidate_constraints_sha256": constraints_hash, "audited_dependency_names": list(versions), "constraint_versions": versions, "pip_audit_version": "pip-audit 2.9.0", "semgrep_version": "semgrep 1.89.0", "semgrep_ruleset_identity": "security/semgrep-production.yml", "semgrep_ruleset_sha256": ruleset_hash})
+    return {"pip_audit": root / "pip-audit.json", "gitleaks": root / "gitleaks.json", "semgrep": root / "semgrep.json", "scanner_exits": root / "scanner-exits.json", "audit_context": root / "audit-context.json", "semgrep_ruleset": staged_ruleset, "dependency_inventory": root / "dependency-inventory.json", "production_sbom": root / "production-sbom.json"}
 
 
 def _reliability_sources(root: Path) -> dict[str, Path]:
@@ -134,7 +143,7 @@ def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model
         "model": target,
         "ocr_provider": ocr_provider,
         "prompt_version": "translation/v1",
-        "generation_settings": {"temperature": 0},
+        "generation_settings": {"temperature": 0.1},
         "normalization_behavior": {"render_dpi": 220},
         "repair_policy": {"max_auto_repairs_per_unit": 2},
     }
@@ -146,15 +155,15 @@ def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model
         "opencode_version": "1.3.9",
         "requested_model": target,
         "effective_model": effective_model,
-        "provider": "test-provider",
-        "provider_backend": "test-backend",
-        "model_revision": "test-revision",
-        "quantization_or_dtype": "fp16",
+        "provider": "google",
+        "provider_backend": NOT_EXPOSED_VALUE,
+        "model_revision": NOT_EXPOSED_VALUE,
+        "quantization_or_dtype": NOT_EXPOSED_VALUE,
         "vision_settings": {"enabled": True},
-        "context_configuration": {"max_tokens": 4096},
+        "context_configuration": {"bounded_work_unit": True},
         "image_preprocessing_settings": {"dpi": 220},
         "prompt_identity": {"version": "translation/v1", "hash": "UNSET"},
-        "generation_settings": {"temperature": 0},
+        "generation_settings": {"temperature": 0.1},
         "ocr_provider": ocr_provider,
         "ocr_asset_manifest": asset_manifest,
         "ocr_asset_manifest_sha256": asset_hash,
@@ -163,9 +172,9 @@ def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model
         "python_version": TEST_PYTHON_VERSION,
         "paddle_version": "3.0.0",
         "paddleocr_version": "3.0.3",
-        "libreoffice_version": "25",
-        "termbase_identity": {"version": "core-v1", "hash": "UNSET"},
-        "termbase_version": "core-v1",
+        "libreoffice_version": "25.2.3",
+        "termbase_identity": {"version": "1.0", "hash": "UNSET"},
+        "termbase_version": "1.0",
         "termbase_hash": "UNSET",
         "model_policy": load_model_policy().as_dict(),
         "schema_versions": {"evidence_ir": "1.0", "translation_patch": "1.0", "slide_ir": "1.0"},
@@ -190,7 +199,7 @@ def _candidate_model_sources(root: Path, *, split: str, repeats: int, subject: s
     _write(summary_path, summary)
     experiment_path = sources["experiment_manifest"]
     experiment = json.loads(experiment_path.read_text(encoding="utf-8"))
-    experiment.update({"candidate_spec": factors, "candidate_identity_status": "FINAL", "effective_model": candidate["effective_model"], "behavior_configuration": behavior, "configuration": behavior, "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash})
+    experiment.update({"candidate_spec": factors, "candidate_identity_status": "FINAL", "effective_model": candidate["effective_model"], "behavior_configuration": behavior, "configuration": behavior, "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash, "execution_runtime_provenance": {"opencode_version": candidate["opencode_version"], "provider": candidate["provider"], "ocr_provider": candidate["ocr_provider"]}})
     _write(experiment_path, experiment)
     rows_path = sources["results_jsonl"]
     rows = [json.loads(line) for line in rows_path.read_text(encoding="utf-8").splitlines()]
@@ -201,6 +210,115 @@ def _candidate_model_sources(root: Path, *, split: str, repeats: int, subject: s
 
 
 class CertificationClosureTests(unittest.TestCase):
+    def test_repository_execution_binding_rejects_wrong_material_behavior(self):
+        base = _candidate_spec("a" * 40)
+        cases = (
+            ("generation_settings", {"temperature": 0.2}),
+            ("image_preprocessing_settings", {"dpi": 221}),
+            ("vision_settings", {"enabled": False}),
+            ("repair_policy", {"max_auto_repairs_per_unit": 3}),
+            ("normalization_behavior", {"render_dpi": 221}),
+            ("prompt_version", "translation/v2"),
+            ("termbase_version", "2.0"),
+        )
+        for field, value in cases:
+            with self.subTest(field=field):
+                candidate = json.loads(json.dumps(base))
+                candidate[field] = value
+                if field in {"generation_settings", "repair_policy", "normalization_behavior"}:
+                    candidate["behavior_configuration"][field] = value
+                with self.assertRaises(EvidenceValidationError):
+                    resolve_candidate_spec(candidate, root=Path.cwd(), subject_git_sha="a" * 40, model_policy=load_model_policy(), corpus=candidate["corpus_identity"], require_sources=True)
+        metadata_only = json.loads(json.dumps(base))
+        metadata_only["behavior_configuration"]["provider_defaults_frozen"] = True
+        with self.assertRaises(EvidenceValidationError):
+            resolve_candidate_spec(metadata_only, root=Path.cwd(), subject_git_sha="a" * 40, model_policy=load_model_policy(), corpus=metadata_only["corpus_identity"], require_sources=True)
+        metadata_only = json.loads(json.dumps(base))
+        metadata_only["behavior_configuration"]["thinking"] = True
+        with self.assertRaises(EvidenceValidationError):
+            resolve_candidate_spec(metadata_only, root=Path.cwd(), subject_git_sha="a" * 40, model_policy=load_model_policy(), corpus=metadata_only["corpus_identity"], require_sources=True)
+        unresolved_image = json.loads(json.dumps(base))
+        unresolved_image["image_preprocessing_settings"] = {"source": "not_yet_configured"}
+        with self.assertRaises(EvidenceValidationError):
+            resolve_candidate_spec(unresolved_image, root=Path.cwd(), subject_git_sha="a" * 40, model_policy=load_model_policy(), corpus=unresolved_image["corpus_identity"], require_sources=True)
+
+    def test_schema_identity_is_derived_and_explicit_drift_is_rejected(self):
+        candidate = _candidate_spec("a" * 40)
+        candidate["schema_versions"] = {}
+        resolved = resolve_candidate_spec(candidate, root=Path.cwd(), subject_git_sha="a" * 40, model_policy=load_model_policy(), corpus=candidate["corpus_identity"])
+        self.assertEqual(resolved["schema_versions"], repository_schema_versions())
+        for value in ({"evidence_ir": "9.0", "translation_patch": "1.0", "slide_ir": "1.0"}, {"evidence_ir": "1.0", "translation_patch": "1.0"}):
+            with self.subTest(value=value), self.assertRaises(EvidenceValidationError):
+                resolve_candidate_spec({**candidate, "schema_versions": value}, root=Path.cwd(), subject_git_sha="a" * 40, model_policy=load_model_policy(), corpus=candidate["corpus_identity"])
+
+    def test_production_completeness_rejects_unset_fields_even_with_valid_shape(self):
+        candidate = _candidate_spec("a" * 40, ocr_provider="paddle")
+        candidate["ocr_asset_manifest"] = "ocr/manifest.json"
+        candidate["ocr_asset_manifest_sha256"] = "a" * 64
+        candidate["resolved_dependency_set_sha256"] = "b" * 64
+        candidate["behavior_configuration"]["ocr_provider"] = "paddle"
+        self.assertEqual(candidate_completeness(candidate, "PRODUCTION_CERTIFIED"), [])
+        for field in ("opencode_version", "effective_model", "paddle_version", "paddleocr_version", "libreoffice_version", "prompt_identity", "termbase_hash", "constraints_sha256", "resolved_dependency_set_sha256"):
+            mutated = json.loads(json.dumps(candidate))
+            if field == "prompt_identity":
+                mutated[field]["hash"] = "UNSET"
+            else:
+                mutated[field] = "UNSET"
+            self.assertIn(field, candidate_completeness(mutated, "PRODUCTION_CERTIFIED"), field)
+
+    def test_exact_runtime_versions_and_libreoffice_parser(self):
+        from k_slide.certification import canonical_exact_version, parse_libreoffice_version
+
+        with self.assertRaises(EvidenceValidationError):
+            canonical_exact_version("3.11", "python_version")
+        self.assertEqual(canonical_exact_version(TEST_PYTHON_VERSION, "python_version"), TEST_PYTHON_VERSION)
+        self.assertEqual(parse_libreoffice_version("LibreOffice 25.2.3.1 40(Build:1)"), "25.2.3.1")
+        self.assertIsNone(parse_libreoffice_version("LibreOffice 25.2"))
+        from k_slide.runtime import _version as runtime_version
+        with patch("k_slide.runtime.subprocess.run", return_value=SimpleNamespace(returncode=0, stdout="OpenCode 1.3.9.1\n", stderr="")):
+            runtime_version.cache_clear()
+            self.assertEqual(runtime_version("/usr/bin/opencode"), "1.3.9.1")
+            runtime_version.cache_clear()
+
+    def test_security_binds_inventory_sbom_and_production_subject(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = _security_sources(root)
+            build_machine_evidence(root / "security.json", evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+            inventory = json.loads((root / "dependency-inventory.json").read_text(encoding="utf-8"))
+            inventory["packages"][0]["version"] = "2.0"
+            _write(root / "dependency-inventory.json", inventory)
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "changed-inventory.json", evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+            sources = _security_sources(root)
+            sbom = json.loads((root / "production-sbom.json").read_text(encoding="utf-8"))
+            sbom["components"][0]["version"] = "2.0"
+            _write(root / "production-sbom.json", sbom)
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "changed-sbom.json", evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+            sources = _security_sources(root)
+            context = json.loads((root / "audit-context.json").read_text(encoding="utf-8"))
+            context["audited_dependency_subject"] = "scanner-environment"
+            _write(root / "audit-context.json", context)
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "scanner-only.json", evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+            context["audited_dependency_subject"] = "runner-environment"
+            _write(root / "audit-context.json", context)
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "runner-only.json", evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+
+    def test_security_constraints_identity_mismatch_is_rejected(self):
+        candidate = _candidate_spec("a" * 40)
+        deployment = candidate_deployment_fingerprint(candidate)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = _security_sources(root, constraints_hash=str(candidate["constraints_sha256"]))
+            context = json.loads((root / "audit-context.json").read_text(encoding="utf-8"))
+            context["candidate_constraints_sha256"] = "d" * 64
+            _write(root / "audit-context.json", context)
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "security.json", evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint=deployment, sources=sources, candidate_spec=candidate)
+
     def test_candidate_completeness_resolves_repository_inputs_and_keeps_states_practical(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -208,11 +326,11 @@ class CertificationClosureTests(unittest.TestCase):
             (root / "prompts" / "system.txt").write_text("prompt-v1\n", encoding="utf-8")
             (root / "termbase").mkdir()
             (root / "termbase" / "terms.json").write_text("{}\n", encoding="utf-8")
-            (root / "constraints-production.txt").write_text("Pillow==1.0\n", encoding="utf-8")
+            (root / "constraints-production.txt").write_bytes((Path.cwd() / "constraints-production.txt").read_bytes())
             candidate = {
                 "subject_git_sha": "a" * 40,
                 "kslide_version": "UNSET",
-                "opencode_version": "1.0",
+                "opencode_version": "1.0.0",
                 "prompt_identity": {"hash": "UNSET"},
                 "termbase_identity": {"hash": "UNSET"},
                 "termbase_hash": "UNSET",
@@ -452,7 +570,7 @@ class CertificationClosureTests(unittest.TestCase):
             sources = _security_sources(root, constraints_hash=str(candidate["constraints_sha256"]))
             evidence = root / "security.json"
             build_machine_evidence(evidence, evidence_type="security", subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, candidate_spec=candidate)
-            self.assertEqual(load_evidence(evidence, expected_type="security", candidate_spec=candidate, subject_git_sha=subject, deployment_fingerprint=deployment)["payload"]["audited_dependency_set_sha256"], candidate["constraints_sha256"])
+            self.assertEqual(load_evidence(evidence, expected_type="security", candidate_spec=candidate, subject_git_sha=subject, deployment_fingerprint=deployment)["payload"]["audited_dependency_set_sha256"], dependency_inventory_hash(json.loads((root / "dependency-inventory.json").read_text(encoding="utf-8"))))
             context = json.loads((root / "audit-context.json").read_text(encoding="utf-8"))
             context["audited_dependency_set_sha256"] = "d" * 64
             _write(root / "audit-context.json", context)
@@ -515,6 +633,29 @@ class CertificationClosureTests(unittest.TestCase):
         runner = OpenCodeEvalRunner(model="private/gemma", opencode="/missing/opencode", policy=policy, policy_root=Path("/missing/isolated-policy"))
         self.assertIs(runner.policy, policy)
         self.assertTrue(runner.policy.approved(requested="private/gemma", effective=target))
+
+    def test_certifying_model_runner_requires_frozen_policy_approved_effective_model(self):
+        from evals.model_eval import ModelEvaluationRunner
+        from k_slide.model_policy import ModelPolicy
+
+        target = "google/gemma-4-31b-it"
+        alternate = "provider/gemma-4-31b-it-r2"
+        policy = ModelPolicy.from_mapping({"approved_model_ids": [target, alternate]})
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidate_path = root / "candidate.json"
+            candidate = _candidate_spec("a" * 40, effective_model=alternate)
+            candidate["model_policy"] = policy.as_dict()
+            _write(candidate_path, candidate)
+            result = ModelEvaluationRunner(
+                model=target,
+                output=root / "run",
+                split="validation",
+                repeats=3,
+                candidate_profile=candidate_path,
+                model_policy=policy,
+            ).run()
+            self.assertEqual(result["status"], "CANDIDATE_PROFILE_BLOCKED")
 
     def test_security_scanner_failure_is_not_a_clean_scan(self):
         for scanner in ("pip_audit", "gitleaks", "semgrep"):
@@ -641,8 +782,8 @@ class CertificationClosureTests(unittest.TestCase):
             (root / ".k-slide-config").mkdir()
             _write(root / ".k-slide-config" / "production-sbom.json", {"bomFormat": "CycloneDX", "complete": True, "metadata": {}, "components": [{"name": "k-slide"}]})
             state, blockers = derive_release_state("PRODUCTION_CERTIFIED", records=records, root=root, policy=load_model_policy(root), deployment_fp=deployment, candidate_spec=candidate)
-            self.assertEqual(state, "PRODUCTION_CERTIFIED")
-            self.assertEqual(blockers, [])
+            self.assertEqual(state, "INTERNAL_VALIDATED")
+            self.assertTrue(any("candidate field is unresolved" in item for item in blockers))
 
     def test_deterministic_evidence_identity_excludes_generated_at(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -695,8 +836,8 @@ class CertificationClosureTests(unittest.TestCase):
         )
         changed_repair = {**base, "repair_policy": {"max_auto_repairs_per_unit": 3}, "behavior_configuration": {**base["behavior_configuration"], "repair_policy": {"max_auto_repairs_per_unit": 3}}}
         changed_normalization = {**base, "normalization_behavior": {"render_dpi": 221}, "behavior_configuration": {**base["behavior_configuration"], "normalization_behavior": {"render_dpi": 221}}}
-        changed_prompt = {**base, "prompt_identity": {"version": "translation/v2", "hash": "q" * 64}}
-        changed_generation = {**base, "generation_settings": {"temperature": 0.1}, "behavior_configuration": {**base["behavior_configuration"], "generation_settings": {"temperature": 0.1}}}
+        changed_prompt = {**base, "prompt_identity": {"version": "translation/v2", "hash": "q" * 64}, "behavior_configuration": {**base["behavior_configuration"], "prompt_identity": {"version": "translation/v2", "hash": "q" * 64}}}
+        changed_generation = {**base, "generation_settings": {"temperature": 0.2}, "behavior_configuration": {**base["behavior_configuration"], "generation_settings": {"temperature": 0.2}}}
         changed_ocr = {**base, "ocr_provider": "paddle", "behavior_configuration": {**base["behavior_configuration"], "ocr_provider": "paddle"}}
         self.assertNotEqual(first, candidate_deployment_fingerprint(changed_repair))
         self.assertNotEqual(first, candidate_deployment_fingerprint(changed_normalization))
@@ -830,7 +971,8 @@ class CertificationClosureTests(unittest.TestCase):
 
             scored = {"coverage": 1.0, "numeric_fidelity": 1.0, "modality": 1.0, "table_cell_fidelity": 1.0, "visual_relation_recall": 1.0, "critical_failures": [], "unresolved_region_rate": 0.0, "unexpected_unresolved_rate": 0.0}
             consistency = {"term_consistency_recall": 1.0, "inconsistent_alternate_count": 0, "critical_failures": []}
-            with patch("evals.model_eval.generate_artifacts"), patch("evals.model_eval.OpenCodeEvalRunner", return_value=FakeOpenCode()), patch("evals.model_eval._latest_run", return_value=None), patch("evals.model_eval.collect_run_artifacts", return_value=[{"work_unit_id": "u1", "evidence": {}, "patch": {}, "slide_ir": None}]), patch("evals.model_eval._engine_gate", return_value=("PASS", [])), patch("evals.model_eval._work_unit_contract", return_value=(True, [])), patch("evals.model_eval.score_translation_patch", return_value=scored), patch("evals.model_eval.score_deck_consistency", return_value=consistency):
+            runtime = SimpleNamespace(as_dict=lambda: {"opencode_version": "1.3.9", "python_version": TEST_PYTHON_VERSION, "provider": "google", "ocr_provider": "none"})
+            with patch("evals.model_eval.generate_artifacts"), patch("evals.model_eval.OpenCodeEvalRunner", return_value=FakeOpenCode()), patch("evals.model_eval.discover_runtime", return_value=runtime), patch("evals.model_eval._latest_run", return_value=None), patch("evals.model_eval.collect_run_artifacts", return_value=[{"work_unit_id": "u1", "evidence": {}, "patch": {}, "slide_ir": None}]), patch("evals.model_eval._engine_gate", return_value=("PASS", [])), patch("evals.model_eval._work_unit_contract", return_value=(True, [])), patch("evals.model_eval.score_translation_patch", return_value=scored), patch("evals.model_eval.score_deck_consistency", return_value=consistency):
                 output = root / "high-risk"
                 result = ModelEvaluationRunner(model=target, output=output, split="validation", repeats=5, mode="quality", candidate_profile=candidate_path, high_risk=True).run()
             self.assertEqual(result["effective_model"], target)
@@ -870,7 +1012,7 @@ class CertificationClosureTests(unittest.TestCase):
             self.assertEqual(release["deployment_fingerprint"], expected)
 
     def test_complete_release_materializes_profile_and_detects_candidate_staleness(self):
-        subject = "a" * 40
+        subject = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
         target = "google/gemma-4-31b-it"
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -881,13 +1023,19 @@ class CertificationClosureTests(unittest.TestCase):
             asset_manifest = asset_dir / "manifest.json"
             _write(asset_manifest, {"provider": "paddle", "files": [{"path": "weights.bin", "sha256": asset_hash}]})
             (root / "prompts").mkdir()
-            (root / "prompts" / "translation.md").write_text("translation-v1\n", encoding="utf-8")
+            (root / "prompts" / "translation").mkdir()
+            (root / "prompts" / "translation" / "v1.md").write_bytes((Path.cwd() / "prompts" / "translation" / "v1.md").read_bytes())
+            (root / ".opencode" / "agents").mkdir(parents=True)
+            (root / ".opencode" / "agents" / "k-slide.md").write_bytes((Path.cwd() / ".opencode" / "agents" / "k-slide.md").read_bytes())
             (root / "termbase").mkdir()
-            (root / "termbase" / "core.json").write_text("{}\n", encoding="utf-8")
-            (root / "constraints-production.txt").write_text("Pillow==1.0\n", encoding="utf-8")
+            (root / "termbase" / "core.json").write_bytes((Path.cwd() / "termbase" / "core.json").read_bytes())
+            (root / "constraints-production.txt").write_bytes((Path.cwd() / "constraints-production.txt").read_bytes())
+            inventory = canonical_dependency_inventory([{"name": name, "version": "1.0"} for name in ("Pillow", "PyMuPDF", "python-pptx", "paddlepaddle", "paddleocr")])
+            (root / ".k-slide-config").mkdir()
+            _write(root / ".k-slide-config" / "production-dependency-inventory.json", inventory)
             candidate = _candidate_spec(subject, ocr_provider="paddle", asset_manifest="ocr/manifest.json", asset_hash=_sha(asset_manifest), root=root)
             candidate_dir = root / ".k-slide-config"
-            candidate_dir.mkdir()
+            candidate_dir.mkdir(exist_ok=True)
             candidate_path = candidate_dir / "production-candidate.json"
             _write(candidate_path, candidate)
             candidate = load_candidate_spec(candidate_path, root=root, require_identity=True)
@@ -896,17 +1044,17 @@ class CertificationClosureTests(unittest.TestCase):
             for evidence_type, factory, full in (("runtime", _runtime_sources, False), ("heavy_runtime", _heavy_sources, True)):
                 folder = root / evidence_type
                 folder.mkdir()
-                sources = factory(folder, full=full) if evidence_type == "heavy_runtime" else factory(folder)
+                sources = factory(folder, full=full) if evidence_type == "heavy_runtime" else factory(folder, provider=str(candidate["provider"]), ocr_provider=str(candidate["ocr_provider"]))
                 path = folder / "evidence.json"
-                build_machine_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=Path.cwd(), candidate_spec=candidate)
-                records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=Path.cwd(), candidate_spec=candidate, require_candidate_spec=True)
+                build_machine_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=root, candidate_spec=candidate)
+                records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate, require_candidate_spec=True)
             for evidence_type, split, repeats in (("model_validation", "validation", 3), ("model_high_risk_stability", "validation", 5), ("model_held_out", "held_out", 3)):
                 folder = root / evidence_type
                 folder.mkdir()
                 sources = _candidate_model_sources(folder, split=split, repeats=repeats, subject=subject, deployment=deployment, candidate=candidate)
                 path = folder / "evidence.json"
-                build_machine_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=Path.cwd(), candidate_spec=candidate)
-                records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=Path.cwd(), candidate_spec=candidate, require_candidate_spec=True)
+                build_machine_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=root, candidate_spec=candidate)
+                records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate, require_candidate_spec=True)
             (root / "evals").mkdir()
             _write(root / "evals" / "champion.json", {"status": "FROZEN", "model": target, "effective_model": target, "deployment_fingerprint": deployment, "config_hash": records["model_validation"]["payload"]["behavior_configuration_hash"]})
             attestations = {
@@ -925,22 +1073,23 @@ class CertificationClosureTests(unittest.TestCase):
                 folder.mkdir()
                 path = folder / "evidence.json"
                 source_values = factory(folder, constraints_hash=str(candidate["constraints_sha256"])) if evidence_type == "security" else factory(folder)
-                build_machine_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=source_values, root=Path.cwd(), candidate_spec=candidate)
-                records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=Path.cwd(), candidate_spec=candidate, require_candidate_spec=True)
+                build_machine_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=source_values, root=root, candidate_spec=candidate)
+                records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate, require_candidate_spec=True)
             governance_folder = root / "governance"
             governance_folder.mkdir()
             governance_source = governance_folder / "governance.json"
             _write(governance_source, {"source_kind": "github_api", "codeowners_pass": True, "branch_protection_pass": True, "required_ci_pass": True, "review_required": True})
             governance_path = governance_folder / "evidence.json"
-            build_machine_evidence(governance_path, evidence_type="governance", subject_git_sha=subject, deployment_fingerprint=deployment, sources={"governance_api": governance_source}, root=Path.cwd(), candidate_spec=candidate)
-            records["governance"] = load_evidence(governance_path, expected_type="governance", subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=Path.cwd(), candidate_spec=candidate, require_candidate_spec=True)
+            build_machine_evidence(governance_path, evidence_type="governance", subject_git_sha=subject, deployment_fingerprint=deployment, sources={"governance_api": governance_source}, root=root, candidate_spec=candidate)
+            records["governance"] = load_evidence(governance_path, expected_type="governance", subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate, require_candidate_spec=True)
             pilot_folder = root / "pilot_canary"
             pilot_folder.mkdir()
             pilot_path = pilot_folder / "evidence.json"
             write_evidence(pilot_path, evidence_type="pilot_canary", subject_git_sha=subject, deployment_fingerprint=deployment, payload={"attestation_id": "pilot-test", "users": 5, "artifacts": 50, "critical_confirmed_errors": 0, "cross_user_exposure": 0, "security_incidents": 0, "silent_incomplete_output": 0}, generated_at="2026-09-10T00:00:00Z", candidate_spec=candidate)
             records["pilot_canary"] = load_evidence(pilot_path, expected_type="pilot_canary", subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate, require_candidate_spec=True)
             sbom_folder = root / ".k-slide-config"
-            _write(sbom_folder / "production-sbom.json", {"bomFormat": "CycloneDX", "complete": True, "metadata": {}, "components": [{"name": "k-slide"}]})
+            security_sbom = json.loads((root / "security" / "production-sbom.json").read_text(encoding="utf-8"))
+            _write(sbom_folder / "production-sbom.json", security_sbom)
             evidence_paths = {key: root / key / "evidence.json" for key in records}
             manifest_path = root / "release" / "manifest.json"
             profile_path = sbom_folder / "production-profile.json"
@@ -957,23 +1106,25 @@ class CertificationClosureTests(unittest.TestCase):
             profile = json.loads(profile_path.read_text(encoding="utf-8"))
             self.assertEqual(profile["release_manifest_sha256"], _sha(manifest_path))
             self.assertEqual(ProductionProfile.from_mapping(profile).deployment_fingerprint, deployment)
-            (root / ".k-slide-install.json").write_text(json.dumps({"source_git_sha": subject}) + "\n", encoding="utf-8")
-            (root / ".k-slide-runs").mkdir()
+            from k_slide.installer import install
+            install(Path.cwd(), root, scope="project")
+            shutil.rmtree(root / "prompts")
+            shutil.rmtree(root / "termbase")
+            (root / "constraints-production.txt").unlink()
+            (root / ".k-slide-runs").mkdir(exist_ok=True)
             (root / ".k-slide-runs").chmod(0o700)
-            runtime = __import__("k_slide.runtime", fromlist=["RuntimeMetadata"]).RuntimeMetadata(
-                kslide_version="0.3.5", opencode_version="1.3.9", opencode_path=None, opencode_config_path=None,
-                provider="test-provider", reported_model_id=target, model_family="Gemma 4", model_size="31B",
-                instruction_tuned_status="instruction_tuned", vision_support=None, thinking_support=None,
-                provider_backend="test-backend", quantization_or_dtype="fp16", context_configuration={"max_tokens": 4096},
-                image_preprocessing_settings={"dpi": 220}, model_compatibility="production_candidate", discovery_warnings=[],
-                model_revision="test-revision",
-            )
+            (root / ".opencode" / "opencode.json").write_text(json.dumps({"model": target}) + "\n", encoding="utf-8")
+            (root / ".k-slide-config" / "ocr.local.json").write_text(json.dumps({"ocr_provider": "paddle"}) + "\n", encoding="utf-8")
+            from k_slide.runtime import discover_runtime
+            from k_slide.doctor import diagnose
             from k_slide.production import production_checks
-            with patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: {"paddlepaddle": "3.0.0", "paddleocr": "3.0.3"}[name]), patch("k_slide.production._version_from_command", return_value="25"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
-                doctor_checks = production_checks(root, runtime)
-            self.assertTrue(all(item["status"] == "PASS" for item in doctor_checks), msg=json.dumps([item for item in doctor_checks if item["status"] != "PASS"], indent=2))
+            package_versions = {"paddlepaddle": "3.0.0", "paddleocr": "3.0.3"}
+            with patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
+                runtime = discover_runtime(root)
+                doctor_result = diagnose(root, production=True)
+            self.assertEqual(doctor_result["overall"], "PASS", msg=json.dumps([item for item in doctor_result["checks"] if item["status"] != "PASS"], indent=2))
             from dataclasses import replace
-            with patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: {"paddlepaddle": "3.0.0", "paddleocr": "3.0.3"}[name]), patch("k_slide.production._version_from_command", return_value="25"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
+            with patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: {"paddlepaddle": "3.0.0", "paddleocr": "3.0.3"}[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
                 wrong_model_checks = production_checks(root, replace(runtime, reported_model_id="google/gemma-4-31b-it-other"))
             self.assertEqual(next(item for item in wrong_model_checks if item["label"] == "Vision capability")["status"], "FAIL")
             changed_results: list[tuple[Path, str]] = []
@@ -984,31 +1135,31 @@ class CertificationClosureTests(unittest.TestCase):
                 rows[0]["opencode"]["media_compliance"]["required_context_image_read"] = False
                 result_path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
                 changed_results.append((result_path, original_results))
-            with patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: {"paddlepaddle": "3.0.0", "paddleocr": "3.0.3"}[name]), patch("k_slide.production._version_from_command", return_value="25"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
+            with patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: {"paddlepaddle": "3.0.0", "paddleocr": "3.0.3"}[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
                 missing_vision_checks = production_checks(root, runtime)
             self.assertEqual(next(item for item in missing_vision_checks if item["label"] == "Vision capability")["status"], "FAIL")
             for result_path, original_results in changed_results:
                 result_path.write_text(original_results, encoding="utf-8")
-            with patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: {"paddlepaddle": "3.0.4", "paddleocr": "3.0.3"}[name]), patch("k_slide.production._version_from_command", return_value="25"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
-                dependency_checks = production_checks(root, runtime)
+            with patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: {"paddlepaddle": "3.0.4", "paddleocr": "3.0.3"}[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
+                dependency_checks = production_checks(root, replace(runtime, paddle_version="3.0.4"))
             self.assertEqual(next(item for item in dependency_checks if item["label"] == "Paddle version")["status"], "FAIL")
             asset_path = asset_dir / "weights.bin"
             original_asset = asset_path.read_bytes()
             asset_path.write_bytes(b"tampered-weights")
-            with patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: {"paddlepaddle": "3.0.0", "paddleocr": "3.0.3"}[name]), patch("k_slide.production._version_from_command", return_value="25"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
+            with patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: {"paddlepaddle": "3.0.0", "paddleocr": "3.0.3"}[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
                 asset_checks = production_checks(root, runtime)
             self.assertEqual(next(item for item in asset_checks if item["label"] == "OCR asset manifest")["status"], "FAIL")
             asset_path.write_bytes(original_asset)
             manifest_bytes = manifest_path.read_bytes()
             manifest_path.write_bytes(manifest_bytes + b"\n")
-            with patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: {"paddlepaddle": "3.0.0", "paddleocr": "3.0.3"}[name]), patch("k_slide.production._version_from_command", return_value="25"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
+            with patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: {"paddlepaddle": "3.0.0", "paddleocr": "3.0.3"}[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
                 manifest_checks = production_checks(root, runtime)
             self.assertEqual(next(item for item in manifest_checks if item["label"] == "Release manifest hash")["status"], "FAIL")
             manifest_path.write_bytes(manifest_bytes)
             evidence_file = root / "model_validation" / "evidence.json"
             evidence_bytes = evidence_file.read_bytes()
             evidence_file.write_bytes(evidence_bytes + b"\n")
-            with patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: {"paddlepaddle": "3.0.0", "paddleocr": "3.0.3"}[name]), patch("k_slide.production._version_from_command", return_value="25"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
+            with patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: {"paddlepaddle": "3.0.0", "paddleocr": "3.0.3"}[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
                 evidence_checks = production_checks(root, runtime)
             self.assertEqual(next(item for item in evidence_checks if item["label"] == "Evidence model_validation envelope hash")["status"], "FAIL")
             evidence_file.write_bytes(evidence_bytes)

@@ -7,6 +7,8 @@ import os
 import re
 import shutil
 import subprocess
+import importlib.metadata
+import platform
 from functools import lru_cache
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -35,6 +37,11 @@ class RuntimeMetadata:
     model_compatibility: str
     discovery_warnings: list[str]
     model_revision: str | None = None
+    python_version: str | None = None
+    paddle_version: str | None = None
+    paddleocr_version: str | None = None
+    libreoffice_version: str | None = None
+    ocr_provider: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -48,14 +55,16 @@ def _version(executable: str | None) -> str | None:
         result = subprocess.run([executable, "--version"], capture_output=True, text=True, timeout=5, check=False)
     except (OSError, subprocess.TimeoutExpired):
         return None
-    output = (result.stdout or result.stderr).strip()
-    match = re.search(r"(\d+\.\d+\.\d+)", output)
+    output = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()
+    match = re.search(r"(?<!\d)(\d+\.\d+\.\d+(?:\.\d+)?)(?!\d)", output)
     return match.group(1) if match else output or None
 
 
-def _config_path() -> Path | None:
+def _config_path(root: Path | None = None) -> Path | None:
     explicit = os.environ.get("KSLIDE_OPENCODE_CONFIG")
     candidates = [Path(explicit)] if explicit else []
+    if root is not None:
+        candidates.append(root.expanduser().resolve() / ".opencode" / "opencode.json")
     xdg = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
     candidates.append(xdg / "opencode" / "opencode.json")
     for candidate in candidates:
@@ -77,14 +86,21 @@ def _read_config(path: Path | None) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-@lru_cache(maxsize=4)
-def _effective_config(executable: str | None) -> dict[str, Any]:
-    """Prefer OpenCode's effective config report over one guessed config file."""
+@lru_cache(maxsize=8)
+def _effective_config(executable: str | None, root: Path | None = None) -> dict[str, Any]:
+    """Read OpenCode's effective config for the requested deployment root."""
 
     if not executable:
         return {}
     try:
-        result = subprocess.run([executable, "debug", "config"], capture_output=True, text=True, timeout=10, check=False)
+        result = subprocess.run(
+            [executable, "debug", "config"],
+            cwd=str(root) if root is not None else None,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
     except (OSError, subprocess.TimeoutExpired):
         return {}
     output = (result.stdout or "").strip()
@@ -132,16 +148,51 @@ def _model_details(model_id: str | None) -> dict[str, Any]:
     }
 
 
-def discover_runtime() -> RuntimeMetadata:
+def _package_version(name: str) -> str | None:
+    try:
+        return importlib.metadata.version(name)
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
+def _command_product_version(command: str) -> str | None:
+    path = shutil.which(command)
+    if not path:
+        return None
+    try:
+        result = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=5, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    from .certification import parse_libreoffice_version
+
+    return parse_libreoffice_version((result.stdout or "") + "\n" + (result.stderr or "")) if result.returncode == 0 else None
+
+
+def discover_runtime(root: Path | None = None) -> RuntimeMetadata:
+    root = (root or Path.cwd()).expanduser().resolve()
     executable = shutil.which("opencode")
-    path = _config_path()
-    config = _effective_config(executable) or _read_config(path)
+    path = _config_path(root)
+    file_config = _read_config(path)
+    # Reading the deployment's existing config is side-effect free. OpenCode's
+    # effective-config command may initialize a project package manifest, so do
+    # not invoke it against a supplied deployment root. If that root has no
+    # config yet, retain the normal ambient discovery behavior without changing
+    # the target deployment tree.
+    config = file_config or _effective_config(executable)
     reported_model = os.environ.get("KSLIDE_MODEL") or os.environ.get("OPENCODE_MODEL") or config.get("model")
     provider = reported_model.split("/", 1)[0] if isinstance(reported_model, str) and "/" in reported_model else None
     provider_config = config.get("provider", {}).get(provider, {}) if provider and isinstance(config.get("provider"), dict) else {}
     if not isinstance(provider_config, dict):
         provider_config = {}
     details = _model_details(reported_model if isinstance(reported_model, str) else None)
+    from .certification import repository_execution_configuration
+    from .ocr.policy import load_ocr_policy
+
+    execution = repository_execution_configuration(root)
+    try:
+        ocr_provider = load_ocr_policy(root).value
+    except Exception:
+        ocr_provider = None
     return RuntimeMetadata(
         kslide_version=__version__,
         opencode_version=_version(executable),
@@ -154,11 +205,16 @@ def discover_runtime() -> RuntimeMetadata:
         instruction_tuned_status=details["instruction_tuned_status"],
         vision_support=details["vision_support"],
         thinking_support=details["thinking_support"],
-        provider_backend=provider_config.get("npm") if isinstance(provider_config.get("npm"), str) else None,
-        quantization_or_dtype=None,
-        context_configuration={"source": "not_exposed_by_runtime"},
-        image_preprocessing_settings={"source": "not_yet_configured"},
+        provider_backend=next((provider_config.get(key) for key in ("backend", "npm") if isinstance(provider_config.get(key), str)), None),
+        quantization_or_dtype=next((provider_config.get(key) for key in ("quantization", "dtype") if isinstance(provider_config.get(key), str)), None),
+        context_configuration=execution["context_configuration"],
+        image_preprocessing_settings=execution["image_preprocessing_settings"],
         model_compatibility=details["model_compatibility"],
         discovery_warnings=details["warnings"],
         model_revision=provider_config.get("revision") if isinstance(provider_config.get("revision"), str) else None,
+        python_version=platform.python_version(),
+        paddle_version=_package_version("paddlepaddle"),
+        paddleocr_version=_package_version("paddleocr"),
+        libreoffice_version=_command_product_version("libreoffice") or _command_product_version("soffice"),
+        ocr_provider=ocr_provider,
     )

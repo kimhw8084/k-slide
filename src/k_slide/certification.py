@@ -11,6 +11,7 @@ import hashlib
 import json
 import subprocess
 import ast
+import re
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -46,6 +47,7 @@ _HEX64 = set("0123456789abcdef")
 # only fields that may affect the deployment fingerprint.  Paths are accepted
 # as lookup hints but their content hash, never the path, is fingerprinted.
 CANDIDATE_SPEC_SCHEMA_VERSION = "1.0"
+DEPENDENCY_INVENTORY_SCHEMA_VERSION = "1.0"
 UNSET_VALUE = "UNSET"
 # Runtime discovery already uses ``not_exposed_by_runtime`` for structured
 # fields.  These scalar values make the same distinction explicit in a
@@ -54,6 +56,7 @@ UNSET_VALUE = "UNSET"
 NOT_EXPOSED_VALUE = "NOT_EXPOSED"
 NOT_APPLICABLE_VALUE = "NOT_APPLICABLE"
 PROVIDER_DEFAULTS_FROZEN = "provider_defaults_frozen"
+_UNRESOLVED_VALUE_MARKERS = frozenset({UNSET_VALUE, "NOT_YET_CONFIGURED"})
 CANDIDATE_INPUT_FIELDS = (
     "candidate_spec_version",
     "subject_git_sha",
@@ -91,6 +94,7 @@ CANDIDATE_INPUT_FIELDS = (
     "network_egress",
     "corpus_identity",
     "constraints_sha256",
+    "resolved_dependency_set_sha256",
     "behavior_configuration",
 )
 
@@ -118,6 +122,7 @@ _BEHAVIOR_FIELDS = frozenset({
     "provider",
     "prompt_version",
     "prompt_hash",
+    "prompt_identity",
     "generation",
     "generation_settings",
     "temperature",
@@ -129,6 +134,7 @@ _BEHAVIOR_FIELDS = frozenset({
     "visual_detail",
     "vision",
     "vision_settings",
+    "context_configuration",
     "image_preprocessing_settings",
     "ocr_provider",
     "normalization",
@@ -157,7 +163,12 @@ _EXPERIMENT_ONLY_FIELDS = frozenset({
     "output_path",
     "filters",
 })
-_BEHAVIOR_ALIASES = {"repair": "repair_policy", "normalization": "normalization_behavior", "vision": "vision_settings"}
+_BEHAVIOR_ALIASES = {
+    "generation": "generation_settings",
+    "repair": "repair_policy",
+    "normalization": "normalization_behavior",
+    "vision": "vision_settings",
+}
 _CANDIDATE_ALIASES = {"model": "requested_model", "model_id": "requested_model", **_BEHAVIOR_ALIASES}
 
 _CANDIDATE_COMPLETENESS_FIELDS: dict[str, tuple[str, ...]] = {
@@ -173,6 +184,12 @@ _CANDIDATE_COMPLETENESS_FIELDS: dict[str, tuple[str, ...]] = {
         "generation_settings", "normalization_behavior", "repair_policy", "ocr_provider", "model_policy",
         "schema_versions", "corpus_identity", "behavior_configuration",
     ),
+    "INTERNAL_VALIDATED": (
+        "subject_git_sha", "kslide_version", "opencode_version", "requested_model", "effective_model", "provider",
+        "vision_settings", "context_configuration", "image_preprocessing_settings", "prompt_identity",
+        "generation_settings", "normalization_behavior", "repair_policy", "ocr_provider", "model_policy",
+        "schema_versions", "corpus_identity", "behavior_configuration",
+    ),
 }
 _PRODUCTION_COMPLETENESS_FIELDS = (
     "subject_git_sha", "kslide_version", "opencode_version", "requested_model", "effective_model", "provider",
@@ -181,9 +198,236 @@ _PRODUCTION_COMPLETENESS_FIELDS = (
     "ocr_asset_manifest_sha256", "normalization_behavior", "repair_policy", "python_version", "paddle_version",
     "paddleocr_version", "libreoffice_version", "termbase_identity", "termbase_version", "termbase_hash", "model_policy",
     "schema_versions", "retention_days", "tenant_isolation", "network_egress", "corpus_identity", "constraints_sha256",
-    "behavior_configuration",
+    "resolved_dependency_set_sha256", "behavior_configuration",
 )
 _OPTIONAL_PROVIDER_METADATA = frozenset({"provider_backend", "model_revision", "quantization_or_dtype"})
+_NOT_EXPOSED_SOURCES = frozenset({"not_exposed_by_runtime", "not_exposed"})
+_NOT_APPLICABLE_SOURCES = frozenset({"not_applicable", "not_applicable_by_runtime"})
+_NON_DEPLOYED_TOOL_PACKAGES = frozenset({
+    "pip", "setuptools", "wheel", "pip-audit", "semgrep", "cyclonedx-bom", "cyclonedx-python-lib",
+})
+
+
+def repository_schema_versions() -> dict[str, str]:
+    """Return schema identities from the code that actually owns them."""
+
+    from . import EVIDENCE_IR_SCHEMA_VERSION, SLIDE_IR_SCHEMA_VERSION
+    from .translation_contract import TRANSLATION_PATCH_SCHEMA_VERSION
+
+    return {
+        "evidence_ir": EVIDENCE_IR_SCHEMA_VERSION,
+        "translation_patch": TRANSLATION_PATCH_SCHEMA_VERSION,
+        "slide_ir": SLIDE_IR_SCHEMA_VERSION,
+    }
+
+
+def canonical_package_name(name: Any) -> str:
+    return re.sub(r"[-_.]+", "-", str(name or "").strip()).lower()
+
+
+def explicit_unavailable_value(value: Any) -> str | None:
+    """Return the explicit unavailable marker, never for an unknown value."""
+
+    if isinstance(value, str):
+        normalized = value.strip().upper()
+        if normalized in {NOT_EXPOSED_VALUE, NOT_APPLICABLE_VALUE}:
+            return normalized
+        source = value.strip().lower()
+        if source in _NOT_EXPOSED_SOURCES:
+            return NOT_EXPOSED_VALUE
+        if source in _NOT_APPLICABLE_SOURCES:
+            return NOT_APPLICABLE_VALUE
+    if isinstance(value, dict):
+        status = str(value.get("status") or "").strip().upper()
+        if status in {NOT_EXPOSED_VALUE, NOT_APPLICABLE_VALUE}:
+            return status
+        source = str(value.get("source") or "").strip().lower()
+        if source in _NOT_EXPOSED_SOURCES:
+            return NOT_EXPOSED_VALUE
+        if source in _NOT_APPLICABLE_SOURCES:
+            return NOT_APPLICABLE_VALUE
+    return None
+
+
+_EXACT_VERSION = re.compile(r"^\d+\.\d+\.\d+(?:\.\d+)?$")
+
+
+def canonical_exact_version(value: Any, label: str) -> str:
+    text = str(value or "").strip()
+    if not _EXACT_VERSION.fullmatch(text):
+        raise EvidenceValidationError(f"{label} must be an exact semantic version")
+    return text
+
+
+def parse_libreoffice_version(output: str | None) -> str | None:
+    if not output:
+        return None
+    match = re.search(r"(?<!\d)(\d+\.\d+\.\d+(?:\.\d+)?)(?!\d)", output)
+    return match.group(1) if match else None
+
+
+def canonical_dependency_inventory(packages: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    """Normalize the exact deployed Python package/version set."""
+
+    records: dict[str, str] = {}
+    for item in packages:
+        if not isinstance(item, dict):
+            raise EvidenceValidationError("dependency inventory contains a non-object package")
+        name = canonical_package_name(item.get("name"))
+        version = str(item.get("version") or "").strip()
+        if not name or not version:
+            raise EvidenceValidationError("dependency inventory package name/version is missing")
+        if name in _NON_DEPLOYED_TOOL_PACKAGES:
+            continue
+        if name in records and records[name] != version:
+            raise EvidenceValidationError(f"dependency inventory contains conflicting versions for {name}")
+        records[name] = version
+    return {
+        "schema_version": DEPENDENCY_INVENTORY_SCHEMA_VERSION,
+        "packages": [{"name": name, "version": records[name]} for name in sorted(records)],
+    }
+
+
+def dependency_inventory_hash(inventory: dict[str, Any]) -> str:
+    packages = inventory.get("packages") if isinstance(inventory, dict) else None
+    if not isinstance(packages, list):
+        raise EvidenceValidationError("dependency inventory packages are missing")
+    canonical = canonical_dependency_inventory(packages)
+    if inventory.get("schema_version", DEPENDENCY_INVENTORY_SCHEMA_VERSION) != DEPENDENCY_INVENTORY_SCHEMA_VERSION:
+        raise EvidenceValidationError("unsupported dependency inventory schema")
+    return sha256_bytes(canonical_bytes(canonical))
+
+
+def load_dependency_inventory(path: Path) -> dict[str, Any]:
+    if path.is_symlink() or not path.is_file():
+        raise EvidenceValidationError(f"dependency inventory is missing or symlinked: {path.name}")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise EvidenceValidationError(f"dependency inventory is malformed: {path.name}") from exc
+    if not isinstance(value, dict):
+        raise EvidenceValidationError("dependency inventory must be an object")
+    canonical = canonical_dependency_inventory(value.get("packages", []))
+    if value.get("schema_version", DEPENDENCY_INVENTORY_SCHEMA_VERSION) != DEPENDENCY_INVENTORY_SCHEMA_VERSION:
+        raise EvidenceValidationError("unsupported dependency inventory schema")
+    if value.get("packages") != canonical["packages"]:
+        raise EvidenceValidationError("dependency inventory is not canonically ordered")
+    return canonical
+
+
+def _agent_frontmatter(root: Path) -> dict[str, Any] | None:
+    """Read only the public frontmatter used by the production agent."""
+
+    path = root / ".opencode" / "agents" / "k-slide.md"
+    if path.is_symlink() or not path.is_file():
+        return None
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
+        return None
+    if not lines or lines[0].strip() != "---":
+        return None
+    values: dict[str, Any] = {}
+    for line in lines[1:]:
+        if line.strip() == "---":
+            return values
+        key, separator, raw = line.partition(":")
+        if separator and key.strip() and raw.strip():
+            values[key.strip()] = _parse_scalar(raw)
+    return None
+
+
+def _source_path(root: Path, relative: str) -> Path:
+    """Locate repository-owned inputs in a source checkout or installed build."""
+
+    root = root.expanduser().resolve()
+    for base in (root, root / ".k-slide-engine"):
+        candidate = base / relative
+        if candidate.exists() and not candidate.is_symlink():
+            return candidate
+    return root / relative
+
+
+def _repository_termbase_version(root: Path) -> str | None:
+    """Read the effective termbase version from the installed source tree."""
+
+    from .terminology import load_termbase, merge_termbases
+
+    paths = [_source_path(root, "termbase/core.json")]
+    private = root / ".k-slide-config" / "termbase.local.json"
+    if private.is_file() and not private.is_symlink():
+        paths.append(private)
+    loaded = [load_termbase(path) for path in paths if path.is_file() and not path.is_symlink()]
+    return merge_termbases(*loaded).version if loaded else None
+
+
+def repository_execution_configuration(root: Path) -> dict[str, Any]:
+    """Describe behavior fixed by the checked-in production execution path."""
+
+    root = root.expanduser().resolve()
+    from .normalization import (
+        MAX_DOCUMENTS_PER_RUN,
+        MAX_IMAGE_HEIGHT,
+        MAX_IMAGE_PIXELS,
+        MAX_IMAGE_WIDTH,
+        MAX_NORMALIZED_BYTES,
+        MAX_PAGES_PER_PDF,
+        MAX_SLIDES_PER_PPTX,
+        MAX_TOTAL_RENDER_PIXELS,
+        MAX_UNITS_PER_RUN,
+        RENDER_DPI,
+    )
+    from .policy import MAX_AUTO_REPAIRS_PER_UNIT
+    from .extraction import CROP_PADDING, MODEL_CROP_MIN_DIMENSION
+
+    agent_path = root / ".opencode" / "agents" / "k-slide.md"
+    frontmatter = _agent_frontmatter(root)
+    generation = {}
+    if frontmatter is not None and isinstance(frontmatter.get("temperature"), (int, float)) and not isinstance(frontmatter.get("temperature"), bool):
+        generation = {"temperature": float(frontmatter["temperature"])}
+    prompt_root = _source_path(root, "prompts")
+    prompt_tree = _tree_hash(prompt_root)
+    prompt_identity: dict[str, Any] = {}
+    if prompt_tree is not None:
+        prompt_identity["hash"] = prompt_tree
+    if agent_path.is_file() and not agent_path.is_symlink():
+        prompt_identity["agent_sha256"] = sha256_file(agent_path)
+    if (prompt_root / "translation" / "v1.md").is_file():
+        prompt_identity["version"] = "translation/v1"
+    return {
+        "prompt_identity": prompt_identity,
+        "generation_settings": generation,
+        "vision_settings": {
+            "enabled": True,
+            "context_image_required": True,
+            "risk_crops_required": True,
+        },
+        "context_configuration": {
+            "bounded_work_unit": True,
+            "context_image_required": True,
+            "required_source_regions": True,
+        },
+        "image_preprocessing_settings": {
+            "dpi": int(RENDER_DPI),
+            "render_dpi": float(RENDER_DPI),
+            "crop_padding": float(CROP_PADDING),
+            "model_crop_min_dimension": int(MODEL_CROP_MIN_DIMENSION),
+            "context_image": "canonical_render",
+        },
+        "normalization_behavior": {
+            "render_dpi": float(RENDER_DPI),
+            "max_image_pixels": MAX_IMAGE_PIXELS,
+            "max_image_width": MAX_IMAGE_WIDTH,
+            "max_image_height": MAX_IMAGE_HEIGHT,
+            "max_documents": MAX_DOCUMENTS_PER_RUN,
+            "max_units": MAX_UNITS_PER_RUN,
+            "max_pages_per_pdf": MAX_PAGES_PER_PDF,
+            "max_slides_per_pptx": MAX_SLIDES_PER_PPTX,
+            "max_total_render_pixels": MAX_TOTAL_RENDER_PIXELS,
+            "max_normalized_bytes": MAX_NORMALIZED_BYTES,
+        },
+        "repair_policy": {"max_auto_repairs_per_unit": MAX_AUTO_REPAIRS_PER_UNIT},
+    }
 
 # Deployment identity is deliberately an allowlist.  Sampling controls and
 # certification outputs must never become part of the behavior identity merely
@@ -394,24 +638,23 @@ def load_candidate_spec(path: Path, *, root: Path | None = None, require_identit
 
 
 def _is_unset(value: Any) -> bool:
-    return value is None or (isinstance(value, str) and value.strip().upper() == UNSET_VALUE)
+    return value is None or (isinstance(value, str) and value.strip().upper() in _UNRESOLVED_VALUE_MARKERS)
 
 
 def _resolved_value(value: Any, *, field: str, allow_not_exposed: bool = False, _nested: bool = False) -> bool:
     if _is_unset(value):
         return False
+    unavailable = explicit_unavailable_value(value)
+    if unavailable is not None:
+        return allow_not_exposed and field in _OPTIONAL_PROVIDER_METADATA
     if isinstance(value, str):
-        if value in {NOT_EXPOSED_VALUE, NOT_APPLICABLE_VALUE}:
-            return allow_not_exposed and field in _OPTIONAL_PROVIDER_METADATA
         return bool(value.strip())
     if isinstance(value, dict):
         if not value:
             return _nested
-        status = str(value.get("status") or "")
-        if status in {NOT_EXPOSED_VALUE, NOT_APPLICABLE_VALUE}:
-            return allow_not_exposed and field in _OPTIONAL_PROVIDER_METADATA
         if field == "generation_settings" and value.get("source") == PROVIDER_DEFAULTS_FROZEN:
-            return value.get("resolved") is not False
+            settings = value.get("settings")
+            return value.get("resolved") is True and isinstance(settings, dict) and bool(settings) and all(_resolved_value(item, field=field, _nested=True) for item in settings.values())
         return all(_resolved_value(item, field=field, allow_not_exposed=False, _nested=True) for item in value.values())
     if isinstance(value, (list, tuple, set)):
         return all(_resolved_value(item, field=field, allow_not_exposed=False, _nested=True) for item in value)
@@ -441,13 +684,33 @@ def _bind_value(result: dict[str, Any], field: str, actual: Any) -> None:
 def _bind_nested_hash(result: dict[str, Any], field: str, actual: str | None) -> None:
     if actual is None:
         return
-    current = _nested_hash(result.get(field))
+    current_value = result.get(field)
+    if not _is_unset(current_value) and not isinstance(current_value, dict):
+        raise EvidenceValidationError(f"candidate {field} must be an object")
+    current = _nested_hash(current_value)
     if current is not None and current.lower() != actual.lower():
         raise EvidenceValidationError(f"candidate {field} disagrees with deterministic repository input")
     if current is None:
-        nested = dict(result.get(field) or {})
+        nested = dict(current_value or {})
         nested["hash"] = actual
         result[field] = nested
+
+
+def _bind_execution_mapping(result: dict[str, Any], field: str, actual: dict[str, Any]) -> None:
+    """Bind a source-derived mapping while permitting only partial declarations."""
+
+    current = result.get(field)
+    if _is_unset(current) or current == {}:
+        result[field] = dict(actual)
+        return
+    if not isinstance(current, dict):
+        raise EvidenceValidationError(f"candidate {field} must be an object")
+    for key, value in current.items():
+        if _is_unset(value):
+            continue
+        if key not in actual or actual[key] != value:
+            raise EvidenceValidationError(f"candidate {field} disagrees with executable production behavior")
+    result[field] = dict(actual)
 
 
 def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subject_git_sha: str | None = None, model_policy: Any | None = None, corpus: dict[str, Any] | None = None, require_sources: bool = False) -> dict[str, Any]:
@@ -466,23 +729,39 @@ def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subjec
 
     _bind_value(result, "kslide_version", __version__)
     _bind_value(result, "subject_git_sha", subject_git_sha)
-    constraints = root / "constraints-production.txt"
+    constraints = _source_path(root, "constraints-production.txt")
     if constraints.is_file() and not constraints.is_symlink():
         _bind_value(result, "constraints_sha256", sha256_file(constraints))
     elif require_sources and not _is_unset(result.get("constraints_sha256")):
         raise EvidenceValidationError("candidate constraints-production.txt is unavailable for verification")
-    prompt_hash = _tree_hash(root / "prompts")
+    inventory_candidates = (
+        root / ".k-slide-config" / "production-dependency-inventory.json",
+        root / "production-dependency-inventory.json",
+    )
+    inventory_path = next((path for path in inventory_candidates if path.is_file() and not path.is_symlink()), None)
+    if inventory_path is not None:
+        inventory = load_dependency_inventory(inventory_path)
+        _bind_value(result, "resolved_dependency_set_sha256", dependency_inventory_hash(inventory))
+    elif require_sources and not _is_unset(result.get("resolved_dependency_set_sha256")):
+        raise EvidenceValidationError("production dependency inventory is unavailable for verification")
+    prompt_hash = _tree_hash(_source_path(root, "prompts"))
     if require_sources and prompt_hash is None and (not _is_unset(result.get("prompt_hash")) or _nested_hash(result.get("prompt_identity")) is not None):
         raise EvidenceValidationError("candidate prompt tree is unavailable for verification")
     _bind_nested_hash(result, "prompt_identity", prompt_hash)
     if prompt_hash is not None:
         _bind_value(result, "prompt_hash", prompt_hash)
-    termbase_hash = _tree_hash(root / "termbase")
+    termbase_hash = _tree_hash(_source_path(root, "termbase"))
     if require_sources and termbase_hash is None and (not _is_unset(result.get("termbase_hash")) or _nested_hash(result.get("termbase_identity")) is not None):
         raise EvidenceValidationError("candidate termbase is unavailable for verification")
     _bind_nested_hash(result, "termbase_identity", termbase_hash)
     if termbase_hash is not None:
         _bind_value(result, "termbase_hash", termbase_hash)
+    termbase_version = _repository_termbase_version(root)
+    if termbase_version is not None:
+        _bind_value(result, "termbase_version", termbase_version)
+        identity = dict(result.get("termbase_identity") or {})
+        _bind_value(identity, "version", termbase_version)
+        result["termbase_identity"] = identity
     if model_policy is not None:
         actual_policy = model_policy.as_dict() if hasattr(model_policy, "as_dict") else model_policy
         current_policy = result.get("model_policy")
@@ -512,6 +791,24 @@ def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subjec
             _bind_value(result, "ocr_asset_manifest_sha256", sha256_file(manifest))
         elif require_sources:
             raise EvidenceValidationError("candidate OCR asset manifest is unavailable for verification")
+    execution = repository_execution_configuration(root)
+    if require_sources and not execution["generation_settings"]:
+        raise EvidenceValidationError("production OpenCode agent frontmatter is unavailable for verification")
+    for field in ("generation_settings", "vision_settings", "context_configuration", "image_preprocessing_settings", "normalization_behavior", "repair_policy"):
+        actual = execution[field]
+        if actual:
+            _bind_execution_mapping(result, field, actual)
+    actual_prompt = execution["prompt_identity"]
+    if actual_prompt:
+        _bind_execution_mapping(result, "prompt_identity", actual_prompt)
+        if actual_prompt.get("version") is not None:
+            _bind_value(result, "prompt_version", actual_prompt["version"])
+    actual_schema = repository_schema_versions()
+    declared_schema = result.get("schema_versions")
+    if _is_unset(declared_schema) or declared_schema == {}:
+        result["schema_versions"] = actual_schema
+    elif declared_schema != actual_schema:
+        raise EvidenceValidationError("candidate schema_versions disagree with repository schema constants")
     behavior = dict(result.get("behavior_configuration") or {})
     for field, actual in (("prompt_hash", prompt_hash), ("termbase_hash", termbase_hash)):
         if actual is not None and field in behavior:
@@ -519,6 +816,45 @@ def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subjec
                 behavior[field] = actual
             elif behavior[field] != actual:
                 raise EvidenceValidationError(f"candidate behavior {field} disagrees with deterministic repository input")
+    execution_behavior = {
+        "model": result.get("requested_model"),
+        "provider": result.get("provider"),
+        "prompt_identity": result.get("prompt_identity"),
+        "prompt_version": (result.get("prompt_identity") or {}).get("version") if isinstance(result.get("prompt_identity"), dict) else result.get("prompt_version"),
+        "prompt_hash": (result.get("prompt_identity") or {}).get("hash") if isinstance(result.get("prompt_identity"), dict) else result.get("prompt_hash"),
+        "generation_settings": result.get("generation_settings"),
+        "vision_settings": result.get("vision_settings"),
+        "context_configuration": result.get("context_configuration"),
+        "image_preprocessing_settings": result.get("image_preprocessing_settings"),
+        "normalization_behavior": result.get("normalization_behavior"),
+        "repair_policy": result.get("repair_policy"),
+        "ocr_provider": result.get("ocr_provider"),
+        "termbase_version": result.get("termbase_version"),
+        "termbase_hash": result.get("termbase_hash"),
+        "evidence_ir_schema": (result.get("schema_versions") or {}).get("evidence_ir") if isinstance(result.get("schema_versions"), dict) else None,
+        "translation_patch_schema": (result.get("schema_versions") or {}).get("translation_patch") if isinstance(result.get("schema_versions"), dict) else None,
+        "slide_ir_schema": (result.get("schema_versions") or {}).get("slide_ir") if isinstance(result.get("schema_versions"), dict) else None,
+    }
+    if isinstance(result.get("generation_settings"), dict) and "temperature" in result["generation_settings"]:
+        execution_behavior["temperature"] = result["generation_settings"]["temperature"]
+    for raw_key, declared in behavior.items():
+        key = _BEHAVIOR_ALIASES.get(str(raw_key), str(raw_key))
+        if key not in execution_behavior:
+            raise EvidenceValidationError(f"candidate behavior {raw_key} has no executable production proof")
+        actual = execution_behavior[key]
+        if _is_unset(declared):
+            continue
+        if isinstance(actual, dict) and isinstance(declared, dict):
+            # Validate the declaration itself against the executable value.
+            # Passing ``execution_behavior`` here would compare the actual
+            # mapping with itself and allow a contradictory nested declaration
+            # to survive canonicalization.
+            _bind_execution_mapping({key: declared}, key, actual)
+        elif declared != actual:
+            raise EvidenceValidationError(f"candidate behavior {raw_key} disagrees with executable production behavior")
+    for key, value in execution_behavior.items():
+        if value is not None and value != {}:
+            behavior[key] = value
     result["behavior_configuration"] = _canonical_behavior_configuration(behavior, strict=True)
     return result
 
@@ -555,10 +891,18 @@ def candidate_completeness(candidate_spec: dict[str, Any], state: str) -> list[s
             valid = _hash_field_resolved(candidate_spec, field, nested_field="hash") and (
                 _resolved_value(identity_version, field=field) or _resolved_value(candidate_spec.get("prompt_version"), field=field)
             )
-        elif field == "ocr_asset_manifest_sha256" or field == "constraints_sha256" or field == "termbase_hash":
+        elif field in {"ocr_asset_manifest_sha256", "constraints_sha256", "termbase_hash", "resolved_dependency_set_sha256"}:
             valid = _hash_field_resolved(candidate_spec, field)
         elif field == "termbase_identity":
             valid = _hash_field_resolved(candidate_spec, field, nested_field="hash")
+        elif field in {"kslide_version", "opencode_version", "paddle_version", "paddleocr_version", "python_version", "libreoffice_version"}:
+            try:
+                canonical_exact_version(candidate_spec.get(field), field)
+                valid = True
+            except EvidenceValidationError:
+                valid = False
+        elif field == "schema_versions":
+            valid = candidate_spec.get(field) == repository_schema_versions()
         else:
             valid = _resolved_value(candidate_spec.get(field), field=field, allow_not_exposed=allow_not_exposed)
         if not valid:
@@ -645,7 +989,7 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
         "model_held_out": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "corpus_fingerprint", "held_out_fingerprint", "required_media_compliance", "vision_input_proven", "locked_terminology_recall", "unexpected_unresolved_rate"),
         "internal_bilingual": ("attestation_id", "artifact_count", "work_unit_count", "critical_business_meaning_errors", "critical_numeric_date_unit_errors", "critical_modality_escalations", "critical_table_mapping_errors", "critical_trend_reversals", "unsupported_critical_executive_claims", "overall_noncritical_semantic_fidelity", "locked_terminology"),
         "zero_korean_comprehension": ("attestation_id", "users", "answers", "critical_question_accuracy", "overall_comprehension", "critical_misunderstanding"),
-        "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings", "audited_dependency_set_sha256", "candidate_constraints_sha256", "pip_audit_version", "semgrep_version", "semgrep_ruleset_identity", "semgrep_ruleset_sha256"),
+        "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings", "audited_dependency_set_sha256", "resolved_dependency_set_sha256", "production_sbom_sha256", "candidate_constraints_sha256", "pip_audit_version", "semgrep_version", "semgrep_ruleset_identity", "semgrep_ruleset_sha256"),
         "reliability": ("timeout_recovery_pass", "resume_pass", "fifty_slide_pass", "concurrency_pass", "slo_pass", "concurrent_runs"),
         "model_data_policy": ("attestation_id", "approved_for_internal_artifacts"),
         "pilot_canary": ("attestation_id", "users", "artifacts", "critical_confirmed_errors", "cross_user_exposure", "security_incidents", "silent_incomplete_output"),
@@ -895,10 +1239,10 @@ def build_deployment_factors(root: Path, *, subject_git_sha: str | None = None, 
             source.setdefault("model_policy", model_policy.as_dict() if hasattr(model_policy, "as_dict") else model_policy)
         if corpus is not None:
             source.setdefault("corpus_identity", canonical_corpus_identity(corpus))
-        source.setdefault("prompt_identity", {"tree_sha256": _tree_hash(root / "prompts")})
-        source.setdefault("termbase_identity", {"tree_sha256": _tree_hash(root / "termbase")})
-        source.setdefault("schema_versions", {"evidence_ir": "1.0", "translation_patch": "1.0", "slide_ir": "1.0"})
-        constraints = root / "constraints-production.txt"
+        source.setdefault("prompt_identity", {"tree_sha256": _tree_hash(_source_path(root, "prompts"))})
+        source.setdefault("termbase_identity", {"tree_sha256": _tree_hash(_source_path(root, "termbase"))})
+        source.setdefault("schema_versions", repository_schema_versions())
+        constraints = _source_path(root, "constraints-production.txt")
         source.setdefault("constraints_sha256", sha256_file(constraints) if constraints.is_file() else None)
         if source.get("ocr_asset_manifest_sha256") is None:
             source["ocr_asset_manifest_sha256"] = _manifest_hash(source, root)

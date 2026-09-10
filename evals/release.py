@@ -18,17 +18,21 @@ from k_slide.certification import (
     candidate_deployment_fingerprint,
     canonical_candidate_factors,
     canonical_corpus_identity,
+    dependency_inventory_hash,
     certification_fingerprint,
     candidate_completeness,
     evidence_hashes,
     load_evidence,
     load_candidate_spec,
+    load_dependency_inventory,
+    repository_schema_versions,
     resolve_candidate_spec,
     sha256_file,
 )
 from k_slide.model_policy import load_model_policy
 from k_slide.production import ReleaseState
 from k_slide.runtime import discover_runtime
+from k_slide.io import atomic_write_json
 
 from .scenarios import DATASET_VERSION, split_manifest
 
@@ -76,7 +80,7 @@ def build_sbom(root: Path) -> dict[str, Any]:
     }
 
 
-def build_production_sbom(root: Path, output: Path) -> dict[str, Any]:
+def build_production_sbom(root: Path, output: Path, *, inventory_path: Path | None = None) -> dict[str, Any]:
     """Generate a real environment SBOM with the pinned CycloneDX tool.
 
     The tool is intentionally an approved release-environment dependency rather
@@ -84,6 +88,21 @@ def build_production_sbom(root: Path, output: Path) -> dict[str, Any]:
     never a reason to fall back to the lightweight development inventory.
     """
 
+    if inventory_path is not None:
+        inventory = load_dependency_inventory(inventory_path.expanduser())
+        inventory_sha = dependency_inventory_hash(inventory)
+        value = {
+            "bomFormat": "CycloneDX",
+            "specVersion": "1.5",
+            "metadata": {"component": {"type": "application", "name": "k-slide", "version": __version__}},
+            "components": [{"type": "library", "name": item["name"], "version": item["version"]} for item in inventory["packages"]],
+            "complete": True,
+            "dependency_set_sha256": inventory_sha,
+            "notes": ["Generated from the exact isolated production dependency inventory."],
+        }
+        output.parent.mkdir(parents=True, exist_ok=True)
+        atomic_write_json(output, value, mode=0o600)
+        return value
     executable = shutil.which("cyclonedx-py")
     if not executable:
         raise RuntimeError("cyclonedx-py is unavailable; production SBOM was not generated")
@@ -281,10 +300,21 @@ def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, 
         else:
             try:
                 parsed = json.loads(sbom.read_text(encoding="utf-8"))
-                if parsed.get("bomFormat") != "CycloneDX" or not parsed.get("components") or parsed.get("complete") is False or not isinstance(parsed.get("metadata"), dict):
+                if parsed.get("bomFormat") != "CycloneDX" or not parsed.get("components") or parsed.get("complete") is not True or not isinstance(parsed.get("metadata"), dict):
                     blockers.append("production SBOM is incomplete")
             except (OSError, UnicodeError, json.JSONDecodeError, AttributeError):
                 blockers.append("production SBOM is malformed")
+        security = records.get("security", {}).get("payload", {}) if isinstance(records.get("security"), dict) else {}
+        try:
+            sbom_hash = sha256_file(sbom)
+        except EvidenceValidationError:
+            sbom_hash = None
+        if not security.get("resolved_dependency_set_sha256"):
+            blockers.append("security evidence has no resolved dependency-set identity")
+        if not security.get("production_sbom_sha256") or security.get("production_sbom_sha256") != sbom_hash:
+            blockers.append("security evidence is not bound to the staged production SBOM")
+        if candidate_spec is not None and security.get("resolved_dependency_set_sha256") != candidate_spec.get("resolved_dependency_set_sha256"):
+            blockers.append("security evidence dependency set does not match candidate")
         # The candidate profile describes deployment inputs.  A certified
         # profile is materialized/bound after this evidence-derived state is
         # generated; requiring it here would make certification circular.
@@ -311,7 +341,7 @@ def derive_release_state(requested_state: str, *, records: dict[str, dict[str, A
 
 def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.value, requested_state: str | None = None, model: str | None = None, ocr_asset_manifest: Path | None = None, validation_result: Path | None = None, held_out_result: Path | None = None, evidence_paths: dict[str, Path] | None = None, subject_sha: str | None = None, candidate_profile: Path | None = None) -> dict[str, Any]:
     root = root.expanduser().resolve()
-    runtime = discover_runtime()
+    runtime = discover_runtime(root)
     policy = load_model_policy(root)
     split = split_manifest()
     corpus = canonical_corpus_identity({"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]})
@@ -384,7 +414,7 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
         "runtime": {"opencode_version": candidate.get("opencode_version"), "model": candidate.get("effective_model"), "provider": candidate.get("provider"), "vision_support": candidate.get("vision_settings")},
         "model_policy": policy.as_dict(),
         "ocr": {"provider": candidate.get("ocr_provider"), "asset_manifest": safe_relative(manifest_ocr_asset, "OCR asset manifest"), "asset_manifest_sha256": candidate.get("ocr_asset_manifest_sha256") or _sha256(manifest_ocr_asset)},
-        "schemas": {"translation_patch": "1.0", "evidence_ir": "1.0", "slide_ir": "1.0"},
+        "schemas": candidate.get("schema_versions") or repository_schema_versions(),
         "dataset": {"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]},
         "evidence_hashes": hashes,
         "evidence_envelope_hashes": envelope_hashes,
@@ -400,18 +430,30 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
             "model_data_policy": records.get("model_data_policy", {}).get("payload", {}).get("attestation_id", "UNSET"),
         },
     }
+    if derived == ReleaseState.PRODUCTION_CERTIFIED.value:
+        security_payload = records.get("security", {}).get("payload", {}) if isinstance(records.get("security"), dict) else {}
+        production_sbom = root / ".k-slide-config" / "production-sbom.json"
+        manifest["production_dependencies"] = {
+            "constraints_sha256": candidate.get("constraints_sha256"),
+            "inventory_sha256": security_payload.get("resolved_dependency_set_sha256") or candidate.get("resolved_dependency_set_sha256"),
+            "sbom": safe_relative(production_sbom, "production SBOM"),
+            "sbom_sha256": security_payload.get("production_sbom_sha256") or _sha256(production_sbom),
+            "pip_audit_version": security_payload.get("pip_audit_version"),
+            "semgrep_version": security_payload.get("semgrep_version"),
+            "semgrep_ruleset_identity": security_payload.get("semgrep_ruleset_identity"),
+            "semgrep_ruleset_sha256": security_payload.get("semgrep_ruleset_sha256"),
+        }
     if blockers:
         manifest["blocking_reasons"] = sorted(set(blockers))
     return manifest
 
 
-def materialize_certified_profile(root: Path, *, candidate_spec: dict[str, Any], manifest: dict[str, Any], manifest_path: Path, output: Path) -> Path:
-    """Write the post-derivation production profile without hash recursion."""
+def _certified_profile_mapping(root: Path, *, candidate_spec: dict[str, Any], manifest: dict[str, Any], manifest_path: Path, manifest_sha256: str) -> dict[str, Any]:
+    """Build and structurally validate the post-derivation profile in memory."""
 
     if manifest.get("release_state") != ReleaseState.PRODUCTION_CERTIFIED.value:
         raise EvidenceValidationError("certified profile requires PRODUCTION_CERTIFIED manifest")
     manifest_path = manifest_path.expanduser().resolve()
-    output = output.expanduser()
     candidate = dict(candidate_spec)
     finalized = manifest.get("candidate_spec")
     if not isinstance(finalized, dict):
@@ -442,7 +484,7 @@ def materialize_certified_profile(root: Path, *, candidate_spec: dict[str, Any],
         "deployment_fingerprint": manifest.get("deployment_fingerprint"),
         "certification_fingerprint": manifest.get("certification_fingerprint"),
         "release_manifest": relative_or_absolute(manifest_path),
-        "release_manifest_sha256": sha256_file(manifest_path),
+        "release_manifest_sha256": manifest_sha256,
         "model_data_attestation": model_data_attestation,
         "candidate_spec": canonical_candidate_factors(candidate),
     })
@@ -452,14 +494,23 @@ def materialize_certified_profile(root: Path, *, candidate_spec: dict[str, Any],
     parsed = ProductionProfile.from_mapping(profile)
     if parsed.deployment_fingerprint != candidate_deployment_fingerprint(candidate):
         raise EvidenceValidationError("certified profile deployment does not match finalized candidate specification")
+    return profile
+
+
+def materialize_certified_profile(root: Path, *, candidate_spec: dict[str, Any], manifest: dict[str, Any], manifest_path: Path, output: Path) -> Path:
+    """Write the post-derivation production profile without hash recursion."""
+
+    manifest_path = manifest_path.expanduser().resolve()
+    profile = _certified_profile_mapping(root, candidate_spec=candidate_spec, manifest=manifest, manifest_path=manifest_path, manifest_sha256=sha256_file(manifest_path))
+    output = output.expanduser()
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(profile, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    atomic_write_json(output, profile, mode=0o600)
     return output
 
 
 def _write_development_sbom(root: Path, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(build_sbom(root), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    atomic_write_json(path, build_sbom(root), mode=0o600)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -471,6 +522,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--certified-profile-output", type=Path, help="Materialize the certified production profile after the final manifest is written")
     parser.add_argument("--sbom", type=Path)
     parser.add_argument("--generate-production-sbom", action="store_true", help="Generate the required production environment SBOM with cyclonedx-py")
+    parser.add_argument("--production-dependency-inventory", type=Path, help="Exact resolved production dependency inventory used for the production SBOM")
     parser.add_argument("--requested-state", choices=REQUESTABLE_STATES, default=None)
     parser.add_argument("--state", choices=REQUESTABLE_STATES, default=None, help="Deprecated alias for --requested-state")
     parser.add_argument("--subject-sha")
@@ -507,7 +559,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             resolved_output = args.resolved_candidate_output.expanduser()
             resolved_output.parent.mkdir(parents=True, exist_ok=True)
-            resolved_output.write_text(json.dumps(candidate, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+            atomic_write_json(resolved_output, candidate, mode=0o600)
         except (OSError, TypeError, ValueError) as exc:
             print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": [f"resolved candidate could not be persisted: {exc}"]}, ensure_ascii=False, indent=2))
             return 2
@@ -517,8 +569,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if args.generate_production_sbom:
         try:
-            build_production_sbom(root, root / ".k-slide-config" / "production-sbom.json")
-        except RuntimeError as exc:
+            inventory_path = args.production_dependency_inventory
+            if inventory_path is not None and not inventory_path.expanduser().is_absolute():
+                inventory_path = root / inventory_path
+            build_production_sbom(root, root / ".k-slide-config" / "production-sbom.json", inventory_path=inventory_path)
+        except (EvidenceValidationError, OSError, RuntimeError) as exc:
             print(json.dumps({"status": "BLOCKED", "reasons": [str(exc)]}, ensure_ascii=False, indent=2))
             return 2
     paths = _evidence_arguments(args)
@@ -549,9 +604,24 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError:
             print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": derived, "reasons": ["PRODUCTION_CERTIFIED manifest must be staged beneath the release root"]}, ensure_ascii=False, indent=2))
             return 2
-    manifest = build_release_manifest(root, requested_state=requested, model=args.model, ocr_asset_manifest=args.ocr_asset_manifest, evidence_paths=paths, subject_sha=subject, candidate_profile=args.candidate_profile)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        try:
+            args.certified_profile_output.expanduser().resolve().relative_to(root)
+        except ValueError:
+            print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": derived, "reasons": ["PRODUCTION_CERTIFIED profile must be staged beneath the release root"]}, ensure_ascii=False, indent=2))
+            return 2
+    try:
+        manifest = build_release_manifest(root, requested_state=requested, model=args.model, ocr_asset_manifest=args.ocr_asset_manifest, evidence_paths=paths, subject_sha=subject, candidate_profile=args.candidate_profile)
+        if manifest["release_state"] == ReleaseState.PRODUCTION_CERTIFIED.value:
+            # Validate the generated profile shape before writing the manifest.
+            # Its real manifest hash is filled only after the manifest is
+            # atomically written, so a fixed-width placeholder is sufficient
+            # for this preflight structural check.
+            _certified_profile_mapping(root, candidate_spec=candidate, manifest=manifest, manifest_path=args.output, manifest_sha256="0" * 64)
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        atomic_write_json(args.output, manifest, mode=0o600)
+    except (EvidenceValidationError, OSError, TypeError, ValueError) as exc:
+        print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": [str(exc)]}, ensure_ascii=False, indent=2))
+        return 2
     if manifest["release_state"] == ReleaseState.PRODUCTION_CERTIFIED.value:
         try:
             materialize_certified_profile(root, candidate_spec=candidate, manifest=manifest, manifest_path=args.output, output=args.certified_profile_output)

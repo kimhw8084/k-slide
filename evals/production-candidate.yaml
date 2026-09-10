@@ -20,8 +20,6 @@ ocr_asset_manifest: UNSET
 ocr_asset_manifest_sha256: UNSET
 normalization_behavior:
   render_dpi: 220
-  context_max_dimension: 1600
-  crop_padding: 0.1
 repair_policy:
   max_auto_repairs_per_unit: 2
 python_version: UNSET
@@ -29,11 +27,12 @@ paddle_version: UNSET
 paddleocr_version: UNSET
 libreoffice_version: UNSET
 termbase_identity:
-  version: "core-v1"
+  version: "1.0"
   hash: UNSET
-termbase_version: "core-v1"
+termbase_version: "1.0"
 termbase_hash: UNSET
 constraints_sha256: UNSET
+resolved_dependency_set_sha256: UNSET
 model_policy:
   target_family: "Gemma 4"
   target_size: "31B"

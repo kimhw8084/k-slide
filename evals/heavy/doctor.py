@@ -20,7 +20,9 @@ def _command_version(command: str) -> str | None:
         result = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=10, check=False)
     except (OSError, subprocess.TimeoutExpired):
         return None
-    return (result.stdout or result.stderr).strip() or None
+    from k_slide.certification import parse_libreoffice_version
+
+    return parse_libreoffice_version((result.stdout or "") + "\n" + (result.stderr or "")) if result.returncode == 0 else None
 
 
 def _package_version(name: str) -> str | None:

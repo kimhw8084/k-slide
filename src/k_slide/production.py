@@ -6,6 +6,7 @@ import importlib.metadata
 import importlib.util
 import json
 import os
+import platform
 import shutil
 from dataclasses import dataclass
 from enum import Enum
@@ -24,6 +25,10 @@ from .certification import (
     load_candidate_spec,
     load_evidence,
     resolve_candidate_spec,
+    repository_execution_configuration,
+    canonical_exact_version,
+    explicit_unavailable_value,
+    parse_libreoffice_version,
     sha256_file,
 )
 from .errors import ErrorCode, KSlideError
@@ -201,8 +206,7 @@ def _version_from_command(command: str) -> str | None:
         result = subprocess.run([binary, "--version"], capture_output=True, text=True, timeout=5, check=False)
     except (OSError, subprocess.TimeoutExpired):
         return None
-    text = (result.stdout or result.stderr).strip().splitlines()
-    return text[0] if result.returncode == 0 and text else None
+    return parse_libreoffice_version((result.stdout or "") + "\n" + (result.stderr or "")) if result.returncode == 0 else None
 
 
 def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, runtime: RuntimeMetadata) -> list[dict[str, str]]:
@@ -232,13 +236,41 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
                 checks.append(_check(f"Evidence {evidence_type}", False, "path is missing"))
                 continue
             try:
-                record = load_evidence(_resolve_path(root, str(evidence_path)), expected_type=str(evidence_type), subject_git_sha=profile.subject_git_sha, deployment_fingerprint=profile.deployment_fingerprint, repository_root=root, candidate_spec=profile.candidate_spec)
+                record = load_evidence(_resolve_path(root, str(evidence_path)), expected_type=str(evidence_type), subject_git_sha=profile.subject_git_sha, deployment_fingerprint=profile.deployment_fingerprint, repository_root=root, candidate_spec=profile.candidate_spec, require_candidate_spec=True)
                 checks.append(_check(f"Evidence {evidence_type}", record.get("evidence_identity") == expected_hash, f"identity={record.get('evidence_identity')}"))
                 expected_envelope = manifest.get("evidence_envelope_hashes", {}).get(evidence_type) if isinstance(manifest.get("evidence_envelope_hashes"), dict) else None
                 if expected_envelope:
                     checks.append(_check(f"Evidence {evidence_type} envelope hash", record.get("envelope_sha256") == expected_envelope, f"sha256={record.get('envelope_sha256')}"))
             except (EvidenceValidationError, OSError, ValueError) as exc:
                 checks.append(_check(f"Evidence {evidence_type}", False, str(exc)))
+        production_dependencies = manifest.get("production_dependencies")
+        if manifest.get("release_state") == ReleaseState.PRODUCTION_CERTIFIED.value:
+            if not isinstance(production_dependencies, dict):
+                checks.append(_check("Production dependency binding", False, "release manifest has no production dependency binding"))
+            else:
+                sbom_raw = production_dependencies.get("sbom")
+                sbom_path = _resolve_path(root, str(sbom_raw)) if isinstance(sbom_raw, str) and sbom_raw else None
+                try:
+                    sbom_hash = sha256_file(sbom_path) if sbom_path is not None else None
+                    sbom_value = json.loads(sbom_path.read_text(encoding="utf-8")) if sbom_path is not None else None
+                    sbom_ok = isinstance(sbom_value, dict) and sbom_value.get("bomFormat") == "CycloneDX" and sbom_value.get("complete") is True
+                except (OSError, UnicodeError, json.JSONDecodeError, EvidenceValidationError):
+                    sbom_hash, sbom_ok = None, False
+                checks.append(_check("Production SBOM binding", bool(sbom_ok and sbom_hash == production_dependencies.get("sbom_sha256")), f"expected={production_dependencies.get('sbom_sha256')}; actual={sbom_hash}"))
+                checks.append(_check("Production constraints binding", production_dependencies.get("constraints_sha256") == (profile.candidate_spec or {}).get("constraints_sha256"), f"expected={(profile.candidate_spec or {}).get('constraints_sha256')}; manifest={production_dependencies.get('constraints_sha256')}"))
+                security_raw = manifest.get("evidence_paths", {}).get("security") if isinstance(manifest.get("evidence_paths"), dict) else None
+                security_ok = False
+                if security_raw:
+                    try:
+                        security_record = load_evidence(_resolve_path(root, str(security_raw)), expected_type="security", subject_git_sha=profile.subject_git_sha, deployment_fingerprint=profile.deployment_fingerprint, repository_root=root, candidate_spec=profile.candidate_spec, require_candidate_spec=True)
+                        security_payload = security_record.get("payload", {})
+                        security_ok = (
+                            security_payload.get("resolved_dependency_set_sha256") == production_dependencies.get("inventory_sha256")
+                            and security_payload.get("production_sbom_sha256") == production_dependencies.get("sbom_sha256")
+                        )
+                    except (EvidenceValidationError, OSError, ValueError):
+                        security_ok = False
+                checks.append(_check("Production dependency evidence binding", security_ok, "resolved dependency inventory and SBOM are re-verifiable" if security_ok else "security evidence does not match release dependency binding"))
         expected_certification = certification_fingerprint(
             deployment=profile.deployment_fingerprint,
             evidence_hashes={str(key): str(value) for key, value in evidence_hashes.items()},
@@ -319,7 +351,7 @@ def _runtime_identity_checks(profile: ProductionProfile, runtime: RuntimeMetadat
         if expected in (None, "", "UNSET"):
             checks.append(_check(label, False, f"candidate {field} is unresolved"))
             return
-        if optional and expected in {NOT_EXPOSED_VALUE, NOT_APPLICABLE_VALUE}:
+        if optional and explicit_unavailable_value(expected) is not None:
             exposed = actual not in (None, "", {})
             checks.append(_check(label, not exposed, "not exposed by current runtime" if not exposed else f"runtime exposes {actual!r}"))
             return
@@ -328,13 +360,48 @@ def _runtime_identity_checks(profile: ProductionProfile, runtime: RuntimeMetadat
             return
         checks.append(_check(label, actual == expected, f"expected={expected!r}; actual={actual!r}"))
 
-    compare("Provider identity", "provider", runtime.provider)
-    compare("Provider backend identity", "provider_backend", runtime.provider_backend, optional=True)
+    compare("Provider identity", "provider", getattr(runtime, "provider", None))
+    compare("Provider backend identity", "provider_backend", getattr(runtime, "provider_backend", None), optional=True)
     compare("Provider revision identity", "model_revision", getattr(runtime, "model_revision", None), optional=True)
-    compare("Provider quantization/dtype identity", "quantization_or_dtype", runtime.quantization_or_dtype, optional=True)
-    compare("Context configuration identity", "context_configuration", runtime.context_configuration)
-    compare("Image preprocessing identity", "image_preprocessing_settings", runtime.image_preprocessing_settings)
+    compare("Provider quantization/dtype identity", "quantization_or_dtype", getattr(runtime, "quantization_or_dtype", None), optional=True)
+    compare("Context configuration identity", "context_configuration", getattr(runtime, "context_configuration", None))
+    compare("Image preprocessing identity", "image_preprocessing_settings", getattr(runtime, "image_preprocessing_settings", None))
+    compare("OCR provider identity", "ocr_provider", getattr(runtime, "ocr_provider", None))
     return checks
+
+
+def _execution_behavior_checks(root: Path, profile: ProductionProfile) -> list[dict[str, str]]:
+    candidate = profile.candidate_spec or {}
+    actual = repository_execution_configuration(root)
+    checks: list[dict[str, str]] = []
+    for field in ("generation_settings", "vision_settings", "context_configuration", "image_preprocessing_settings", "normalization_behavior", "repair_policy"):
+        expected = candidate.get(field)
+        observed = actual.get(field)
+        checks.append(_check(f"Executable {field}", expected == observed, f"expected={expected!r}; actual={observed!r}"))
+    return checks
+
+
+def _candidate_execution_binding_check(root: Path, profile: ProductionProfile, policy: Any, corpus: dict[str, Any]) -> dict[str, str]:
+    """Re-resolve repository-owned candidate inputs during production doctor."""
+
+    candidate = dict(profile.candidate_spec or {})
+    try:
+        resolved = resolve_candidate_spec(
+            candidate,
+            root=root,
+            subject_git_sha=profile.subject_git_sha,
+            model_policy=policy,
+            corpus=corpus,
+            require_sources=True,
+        )
+        expected = candidate_deployment_fingerprint(resolved)
+    except (EvidenceValidationError, OSError, UnicodeError, ValueError, TypeError) as exc:
+        return _check("Candidate execution binding", False, str(exc))
+    return _check(
+        "Candidate execution binding",
+        expected == profile.deployment_fingerprint,
+        f"expected={expected}; profile={profile.deployment_fingerprint}",
+    )
 
 
 def _vision_evidence_status(root: Path, profile: ProductionProfile) -> tuple[bool, str]:
@@ -400,6 +467,7 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
     checks.append(_check("Release state", profile.release_state == ReleaseState.PRODUCTION_CERTIFIED.value, profile.release_state))
     candidate_missing = candidate_completeness(profile.candidate_spec or {}, ReleaseState.PRODUCTION_CERTIFIED.value)
     checks.append(_check("Candidate completeness", not candidate_missing, "complete" if not candidate_missing else "unresolved=" + ",".join(candidate_missing)))
+    checks.extend(_execution_behavior_checks(root, profile))
     expected_kslide = (profile.candidate_spec or {}).get("kslide_version")
     checks.append(_check("K-Slide version", runtime.kslide_version == expected_kslide, f"expected={expected_kslide}; actual={runtime.kslide_version}"))
     checks.append(_check("OpenCode version", runtime.opencode_version == profile.opencode_version, f"expected={profile.opencode_version}; actual={runtime.opencode_version or 'unknown'}"))
@@ -407,6 +475,16 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
 
     candidate_policy = (profile.candidate_spec or {}).get("model_policy")
     policy = ModelPolicy.from_mapping(candidate_policy) if isinstance(candidate_policy, dict) else load_model_policy(root)
+    try:
+        from evals.scenarios import split_manifest
+
+        corpus = canonical_corpus_identity(split_manifest())
+    except (ImportError, OSError, ValueError, TypeError):
+        # An installed runtime may not ship the evaluation package.  The
+        # frozen corpus identity in the certified candidate is the portable
+        # source-free contract in that case.
+        corpus = canonical_corpus_identity((profile.candidate_spec or {}).get("corpus_identity"))
+    checks.append(_candidate_execution_binding_check(root, profile, policy, corpus))
     checks.append(_check("Requested/effective model policy", policy.approved(requested=profile.requested_model, effective=profile.effective_model), f"requested={profile.requested_model}; effective={profile.effective_model}"))
     checks.append(_check("Runtime model match", runtime.reported_model_id == profile.effective_model, runtime.reported_model_id or "unknown"))
     checks.extend(_runtime_identity_checks(profile, runtime))
@@ -432,14 +510,26 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
     checks.append(_check("LibreOffice", bool(shutil.which("libreoffice") or shutil.which("soffice")), "binary discovered" if (shutil.which("libreoffice") or shutil.which("soffice")) else "not discovered"))
     checks.append(_check("Paddle runtime", importlib.util.find_spec("paddle") is not None and importlib.util.find_spec("paddleocr") is not None, "packages discovered" if importlib.util.find_spec("paddle") and importlib.util.find_spec("paddleocr") else "packages missing"))
     try:
-        actual_python = os.sys.version.split()[0]
-        checks.append(_check("Python version", actual_python == profile.python_version or actual_python.startswith(profile.python_version + "."), f"expected={profile.python_version}; actual={actual_python}"))
-        checks.append(_check("Paddle version", importlib.metadata.version("paddlepaddle") == profile.paddle_version, f"expected={profile.paddle_version}"))
-        checks.append(_check("PaddleOCR version", importlib.metadata.version("paddleocr") == profile.paddleocr_version, f"expected={profile.paddleocr_version}"))
+        actual_python = getattr(runtime, "python_version", None) or platform.python_version()
+        try:
+            canonical_exact_version(profile.python_version, "python_version")
+            python_match = actual_python == profile.python_version
+        except EvidenceValidationError:
+            python_match = False
+        checks.append(_check("Python version", python_match, f"expected={profile.python_version}; actual={actual_python}"))
+        actual_paddle = getattr(runtime, "paddle_version", None) or importlib.metadata.version("paddlepaddle")
+        actual_paddleocr = getattr(runtime, "paddleocr_version", None) or importlib.metadata.version("paddleocr")
+        checks.append(_check("Paddle version", actual_paddle == profile.paddle_version, f"expected={profile.paddle_version}; actual={actual_paddle}"))
+        checks.append(_check("PaddleOCR version", actual_paddleocr == profile.paddleocr_version, f"expected={profile.paddleocr_version}; actual={actual_paddleocr}"))
     except importlib.metadata.PackageNotFoundError as exc:
         checks.append(_check("Pinned OCR dependency versions", False, str(exc)))
-    office_version = _version_from_command("libreoffice") or _version_from_command("soffice")
-    checks.append(_check("LibreOffice version", bool(office_version and profile.libreoffice_version != "UNSET" and profile.libreoffice_version in office_version), f"expected={profile.libreoffice_version}; actual={office_version or 'missing'}"))
+    office_version = getattr(runtime, "libreoffice_version", None) or _version_from_command("libreoffice") or _version_from_command("soffice")
+    try:
+        canonical_exact_version(profile.libreoffice_version, "libreoffice_version")
+        office_match = office_version == profile.libreoffice_version
+    except EvidenceValidationError:
+        office_match = False
+    checks.append(_check("LibreOffice version", office_match, f"expected={profile.libreoffice_version}; actual={office_version or 'missing'}"))
     try:
         selection = create_ocr_provider(OCRProviderPolicy.PADDLE)
         checks.append(_check("Paddle provider initialization", selection.effective == "paddle", selection.version))

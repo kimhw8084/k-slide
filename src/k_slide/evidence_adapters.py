@@ -13,7 +13,19 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
-from .certification import EvidenceValidationError, candidate_deployment_fingerprint, NOT_APPLICABLE_VALUE, NOT_EXPOSED_VALUE, sha256_file
+from .certification import (
+    EvidenceValidationError,
+    candidate_deployment_fingerprint,
+    canonical_dependency_inventory,
+    canonical_package_name,
+    dependency_inventory_hash,
+    explicit_unavailable_value,
+    load_dependency_inventory,
+    resolve_candidate_spec,
+    NOT_APPLICABLE_VALUE,
+    NOT_EXPOSED_VALUE,
+    sha256_file,
+)
 from .model_policy import load_model_policy
 
 # 2.2 adds candidate-bound multimodal and production dependency proof to the
@@ -28,7 +40,7 @@ _ROLES: dict[str, tuple[str, ...]] = {
     "model_validation": ("model_summary", "experiment_manifest", "results_jsonl"),
     "model_high_risk_stability": ("model_summary", "experiment_manifest", "results_jsonl"),
     "model_held_out": ("model_summary", "experiment_manifest", "results_jsonl"),
-    "security": ("pip_audit", "gitleaks", "semgrep", "scanner_exits", "audit_context", "semgrep_ruleset"),
+    "security": ("pip_audit", "gitleaks", "semgrep", "scanner_exits", "audit_context", "semgrep_ruleset", "dependency_inventory", "production_sbom"),
     "reliability": ("failure_injection", "concurrency", "large_deck", "performance_slo"),
     "governance": ("governance_api",),
 }
@@ -264,11 +276,11 @@ def _verify_candidate_execution_provenance(candidate_spec: dict[str, Any], *, ev
     """Require declared material runtime versions to be proven by the producer."""
 
     relevant = {
-        "runtime": ("opencode_version", "python_version"),
+        "runtime": ("opencode_version", "python_version", "provider", "provider_backend", "model_revision", "quantization_or_dtype", "ocr_provider"),
         "heavy_runtime": ("python_version", "paddle_version", "paddleocr_version", "libreoffice_version"),
-        "model_validation": ("opencode_version",),
-        "model_high_risk_stability": ("opencode_version",),
-        "model_held_out": ("opencode_version",),
+        "model_validation": ("opencode_version", "provider", "provider_backend", "model_revision", "quantization_or_dtype", "ocr_provider"),
+        "model_high_risk_stability": ("opencode_version", "provider", "provider_backend", "model_revision", "quantization_or_dtype", "ocr_provider"),
+        "model_held_out": ("opencode_version", "provider", "provider_backend", "model_revision", "quantization_or_dtype", "ocr_provider"),
     }.get(evidence_type, ())
     actual = _execution_provenance(sources, evidence_type=evidence_type)
     for key in relevant:
@@ -276,14 +288,16 @@ def _verify_candidate_execution_provenance(candidate_spec: dict[str, Any], *, ev
         if not expected or expected.upper() == "UNSET":
             continue
         observed = actual.get(key, set())
+        if explicit_unavailable_value(candidate_spec.get(key)) is not None:
+            if observed:
+                raise AdapterError(f"{evidence_type} execution {key} exposes metadata declared unavailable")
+            continue
         if not observed:
             raise AdapterError(f"candidate {key} is not proven by {evidence_type} execution provenance")
         for value in observed:
             compatible = value == expected
-            if key == "python_version":
-                compatible = value == expected or value.startswith(expected + ".")
-            elif key == "libreoffice_version":
-                compatible = value == expected or expected in value
+            if key in {"python_version", "libreoffice_version"}:
+                compatible = value == expected
             if not compatible:
                 raise AdapterError(f"{evidence_type} execution {key} disagrees with candidate")
 
@@ -657,16 +671,26 @@ def _derive_security(sources: dict[str, Path], *, root: Path | None = None, cand
     semgrep = _read_json(values["semgrep"])
     exits = _read_json(values["scanner_exits"])
     context = _read_json(values["audit_context"])
-    if not isinstance(pip, dict) or not isinstance(leaks, list) or not isinstance(semgrep, dict) or not isinstance(exits, dict) or not isinstance(context, dict):
+    inventory = load_dependency_inventory(values["dependency_inventory"])
+    sbom = _read_json(values["production_sbom"])
+    if not isinstance(pip, dict) or not isinstance(leaks, list) or not isinstance(semgrep, dict) or not isinstance(exits, dict) or not isinstance(context, dict) or not isinstance(sbom, dict):
         raise AdapterError("security scanner output has an unexpected schema")
     constraints_hash = str(context.get("candidate_constraints_sha256") or "").lower()
     audited_hash = str(context.get("audited_dependency_set_sha256") or "").lower()
-    if len(constraints_hash) != 64 or len(audited_hash) != 64 or constraints_hash != audited_hash:
-        raise AdapterError("security audit input is not bound to one production constraints hash")
+    inventory_hash = dependency_inventory_hash(inventory)
+    resolved_context_hash = str(context.get("resolved_dependency_set_sha256") or "").lower()
+    audited_subject = str(context.get("audited_dependency_subject") or "").strip().lower()
+    if len(constraints_hash) != 64 or len(audited_hash) != 64 or audited_hash != inventory_hash or resolved_context_hash != inventory_hash:
+        raise AdapterError("security audit input is not bound to the resolved production dependency set")
+    if audited_subject != "production-env":
+        raise AdapterError("security audit did not identify the production dependency subject")
     if candidate_spec is not None:
         expected_constraints = str(candidate_spec.get("constraints_sha256") or "").lower()
         if expected_constraints != constraints_hash:
             raise AdapterError("security audit input hash disagrees with candidate constraints identity")
+        expected_inventory = str(candidate_spec.get("resolved_dependency_set_sha256") or "").lower()
+        if expected_inventory not in {"", "unset"} and expected_inventory != inventory_hash:
+            raise AdapterError("security audit dependency set disagrees with candidate identity")
     for key in ("pip_audit_version", "semgrep_version", "semgrep_ruleset_identity"):
         value = context.get(key)
         if not isinstance(value, str) or not value or value.upper() in {"UNSET", NOT_EXPOSED_VALUE, NOT_APPLICABLE_VALUE}:
@@ -677,11 +701,16 @@ def _derive_security(sources: dict[str, Path], *, root: Path | None = None, cand
     ruleset_source = values["semgrep_ruleset"]
     if sha256_file(ruleset_source) != ruleset_hash:
         raise AdapterError("Semgrep ruleset hash does not match the staged ruleset source")
-    if root is not None:
+    if root is not None and candidate_spec is not None:
+        repository_root = root.expanduser().resolve()
+        constraints = repository_root / "constraints-production.txt"
+        if not constraints.is_file() or constraints.is_symlink():
+            constraints = repository_root / ".k-slide-engine" / "constraints-production.txt"
+        if constraints.is_file() and not constraints.is_symlink() and sha256_file(constraints) != constraints_hash:
+            raise AdapterError("security audit input hash does not match constraints-production.txt")
         ruleset_identity = Path(context["semgrep_ruleset_identity"]).expanduser()
         if ruleset_identity.is_absolute():
             raise AdapterError("Semgrep ruleset identity must be repository-relative")
-        repository_root = root.expanduser().resolve()
         try:
             repository_ruleset_input = repository_root / ruleset_identity
             if repository_ruleset_input.is_symlink():
@@ -695,15 +724,45 @@ def _derive_security(sources: dict[str, Path], *, root: Path | None = None, cand
     dependencies = pip.get("dependencies")
     if not isinstance(dependencies, list):
         raise AdapterError("pip-audit did not report a dependency set")
-    audited_names = {str(item.get("name", "")).lower().replace("_", "-") for item in dependencies if isinstance(item, dict)}
-    declared_names = {str(item).lower().replace("_", "-") for item in context.get("audited_dependency_names", [])} if isinstance(context.get("audited_dependency_names"), list) else set()
+    inventory_packages = {item["name"]: item["version"] for item in inventory["packages"]}
+    audited_records: list[dict[str, Any]] = []
+    for item in dependencies:
+        if not isinstance(item, dict) or not item.get("name") or not item.get("version"):
+            raise AdapterError("pip-audit dependency set contains an invalid package record")
+        audited_records.append({"name": item["name"], "version": item["version"]})
+    try:
+        audited_inventory = canonical_dependency_inventory(audited_records)
+    except EvidenceValidationError as exc:
+        raise AdapterError("pip-audit dependency set is not canonical") from exc
+    audited_packages = {item["name"]: item["version"] for item in audited_inventory["packages"]}
+    if audited_packages != inventory_packages:
+        raise AdapterError("pip-audit dependency set does not equal the resolved production inventory")
     required_names = {"pillow", "pymupdf", "python-pptx", "paddlepaddle", "paddleocr"}
-    if not required_names.issubset(audited_names) or not required_names.issubset(declared_names):
+    if not required_names.issubset(inventory_packages):
         raise AdapterError("production dependency audit does not include the deployed K-Slide dependency lock")
     constraint_versions = {str(key).lower().replace("_", "-"): str(value) for key, value in context.get("constraint_versions", {}).items()} if isinstance(context.get("constraint_versions"), dict) else {}
-    audited_versions = {str(item.get("name", "")).lower().replace("_", "-"): str(item.get("version")) for item in dependencies if isinstance(item, dict) and item.get("version") is not None}
-    if any(not constraint_versions.get(name) or audited_versions.get(name) != constraint_versions.get(name) for name in required_names):
+    if any(not constraint_versions.get(name) or inventory_packages.get(name) != constraint_versions.get(name) for name in required_names):
         raise AdapterError("production dependency audit versions do not match constraints-production.txt")
+    if sbom.get("bomFormat") != "CycloneDX" or sbom.get("complete") is not True or not isinstance(sbom.get("components"), list):
+        raise AdapterError("production SBOM is incomplete")
+    if sbom.get("dependency_set_sha256") != inventory_hash:
+        raise AdapterError("production SBOM is not bound to the resolved production inventory")
+    sbom_records: list[dict[str, Any]] = []
+    for item in sbom["components"]:
+        if not isinstance(item, dict) or not item.get("name") or not item.get("version"):
+            raise AdapterError("production SBOM contains an invalid component")
+        if canonical_package_name(item["name"]) != "k-slide":
+            sbom_records.append({"name": item["name"], "version": item["version"]})
+    try:
+        sbom_inventory = canonical_dependency_inventory(sbom_records)
+    except EvidenceValidationError as exc:
+        raise AdapterError("production SBOM dependency set is not canonical") from exc
+    sbom_packages = {item["name"]: item["version"] for item in sbom_inventory["packages"]}
+    if sbom_packages != inventory_packages:
+        raise AdapterError("production SBOM dependency set does not equal the resolved production inventory")
+    sbom_hash = sha256_file(values["production_sbom"])
+    if str(context.get("production_sbom_sha256") or "").lower() != sbom_hash:
+        raise AdapterError("production SBOM hash is missing or inconsistent")
     dependency_findings = sum(len(item.get("vulns", [])) for item in pip.get("dependencies", []) if isinstance(item, dict))
     if not isinstance(semgrep.get("results"), list) or not isinstance(semgrep.get("errors", []), list) or semgrep.get("errors"):
         raise AdapterError("semgrep result is malformed or contains scan errors")
@@ -715,7 +774,7 @@ def _derive_security(sources: dict[str, Path], *, root: Path | None = None, cand
         raise AdapterError("one or more security scanners failed to execute cleanly")
     if dependency_findings or secret_findings or static_findings:
         raise AdapterError("security scanner findings fail the production security gate")
-    return {"dependency_audit_pass": exit_ok and dependency_findings == 0, "secret_scan_pass": exit_ok and secret_findings == 0, "static_scan_pass": exit_ok and static_findings == 0, "dependency_findings": dependency_findings, "unresolved_high_findings": high_findings, "unresolved_critical_findings": sum(1 for item in semgrep.get("results", []) if isinstance(item, dict) and str(item.get("extra", {}).get("metadata", {}).get("severity", "")).upper() == "CRITICAL"), "secret_findings": secret_findings, "scanner_exit_codes": {key: exits.get(key) for key in sorted(exits)}, "audited_dependency_set_sha256": audited_hash, "candidate_constraints_sha256": constraints_hash, "audited_dependency_versions": audited_versions, "pip_audit_version": context["pip_audit_version"], "semgrep_version": context["semgrep_version"], "semgrep_ruleset_identity": context["semgrep_ruleset_identity"], "semgrep_ruleset_sha256": ruleset_hash}
+    return {"dependency_audit_pass": exit_ok and dependency_findings == 0, "secret_scan_pass": exit_ok and secret_findings == 0, "static_scan_pass": exit_ok and static_findings == 0, "dependency_findings": dependency_findings, "unresolved_high_findings": high_findings, "unresolved_critical_findings": sum(1 for item in semgrep.get("results", []) if isinstance(item, dict) and str(item.get("extra", {}).get("metadata", {}).get("severity", "")).upper() == "CRITICAL"), "secret_findings": secret_findings, "scanner_exit_codes": {key: exits.get(key) for key in sorted(exits)}, "audited_dependency_set_sha256": audited_hash, "resolved_dependency_set_sha256": inventory_hash, "candidate_constraints_sha256": constraints_hash, "production_sbom_sha256": sbom_hash, "audited_dependency_versions": inventory_packages, "pip_audit_version": context["pip_audit_version"], "semgrep_version": context["semgrep_version"], "semgrep_ruleset_identity": context["semgrep_ruleset_identity"], "semgrep_ruleset_sha256": ruleset_hash}
 
 
 def _derive_reliability(sources: dict[str, Path]) -> dict[str, Any]:
@@ -902,6 +961,15 @@ def build_machine_evidence(output: Path, *, evidence_type: str, subject_git_sha:
     candidate_factors = None
     if candidate_spec is not None:
         candidate_spec = _finalize_candidate_spec(candidate_spec, evidence_type=evidence_type, sources=sources)
+        if root is not None:
+            try:
+                from .model_policy import ModelPolicy
+                policy = ModelPolicy.from_mapping(candidate_spec.get("model_policy")) if isinstance(candidate_spec.get("model_policy"), dict) else None
+                resolved = resolve_candidate_spec(candidate_spec, root=root, subject_git_sha=subject_git_sha, model_policy=policy, corpus=candidate_spec.get("corpus_identity"), require_sources=True)
+            except (EvidenceValidationError, OSError, ValueError, TypeError) as exc:
+                raise AdapterError(f"candidate execution inputs could not be verified: {exc}") from exc
+            if canonical_candidate_factors(resolved) != canonical_candidate_factors(candidate_spec):
+                raise AdapterError("candidate specification is not the finalized executable candidate")
         candidate_factors = canonical_candidate_factors(candidate_spec)
         expected = candidate_deployment_fingerprint(candidate_spec)
         if expected != deployment_fingerprint:
@@ -970,7 +1038,10 @@ def main(argv: list[str] | None = None) -> int:
         candidate = resolve_candidate_spec(candidate, root=candidate_root, subject_git_sha=subject, require_sources=True)
         candidate = _finalize_candidate_spec(candidate, evidence_type=args.evidence_type, sources=sources)
         deployment = args.deployment_fingerprint or candidate_deployment_fingerprint(candidate)
-        build_machine_evidence(args.output, evidence_type=args.evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=args.root, candidate_spec=candidate)
+        # The candidate root is also the execution/source root when callers do
+        # not pass a separate root. This keeps the CLI certification path
+        # source-verifying instead of degrading to a profile-only fingerprint.
+        build_machine_evidence(args.output, evidence_type=args.evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=candidate_root, candidate_spec=candidate)
     except (AdapterError, OSError, ValueError) as exc:
         print(json.dumps({"status": "BLOCKED", "reason": str(exc)}, ensure_ascii=False))
         return 2

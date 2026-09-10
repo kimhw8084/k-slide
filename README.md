@@ -95,6 +95,14 @@ DEVELOPMENT template. Accordingly, the public security workflow publishes
 scanner reports but marks its result `NOT_CERTIFYING` until a complete private
 candidate is supplied.
 
+The approved deployment environment must first persist its exact package
+inventory at `.k-slide-config/production-dependency-inventory.json` (the
+security workflow creates this from its isolated production environment).
+Candidate resolution derives its inventory hash and constraints hash from
+those files; the production SBOM can then be generated without copying hashes
+by passing `--production-dependency-inventory` together with
+`--generate-production-sbom`.
+
 ## Development checks
 
 ```bash

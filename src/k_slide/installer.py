@@ -104,7 +104,9 @@ def install(source_root: Path, target: Path, *, scope: str = "project") -> Path:
     engine_root = target / (".k-slide-engine" if scope == "project" else "k-slide-engine")
     files.update(_copy_owned(source_root / "src", engine_root / "src", target_root=target, previous=previous))
     files.update(_copy_owned(source_root / "schemas", engine_root / "schemas", target_root=target, previous=previous))
+    files.update(_copy_owned(source_root / "prompts", engine_root / "prompts", target_root=target, previous=previous))
     files.update(_copy_owned(source_root / "termbase", engine_root / "termbase", target_root=target, previous=previous))
+    files.update(_copy_owned(source_root / "constraints-production.txt", engine_root, target_root=target, previous=previous))
     files.update(_copy_owned(source_root / "pyproject.toml", engine_root, target_root=target, previous=previous))
 
     if scope == "project":

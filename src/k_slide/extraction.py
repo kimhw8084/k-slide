@@ -20,6 +20,10 @@ from .runtime import discover_runtime
 from .state import RunPhase, load_state, save_state
 
 
+CROP_PADDING = 0.10
+MODEL_CROP_MIN_DIMENSION = 900
+
+
 def _crop_regions(run_dir: Path, unit: Any, native_items: list[dict[str, Any]]) -> list[EvidenceRegion]:
     try:
         from PIL import Image
@@ -43,8 +47,8 @@ def _crop_regions(run_dir: Path, unit: Any, native_items: list[dict[str, Any]]) 
         bottom = min(height, max(bottom, top + 1))
         left = min(left, width - 1)
         top = min(top, height - 1)
-        pad_x = max(1, int((right - left) * 0.10))
-        pad_y = max(1, int((bottom - top) * 0.10))
+        pad_x = max(1, int((right - left) * CROP_PADDING))
+        pad_y = max(1, int((bottom - top) * CROP_PADDING))
         crop_box = (max(0, left - pad_x), max(0, top - pad_y), min(width, right + pad_x), min(height, bottom + pad_y))
         region_id = str(item.get("source_id", f"{unit.work_unit_id}-region-{order:03d}"))
         original_path = run_dir / "regions" / unit.work_unit_id / f"{region_id}.png"
@@ -54,8 +58,8 @@ def _crop_regions(run_dir: Path, unit: Any, native_items: list[dict[str, Any]]) 
         crop.save(original_path, format="PNG")
         original_path.chmod(0o600)
         model_crop = crop
-        if max(crop.size) < 900:
-            scale = 900 / max(crop.size)
+        if max(crop.size) < MODEL_CROP_MIN_DIMENSION:
+            scale = MODEL_CROP_MIN_DIMENSION / max(crop.size)
             model_crop = crop.resize((max(1, int(crop.width * scale)), max(1, int(crop.height * scale))), Image.Resampling.LANCZOS)
         model_crop.save(model_path, format="PNG")
         model_path.chmod(0o600)

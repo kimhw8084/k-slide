@@ -37,8 +37,9 @@ identity, verifies release-manifest and evidence hashes, and reports
 matches. `approved:` string prefixes are not accepted as model approval.
 
 The lightweight local SBOM remains explicitly development-only. Certified
-release generation requires a real CycloneDX environment/image SBOM produced
-by `cyclonedx-py` in the approved release environment.
+release generation requires an exact isolated production dependency inventory;
+the release path emits a complete deterministic CycloneDX SBOM from that
+inventory and binds both identities to the security evidence.
 
 The current adapter identity is 2.2. Model evidence now separates the stable
 deployment/behavior identity from the experiment-plan identity. Validation and
@@ -55,8 +56,8 @@ Semgrep ruleset and the exact production constraints subject.
 
 ### Tests and static checks
 
-- Base interpreter: **154 tests passed, 2 optional dependency skips**.
-- Dependency-backed interpreter (`/tmp/k-slide-phase32-venv`): **154 tests
+- Base interpreter: **161 tests passed, 2 optional dependency skips**.
+- Dependency-backed interpreter (`/tmp/k-slide-phase32-venv`): **161 tests
   passed, no optional dependency skips** in this closure pass.
 - `compileall`: **PASS**.
 - `git diff --check`: **PASS** before implementation commit.
@@ -133,11 +134,11 @@ Classification: `OPENCODE_PROVIDER_RUNTIME_BLOCKED`.
 - Internal bilingual evidence: **NOT RUN**; private corpus/attestation absent.
 - Zero-Korean comprehension evidence: **NOT RUN**.
 - Model-data-policy approval: **NOT PRESENT**.
-- Security scans: **NOT EXECUTED LOCALLY**; `pip-audit`, `gitleaks`,
-  `semgrep`, and `cyclonedx-py` are unavailable. A pinned public workflow now
-  provides the reproducible execution path. Its Semgrep `p/python` registry
-  ruleset remains an external ruleset identity and is a documented
-  reproducibility limitation until a reviewed local ruleset is approved.
+- Security scans: **NOT EXECUTED LOCALLY**; `pip-audit`, `gitleaks`, and
+  `semgrep` are unavailable. A pinned public workflow now provides the
+  reproducible execution path: it audits an isolated production environment,
+  emits a deterministic complete SBOM from that inventory, and hashes the
+  reviewed repository-local Semgrep ruleset.
 - Reliability, governance administration, and pilot/canary: **NOT PROVEN**.
 
 ## Frozen dataset evidence

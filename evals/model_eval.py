@@ -201,7 +201,7 @@ class ModelEvaluationRunner:
     def run(self) -> dict[str, Any]:
         self.output.mkdir(parents=True, exist_ok=True)
         certifying_request = self.mode == "quality" and self.split in {"validation", "held_out"} and self.limit is None and not self.categories and not self.scenario_ids
-        if certifying_request and self.candidate_profile is None:
+        if self.mode == "quality" and (certifying_request or self.high_risk) and self.candidate_profile is None:
             return self._blocked_record(self.output, model=self.model, split=self.split, reason="certification-quality model evaluation requires --candidate-profile")
         if self.high_risk and (self.split != "validation" or self.repeats < 5 or self.limit is not None or self.categories or self.scenario_ids):
             return self._blocked_record(self.output, model=self.model, split=self.split, reason="high-risk evaluation requires validation protected categories, repetitions >= 5, and no filters")
@@ -234,6 +234,8 @@ class ModelEvaluationRunner:
             unresolved = [field for field in ("effective_model", "opencode_version") if not str(candidate_spec.get(field) or "") or str(candidate_spec[field]).upper() == "UNSET"]
             if unresolved:
                 return self._blocked_record(self.output, model=self.model, split=self.split, reason="certification candidate must be frozen before model execution: " + ", ".join(unresolved))
+            if not model_policy.approved(requested=self.model, effective=str(candidate_spec["effective_model"])):
+                return self._blocked_record(self.output, model=self.model, split=self.split, reason="certification candidate effective_model is not an approved target for the requested model")
         # The candidate file is authoritative for certifying behavior.  Keep
         # the persisted experiment contract identical to the candidate inputs
         # so changing a material setting cannot leave model evidence bound to
@@ -274,7 +276,7 @@ class ModelEvaluationRunner:
             "corpus_fingerprint": manifest["corpus_fingerprint"],
             "held_out_fingerprint": manifest["held_out_fingerprint"],
             "model_policy": model_policy.as_dict(),
-            "execution_runtime_provenance": discover_runtime().as_dict(),
+            "execution_runtime_provenance": discover_runtime(repo_root).as_dict(),
         }
         if self.mode == "quality" and self.model not in set(model_policy.approved_model_ids) | set(model_policy.approved_aliases):
             record = {"status": "GEMMA_QUALITY_EVALUATION_BLOCKED", "evaluation_state": EvaluationState.CAPABILITY_BLOCKED.value, "reason": "GEMMA CERTIFICATION BLOCKED — target endpoint is not the selected model", "model": self.model, "split": self.split, "quality_metrics_authoritative": False}

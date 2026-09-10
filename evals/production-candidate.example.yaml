@@ -29,11 +29,12 @@ paddle_version: UNSET
 paddleocr_version: UNSET
 libreoffice_version: UNSET
 termbase_identity:
-  version: "core-v1"
+  version: "1.0"
   hash: UNSET
-termbase_version: "core-v1"
+termbase_version: "1.0"
 termbase_hash: UNSET
 constraints_sha256: UNSET
+resolved_dependency_set_sha256: UNSET
 model_policy:
   target_family: "Gemma 4"
   target_size: "31B"

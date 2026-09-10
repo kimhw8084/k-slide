@@ -81,7 +81,7 @@ the generic attestation writer.
 - Evidence-bound release states, subject-SHA/deployment/certification fingerprints, validated machine/human evidence envelopes, champion binding, and stale-certification detection.
 - Production doctor verification of release-manifest hashes, evidence hashes, authoritative model policy, exact dependency identities, and OCR asset content hashes.
 - Pinned public security workflow for dependency, secret, and static scans; CODEOWNERS for production-sensitive paths.
-- Production SBOM generation path using `cyclonedx-py`; the existing package inventory remains labeled as non-certified development metadata.
+- Production dependency identity is derived from an exact isolated-environment inventory; the release path emits a deterministic complete CycloneDX SBOM from that inventory, while the development package inventory remains non-certified.
 - Result-derived machine evidence adapters with source-role validation, payload re-derivation, deterministic evidence identities, and runtime/heavy/model/security/reliability/governance coverage.
 - Spoof/tamper regressions covering contradictory metrics, result mutation, envelope mutation, critical model results, scanner findings, and non-authoritative governance input.
 - Reliability adapters require explicit substantive proof for timeout recovery,
@@ -106,8 +106,8 @@ the generic attestation writer.
 ## Verification performed locally
 
 ```text
-Base unit/integration suite: PASS (`python -m unittest discover -s tests -q`; latest local execution: 154 tests passed, 2 optional dependency skips)
-Dependency-backed unit/integration suite: PASS (`/tmp/k-slide-phase32-venv/bin/python -m unittest discover -s tests -q`; latest local execution: 154 tests passed, no optional dependency skips)
+Base unit/integration suite: PASS (`python -m unittest discover -s tests -q`; latest local execution: 161 tests passed, 2 optional dependency skips)
+Dependency-backed unit/integration suite: PASS (`/tmp/k-slide-phase32-venv/bin/python -m unittest discover -s tests -q`; latest local execution: 161 tests passed, no optional dependency skips)
 Dependency-backed compile/import checks: PASS
 TranslationPatch JSON schema parse: PASS
 Stratified split manifest: PASS (100 specs; 60/20/20; protected categories in held-out)
@@ -147,7 +147,7 @@ The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pp
 | Production certification | DEVELOPMENT | No target-model or human gates passed |
 | Production doctor/profile | BLOCKED as expected | No certified profile; target model, Paddle/LibreOffice, retention attestation, and fingerprint are not proven locally |
 | Support bundle/redaction/retention controls | PASS (unit-tested) | Metadata-only support bundle and fail-closed cleanup are implemented; deployment enforcement remains required |
-| Release manifest/SBOM tooling | PASS (offline smoke) | Generates DEVELOPMENT metadata with deployment fingerprint; certified release state is evidence-derived and blocked without complete evidence; production SBOM generator requires `cyclonedx-py` |
+| Release manifest/SBOM tooling | PASS (offline smoke) | Generates DEVELOPMENT metadata with deployment fingerprint; certified release state is evidence-derived and blocked without complete evidence; production SBOM generation requires the exact resolved dependency inventory |
 
 ## Certification closure verification
 
@@ -155,8 +155,8 @@ The latest local closure run executed:
 
 ```text
 PYTHONPATH=src:. python -m unittest discover -s tests -q
-154 tests passed, 2 optional dependency skips
-154 tests passed, no optional dependency skips
+161 tests passed, 2 optional dependency skips
+161 tests passed, no optional dependency skips
 python -m compileall -q src evals tests: PASS
 git diff --check: PASS
 DEVELOPMENT release generation: PASS
