@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -36,13 +37,16 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+TEST_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
+
+
 def _write(path: Path, value: object) -> Path:
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return path
 
 
 def _runtime_sources(root: Path) -> dict[str, Path]:
-    _write(root / "diagnostic.json", {"levels": [{"level": name, "status": "PASS"} for name in ("level1a_pure_opencode", "level1_plain_opencode", "level2_explicit_model", "level3_k_slide_agent")], "runtime_provenance": {"opencode_version": "1.3.9", "python_version": "3.11"}})
+    _write(root / "diagnostic.json", {"levels": [{"level": name, "status": "PASS"} for name in ("level1a_pure_opencode", "level1_plain_opencode", "level2_explicit_model", "level3_k_slide_agent")], "runtime_provenance": {"opencode_version": "1.3.9", "python_version": TEST_PYTHON_VERSION}})
     contract = {"status": "PASS", "kslide_complete": True, "run_complete": True, "required_media_compliance": True, "forbidden_tool_attempts": []}
     _write(root / "simple.json", contract)
     _write(root / "three.json", {**contract, "expected_units": 3, "artifact_units": 3})
@@ -53,7 +57,7 @@ def _runtime_sources(root: Path) -> dict[str, Path]:
 def _doctor(networkless: bool = False) -> dict[str, object]:
     value = {key: {"status": "PASS"} for key in ("libreoffice", "pymupdf", "python_pptx", "pillow", "paddleocr", "paddlepaddle", "korean_font", "paddle_load", "libreoffice_roundtrip", "paddle_ocr_roundtrip")}
     value["network"] = {"networkless_asserted": networkless, "network_required": not networkless}
-    value["runtime_provenance"] = {"python_version": "3.11", "paddle_version": "3.0.0", "paddleocr_version": "3.0.3", "libreoffice_version": "25"}
+    value["runtime_provenance"] = {"python_version": TEST_PYTHON_VERSION, "paddle_version": "3.0.0", "paddleocr_version": "3.0.3", "libreoffice_version": "25"}
     return value
 
 
@@ -156,7 +160,7 @@ def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model
         "ocr_asset_manifest_sha256": asset_hash,
         "normalization_behavior": {"render_dpi": 220},
         "repair_policy": {"max_auto_repairs_per_unit": 2},
-        "python_version": "3.11",
+        "python_version": TEST_PYTHON_VERSION,
         "paddle_version": "3.0.0",
         "paddleocr_version": "3.0.3",
         "libreoffice_version": "25",
