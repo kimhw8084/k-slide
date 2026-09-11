@@ -1,7 +1,8 @@
 """Materialize an authorized private certification bundle safely.
 
 The bundle is transported as a restricted Actions artifact or an equivalent
-private file package.  Its manifest contains only relative paths and hashes;
+private file package.  Its manifest contains the public target subject plus
+only relative paths and hashes;
 the payload is never printed or copied into public release artifacts.
 """
 
@@ -20,7 +21,7 @@ from k_slide.certification import EvidenceValidationError, dependency_inventory_
 from k_slide.io import atomic_write_bytes
 
 
-BUNDLE_SCHEMA_VERSION = "1.0"
+BUNDLE_SCHEMA_VERSION = "1.1"
 _ROLES = frozenset({"candidate_profile", "production_dependency_lock", "termbase_overlay", "ocr_asset_manifest", "ocr_asset"})
 _FIXED_TARGETS = {
     "candidate_profile": ".k-slide-config/production-candidate.json",
@@ -52,17 +53,23 @@ def _destination(root: Path, raw: Any, label: str) -> Path:
     return safe_relative_path(root, path, label=f"certification bundle {label} destination")
 
 
-def materialize(*, bundle_root: Path, manifest_path: Path, output_root: Path, subject_git_sha: str) -> dict[str, Any]:
+def _target_subject(*, target_subject_git_sha: str | None, subject_git_sha: str | None) -> str:
+    target = target_subject_git_sha if target_subject_git_sha is not None else subject_git_sha
+    if target is None or len(target) != 40 or set(target.lower()) - set("0123456789abcdef"):
+        raise EvidenceValidationError("certification bundle target subject SHA is invalid")
+    return target.lower()
+
+
+def materialize(*, bundle_root: Path, manifest_path: Path, output_root: Path, target_subject_git_sha: str | None = None, subject_git_sha: str | None = None) -> dict[str, Any]:
     bundle_root = bundle_root.expanduser().absolute()
     manifest_path = safe_path_under(bundle_root, manifest_path, label="certification bundle manifest", require_file=True)
     output_root = output_root.expanduser().absolute()
-    if len(subject_git_sha) != 40 or set(subject_git_sha.lower()) - set("0123456789abcdef"):
-        raise EvidenceValidationError("certification bundle subject SHA is invalid")
+    target_subject = _target_subject(target_subject_git_sha=target_subject_git_sha, subject_git_sha=subject_git_sha)
     try:
         value = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
         raise EvidenceValidationError("certification bundle manifest is unreadable") from exc
-    if not isinstance(value, dict) or value.get("schema_version") != BUNDLE_SCHEMA_VERSION or value.get("subject_git_sha") != subject_git_sha:
+    if not isinstance(value, dict) or value.get("schema_version") != BUNDLE_SCHEMA_VERSION or value.get("target_subject_git_sha") != target_subject:
         raise EvidenceValidationError("certification bundle manifest schema or subject is invalid")
     entries = value.get("files")
     if not isinstance(entries, list) or not entries:
@@ -108,7 +115,7 @@ def materialize(*, bundle_root: Path, manifest_path: Path, output_root: Path, su
     candidate_path = output_root / _FIXED_TARGETS["candidate_profile"]
     lock_path = output_root / _FIXED_TARGETS["production_dependency_lock"]
     candidate = load_candidate_spec(candidate_path, root=output_root, require_identity=True, strict=True)
-    if candidate.get("subject_git_sha") != subject_git_sha:
+    if candidate.get("subject_git_sha") != target_subject:
         raise EvidenceValidationError("certification bundle candidate subject does not match the requested subject")
     expected_dependency = str(candidate.get("resolved_dependency_set_sha256") or "").lower()
     if expected_dependency not in {"", "unset"} and dependency_inventory_hash(load_dependency_lock(lock_path)) != expected_dependency:
@@ -126,7 +133,7 @@ def materialize(*, bundle_root: Path, manifest_path: Path, output_root: Path, su
         materialized_targets = {key for key in copied if key.startswith("ocr/") and key != manifest_relative.as_posix()}
         if listed_targets != materialized_targets:
             raise EvidenceValidationError("certification bundle OCR asset entries do not exactly match the candidate manifest")
-    return {"status": "PASS", "subject_git_sha": subject_git_sha, "roles": sorted(copied_roles), "sha256": copied}
+    return {"status": "PASS", "target_subject_git_sha": target_subject, "roles": sorted(copied_roles), "sha256": copied}
 
 
 def _archive_sha256(path: Path) -> str:
@@ -178,7 +185,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--archive-sha256", help="Authoritative SHA-256 for --archive")
     parser.add_argument("--manifest", type=Path, default=None)
     parser.add_argument("--output-root", type=Path, required=True)
-    parser.add_argument("--subject-sha", required=True)
+    parser.add_argument("--target-subject-sha", "--subject-sha", dest="target_subject_sha", required=True)
     args = parser.parse_args(argv)
     manifest = args.manifest
     try:
@@ -187,12 +194,12 @@ def main(argv: list[str] | None = None) -> int:
                 raise EvidenceValidationError("--archive requires a valid archive SHA-256")
             with tempfile.TemporaryDirectory(prefix="k-slide-certification-bundle-") as directory:
                 extracted = _extract_archive(args.archive.expanduser(), Path(directory), args.archive_sha256)
-                result = materialize(bundle_root=extracted.parent, manifest_path=extracted, output_root=args.output_root, subject_git_sha=args.subject_sha)
+                result = materialize(bundle_root=extracted.parent, manifest_path=extracted, output_root=args.output_root, target_subject_git_sha=args.target_subject_sha)
         else:
             if args.bundle_root is None:
                 raise EvidenceValidationError("--bundle-root or --archive is required")
             manifest = manifest or args.bundle_root / "certification-bundle.json"
-            result = materialize(bundle_root=args.bundle_root, manifest_path=manifest, output_root=args.output_root, subject_git_sha=args.subject_sha)
+            result = materialize(bundle_root=args.bundle_root, manifest_path=manifest, output_root=args.output_root, target_subject_git_sha=args.target_subject_sha)
     except (EvidenceValidationError, OSError, UnicodeError, ValueError) as exc:
         print(json.dumps({"status": "BLOCKED", "reason": str(exc)}, ensure_ascii=False))
         return 2

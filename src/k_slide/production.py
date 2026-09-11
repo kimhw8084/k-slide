@@ -34,6 +34,7 @@ from .certification import (
     canonical_exact_version,
     explicit_unavailable_value,
     parse_libreoffice_version,
+    paddle_runtime_configuration,
     sha256_file,
     validate_ocr_asset_manifest,
     validate_cyclonedx_1_5,
@@ -515,6 +516,15 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
     except EvidenceValidationError:
         actual_asset_hash = ""
     checks.append(_check("OCR asset candidate identity", len(expected_asset_hash) == 64 and actual_asset_hash == expected_asset_hash, f"expected={expected_asset_hash}; actual={actual_asset_hash or 'missing'}"))
+    try:
+        manifest_identity = validate_ocr_asset_manifest(asset_manifest, expected_sha256=expected_asset_hash)
+        configured_root = Path(os.environ["KSLIDE_OCR_ASSET_ROOT"]).expanduser() if os.environ.get("KSLIDE_OCR_ASSET_ROOT") else asset_manifest.parent
+        runtime_ocr = paddle_runtime_configuration(asset_root=configured_root, manifest_path=asset_manifest)
+        selected_config_match = runtime_ocr.get("paddlex_config") == manifest_identity.get("paddlex_config") and runtime_ocr.get("paddlex_config_sha256") == manifest_identity.get("paddlex_config_sha256")
+        selected_manifest_match = runtime_ocr.get("asset_manifest_sha256") == manifest_identity.get("sha256")
+        checks.append(_check("OCR selected configuration", selected_config_match and selected_manifest_match, f"expected={manifest_identity.get('paddlex_config')}; actual={runtime_ocr.get('paddlex_config') or 'unavailable'}"))
+    except (EvidenceValidationError, OSError, UnicodeError, ValueError) as exc:
+        checks.append(_check("OCR selected configuration", False, str(exc)))
     checks.append(_check("Retention policy", profile.retention_days > 0, str(profile.retention_days)))
     checks.append(_check("Tenant isolation", profile.tenant_isolation == "workspace_per_session", profile.tenant_isolation))
     checks.append(_check("Network egress", profile.network_egress == "approved_inference_only", profile.network_egress))

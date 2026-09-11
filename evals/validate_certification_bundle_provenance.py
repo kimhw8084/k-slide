@@ -42,6 +42,21 @@ def _run_repository(run: dict[str, Any]) -> str:
     return str(run.get("repository_full_name") or "").strip()
 
 
+def _validate_private_source_repository(repository: dict[str, Any] | None, *, expected: str, public: str) -> None:
+    if not isinstance(repository, dict):
+        raise BundleProvenanceError("authoritative private source repository metadata is missing")
+    full_name = _text(repository.get("full_name"), "source repository metadata full_name")
+    if full_name != expected:
+        raise BundleProvenanceError("authoritative source repository metadata does not match the approved repository")
+    if full_name.casefold() == _text(public, "public repository").casefold():
+        raise BundleProvenanceError("public-repository Actions artifacts are not an approved private transport")
+    if repository.get("private") is not True:
+        raise BundleProvenanceError("authoritative source repository is not private")
+    visibility = repository.get("visibility")
+    if visibility is not None and str(visibility).strip().lower() != "private":
+        raise BundleProvenanceError("authoritative source repository visibility is not private")
+
+
 def _not_expired(artifact: dict[str, Any]) -> bool:
     if artifact.get("expired") is not False:
         return False
@@ -57,10 +72,11 @@ def _not_expired(artifact: dict[str, Any]) -> bool:
     return expires > datetime.now(timezone.utc)
 
 
-def validate_provenance(*, run: dict[str, Any], artifacts: dict[str, Any], expected_run_id: str, expected_artifact_name: str, expected_source_repository: str, expected_workflow_id: str, expected_workflow_path: str, subject_git_sha: str, expected_digest: str, public_repository: str) -> dict[str, Any]:
+def validate_provenance(*, run: dict[str, Any], artifacts: dict[str, Any], expected_run_id: str, expected_artifact_name: str, expected_source_repository: str, expected_workflow_id: str, expected_workflow_path: str, target_subject_git_sha: str | None = None, expected_digest: str, public_repository: str, source_repository_metadata: dict[str, Any] | None = None, subject_git_sha: str | None = None) -> dict[str, Any]:
     source_repository = _text(expected_source_repository, "source repository")
     if source_repository.casefold() == _text(public_repository, "public repository").casefold():
         raise BundleProvenanceError("public-repository Actions artifacts are not an approved private transport")
+    _validate_private_source_repository(source_repository_metadata, expected=source_repository, public=public_repository)
     if str(run.get("id") or "") != _text(expected_run_id, "run id"):
         raise BundleProvenanceError("bundle source run id does not match the requested run")
     if _run_repository(run) != source_repository:
@@ -71,11 +87,13 @@ def validate_provenance(*, run: dict[str, Any], artifacts: dict[str, Any], expec
         raise BundleProvenanceError("bundle source workflow path is not approved")
     if str(run.get("status") or "") != "completed" or str(run.get("conclusion") or "") != "success":
         raise BundleProvenanceError("bundle source workflow run did not complete successfully")
-    subject = _text(subject_git_sha, "subject SHA").lower()
-    if len(subject) != 40 or set(subject) - set("0123456789abcdef"):
-        raise BundleProvenanceError("bundle provenance subject SHA is invalid")
-    if str(run.get("head_sha") or "").lower() != subject:
-        raise BundleProvenanceError("bundle source workflow subject does not match the certification subject")
+    producer_sha = _text(run.get("head_sha"), "producer run head SHA").lower()
+    if len(producer_sha) != 40 or set(producer_sha) - set("0123456789abcdef"):
+        raise BundleProvenanceError("bundle producer run head SHA is invalid")
+    target = target_subject_git_sha if target_subject_git_sha is not None else subject_git_sha
+    target = _text(target, "target subject SHA").lower()
+    if len(target) != 40 or set(target) - set("0123456789abcdef"):
+        raise BundleProvenanceError("bundle target subject SHA is invalid")
     requested_name = _text(expected_artifact_name, "artifact name")
     records = artifacts.get("artifacts") if isinstance(artifacts, dict) else None
     if not isinstance(records, list):
@@ -101,7 +119,8 @@ def validate_provenance(*, run: dict[str, Any], artifacts: dict[str, Any], expec
         "source_workflow_id": int(run["workflow_id"]),
         "source_workflow_path": str(run["path"]),
         "source_run_id": int(run["id"]),
-        "subject_git_sha": str(run["head_sha"]),
+        "producer_head_sha": str(run["head_sha"]),
+        "target_subject_git_sha": target,
         "artifact_id": artifact_id,
         "artifact_name": requested_name,
         "artifact_digest": digest,
@@ -117,16 +136,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--source-repository", required=True)
     parser.add_argument("--workflow-id", required=True)
     parser.add_argument("--workflow-path", required=True)
-    parser.add_argument("--subject-sha", required=True)
+    parser.add_argument("--target-subject-sha", "--subject-sha", dest="target_subject_sha", required=True)
     parser.add_argument("--artifact-sha256", required=True)
     parser.add_argument("--public-repository", required=True)
+    parser.add_argument("--repository-json", required=True)
     args = parser.parse_args(argv)
     try:
         run = json.loads(Path(args.run_json).read_text(encoding="utf-8"))
         artifacts = json.loads(Path(args.artifacts_json).read_text(encoding="utf-8"))
         if not isinstance(run, dict):
             raise BundleProvenanceError("workflow run metadata is malformed")
-        result = validate_provenance(run=run, artifacts=artifacts, expected_run_id=args.run_id, expected_artifact_name=args.artifact_name, expected_source_repository=args.source_repository, expected_workflow_id=args.workflow_id, expected_workflow_path=args.workflow_path, subject_git_sha=args.subject_sha, expected_digest=args.artifact_sha256, public_repository=args.public_repository)
+        repository = json.loads(Path(args.repository_json).read_text(encoding="utf-8"))
+        result = validate_provenance(run=run, artifacts=artifacts, expected_run_id=args.run_id, expected_artifact_name=args.artifact_name, expected_source_repository=args.source_repository, expected_workflow_id=args.workflow_id, expected_workflow_path=args.workflow_path, target_subject_git_sha=args.target_subject_sha, expected_digest=args.artifact_sha256, public_repository=args.public_repository, source_repository_metadata=repository)
     except (OSError, UnicodeError, json.JSONDecodeError, BundleProvenanceError) as exc:
         print(json.dumps({"status": "BLOCKED", "reason": str(exc)}, ensure_ascii=False))
         return 2

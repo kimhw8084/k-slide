@@ -33,14 +33,15 @@ from .certification import (
 )
 from .model_policy import load_model_policy
 
-# 2.5 retains and re-derives the heavy image dependency and OCR asset subjects alongside the
-# portable security evidence bundle. 2.3 binds the resolved production lock
+# 2.6 retains and re-derives the exact PaddleX configuration selected by the
+# heavy OCR runtime. 2.5 retains and re-derives the heavy image dependency and
+# OCR asset subjects alongside the portable security evidence bundle. 2.3 binds the resolved production lock
 # and standards-valid SBOM. 2.2 added candidate-bound multimodal and
 # production dependency proof to the
 # candidate-bound identity/provenance contract introduced in 2.1.
 # separation and exact frozen scenario matrices. No production-certified v1
 # or 2.0 evidence exists, so ambiguous development envelopes are not migrated.
-ADAPTER_VERSION = "2.5"
+ADAPTER_VERSION = "2.6"
 
 _ROLES: dict[str, tuple[str, ...]] = {
     "runtime": ("diagnostic_ladder", "simple_run", "three_slide", "five_slide"),
@@ -348,6 +349,10 @@ def _derive_heavy(sources: dict[str, Path], *, root: Path | None = None, candida
                 raise AdapterError("heavy OCR asset runtime identity does not match the candidate")
             if asset_context.get("files") != asset_identity.get("entries"):
                 raise AdapterError("heavy OCR runtime asset file inventory does not match the candidate manifest")
+            if asset_context.get("paddlex_config") != asset_identity.get("paddlex_config") or str(asset_context.get("paddlex_config_sha256") or "").lower() != asset_identity.get("paddlex_config_sha256"):
+                raise AdapterError("heavy OCR runtime selected configuration does not match the candidate manifest")
+            if asset_context.get("offline_assets_required") is not True:
+                raise AdapterError("heavy OCR runtime did not prove offline local assets were required")
     return {
         "heavy_pass": True,
         "networkless_pass": True,
@@ -359,6 +364,7 @@ def _derive_heavy(sources: dict[str, Path], *, root: Path | None = None, candida
         "resolved_dependency_lock_sha256": lock_hash,
         "built_image_dependency_set_sha256": inventory_hash,
         **({"ocr_asset_manifest_sha256": str(candidate_spec.get("ocr_asset_manifest_sha256")).lower()} if candidate_spec is not None and candidate_spec.get("ocr_provider") == "paddle" else {}),
+        **({"ocr_paddlex_config": asset_identity["paddlex_config"], "ocr_paddlex_config_sha256": asset_identity["paddlex_config_sha256"], "ocr_offline_assets_required": True} if candidate_spec is not None and candidate_spec.get("ocr_provider") == "paddle" else {}),
     }
 
 

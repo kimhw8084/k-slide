@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import zipfile
 import unittest
+from urllib.error import HTTPError
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import call, patch
@@ -34,6 +35,7 @@ from k_slide.certification import (
     dependency_inventory_hash,
     load_dependency_lock,
     repository_schema_versions,
+    paddle_runtime_configuration,
     validate_cyclonedx_1_5,
     write_evidence,
 )
@@ -850,11 +852,17 @@ class CertificationClosureTests(unittest.TestCase):
             _write(candidate_path, candidate)
             inventory = canonical_dependency_inventory([{"name": "Pillow", "version": "1.0"}])
             lock_path.write_text(dependency_lock_text(inventory), encoding="utf-8")
-            manifest = {"schema_version": "1.0", "subject_git_sha": subject, "files": [{"role": "candidate_profile", "path": "candidate.json", "target": ".k-slide-config/production-candidate.json", "sha256": _sha(candidate_path)}, {"role": "production_dependency_lock", "path": "production.lock", "target": ".k-slide-config/production-requirements.lock", "sha256": _sha(lock_path)}]}
+            manifest = {"schema_version": "1.1", "target_subject_git_sha": subject, "files": [{"role": "candidate_profile", "path": "candidate.json", "target": ".k-slide-config/production-candidate.json", "sha256": _sha(candidate_path)}, {"role": "production_dependency_lock", "path": "production.lock", "target": ".k-slide-config/production-requirements.lock", "sha256": _sha(lock_path)}]}
             manifest_path = _write(bundle / "certification-bundle.json", manifest)
             result = materialize(bundle_root=bundle, manifest_path=manifest_path, output_root=target, subject_git_sha=subject)
             self.assertEqual(result["status"], "PASS")
             self.assertEqual(_sha(target / ".k-slide-config" / "production-candidate.json"), _sha(candidate_path))
+            manifest["target_subject_git_sha"] = "b" * 40
+            _write(bundle / "certification-bundle.json", manifest)
+            with self.assertRaises(EvidenceValidationError):
+                materialize(bundle_root=bundle, manifest_path=manifest_path, output_root=root / "wrong-subject", subject_git_sha=subject)
+            manifest["target_subject_git_sha"] = subject
+            _write(bundle / "certification-bundle.json", manifest)
             manifest["files"][0]["path"] = "../candidate.json"
             _write(bundle / "certification-bundle.json", manifest)
             with self.assertRaises(EvidenceValidationError):
@@ -918,6 +926,9 @@ class CertificationClosureTests(unittest.TestCase):
         self.assertIn("KSLIDE_PRIVATE_CERTIFICATION_TOKEN", workflow)
         self.assertIn("certification_bundle_sha256", workflow)
         self.assertIn("materialize_certification_bundle", workflow)
+        self.assertIn("download_certification_bundle", workflow)
+        self.assertIn("source-repository.json", workflow)
+        self.assertIn("target-subject-sha", workflow)
         self.assertIn("-r constraints-production.txt", workflow)
         self.assertIn("security/semgrep-production.yml", workflow)
         self.assertIn("audit_context", workflow)
@@ -949,12 +960,14 @@ class CertificationClosureTests(unittest.TestCase):
             asset_root.mkdir()
             asset = asset_root / "weights.bin"
             asset.write_bytes(b"candidate-weights")
-            manifest = {"provider": "paddle", "files": [{"path": "weights.bin", "sha256": _sha(asset)}]}
+            config = asset_root / "PaddleOCR.yaml"
+            config.write_text("pipeline: candidate\n", encoding="utf-8")
+            manifest = {"provider": "paddle", "paddlex_config": "PaddleOCR.yaml", "files": [{"path": "PaddleOCR.yaml", "sha256": _sha(config)}, {"path": "weights.bin", "sha256": _sha(asset)}]}
             candidate_manifest = asset_root / "candidate-manifest.json"
             _write(candidate_manifest, manifest)
             runtime_manifest = asset_root / "runtime-manifest.json"
             asset.write_bytes(b"different-runtime-weights")
-            _write(runtime_manifest, {"provider": "paddle", "files": [{"path": "weights.bin", "sha256": _sha(asset)}]})
+            _write(runtime_manifest, {"provider": "paddle", "paddlex_config": "PaddleOCR.yaml", "files": [{"path": "PaddleOCR.yaml", "sha256": _sha(config)}, {"path": "weights.bin", "sha256": _sha(asset)}]})
             candidate = _candidate_spec(subject, ocr_provider="paddle")
             candidate["ocr_asset_manifest"] = "ocr/manifest.json"
             candidate["ocr_asset_manifest_sha256"] = _sha(candidate_manifest)
@@ -962,6 +975,36 @@ class CertificationClosureTests(unittest.TestCase):
             candidate["resolved_dependency_set_sha256"] = dependency_inventory_hash(packages)
             deployment = candidate_deployment_fingerprint(candidate)
             sources = _heavy_sources(root, subject=subject, deployment=deployment, ocr_manifest=runtime_manifest, ocr_context={"status": "PASS", "runtime_verified": True, "after_engine": True, "manifest_sha256": _sha(runtime_manifest), "files": [{"path": "weights.bin", "sha256": _sha(asset)}]})
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "heavy.json", evidence_type="heavy_runtime", subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, candidate_spec=candidate)
+
+    def test_heavy_evidence_rejects_runtime_selected_paddle_config_mismatch(self):
+        from k_slide.certification import validate_ocr_asset_manifest
+
+        subject = "a" * 40
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            assets = root / "assets"
+            assets.mkdir()
+            config = assets / "PaddleOCR.yaml"
+            alternate = assets / "alternate.yaml"
+            weights = assets / "weights.bin"
+            config.write_text("pipeline: canonical\n", encoding="utf-8")
+            alternate.write_text("pipeline: alternate\n", encoding="utf-8")
+            weights.write_bytes(b"weights")
+            manifest = assets / "manifest.json"
+            _write(manifest, {"provider": "paddle", "paddlex_config": "PaddleOCR.yaml", "files": [{"path": name, "sha256": _sha(assets / name), "bytes": (assets / name).stat().st_size} for name in ("PaddleOCR.yaml", "alternate.yaml", "weights.bin")]})
+            identity = validate_ocr_asset_manifest(manifest, asset_root=assets)
+            candidate = _candidate_spec(subject, ocr_provider="paddle")
+            candidate["ocr_asset_manifest"] = "ocr/manifest.json"
+            candidate["ocr_asset_manifest_sha256"] = identity["sha256"]
+            packages = canonical_dependency_inventory([{"name": name, "version": "1.0"} for name in ("Pillow", "PyMuPDF", "python-pptx", "paddlepaddle", "paddleocr")])
+            candidate["resolved_dependency_set_sha256"] = dependency_inventory_hash(packages)
+            deployment = candidate_deployment_fingerprint(candidate)
+            evidence_root = root / "evidence"
+            evidence_root.mkdir()
+            context = {"status": "PASS", "runtime_verified": True, "after_engine": True, "manifest_sha256": identity["sha256"], "files": identity["entries"], "paddlex_config": "alternate.yaml", "paddlex_config_sha256": _sha(alternate), "offline_assets_required": True}
+            sources = _heavy_sources(evidence_root, subject=subject, deployment=deployment, ocr_manifest=manifest, ocr_context=context)
             with self.assertRaises(AdapterError):
                 build_machine_evidence(root / "heavy.json", evidence_type="heavy_runtime", subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, candidate_spec=candidate)
 
@@ -1039,9 +1082,10 @@ class CertificationClosureTests(unittest.TestCase):
             _write(candidate_path, {"candidate_spec_version": "1.0", "subject_git_sha": subject, "requested_model": "google/gemma-4-31b-it", "ocr_provider": "paddle", "ocr_asset_manifest": "ocr/manifest.json"})
             (source / "production.lock").write_text("Pillow==1.0\n", encoding="utf-8")
             (source / "ocr").mkdir()
+            (source / "ocr" / "PaddleOCR.yaml").write_text("pipeline: test\n", encoding="utf-8")
             (source / "ocr" / "det.bin").write_bytes(b"det")
             (source / "ocr" / "rec.bin").write_bytes(b"rec")
-            manifest = {"provider": "paddle", "paddlex_config": "det.bin", "files": [{"path": "det.bin", "sha256": _sha(source / "ocr" / "det.bin"), "bytes": 3}, {"path": "rec.bin", "sha256": _sha(source / "ocr" / "rec.bin"), "bytes": 3}]}
+            manifest = {"provider": "paddle", "paddlex_config": "PaddleOCR.yaml", "files": [{"path": "PaddleOCR.yaml", "sha256": _sha(source / "ocr" / "PaddleOCR.yaml"), "bytes": 15}, {"path": "det.bin", "sha256": _sha(source / "ocr" / "det.bin"), "bytes": 3}, {"path": "rec.bin", "sha256": _sha(source / "ocr" / "rec.bin"), "bytes": 3}]}
             manifest_path = source / "ocr" / "manifest.json"
             _write(manifest_path, manifest)
             candidate = json.loads(candidate_path.read_text(encoding="utf-8"))
@@ -1068,23 +1112,132 @@ class CertificationClosureTests(unittest.TestCase):
 
         subject = "a" * 40
         digest = "b" * 64
-        run = {"id": 17, "repository": {"full_name": "private-org/certification"}, "workflow_id": 23, "path": ".github/workflows/prepare.yml", "status": "completed", "conclusion": "success", "head_sha": subject}
+        producer_sha = "c" * 40
+        run = {"id": 17, "repository": {"full_name": "private-org/certification"}, "workflow_id": 23, "path": ".github/workflows/prepare.yml", "status": "completed", "conclusion": "success", "head_sha": producer_sha}
         artifacts = {"artifacts": [{"id": 31, "name": "bundle", "digest": f"sha256:{digest}", "workflow_run": {"id": 17}, "expired": False, "expires_at": "2099-01-01T00:00:00Z"}]}
-        result = validate_provenance(run=run, artifacts=artifacts, expected_run_id="17", expected_artifact_name="bundle", expected_source_repository="private-org/certification", expected_workflow_id="23", expected_workflow_path=".github/workflows/prepare.yml", subject_git_sha=subject, expected_digest=digest, public_repository="kimhw8084/agent-skills")
+        source_repository = {"full_name": "private-org/certification", "private": True, "visibility": "private"}
+        result = validate_provenance(run=run, artifacts=artifacts, expected_run_id="17", expected_artifact_name="bundle", expected_source_repository="private-org/certification", expected_workflow_id="23", expected_workflow_path=".github/workflows/prepare.yml", target_subject_git_sha=subject, expected_digest=digest, public_repository="kimhw8084/agent-skills", source_repository_metadata=source_repository)
         self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["producer_head_sha"], producer_sha)
+        self.assertEqual(result["target_subject_git_sha"], subject)
         for mutation in (
             {"repository": {"full_name": "kimhw8084/agent-skills"}},
             {"path": ".github/workflows/other.yml"},
             {"status": "completed", "conclusion": "cancelled"},
-            {"head_sha": "c" * 40},
         ):
             changed = dict(run)
             changed.update(mutation)
             with self.assertRaises(BundleProvenanceError):
-                validate_provenance(run=changed, artifacts=artifacts, expected_run_id="17", expected_artifact_name="bundle", expected_source_repository="private-org/certification", expected_workflow_id="23", expected_workflow_path=".github/workflows/prepare.yml", subject_git_sha=subject, expected_digest=digest, public_repository="kimhw8084/agent-skills")
+                validate_provenance(run=changed, artifacts=artifacts, expected_run_id="17", expected_artifact_name="bundle", expected_source_repository="private-org/certification", expected_workflow_id="23", expected_workflow_path=".github/workflows/prepare.yml", target_subject_git_sha=subject, expected_digest=digest, public_repository="kimhw8084/agent-skills", source_repository_metadata=source_repository)
         wrong_artifacts = {"artifacts": [{"id": 31, "name": "bundle", "digest": "sha256:" + "d" * 64, "workflow_run": {"id": 99}}]}
         with self.assertRaises(BundleProvenanceError):
-            validate_provenance(run=run, artifacts=wrong_artifacts, expected_run_id="17", expected_artifact_name="bundle", expected_source_repository="private-org/certification", expected_workflow_id="23", expected_workflow_path=".github/workflows/prepare.yml", subject_git_sha=subject, expected_digest=digest, public_repository="kimhw8084/agent-skills")
+            validate_provenance(run=run, artifacts=wrong_artifacts, expected_run_id="17", expected_artifact_name="bundle", expected_source_repository="private-org/certification", expected_workflow_id="23", expected_workflow_path=".github/workflows/prepare.yml", target_subject_git_sha=subject, expected_digest=digest, public_repository="kimhw8084/agent-skills", source_repository_metadata=source_repository)
+
+    def test_private_bundle_producer_and_target_subjects_are_distinct(self):
+        from evals.validate_certification_bundle_provenance import BundleProvenanceError, validate_provenance
+
+        target = "a" * 40
+        producer = "b" * 40
+        digest = "c" * 64
+        run = {"id": 17, "repository": {"full_name": "private-org/certification"}, "workflow_id": 23, "path": ".github/workflows/prepare.yml", "status": "completed", "conclusion": "success", "head_sha": producer}
+        artifacts = {"artifacts": [{"id": 31, "name": "bundle", "digest": f"sha256:{digest}", "workflow_run": {"id": 17}, "expired": False, "expires_at": "2099-01-01T00:00:00Z"}]}
+        private_repo = {"full_name": "private-org/certification", "private": True, "visibility": "private"}
+        result = validate_provenance(run=run, artifacts=artifacts, expected_run_id="17", expected_artifact_name="bundle", expected_source_repository="private-org/certification", expected_workflow_id="23", expected_workflow_path=".github/workflows/prepare.yml", target_subject_git_sha=target, expected_digest=digest, public_repository="kimhw8084/agent-skills", source_repository_metadata=private_repo)
+        self.assertEqual(result["producer_head_sha"], producer)
+        self.assertEqual(result["target_subject_git_sha"], target)
+        for metadata in ({"full_name": "private-org/certification", "private": False}, {"full_name": "kimhw8084/agent-skills", "private": True}):
+            with self.assertRaises(BundleProvenanceError):
+                validate_provenance(run=run, artifacts=artifacts, expected_run_id="17", expected_artifact_name="bundle", expected_source_repository="private-org/certification", expected_workflow_id="23", expected_workflow_path=".github/workflows/prepare.yml", target_subject_git_sha=target, expected_digest=digest, public_repository="kimhw8084/agent-skills", source_repository_metadata=metadata)
+
+    def test_private_bundle_download_follows_redirect_without_forwarding_token(self):
+        from evals.download_certification_bundle import download_artifact_archive
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "transport" / "bundle.zip"
+            body = b"PK\x03\x04synthetic-bundle"
+            expected = hashlib.sha256(body).hexdigest()
+            endpoint = "https://api.example.test"
+            redirect = "https://objects.example.test/signed/bundle.zip"
+
+            class Response:
+                def __init__(self, value: bytes):
+                    self.value = value
+
+                def read(self, _size: int = -1) -> bytes:
+                    value, self.value = self.value, b""
+                    return value
+
+                def close(self) -> None:
+                    return None
+
+            class Opener:
+                def __init__(self):
+                    self.requests = []
+
+                def open(self, request, timeout=0):
+                    self.requests.append(request)
+                    if request.full_url.endswith("/actions/artifacts/31/zip"):
+                        raise HTTPError(request.full_url, 302, "redirect", {"Location": redirect}, None)
+                    if request.full_url == redirect:
+                        return Response(body)
+                    raise AssertionError(request.full_url)
+
+            opener = Opener()
+            result = download_artifact_archive(repository="private-org/certification", artifact_id=31, output=output, expected_sha256=expected, token="private-token", api_base_url=endpoint, opener_factory=lambda: opener)
+            self.assertEqual(result["sha256"], expected)
+            self.assertEqual(output.read_bytes(), body)
+            self.assertEqual(opener.requests[0].headers.get("Authorization"), "Bearer private-token")
+            self.assertNotIn("Authorization", opener.requests[1].headers)
+
+    def test_private_bundle_download_rejects_digest_and_workflows_avoid_unsupported_output_flag(self):
+        from evals.download_certification_bundle import CertificationBundleDownloadError, download_artifact_archive
+
+        help_result = subprocess.run(["gh", "api", "--help"], capture_output=True, text=True, check=False)
+        self.assertEqual(help_result.returncode, 0)
+        self.assertNotIn("--output", help_result.stdout)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            class Response:
+                def read(self, _size: int = -1) -> bytes:
+                    return b"wrong"
+
+                def close(self) -> None:
+                    return None
+
+            class Opener:
+                def open(self, request, timeout=0):
+                    return Response()
+
+            with self.assertRaises(CertificationBundleDownloadError):
+                download_artifact_archive(repository="private-org/certification", artifact_id=31, output=root / "bundle.zip", expected_sha256="a" * 64, token="token", api_base_url="https://api.example.test", opener_factory=Opener)
+        for workflow in (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "k-slide-phase32.yml", Path(__file__).resolve().parents[2] / ".github" / "workflows" / "k-slide-security.yml"):
+            text = workflow.read_text(encoding="utf-8")
+            self.assertNotIn("gh api --output", text)
+            self.assertIn("download_certification_bundle", text)
+
+    def test_paddle_selected_config_is_canonical_and_runtime_bound(self):
+        from k_slide.certification import validate_ocr_asset_manifest
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = root / "PaddleOCR.yaml"
+            alternate = root / "alternate.yaml"
+            config.write_text("pipeline: canonical\n", encoding="utf-8")
+            alternate.write_text("pipeline: alternate\n", encoding="utf-8")
+            assets = [{"path": name, "sha256": _sha(root / name), "bytes": (root / name).stat().st_size} for name in ("PaddleOCR.yaml", "alternate.yaml")]
+            manifest = root / "manifest.json"
+            _write(manifest, {"provider": "paddle", "paddlex_config": "PaddleOCR.yaml", "files": assets})
+            identity = validate_ocr_asset_manifest(manifest, asset_root=root)
+            self.assertEqual(identity["paddlex_config"], "PaddleOCR.yaml")
+            self.assertEqual(paddle_runtime_configuration(asset_root=root, manifest_path=manifest)["paddlex_config_sha256"], _sha(config))
+            with patch.dict("os.environ", {"KSLIDE_PADDLEX_CONFIG": str(alternate), "KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
+                with self.assertRaises(EvidenceValidationError):
+                    paddle_runtime_configuration(asset_root=root, manifest_path=manifest)
+            config.write_text("pipeline: changed\n", encoding="utf-8")
+            with self.assertRaises(EvidenceValidationError):
+                paddle_runtime_configuration(asset_root=root, manifest_path=manifest)
 
     def test_reliability_requires_actual_concurrency_result(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1415,10 +1568,12 @@ class CertificationClosureTests(unittest.TestCase):
             root = Path(directory)
             asset_dir = root / "ocr"
             asset_dir.mkdir()
+            (asset_dir / "PaddleOCR.yaml").write_text("pipeline: test\n", encoding="utf-8")
+            (asset_dir / "alternate.yaml").write_text("pipeline: alternate\n", encoding="utf-8")
             (asset_dir / "weights.bin").write_bytes(b"local-paddle-weights")
             asset_hash = _sha(asset_dir / "weights.bin")
             asset_manifest = asset_dir / "manifest.json"
-            _write(asset_manifest, {"provider": "paddle", "files": [{"path": "weights.bin", "sha256": asset_hash}]})
+            _write(asset_manifest, {"provider": "paddle", "paddlex_config": "PaddleOCR.yaml", "files": [{"path": name, "sha256": _sha(asset_dir / name)} for name in ("PaddleOCR.yaml", "alternate.yaml", "weights.bin")]})
             (root / "prompts").mkdir()
             (root / "prompts" / "translation").mkdir()
             (root / "prompts" / "translation" / "v1.md").write_bytes((Path.cwd() / "prompts" / "translation" / "v1.md").read_bytes())
@@ -1441,7 +1596,7 @@ class CertificationClosureTests(unittest.TestCase):
             for evidence_type, factory, full in (("runtime", _runtime_sources, False), ("heavy_runtime", _heavy_sources, True)):
                 folder = root / evidence_type
                 folder.mkdir()
-                sources = factory(folder, full=full, subject=subject, deployment=deployment, ocr_manifest=asset_manifest, ocr_context={"status": "PASS", "runtime_verified": True, "after_engine": True, "manifest_sha256": _sha(asset_manifest), "files": [{"path": "weights.bin", "sha256": _sha(asset_manifest.parent / "weights.bin")}]}) if evidence_type == "heavy_runtime" else factory(folder, provider=str(candidate["provider"]), ocr_provider=str(candidate["ocr_provider"]))
+                sources = factory(folder, full=full, subject=subject, deployment=deployment, ocr_manifest=asset_manifest, ocr_context={"status": "PASS", "runtime_verified": True, "after_engine": True, "manifest_sha256": _sha(asset_manifest), "files": [{"path": name, "sha256": _sha(asset_manifest.parent / name)} for name in ("PaddleOCR.yaml", "alternate.yaml", "weights.bin")], "paddlex_config": "PaddleOCR.yaml", "paddlex_config_sha256": _sha(asset_manifest.parent / "PaddleOCR.yaml"), "offline_assets_required": True}) if evidence_type == "heavy_runtime" else factory(folder, provider=str(candidate["provider"]), ocr_provider=str(candidate["ocr_provider"]))
                 path = folder / "evidence.json"
                 build_machine_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=root, candidate_spec=candidate)
                 records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate, require_candidate_spec=True)
@@ -1524,6 +1679,11 @@ class CertificationClosureTests(unittest.TestCase):
                 runtime = discover_runtime(root)
                 doctor_result = diagnose(root, production=True)
             self.assertEqual(doctor_result["overall"], "PASS", msg=json.dumps([item for item in doctor_result["checks"] if item["status"] != "PASS"], indent=2))
+            alternate_config = asset_dir / "alternate.yaml"
+            with patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1", "KSLIDE_PADDLEX_CONFIG": str(alternate_config)}):
+                mismatched_config_doctor = diagnose(root, production=True)
+            self.assertEqual(mismatched_config_doctor["overall"], "FAIL")
+            self.assertEqual(next(item for item in mismatched_config_doctor["checks"] if item["label"] == "OCR selected configuration")["status"], "FAIL")
             from dataclasses import replace
             with patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: {"paddlepaddle": "3.0.0", "paddleocr": "3.0.3"}[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
                 wrong_model_checks = production_checks(root, replace(runtime, reported_model_id="google/gemma-4-31b-it-other"))
@@ -1662,7 +1822,9 @@ class CertificationClosureTests(unittest.TestCase):
             asset = root / "weights.bin"
             asset.write_bytes(b"weights-v1")
             manifest = root / "manifest.json"
-            _write(manifest, {"provider": "paddle", "files": [{"path": "weights.bin", "sha256": _sha(asset)}]})
+            config = root / "PaddleOCR.yaml"
+            config.write_text("pipeline: test\n", encoding="utf-8")
+            _write(manifest, {"provider": "paddle", "paddlex_config": "PaddleOCR.yaml", "files": [{"path": "PaddleOCR.yaml", "sha256": _sha(config)}, {"path": "weights.bin", "sha256": _sha(asset)}]})
             self.assertTrue(_asset_manifest_status(manifest)[0])
             asset.write_bytes(b"tampered")
             self.assertFalse(_asset_manifest_status(manifest)[0])

@@ -36,11 +36,35 @@ class PaddleOCRProvider:
         configured_det = det_model_dir or os.environ.get("KSLIDE_PADDLE_DET_MODEL_DIR")
         configured_rec = rec_model_dir or os.environ.get("KSLIDE_PADDLE_REC_MODEL_DIR")
         require_local = os.environ.get("KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS", "0").lower() in {"1", "true", "yes"}
-        if require_local and not configured_config and not (configured_det and configured_rec):
-            raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "Offline PaddleOCR requires a local paddlex config or detector/recognizer model directories.")
+        if not configured_config and require_local:
+            from ..certification import PADDLE_OCR_CONFIG
+
+            configured_root = Path(os.environ.get("KSLIDE_OCR_ASSET_ROOT", Path.cwd())).expanduser()
+            if (configured_root / "manifest.json").is_file() or (configured_root / PADDLE_OCR_CONFIG).is_file():
+                configured_config = str(configured_root / PADDLE_OCR_CONFIG)
+        if require_local and not configured_config:
+            raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "Offline PaddleOCR requires the canonical local PaddleX configuration.")
+        runtime_configuration: dict[str, Any]
+        if configured_config:
+            from ..certification import paddle_runtime_configuration
+
+            try:
+                configured_path = Path(configured_config).expanduser()
+                asset_root_value = os.environ.get("KSLIDE_OCR_ASSET_ROOT")
+                if asset_root_value:
+                    asset_root = Path(asset_root_value).expanduser()
+                elif configured_path.is_absolute():
+                    asset_root = configured_path.parent
+                else:
+                    asset_root = Path.cwd()
+                runtime_configuration = paddle_runtime_configuration(asset_root=asset_root, configured_config=configured_config, require_local=require_local)
+            except Exception as exc:
+                raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "Configured PaddleX OCR pipeline identity is invalid.", {"reason": str(exc)}) from exc
+        else:
+            runtime_configuration = {"paddlex_config": None, "paddlex_config_sha256": None, "offline_assets_required": False, "asset_manifest_sha256": None}
         kwargs: dict[str, Any] = {"use_doc_orientation_classify": False, "use_doc_unwarping": False, "use_textline_orientation": False}
         if configured_config:
-            config_path = Path(configured_config)
+            config_path = Path(os.environ.get("KSLIDE_OCR_ASSET_ROOT", Path(configured_config).parent)) / runtime_configuration["paddlex_config"]
             if not config_path.is_file():
                 raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "Configured PaddleX OCR pipeline file is missing.", {"path": str(config_path)})
             kwargs["paddlex_config"] = str(config_path)
@@ -50,7 +74,7 @@ class PaddleOCRProvider:
                 kwargs["text_detection_model_dir"] = configured_det
             if configured_rec:
                 kwargs["text_recognition_model_dir"] = configured_rec
-        self.asset_config = {"ocr_version": self.ocr_version, "language": self.lang, "detector_model": self.det_model_name, "recognizer_model": self.rec_model_name, "paddlex_config": configured_config, "detector_model_dir": configured_det, "recognizer_model_dir": configured_rec, "offline_assets_required": require_local}
+        self.asset_config = {"ocr_version": self.ocr_version, "language": self.lang, "detector_model": self.det_model_name, "recognizer_model": self.rec_model_name, "paddlex_config": runtime_configuration["paddlex_config"], "paddlex_config_sha256": runtime_configuration["paddlex_config_sha256"], "asset_manifest_sha256": runtime_configuration["asset_manifest_sha256"], "detector_model_dir": configured_det, "recognizer_model_dir": configured_rec, "offline_assets_required": runtime_configuration["offline_assets_required"]}
         self.version = f"paddleocr={self.paddleocr_version};paddle={self.paddle_version};ocr={self.ocr_version};rec={self.rec_model_name}"
         try:
             self._engine = paddleocr.PaddleOCR(**kwargs)

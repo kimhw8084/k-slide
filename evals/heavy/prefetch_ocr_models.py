@@ -19,7 +19,9 @@ def _hash_file(path: Path) -> str:
 def main() -> int:
     root = Path(os.environ.get("KSLIDE_OCR_ASSET_ROOT", "/opt/k-slide-ocr-assets"))
     root.mkdir(parents=True, exist_ok=True)
-    config_path = root / "PaddleOCR.yaml"
+    from k_slide.certification import PADDLE_OCR_CONFIG
+
+    config_path = root / PADDLE_OCR_CONFIG
     from paddleocr import PaddleOCR
 
     pipeline = PaddleOCR(
@@ -46,7 +48,7 @@ def main() -> int:
         # Asset manifests are copied between the preparation host, the image,
         # and the installed build.  Absolute paths would make the identity
         # machine-specific and could point OCR at a different tree.
-        "paddlex_config": config_path.relative_to(root).as_posix(),
+        "paddlex_config": PADDLE_OCR_CONFIG,
         "files": [],
     }
     for path in sorted(root.rglob("*")):

@@ -11,6 +11,7 @@ import hashlib
 import json
 import subprocess
 import ast
+import os
 import re
 import uuid
 from pathlib import Path
@@ -57,6 +58,7 @@ UNSET_VALUE = "UNSET"
 NOT_EXPOSED_VALUE = "NOT_EXPOSED"
 NOT_APPLICABLE_VALUE = "NOT_APPLICABLE"
 PROVIDER_DEFAULTS_FROZEN = "provider_defaults_frozen"
+PADDLE_OCR_CONFIG = "PaddleOCR.yaml"
 _UNRESOLVED_VALUE_MARKERS = frozenset({UNSET_VALUE, "NOT_YET_CONFIGURED"})
 CANDIDATE_INPUT_FIELDS = (
     "candidate_spec_version",
@@ -1198,10 +1200,17 @@ def validate_ocr_asset_manifest(path: Path, *, expected_sha256: str | None = Non
             if "bytes" in item and (isinstance(item["bytes"], bool) or not isinstance(item["bytes"], int) or item["bytes"] != asset.stat().st_size):
                 raise EvidenceValidationError(f"OCR asset size mismatch: {key}")
     config = value.get("paddlex_config")
-    if config is not None:
-        if not isinstance(config, str) or Path(config).is_absolute():
-            raise EvidenceValidationError("OCR PaddleX configuration path must be portable")
-        safe_relative_path(root, config, label="OCR PaddleX configuration", require_file=verify_files)
+    if not isinstance(config, str) or config != PADDLE_OCR_CONFIG:
+        raise EvidenceValidationError(f"OCR PaddleX configuration must be the canonical {PADDLE_OCR_CONFIG} path")
+    config_path = safe_relative_path(root, config, label="OCR PaddleX configuration", require_file=verify_files)
+    config_entry = next((item for item in files if item.get("path") == config), None)
+    if not isinstance(config_entry, dict):
+        raise EvidenceValidationError("OCR PaddleX configuration is not represented in the asset manifest")
+    config_hash = str(config_entry.get("sha256") or "").lower()
+    if len(config_hash) != 64 or set(config_hash) - _HEX64:
+        raise EvidenceValidationError("OCR PaddleX configuration hash is invalid")
+    if verify_files and sha256_file(config_path) != config_hash:
+        raise EvidenceValidationError("OCR PaddleX configuration hash does not match the selected file")
     if verify_files:
         listed = {manifest.relative_to(root).as_posix(), *seen}
         actual_files: set[str] = set()
@@ -1213,7 +1222,35 @@ def validate_ocr_asset_manifest(path: Path, *, expected_sha256: str | None = Non
         if actual_files - listed:
             raise EvidenceValidationError("OCR asset root contains unlisted files")
     entries = [{"path": item["path"], "sha256": str(item["sha256"]).lower(), **({"bytes": item["bytes"]} if "bytes" in item else {})} for item in files]
-    return {"sha256": actual_manifest_hash, "file_count": len(files), "files": sorted(seen), "entries": sorted(entries, key=lambda item: item["path"])}
+    return {"sha256": actual_manifest_hash, "file_count": len(files), "files": sorted(seen), "entries": sorted(entries, key=lambda item: item["path"]), "paddlex_config": config, "paddlex_config_sha256": config_hash}
+
+
+def paddle_runtime_configuration(*, asset_root: Path, manifest_path: Path | None = None, configured_config: str | None = None, require_local: bool | None = None) -> dict[str, Any]:
+    """Resolve the exact Paddle config selected by the running OCR provider."""
+
+    root = asset_root.expanduser().absolute()
+    local_required = require_local if require_local is not None else os.environ.get("KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS", "0").lower() in {"1", "true", "yes"}
+    raw_config = configured_config or os.environ.get("KSLIDE_PADDLEX_CONFIG")
+    manifest = manifest_path or root / "manifest.json"
+    if raw_config is None:
+        if local_required or manifest.is_file() or manifest.is_symlink():
+            raw_config = PADDLE_OCR_CONFIG
+        else:
+            return {"paddlex_config": None, "paddlex_config_sha256": None, "offline_assets_required": False, "asset_manifest_sha256": None}
+    config_path = Path(raw_config).expanduser()
+    if config_path.is_absolute():
+        config_path = safe_path_under(root, config_path, label="selected PaddleX configuration", require_file=True)
+    else:
+        config_path = safe_relative_path(root, config_path, label="selected PaddleX configuration", require_file=True)
+    relative = config_path.relative_to(root)
+    if relative.as_posix() != PADDLE_OCR_CONFIG:
+        raise EvidenceValidationError(f"selected PaddleX configuration must be {PADDLE_OCR_CONFIG}")
+    manifest_identity: dict[str, Any] | None = None
+    if manifest.is_file() or manifest.is_symlink():
+        manifest_identity = validate_ocr_asset_manifest(manifest, asset_root=root, verify_files=True)
+        if manifest_identity["paddlex_config"] != relative.as_posix() or manifest_identity["paddlex_config_sha256"] != sha256_file(config_path):
+            raise EvidenceValidationError("selected PaddleX configuration does not match the asset manifest")
+    return {"paddlex_config": relative.as_posix(), "paddlex_config_sha256": sha256_file(config_path), "offline_assets_required": bool(local_required), "asset_manifest_sha256": manifest_identity["sha256"] if manifest_identity else None}
 
 
 def _require_hex(value: Any, label: str) -> str:

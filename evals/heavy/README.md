@@ -59,11 +59,13 @@ candidate, exact production lock, optional private termbase overlay, and OCR
 assets. The public repository does not upload or store that plaintext bundle as
 its own Actions artifact. Hosted security/heavy workflows require protected
 private-source repository/workflow/token configuration and verify authoritative
-run status, subject SHA, artifact ownership, expiry, and archive digest before
-download. Missing private-source configuration is fail-closed; local or
-self-hosted preparation is the supported alternative until that source exists.
-`evals.materialize_certification_bundle` verifies the subject SHA, per-file
-hashes, portable OCR manifest/assets, and safe relative paths before
+private-repository metadata, producer run status/workflow, producer revision,
+artifact ownership, expiry, and archive digest before download. Missing
+private-source configuration is fail-closed; local or self-hosted preparation
+is the supported alternative until that source exists. The bundle separately
+carries the public K-Slide `target_subject_git_sha`, which
+`evals.materialize_certification_bundle` verifies along with per-file hashes,
+portable OCR manifest/assets, and safe relative paths before
 materializing the files under `.k-slide-config` with restrictive permissions.
 The public development workflow has no private bundle and therefore cannot
 produce candidate-bound production evidence.
@@ -76,8 +78,10 @@ rewriting packages. The heavy adapter re-derives equality from those retained
 sources; it does not trust a one-time Docker build assertion.
 
 The image build uses the candidate's portable `ocr/manifest.json` and exact
-asset tree when a certifying bundle is present; only a non-certifying
-development image may run `evals.heavy.prefetch_ocr_models`. The prefetcher
+asset tree when a certifying bundle is present; its selected PaddleX
+configuration is always the manifest's `PaddleOCR.yaml` entry and is verified
+again inside the evaluation image. Only a non-certifying development image may
+run `evals.heavy.prefetch_ocr_models`. The prefetcher
 exports a local PaddleX pipeline configuration and writes a relative OCR asset
 manifest. The managed runtime then sets `KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS=1`; it will fail instead
 of downloading model weights during document processing. The configured
