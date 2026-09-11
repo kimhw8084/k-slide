@@ -1200,8 +1200,12 @@ class CertificationClosureTests(unittest.TestCase):
             root = Path(directory)
 
             class Response:
+                def __init__(self):
+                    self.value = b"wrong"
+
                 def read(self, _size: int = -1) -> bytes:
-                    return b"wrong"
+                    value, self.value = self.value, b""
+                    return value
 
                 def close(self) -> None:
                     return None
