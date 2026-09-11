@@ -53,25 +53,33 @@ place confidential candidate material in the Docker build context. The current
 development machine has not built this image, so this repository does not claim
 that heavy integration has executed locally.
 
-For a certifying run, an authorized preparation job packages the resolved
+For a certifying run, an approved private preparation environment uses
+`evals.build_certification_bundle` to package explicitly named resolved
 candidate, exact production lock, optional private termbase overlay, and OCR
-assets into a private `certification-bundle.json` artifact. The security and
-heavy workflows accept only that artifact's run ID and name; a hosted-runner
-filesystem path is not a transport mechanism. `evals.materialize_certification_bundle`
-verifies the subject SHA, per-file hashes, and safe relative paths before
+assets. The public repository does not upload or store that plaintext bundle as
+its own Actions artifact. Hosted security/heavy workflows require protected
+private-source repository/workflow/token configuration and verify authoritative
+run status, subject SHA, artifact ownership, expiry, and archive digest before
+download. Missing private-source configuration is fail-closed; local or
+self-hosted preparation is the supported alternative until that source exists.
+`evals.materialize_certification_bundle` verifies the subject SHA, per-file
+hashes, portable OCR manifest/assets, and safe relative paths before
 materializing the files under `.k-slide-config` with restrictive permissions.
 The public development workflow has no private bundle and therefore cannot
 produce candidate-bound production evidence.
 
-The heavy workflow invokes `evals.freeze_production_dependencies` against the
-same exact lock used by the image and retains the production inventory, lock,
-built-image inventory, and dependency context beside its machine-evidence
-envelope. The heavy adapter re-derives equality from those retained sources;
-it does not trust a one-time Docker build assertion.
+The heavy workflow freezes the production subject under its production venv,
+builds the image from that exact lock, verifies the image inventory, and then
+invokes `evals.freeze_production_dependencies --retain-only`. Retention opens
+the frozen inventory/lock and built-image inventory without discovering or
+rewriting packages. The heavy adapter re-derives equality from those retained
+sources; it does not trust a one-time Docker build assertion.
 
-The image build runs `evals.heavy.prefetch_ocr_models`, exports a local
-PaddleX pipeline configuration, and writes an OCR asset manifest. The managed
-runtime then sets `KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS=1`; it will fail instead
+The image build uses the candidate's portable `ocr/manifest.json` and exact
+asset tree when a certifying bundle is present; only a non-certifying
+development image may run `evals.heavy.prefetch_ocr_models`. The prefetcher
+exports a local PaddleX pipeline configuration and writes a relative OCR asset
+manifest. The managed runtime then sets `KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS=1`; it will fail instead
 of downloading model weights during document processing. The configured
 recognizer is the Korean `korean_PP-OCRv5_mobile_rec` model and the detector
 is `PP-OCRv5_mobile_det`, subject to the pinned PaddleOCR runtime.

@@ -169,6 +169,8 @@ class Phase35Tests(unittest.TestCase):
         self.assertNotIn("paddlepaddle==${PADDLEPADDLE_VERSION}", dockerfile)
         self.assertIn("freeze_production_dependencies", workflow)
         self.assertIn("Freeze exact production dependency subject", workflow)
+        self.assertIn("--retain-only", workflow)
+        self.assertIn("Verify candidate-bound OCR asset identity inside the evaluated runtime", workflow)
         self.assertIn("Verify heavy image dependency identity", workflow)
         self.assertIn("certification_bundle_run_id", workflow)
         self.assertIn("materialize_certification_bundle", workflow)

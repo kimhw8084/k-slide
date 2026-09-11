@@ -929,9 +929,16 @@ def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subjec
             raise EvidenceValidationError("candidate corpus identity disagrees with frozen corpus")
     raw_manifest = result.get("ocr_asset_manifest")
     if not _is_unset(raw_manifest):
+        if require_sources and result.get("ocr_provider") == "paddle" and str(raw_manifest) != "ocr/manifest.json":
+            raise EvidenceValidationError("certifying Paddle candidates must use the canonical ocr/manifest.json path")
         manifest = _resolve_candidate_path(root, str(raw_manifest))
         if manifest.is_file() and not manifest.is_symlink():
-            _bind_value(result, "ocr_asset_manifest_sha256", sha256_file(manifest))
+            expected_manifest = result.get("ocr_asset_manifest_sha256")
+            if require_sources:
+                asset_identity = validate_ocr_asset_manifest(manifest, expected_sha256=None if _is_unset(expected_manifest) else str(expected_manifest))
+                _bind_value(result, "ocr_asset_manifest_sha256", asset_identity["sha256"])
+            else:
+                _bind_value(result, "ocr_asset_manifest_sha256", sha256_file(manifest))
         elif require_sources:
             raise EvidenceValidationError("candidate OCR asset manifest is unavailable for verification")
     execution = repository_execution_configuration(root)
@@ -1102,6 +1109,111 @@ def sha256_file(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def safe_relative_path(root: Path, raw: str | Path, *, label: str, require_file: bool = False) -> Path:
+    """Resolve a path below ``root`` without permitting symlink traversal.
+
+    ``Path.resolve()`` alone is insufficient here: it would hide an ancestor
+    symlink that happens to resolve back inside the trusted root.  Walk every
+    component first, then perform the containment check on the resolved path.
+    """
+
+    trusted_root = root.expanduser().absolute()
+    if trusted_root.is_symlink():
+        raise EvidenceValidationError(f"trusted root for {label} is symlinked")
+    relative = Path(raw).expanduser()
+    if relative.is_absolute() or not relative.parts or relative == Path(".") or any(part in {"", ".", ".."} for part in relative.parts):
+        raise EvidenceValidationError(f"{label} must be a relative path without traversal")
+    current = trusted_root
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            raise EvidenceValidationError(f"{label} traverses a symlink")
+    resolved = (trusted_root / relative).resolve()
+    try:
+        resolved.relative_to(trusted_root.resolve())
+    except ValueError as exc:
+        raise EvidenceValidationError(f"{label} escapes the trusted root") from exc
+    if require_file and (resolved.is_symlink() or not resolved.is_file()):
+        raise EvidenceValidationError(f"{label} is missing or not a regular file")
+    # Preserve the trusted-root spelling so callers can create portable
+    # relative descriptors even on platforms where /var is an alias for
+    # /private/var.  All safety checks above used the resolved target.
+    return trusted_root / relative
+
+
+def safe_path_under(root: Path, raw: str | Path, *, label: str, require_file: bool = False) -> Path:
+    """Resolve an absolute or relative path under ``root`` safely."""
+
+    trusted_root = root.expanduser().absolute()
+    value = Path(raw).expanduser()
+    if value.is_absolute():
+        try:
+            value = value.relative_to(trusted_root)
+        except ValueError as exc:
+            raise EvidenceValidationError(f"{label} must be inside the trusted root") from exc
+    return safe_relative_path(trusted_root, value, label=label, require_file=require_file)
+
+
+def validate_ocr_asset_manifest(path: Path, *, expected_sha256: str | None = None, asset_root: Path | None = None, verify_files: bool = True) -> dict[str, Any]:
+    """Validate a portable, exact Paddle asset tree and return its identity."""
+
+    manifest = safe_path_under(path.parent, path, label="OCR asset manifest", require_file=True)
+    actual_manifest_hash = sha256_file(manifest)
+    if expected_sha256 is not None and actual_manifest_hash != str(expected_sha256).lower():
+        raise EvidenceValidationError("OCR asset manifest hash does not match the expected candidate identity")
+    try:
+        value = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise EvidenceValidationError("OCR asset manifest is unreadable") from exc
+    if not isinstance(value, dict) or value.get("provider") != "paddle":
+        raise EvidenceValidationError("OCR asset manifest is not a Paddle manifest")
+    files = value.get("files")
+    if not isinstance(files, list) or not files:
+        raise EvidenceValidationError("OCR asset manifest has no materialized files")
+    root = (asset_root or manifest.parent).expanduser().absolute()
+    try:
+        manifest.relative_to(root)
+    except ValueError as exc:
+        raise EvidenceValidationError("OCR asset manifest is outside its asset root") from exc
+    seen: set[str] = set()
+    for item in files:
+        if not isinstance(item, dict) or not isinstance(item.get("path"), str):
+            raise EvidenceValidationError("OCR asset manifest contains an invalid file entry")
+        relative = Path(item["path"])
+        if relative.is_absolute() or not relative.parts or any(part in {"", ".", ".."} for part in relative.parts):
+            raise EvidenceValidationError("OCR asset manifest paths must be portable and relative")
+        key = relative.as_posix()
+        if key in seen:
+            raise EvidenceValidationError("OCR asset manifest contains duplicate files")
+        seen.add(key)
+        expected = str(item.get("sha256") or "").lower()
+        if len(expected) != 64 or set(expected) - _HEX64:
+            raise EvidenceValidationError(f"OCR asset manifest hash is invalid: {key}")
+        asset = safe_relative_path(root, relative, label=f"OCR asset {key}", require_file=verify_files)
+        if verify_files:
+            if sha256_file(asset) != expected:
+                raise EvidenceValidationError(f"OCR asset hash mismatch: {key}")
+            if "bytes" in item and (isinstance(item["bytes"], bool) or not isinstance(item["bytes"], int) or item["bytes"] != asset.stat().st_size):
+                raise EvidenceValidationError(f"OCR asset size mismatch: {key}")
+    config = value.get("paddlex_config")
+    if config is not None:
+        if not isinstance(config, str) or Path(config).is_absolute():
+            raise EvidenceValidationError("OCR PaddleX configuration path must be portable")
+        safe_relative_path(root, config, label="OCR PaddleX configuration", require_file=verify_files)
+    if verify_files:
+        listed = {manifest.relative_to(root).as_posix(), *seen}
+        actual_files: set[str] = set()
+        for item in root.rglob("*"):
+            if item.is_symlink():
+                raise EvidenceValidationError("OCR asset root contains a symlink")
+            if item.is_file():
+                actual_files.add(item.relative_to(root).as_posix())
+        if actual_files - listed:
+            raise EvidenceValidationError("OCR asset root contains unlisted files")
+    entries = [{"path": item["path"], "sha256": str(item["sha256"]).lower(), **({"bytes": item["bytes"]} if "bytes" in item else {})} for item in files]
+    return {"sha256": actual_manifest_hash, "file_count": len(files), "files": sorted(seen), "entries": sorted(entries, key=lambda item: item["path"])}
 
 
 def _require_hex(value: Any, label: str) -> str:

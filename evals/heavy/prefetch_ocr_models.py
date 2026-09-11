@@ -43,13 +43,20 @@ def main() -> int:
         "language": os.environ.get("KSLIDE_PADDLE_LANG", "korean"),
         "detector_model": os.environ.get("KSLIDE_PADDLE_DET_MODEL_NAME", "PP-OCRv5_mobile_det"),
         "recognizer_model": os.environ.get("KSLIDE_PADDLE_REC_MODEL_NAME", "korean_PP-OCRv5_mobile_rec"),
-        "paddlex_config": str(config_path),
+        # Asset manifests are copied between the preparation host, the image,
+        # and the installed build.  Absolute paths would make the identity
+        # machine-specific and could point OCR at a different tree.
+        "paddlex_config": config_path.relative_to(root).as_posix(),
         "files": [],
     }
     for path in sorted(root.rglob("*")):
         if path.is_file() and path.name != "manifest.json":
-            manifest["files"].append({"path": str(path), "sha256": _hash_file(path), "bytes": path.stat().st_size})
-    (root / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            manifest["files"].append({"path": path.relative_to(root).as_posix(), "sha256": _hash_file(path), "bytes": path.stat().st_size})
+    manifest_path = root / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    from k_slide.certification import validate_ocr_asset_manifest
+
+    validate_ocr_asset_manifest(manifest_path, asset_root=root)
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
     return 0
 

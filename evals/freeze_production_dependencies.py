@@ -69,8 +69,10 @@ def retain_heavy_dependency_context(*, inventory_path: Path, lock_path: Path, bu
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Freeze the exact production Python dependency subject")
-    parser.add_argument("--inventory-output", type=Path, required=True)
-    parser.add_argument("--lock-output", type=Path, required=True)
+    parser.add_argument("--inventory-output", type=Path, help="Write the initial frozen inventory")
+    parser.add_argument("--lock-output", type=Path, help="Write the initial exact production lock")
+    parser.add_argument("--inventory-input", type=Path, help="Existing frozen inventory for --retain-only")
+    parser.add_argument("--retain-only", action="store_true", help="Verify and retain an already-frozen production subject without discovering or rewriting it")
     parser.add_argument("--lock-input", type=Path, help="Approved private exact lock to verify against the active interpreter")
     parser.add_argument("--built-image-inventory", type=Path, help="Installed package inventory extracted from the built heavy image")
     parser.add_argument("--dependency-context-output", type=Path, help="Retained heavy dependency proof context output")
@@ -78,21 +80,29 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--deployment-fingerprint")
     args = parser.parse_args(argv)
     try:
-        inventory = freeze(
-            inventory_output=args.inventory_output.expanduser(),
-            lock_output=args.lock_output.expanduser(),
-            lock_input=args.lock_input.expanduser() if args.lock_input else None,
-        )
-        if (args.built_image_inventory is None) != (args.dependency_context_output is None):
-            raise EvidenceValidationError("built image inventory and dependency context output must be supplied together")
-        if args.built_image_inventory is not None and args.dependency_context_output is not None:
+        if args.retain_only:
+            if args.inventory_input is None or args.lock_input is None or args.built_image_inventory is None or args.dependency_context_output is None:
+                raise EvidenceValidationError("--retain-only requires inventory input, lock input, built image inventory, and dependency context output")
+            if args.inventory_output is not None or args.lock_output is not None:
+                raise EvidenceValidationError("--retain-only cannot receive freeze output paths")
             retain_heavy_dependency_context(
-                inventory_path=args.inventory_output.expanduser(),
-                lock_path=args.lock_output.expanduser(),
+                inventory_path=args.inventory_input.expanduser(),
+                lock_path=args.lock_input.expanduser(),
                 built_image_inventory_path=args.built_image_inventory.expanduser(),
                 output=args.dependency_context_output.expanduser(),
                 subject_git_sha=args.subject_sha,
                 deployment_fingerprint=args.deployment_fingerprint,
+            )
+            inventory = load_dependency_inventory(args.inventory_input.expanduser())
+        else:
+            if args.inventory_output is None or args.lock_output is None:
+                raise EvidenceValidationError("initial freeze requires --inventory-output and --lock-output")
+            if args.built_image_inventory is not None or args.dependency_context_output is not None:
+                raise EvidenceValidationError("heavy retention must use --retain-only after the image is built")
+            inventory = freeze(
+                inventory_output=args.inventory_output.expanduser(),
+                lock_output=args.lock_output.expanduser(),
+                lock_input=args.lock_input.expanduser() if args.lock_input else None,
             )
     except (EvidenceValidationError, OSError, UnicodeError, ValueError) as exc:
         print(json.dumps({"status": "BLOCKED", "reason": str(exc)}, ensure_ascii=False))

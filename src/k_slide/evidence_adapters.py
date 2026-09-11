@@ -27,17 +27,20 @@ from .certification import (
     NOT_APPLICABLE_VALUE,
     NOT_EXPOSED_VALUE,
     sha256_file,
+    safe_path_under,
+    safe_relative_path,
+    validate_ocr_asset_manifest,
 )
 from .model_policy import load_model_policy
 
-# 2.4 retains and re-derives the heavy image dependency subject alongside the
+# 2.5 retains and re-derives the heavy image dependency and OCR asset subjects alongside the
 # portable security evidence bundle. 2.3 binds the resolved production lock
 # and standards-valid SBOM. 2.2 added candidate-bound multimodal and
 # production dependency proof to the
 # candidate-bound identity/provenance contract introduced in 2.1.
 # separation and exact frozen scenario matrices. No production-certified v1
 # or 2.0 evidence exists, so ambiguous development envelopes are not migrated.
-ADAPTER_VERSION = "2.4"
+ADAPTER_VERSION = "2.5"
 
 _ROLES: dict[str, tuple[str, ...]] = {
     "runtime": ("diagnostic_ladder", "simple_run", "three_slide", "five_slide"),
@@ -287,7 +290,11 @@ def _engine_pass(value: dict[str, Any], label: str) -> None:
 
 
 def _derive_heavy(sources: dict[str, Path], *, root: Path | None = None, candidate_spec: dict[str, Any] | None = None) -> dict[str, Any]:
-    values, _ = source_records(sources, expected=_ROLES["heavy_runtime"] + (("full_engine",) if "full_engine" in sources else ()))
+    expected = _ROLES["heavy_runtime"] + (("full_engine",) if "full_engine" in sources else ())
+    asset_roles = ("ocr_asset_manifest", "ocr_asset_context")
+    if candidate_spec is not None and candidate_spec.get("ocr_provider") == "paddle":
+        expected += asset_roles
+    values, _ = source_records(sources, expected=expected)
     _doctor_pass(_read_json(values["required_doctor"]))
     _doctor_pass(_read_json(values["networkless_doctor"]), networkless=True)
     _engine_pass(_read_json(values["representative_engine"]), "representative_engine")
@@ -326,6 +333,21 @@ def _derive_heavy(sources: dict[str, Path], *, root: Path | None = None, candida
         expected_candidate = str(candidate_spec.get("resolved_dependency_set_sha256") or "").lower()
         if expected_candidate != inventory_hash:
             raise AdapterError("heavy dependency identity does not match candidate")
+        if candidate_spec.get("ocr_provider") == "paddle":
+            expected_asset_hash = str(candidate_spec.get("ocr_asset_manifest_sha256") or "").lower()
+            if len(expected_asset_hash) != 64:
+                raise AdapterError("heavy evidence has no candidate OCR asset identity")
+            try:
+                asset_identity = validate_ocr_asset_manifest(values["ocr_asset_manifest"], expected_sha256=expected_asset_hash, verify_files=False)
+            except EvidenceValidationError as exc:
+                raise AdapterError(f"heavy OCR asset manifest is invalid: {exc}") from exc
+            asset_context = _read_json(values["ocr_asset_context"])
+            if not isinstance(asset_context, dict) or asset_context.get("status") != "PASS" or asset_context.get("runtime_verified") is not True or asset_context.get("after_engine") is not True:
+                raise AdapterError("heavy OCR asset runtime proof is missing")
+            if str(asset_context.get("manifest_sha256") or "").lower() != asset_identity["sha256"] or str(asset_context.get("manifest_sha256") or "").lower() != expected_asset_hash:
+                raise AdapterError("heavy OCR asset runtime identity does not match the candidate")
+            if asset_context.get("files") != asset_identity.get("entries"):
+                raise AdapterError("heavy OCR runtime asset file inventory does not match the candidate manifest")
     return {
         "heavy_pass": True,
         "networkless_pass": True,
@@ -336,6 +358,7 @@ def _derive_heavy(sources: dict[str, Path], *, root: Path | None = None, candida
         "resolved_dependency_set_sha256": inventory_hash,
         "resolved_dependency_lock_sha256": lock_hash,
         "built_image_dependency_set_sha256": inventory_hash,
+        **({"ocr_asset_manifest_sha256": str(candidate_spec.get("ocr_asset_manifest_sha256")).lower()} if candidate_spec is not None and candidate_spec.get("ocr_provider") == "paddle" else {}),
     }
 
 
@@ -981,23 +1004,14 @@ def derive_payload(evidence_type: str, sources: dict[str, Path], *, root: Path |
 
 
 def _source_descriptors(sources: dict[str, Path], output: Path) -> list[dict[str, str]]:
-    parent = output.parent.resolve()
+    parent = output.expanduser().absolute().parent
     descriptors: list[dict[str, str]] = []
     for role in sorted(sources):
-        raw_path = Path(sources[role]).expanduser()
-        if raw_path.is_symlink():
-            raise AdapterError(f"source {role} is symlinked")
-        path = raw_path.resolve()
         try:
+            path = safe_path_under(parent, Path(sources[role]), label=f"source {role}", require_file=True)
             relative = path.relative_to(parent)
-        except ValueError as exc:
-            raise AdapterError(f"source {role} must be inside the evidence directory") from exc
-        try:
-            path.relative_to(parent)
-        except ValueError as exc:
-            raise AdapterError(f"source {role} escapes evidence directory") from exc
-        if not path.is_file() or relative.as_posix().startswith("../"):
-            raise AdapterError(f"source {role} is unsafe")
+        except (EvidenceValidationError, ValueError) as exc:
+            raise AdapterError(f"source {role} must be a regular file inside the evidence directory") from exc
         descriptors.append({"role": role, "path": relative.as_posix(), "sha256": _hash_file(path)})
     return descriptors
 
@@ -1045,20 +1059,17 @@ def verify_envelope_sources(envelope_path: Path, envelope: dict[str, Any]) -> tu
         raise AdapterError("machine evidence sources are missing")
     sources: dict[str, Path] = {}
     descriptors: list[dict[str, str]] = []
-    root = envelope_path.parent.resolve()
+    root = envelope_path.parent.absolute()
     for item in raw:
         if not isinstance(item, dict) or not isinstance(item.get("role"), str) or item["role"] in sources:
             raise AdapterError("machine evidence sources contain duplicate or invalid roles")
         relative = Path(str(item.get("path", "")))
         if relative.is_absolute() or ".." in relative.parts:
             raise AdapterError("machine evidence source path escapes evidence root")
-        path = root / relative
-        if path.is_symlink():
-            raise AdapterError("machine evidence source path is symlinked")
         try:
-            path.resolve().relative_to(root)
-        except ValueError as exc:
-            raise AdapterError("machine evidence source path escapes evidence root") from exc
+            path = safe_relative_path(root, relative, label="machine evidence source", require_file=True)
+        except EvidenceValidationError as exc:
+            raise AdapterError(str(exc)) from exc
         expected = str(item.get("sha256", "")).lower()
         actual = _hash_file(path)
         if actual != expected:

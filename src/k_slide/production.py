@@ -35,6 +35,7 @@ from .certification import (
     explicit_unavailable_value,
     parse_libreoffice_version,
     sha256_file,
+    validate_ocr_asset_manifest,
     validate_cyclonedx_1_5,
 )
 from .errors import ErrorCode, KSlideError
@@ -160,42 +161,11 @@ def _check(label: str, passed: bool, detail: str) -> dict[str, str]:
 
 
 def _asset_manifest_status(path: Path) -> tuple[bool, str]:
-    if path.is_symlink():
-        return False, "asset manifest is symlinked"
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        return False, f"manifest unreadable: {exc}"
-    if not isinstance(value, dict) or value.get("provider") != "paddle":
-        return False, "manifest is not a Paddle asset manifest"
-    files = value.get("files")
-    if not isinstance(files, list) or not files:
-        return False, "manifest has no materialized asset files"
-    root = path.parent.resolve()
-    for item in files:
-        if not isinstance(item, dict) or not isinstance(item.get("path"), str):
-            return False, "manifest contains an invalid asset entry"
-        candidate = Path(item["path"]).expanduser()
-        if not candidate.is_absolute():
-            candidate = root / candidate
-        try:
-            candidate.resolve().relative_to(root)
-        except ValueError:
-            return False, "manifest references an asset outside its local root"
-        if candidate.is_symlink():
-            return False, "manifest references a symlinked asset"
-        if not candidate.is_file():
-            return False, f"asset is missing: {candidate.name}"
-        expected_hash = item.get("sha256")
-        if not isinstance(expected_hash, str) or len(expected_hash) != 64:
-            return False, f"asset hash is missing: {candidate.name}"
-        try:
-            actual_hash = sha256_file(candidate)
-        except EvidenceValidationError as exc:
-            return False, str(exc)
-        if actual_hash != expected_hash.lower():
-            return False, f"asset hash mismatch: {candidate.name}"
-    return True, f"{len(files)} local assets"
+        result = validate_ocr_asset_manifest(path)
+    except (EvidenceValidationError, OSError, UnicodeError, ValueError) as exc:
+        return False, str(exc)
+    return True, f"{result['file_count']} local assets"
 
 
 def _resolve_path(root: Path, raw: str) -> Path:
@@ -539,6 +509,12 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
         asset_manifest = root.expanduser().resolve() / asset_manifest
     manifest_ok, manifest_detail = _asset_manifest_status(asset_manifest) if asset_manifest.is_file() else (False, "manifest is missing")
     checks.append(_check("OCR asset manifest", manifest_ok, manifest_detail))
+    expected_asset_hash = str((profile.candidate_spec or {}).get("ocr_asset_manifest_sha256") or "").lower()
+    try:
+        actual_asset_hash = sha256_file(asset_manifest)
+    except EvidenceValidationError:
+        actual_asset_hash = ""
+    checks.append(_check("OCR asset candidate identity", len(expected_asset_hash) == 64 and actual_asset_hash == expected_asset_hash, f"expected={expected_asset_hash}; actual={actual_asset_hash or 'missing'}"))
     checks.append(_check("Retention policy", profile.retention_days > 0, str(profile.retention_days)))
     checks.append(_check("Tenant isolation", profile.tenant_isolation == "workspace_per_session", profile.tenant_isolation))
     checks.append(_check("Network egress", profile.network_egress == "approved_inference_only", profile.network_egress))

@@ -347,6 +347,8 @@ def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, 
                 blockers.append(f"heavy evidence {field} does not match the security and candidate dependency subject")
         if heavy_payload.get("resolved_dependency_lock_sha256") != security.get("resolved_dependency_lock_sha256"):
             blockers.append("heavy evidence lock does not match the security dependency subject")
+        if candidate_spec is not None and candidate_spec.get("ocr_provider") == "paddle" and heavy_payload.get("ocr_asset_manifest_sha256") != candidate_spec.get("ocr_asset_manifest_sha256"):
+            blockers.append("heavy evidence OCR asset subject does not match the candidate")
         # The candidate profile describes deployment inputs.  A certified
         # profile is materialized/bound after this evidence-derived state is
         # generated; requiring it here would make certification circular.
@@ -541,8 +543,10 @@ def materialize_certified_profile(root: Path, *, candidate_spec: dict[str, Any],
     """Write the post-derivation production profile without hash recursion."""
 
     manifest_path = manifest_path.expanduser().resolve()
-    profile = _certified_profile_mapping(root, candidate_spec=candidate_spec, manifest=manifest, manifest_path=manifest_path, manifest_sha256=sha256_file(manifest_path))
     output = output.expanduser()
+    if output.exists() or output.is_symlink():
+        raise EvidenceValidationError("certified profile output already exists; refusing to replace a prior release")
+    profile = _certified_profile_mapping(root, candidate_spec=candidate_spec, manifest=manifest, manifest_path=manifest_path, manifest_sha256=sha256_file(manifest_path))
     output.parent.mkdir(parents=True, exist_ok=True)
     atomic_write_json(output, profile, mode=0o600)
     return output
@@ -648,6 +652,9 @@ def main(argv: list[str] | None = None) -> int:
             args.certified_profile_output.expanduser().resolve().relative_to(root)
         except ValueError:
             print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": derived, "reasons": ["PRODUCTION_CERTIFIED profile must be staged beneath the release root"]}, ensure_ascii=False, indent=2))
+            return 2
+        if args.output.expanduser().exists() or args.output.expanduser().is_symlink() or args.certified_profile_output.expanduser().exists() or args.certified_profile_output.expanduser().is_symlink():
+            print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": derived, "reasons": ["PRODUCTION_CERTIFIED outputs must be new files; refusing to replace a prior release"]}, ensure_ascii=False, indent=2))
             return 2
     try:
         manifest = build_release_manifest(root, requested_state=requested, model=args.model, ocr_asset_manifest=args.ocr_asset_manifest, evidence_paths=paths, subject_sha=subject, candidate_profile=args.candidate_profile)

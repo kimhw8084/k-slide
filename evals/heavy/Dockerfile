@@ -6,9 +6,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/opt/k-slide:/opt/k-slide/src \
-    KSLIDE_OCR_ASSET_ROOT=/opt/k-slide-ocr-assets \
-    PADDLEX_HOME=/opt/k-slide-ocr-assets/paddlex \
-    KSLIDE_PADDLEX_CONFIG=/opt/k-slide-ocr-assets/PaddleOCR.yaml \
+    KSLIDE_OCR_ASSET_ROOT=/opt/k-slide/ocr \
+    PADDLEX_HOME=/opt/k-slide/ocr/paddlex \
+    KSLIDE_PADDLEX_CONFIG=/opt/k-slide/ocr/PaddleOCR.yaml \
     KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS=1 \
     KSLIDE_PADDLE_OCR_VERSION=PP-OCRv5 \
     KSLIDE_PADDLE_LANG=korean \
@@ -42,7 +42,11 @@ if actual != expected:
     raise SystemExit(json.dumps({"expected": expected, "actual": actual}, sort_keys=True))
 PY
 
-RUN mkdir -p /opt/k-slide-ocr-assets \
-    && python -m evals.heavy.prefetch_ocr_models
+RUN mkdir -p /opt/k-slide/ocr \
+    && if [ -f /opt/k-slide/ocr/manifest.json ]; then \
+         PYTHONPATH=/opt/k-slide/src:/opt/k-slide python -c 'from pathlib import Path; from k_slide.certification import validate_ocr_asset_manifest; validate_ocr_asset_manifest(Path("/opt/k-slide/ocr/manifest.json"), asset_root=Path("/opt/k-slide/ocr"))'; \
+       else \
+         python -m evals.heavy.prefetch_ocr_models; \
+       fi
 
 ENTRYPOINT ["python", "-m", "evals.heavy.doctor"]

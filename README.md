@@ -100,15 +100,19 @@ subject: `.k-slide-config/production-requirements.lock` and its canonical
 `.k-slide-config/production-dependency-inventory.json`. The shared
 `evals.freeze_production_dependencies` command derives both from the active
 production interpreter and, for a private certifying run, verifies them
-against an already-approved lock. The certifying security and heavy workflows
-accept an authorized private `certification_bundle_run_id` plus artifact name,
-download the artifact, and verify/materialize its bytes before use. The bundle
-contains a relative `certification-bundle.json` manifest with the resolved
-candidate, exact lock, and optional private termbase/OCR inputs; filesystem
-paths and secret contents are not workflow-dispatch inputs. Without that
-private artifact, public scans still enforce scanner findings but a clean
-result is explicitly `NOT_CERTIFYING`. The heavy Docker image installs the
-same lock and fails if its installed inventory differs. The production SBOM is
+against an already-approved lock. The public repository never stores the
+private bundle as its own Actions artifact. Hosted certification requires
+protected environment configuration (`KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY`,
+approved preparation workflow ID and path, and
+`KSLIDE_PRIVATE_CERTIFICATION_TOKEN`) plus a run ID, artifact name, and
+externally supplied archive digest. The workflow verifies authoritative
+private run/artifact metadata before downloading; there is no public-repository
+fallback. `evals.build_certification_bundle` provides the local/private
+producer contract and includes only explicitly named candidate, lock, termbase,
+and OCR files. Without an approved private source, local/self-hosted
+preparation is required; public scans still enforce scanner findings but a
+clean result is explicitly `NOT_CERTIFYING`. The heavy Docker image installs
+the same lock and fails if its installed inventory differs. The production SBOM is
 then generated from that inventory with
 `--production-dependency-inventory` and `--generate-production-sbom`.
 

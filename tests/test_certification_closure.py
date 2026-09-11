@@ -6,10 +6,11 @@ import platform
 import shutil
 import subprocess
 import tempfile
+import zipfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from evals.release import build_production_sbom, build_release_manifest, derive_release_state, main as release_main
 from evals.experiments import behavior_configuration_hash, experiment_plan, experiment_plan_hash
@@ -69,7 +70,7 @@ def _doctor(networkless: bool = False) -> dict[str, object]:
     return value
 
 
-def _heavy_sources(root: Path, *, full: bool = False, subject: str | None = None, deployment: str | None = None) -> dict[str, Path]:
+def _heavy_sources(root: Path, *, full: bool = False, subject: str | None = None, deployment: str | None = None, ocr_manifest: Path | None = None, ocr_context: dict[str, object] | None = None) -> dict[str, Path]:
     _write(root / "doctor.json", _doctor())
     _write(root / "networkless.json", _doctor(networkless=True))
     engine = {"engine": {"critical_failure_count": 0, "capability_block_count": 0, "artifact_generation_pass_rate": 1.0, "engine_normalization_pass_rate": 1.0, "evidence_generation_pass_rate": 1.0}}
@@ -89,6 +90,21 @@ def _heavy_sources(root: Path, *, full: bool = False, subject: str | None = None
     if full:
         _write(root / "full.json", engine)
         sources["full_engine"] = root / "full.json"
+    if ocr_manifest is not None and ocr_context is not None:
+        asset_target_root = root / "ocr-assets"
+        asset_target_root.mkdir(parents=True, exist_ok=True)
+        target_manifest = asset_target_root / "manifest.json"
+        target_manifest.write_bytes(ocr_manifest.read_bytes())
+        asset_value = json.loads(ocr_manifest.read_text(encoding="utf-8"))
+        for item in asset_value.get("files", []):
+            relative = Path(item["path"])
+            target_asset = asset_target_root / relative
+            target_asset.parent.mkdir(parents=True, exist_ok=True)
+            target_asset.write_bytes((ocr_manifest.parent / relative).read_bytes())
+        target_context = root / "ocr-asset-context.json"
+        _write(target_context, ocr_context)
+        sources["ocr_asset_manifest"] = target_manifest
+        sources["ocr_asset_context"] = target_context
     return sources
 
 
@@ -897,7 +913,10 @@ class CertificationClosureTests(unittest.TestCase):
         self.assertIn("Assemble scanner exit codes", workflow)
         self.assertIn("Enforce scanner results", workflow)
         self.assertIn("certification_bundle_run_id", workflow)
-        self.assertIn("actions/download-artifact@v4", workflow)
+        self.assertNotIn("actions/download-artifact@v4", workflow)
+        self.assertIn("validate_certification_bundle_provenance", workflow)
+        self.assertIn("KSLIDE_PRIVATE_CERTIFICATION_TOKEN", workflow)
+        self.assertIn("certification_bundle_sha256", workflow)
         self.assertIn("materialize_certification_bundle", workflow)
         self.assertIn("-r constraints-production.txt", workflow)
         self.assertIn("security/semgrep-production.yml", workflow)
@@ -922,6 +941,30 @@ class CertificationClosureTests(unittest.TestCase):
             with self.assertRaises(AdapterError):
                 build_machine_evidence(root / "changed-heavy.json", evidence_type="heavy_runtime", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
 
+    def test_heavy_evidence_rejects_candidate_bound_ocr_manifest_mismatch(self):
+        subject = "a" * 40
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            asset_root = root / "candidate-assets"
+            asset_root.mkdir()
+            asset = asset_root / "weights.bin"
+            asset.write_bytes(b"candidate-weights")
+            manifest = {"provider": "paddle", "files": [{"path": "weights.bin", "sha256": _sha(asset)}]}
+            candidate_manifest = asset_root / "candidate-manifest.json"
+            _write(candidate_manifest, manifest)
+            runtime_manifest = asset_root / "runtime-manifest.json"
+            asset.write_bytes(b"different-runtime-weights")
+            _write(runtime_manifest, {"provider": "paddle", "files": [{"path": "weights.bin", "sha256": _sha(asset)}]})
+            candidate = _candidate_spec(subject, ocr_provider="paddle")
+            candidate["ocr_asset_manifest"] = "ocr/manifest.json"
+            candidate["ocr_asset_manifest_sha256"] = _sha(candidate_manifest)
+            packages = canonical_dependency_inventory([{"name": name, "version": "1.0"} for name in ("Pillow", "PyMuPDF", "python-pptx", "paddlepaddle", "paddleocr")])
+            candidate["resolved_dependency_set_sha256"] = dependency_inventory_hash(packages)
+            deployment = candidate_deployment_fingerprint(candidate)
+            sources = _heavy_sources(root, subject=subject, deployment=deployment, ocr_manifest=runtime_manifest, ocr_context={"status": "PASS", "runtime_verified": True, "after_engine": True, "manifest_sha256": _sha(runtime_manifest), "files": [{"path": "weights.bin", "sha256": _sha(asset)}]})
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "heavy.json", evidence_type="heavy_runtime", subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, candidate_spec=candidate)
+
     def test_heavy_dependency_context_is_retained_from_lock_and_image_inventory(self):
         from evals.freeze_production_dependencies import retain_heavy_dependency_context
 
@@ -932,6 +975,116 @@ class CertificationClosureTests(unittest.TestCase):
             context = retain_heavy_dependency_context(inventory_path=sources["production_inventory"], lock_path=sources["production_lock"], built_image_inventory_path=sources["built_image_inventory"], output=context_path, subject_git_sha="a" * 40, deployment_fingerprint="b" * 64)
             self.assertEqual(context["expected_dependency_set_sha256"], dependency_inventory_hash(json.loads(sources["production_inventory"].read_text(encoding="utf-8"))))
             self.assertEqual(json.loads(context_path.read_text(encoding="utf-8"))["dependency_subject"], "production-env")
+
+    def test_heavy_workflow_sequence_retains_frozen_subject_without_ambient_refreeze(self):
+        from evals.freeze_production_dependencies import freeze, main as freeze_main
+        from k_slide.io import atomic_write_json
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            inventory_path = root / "production-inventory.json"
+            lock_path = root / "production.lock"
+            built_path = root / "built-image-inventory.json"
+            context_path = root / "dependency-context.json"
+            original = canonical_dependency_inventory([{"name": "Pillow", "version": "1.0"}, {"name": "PyMuPDF", "version": "1.0"}])
+            with patch("evals.freeze_production_dependencies.installed_dependency_inventory", return_value=original):
+                freeze(inventory_output=inventory_path, lock_output=lock_path)
+            inventory_bytes = inventory_path.read_bytes()
+            lock_bytes = lock_path.read_bytes()
+            built_path.write_bytes(inventory_bytes)
+            with patch("evals.freeze_production_dependencies.installed_dependency_inventory", side_effect=AssertionError("ambient interpreter must not be consulted")), patch("evals.freeze_production_dependencies.atomic_write_json", wraps=atomic_write_json) as write_json:
+                self.assertEqual(freeze_main(["--retain-only", "--inventory-input", str(inventory_path), "--lock-input", str(lock_path), "--built-image-inventory", str(built_path), "--dependency-context-output", str(context_path), "--subject-sha", "a" * 40]), 0)
+            self.assertEqual([call.args[0] for call in write_json.call_args_list], [context_path])
+            self.assertEqual(inventory_path.read_bytes(), inventory_bytes)
+            self.assertEqual(lock_path.read_bytes(), lock_bytes)
+            self.assertEqual(json.loads(context_path.read_text(encoding="utf-8"))["package_count"], 2)
+            _write(built_path, canonical_dependency_inventory([{"name": "Pillow", "version": "2.0"}, {"name": "PyMuPDF", "version": "1.0"}]))
+            self.assertEqual(freeze_main(["--retain-only", "--inventory-input", str(inventory_path), "--lock-input", str(lock_path), "--built-image-inventory", str(built_path), "--dependency-context-output", str(context_path), "--subject-sha", "a" * 40]), 2)
+            self.assertEqual(inventory_path.read_bytes(), inventory_bytes)
+            self.assertEqual(lock_path.read_bytes(), lock_bytes)
+
+    def test_trusted_path_rejects_ancestor_symlink_traversal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evidence = root / "evidence"
+            evidence.mkdir()
+            target = evidence / "real"
+            target.mkdir()
+            sources = _runtime_sources(target)
+            envelope = evidence / "evidence.json"
+            link = evidence / "inside-link"
+            link.symlink_to(target, target_is_directory=True)
+            linked_sources = {role: link / path.name for role, path in sources.items()}
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(envelope, evidence_type="runtime", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=linked_sources)
+            outside = root / "outside"
+            outside.mkdir()
+            outside_sources = _runtime_sources(outside)
+            outside_link = evidence / "outside-link"
+            outside_link.symlink_to(outside, target_is_directory=True)
+            linked_outside = {role: outside_link / path.name for role, path in outside_sources.items()}
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(envelope, evidence_type="runtime", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=linked_outside)
+
+    def test_private_bundle_builder_and_materializer_support_repeatable_ocr_assets(self):
+        from evals.build_certification_bundle import build
+        from evals.materialize_certification_bundle import materialize
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            source.mkdir()
+            candidate_path = source / "candidate.json"
+            subject = "a" * 40
+            _write(candidate_path, {"candidate_spec_version": "1.0", "subject_git_sha": subject, "requested_model": "google/gemma-4-31b-it", "ocr_provider": "paddle", "ocr_asset_manifest": "ocr/manifest.json"})
+            (source / "production.lock").write_text("Pillow==1.0\n", encoding="utf-8")
+            (source / "ocr").mkdir()
+            (source / "ocr" / "det.bin").write_bytes(b"det")
+            (source / "ocr" / "rec.bin").write_bytes(b"rec")
+            manifest = {"provider": "paddle", "paddlex_config": "det.bin", "files": [{"path": "det.bin", "sha256": _sha(source / "ocr" / "det.bin"), "bytes": 3}, {"path": "rec.bin", "sha256": _sha(source / "ocr" / "rec.bin"), "bytes": 3}]}
+            manifest_path = source / "ocr" / "manifest.json"
+            _write(manifest_path, manifest)
+            candidate = json.loads(candidate_path.read_text(encoding="utf-8"))
+            candidate["ocr_asset_manifest_sha256"] = _sha(manifest_path)
+            _write(candidate_path, candidate)
+            bundle = root / "bundle"
+            result = build(output=bundle, subject_git_sha=subject, candidate_profile=candidate_path, production_dependency_lock=source / "production.lock", ocr_asset_manifest=manifest_path)
+            self.assertEqual(result["status"], "PASS")
+            output = root / "checkout"
+            materialize(bundle_root=bundle, manifest_path=bundle / "certification-bundle.json", output_root=output, subject_git_sha=subject)
+            self.assertEqual((output / "ocr" / "det.bin").read_bytes(), b"det")
+            self.assertEqual((output / "ocr" / "rec.bin").read_bytes(), b"rec")
+            archive = root / "bundle.zip"
+            with zipfile.ZipFile(archive, "w") as package:
+                for item in bundle.rglob("*"):
+                    if item.is_file():
+                        package.write(item, item.relative_to(bundle).as_posix())
+            extracted = root / "archive-checkout"
+            from evals.materialize_certification_bundle import main as materialize_main
+            self.assertEqual(materialize_main(["--archive", str(archive), "--archive-sha256", _sha(archive), "--output-root", str(extracted), "--subject-sha", subject]), 0)
+
+    def test_private_bundle_transport_requires_authoritative_private_run_provenance(self):
+        from evals.validate_certification_bundle_provenance import BundleProvenanceError, validate_provenance
+
+        subject = "a" * 40
+        digest = "b" * 64
+        run = {"id": 17, "repository": {"full_name": "private-org/certification"}, "workflow_id": 23, "path": ".github/workflows/prepare.yml", "status": "completed", "conclusion": "success", "head_sha": subject}
+        artifacts = {"artifacts": [{"id": 31, "name": "bundle", "digest": f"sha256:{digest}", "workflow_run": {"id": 17}, "expired": False, "expires_at": "2099-01-01T00:00:00Z"}]}
+        result = validate_provenance(run=run, artifacts=artifacts, expected_run_id="17", expected_artifact_name="bundle", expected_source_repository="private-org/certification", expected_workflow_id="23", expected_workflow_path=".github/workflows/prepare.yml", subject_git_sha=subject, expected_digest=digest, public_repository="kimhw8084/agent-skills")
+        self.assertEqual(result["status"], "PASS")
+        for mutation in (
+            {"repository": {"full_name": "kimhw8084/agent-skills"}},
+            {"path": ".github/workflows/other.yml"},
+            {"status": "completed", "conclusion": "cancelled"},
+            {"head_sha": "c" * 40},
+        ):
+            changed = dict(run)
+            changed.update(mutation)
+            with self.assertRaises(BundleProvenanceError):
+                validate_provenance(run=changed, artifacts=artifacts, expected_run_id="17", expected_artifact_name="bundle", expected_source_repository="private-org/certification", expected_workflow_id="23", expected_workflow_path=".github/workflows/prepare.yml", subject_git_sha=subject, expected_digest=digest, public_repository="kimhw8084/agent-skills")
+        wrong_artifacts = {"artifacts": [{"id": 31, "name": "bundle", "digest": "sha256:" + "d" * 64, "workflow_run": {"id": 99}}]}
+        with self.assertRaises(BundleProvenanceError):
+            validate_provenance(run=run, artifacts=wrong_artifacts, expected_run_id="17", expected_artifact_name="bundle", expected_source_repository="private-org/certification", expected_workflow_id="23", expected_workflow_path=".github/workflows/prepare.yml", subject_git_sha=subject, expected_digest=digest, public_repository="kimhw8084/agent-skills")
 
     def test_reliability_requires_actual_concurrency_result(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1288,7 +1441,7 @@ class CertificationClosureTests(unittest.TestCase):
             for evidence_type, factory, full in (("runtime", _runtime_sources, False), ("heavy_runtime", _heavy_sources, True)):
                 folder = root / evidence_type
                 folder.mkdir()
-                sources = factory(folder, full=full, subject=subject, deployment=deployment) if evidence_type == "heavy_runtime" else factory(folder, provider=str(candidate["provider"]), ocr_provider=str(candidate["ocr_provider"]))
+                sources = factory(folder, full=full, subject=subject, deployment=deployment, ocr_manifest=asset_manifest, ocr_context={"status": "PASS", "runtime_verified": True, "after_engine": True, "manifest_sha256": _sha(asset_manifest), "files": [{"path": "weights.bin", "sha256": _sha(asset_manifest.parent / "weights.bin")}]}) if evidence_type == "heavy_runtime" else factory(folder, provider=str(candidate["provider"]), ocr_provider=str(candidate["ocr_provider"]))
                 path = folder / "evidence.json"
                 build_machine_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=root, candidate_spec=candidate)
                 records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate, require_candidate_spec=True)
