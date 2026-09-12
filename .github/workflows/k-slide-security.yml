@@ -1,0 +1,288 @@
+name: K-Slide security evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      certification_bundle_run_id:
+        description: "Authorized preparation workflow run ID containing the private certification artifact"
+        required: false
+        type: string
+      certification_bundle_name:
+        description: "Exact private certification artifact name"
+        required: false
+        default: "k-slide-certification-bundle"
+        type: string
+      certification_bundle_sha256:
+        description: "Authoritative SHA-256 digest of the private bundle archive"
+        required: false
+        type: string
+  pull_request:
+    paths:
+      - "**"
+      - ".github/workflows/k-slide-security.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pinned security tools
+        run: python -m pip install --disable-pip-version-check pip-audit==2.9.0 semgrep==1.89.0
+      - name: Prepare sanitized scanner directory
+        run: |
+          mkdir -p "$RUNNER_TEMP/k-slide-security"
+          cp --preserve=mode security/semgrep-production.yml "$RUNNER_TEMP/k-slide-security/semgrep-production.yml"
+      - name: Download and verify authorized private certification bundle
+        if: github.event_name == 'workflow_dispatch' && inputs.certification_bundle_run_id != ''
+        env:
+          BUNDLE_RUN_ID: ${{ inputs.certification_bundle_run_id }}
+          BUNDLE_NAME: ${{ inputs.certification_bundle_name }}
+          BUNDLE_DIGEST: ${{ inputs.certification_bundle_sha256 }}
+          KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY: ${{ vars.KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY }}
+          KSLIDE_PRIVATE_CERTIFICATION_WORKFLOW_ID: ${{ vars.KSLIDE_PRIVATE_CERTIFICATION_WORKFLOW_ID }}
+          KSLIDE_PRIVATE_CERTIFICATION_WORKFLOW_PATH: ${{ vars.KSLIDE_PRIVATE_CERTIFICATION_WORKFLOW_PATH }}
+          KSLIDE_PRIVATE_CERTIFICATION_TOKEN: ${{ secrets.KSLIDE_PRIVATE_CERTIFICATION_TOKEN }}
+        run: |
+          set -euo pipefail
+          for required in KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY KSLIDE_PRIVATE_CERTIFICATION_WORKFLOW_ID KSLIDE_PRIVATE_CERTIFICATION_WORKFLOW_PATH KSLIDE_PRIVATE_CERTIFICATION_TOKEN; do
+            test -n "${!required}" || { echo "missing protected private certification transport configuration: $required" >&2; exit 2; }
+          done
+          test -n "$BUNDLE_DIGEST" || { echo "missing immutable certification bundle digest" >&2; exit 2; }
+          transport_root="$RUNNER_TEMP/k-slide-security/private-transport"
+          mkdir -p "$transport_root"
+          export GH_TOKEN="$KSLIDE_PRIVATE_CERTIFICATION_TOKEN"
+          gh api "repos/$KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY" > "$transport_root/source-repository.json"
+          gh api "repos/$KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY/actions/runs/$BUNDLE_RUN_ID" > "$transport_root/run.json"
+          gh api "repos/$KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY/actions/runs/$BUNDLE_RUN_ID/artifacts?per_page=100" > "$transport_root/artifacts.json"
+          PYTHONPATH=src:. python -m evals.validate_certification_bundle_provenance \
+            --repository-json "$transport_root/source-repository.json" \
+            --run-json "$transport_root/run.json" \
+            --artifacts-json "$transport_root/artifacts.json" \
+            --run-id "$BUNDLE_RUN_ID" \
+            --artifact-name "$BUNDLE_NAME" \
+            --source-repository "$KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY" \
+            --workflow-id "$KSLIDE_PRIVATE_CERTIFICATION_WORKFLOW_ID" \
+            --workflow-path "$KSLIDE_PRIVATE_CERTIFICATION_WORKFLOW_PATH" \
+            --target-subject-sha "$GITHUB_SHA" \
+            --artifact-sha256 "$BUNDLE_DIGEST" \
+            --public-repository "$GITHUB_REPOSITORY" > "$transport_root/provenance.json"
+          artifact_id=$(python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["artifact_id"])' "$transport_root/provenance.json")
+          PYTHONPATH=src:. python -m evals.download_certification_bundle \
+            --repository "$KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY" \
+            --artifact-id "$artifact_id" \
+            --output "$transport_root/bundle.zip" \
+            --artifact-sha256 "$BUNDLE_DIGEST" \
+            --token-env KSLIDE_PRIVATE_CERTIFICATION_TOKEN \
+            --api-base-url "${GITHUB_API_URL:-https://api.github.com}"
+          mv "$transport_root/bundle.zip" "$RUNNER_TEMP/k-slide-security/certification-bundle.zip"
+      - name: Materialize authorized private certification bundle
+        if: github.event_name == 'workflow_dispatch' && inputs.certification_bundle_run_id != ''
+        env:
+          BUNDLE_DIGEST: ${{ inputs.certification_bundle_sha256 }}
+        run: |
+          PYTHONPATH=src:. python -m evals.materialize_certification_bundle \
+            --archive "$RUNNER_TEMP/k-slide-security/certification-bundle.zip" \
+            --archive-sha256 "$BUNDLE_DIGEST" \
+            --output-root "$GITHUB_WORKSPACE" \
+            --target-subject-sha "$GITHUB_SHA"
+      - name: Materialize exact production dependency subject
+        run: |
+          python -m venv "$RUNNER_TEMP/k-slide-security/production-env"
+          lock_input=""
+          if [ -f .k-slide-config/production-requirements.lock ]; then
+            lock_input=".k-slide-config/production-requirements.lock"
+          fi
+          if [ -n "$lock_input" ]; then
+            test -f "$lock_input"
+            "$RUNNER_TEMP/k-slide-security/production-env/bin/python" -m pip install --disable-pip-version-check --no-input -r "$lock_input"
+          else
+            "$RUNNER_TEMP/k-slide-security/production-env/bin/python" -m pip install --disable-pip-version-check --no-input -r constraints-production.txt
+          fi
+          freeze_args=(--inventory-output .k-slide-config/production-dependency-inventory.json --lock-output .k-slide-config/production-requirements.lock)
+          if [ -n "$lock_input" ]; then freeze_args+=(--lock-input "$lock_input"); fi
+          PYTHONPATH=src:. "$RUNNER_TEMP/k-slide-security/production-env/bin/python" -m evals.freeze_production_dependencies "${freeze_args[@]}"
+          mkdir -p "$RUNNER_TEMP/k-slide-security/evidence"
+          cp --preserve=mode .k-slide-config/production-dependency-inventory.json "$RUNNER_TEMP/k-slide-security/evidence/production-dependency-inventory.json"
+          cp --preserve=mode .k-slide-config/production-requirements.lock "$RUNNER_TEMP/k-slide-security/evidence/production-requirements.lock"
+      - name: Dependency audit
+        run: |
+          set +e
+          production_site=$($RUNNER_TEMP/k-slide-security/production-env/bin/python -c 'import site; print(site.getsitepackages()[0])')
+          pip-audit --strict --format json --output "$RUNNER_TEMP/k-slide-security/evidence/pip-audit.json" --path "$production_site"
+          code=$?
+          printf '%s\n' "$code" > "$RUNNER_TEMP/k-slide-security/evidence/pip-audit.exit"
+          exit 0
+      - name: Secret scan
+        run: |
+          set +e
+          docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" -v "$RUNNER_TEMP/k-slide-security/evidence:/reports" zricethezav/gitleaks:v8.24.2 detect --source=/repo --no-banner --redact --report-format json --report-path /reports/gitleaks.json
+          code=$?
+          printf '%s\n' "$code" > "$RUNNER_TEMP/k-slide-security/evidence/gitleaks.exit"
+          exit 0
+      - name: Static security scan
+        run: |
+          set +e
+          semgrep --config security/semgrep-production.yml --error --json --output "$RUNNER_TEMP/k-slide-security/evidence/semgrep.json" src evals
+          code=$?
+          printf '%s\n' "$code" > "$RUNNER_TEMP/k-slide-security/evidence/semgrep.exit"
+          exit 0
+      - name: Assemble scanner exit codes
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "k-slide-security" / "evidence"
+          exits = {}
+          for name in ("pip-audit", "gitleaks", "semgrep"):
+              path = root / f"{name}.exit"
+              if not path.is_file():
+                  raise SystemExit(f"missing scanner exit-code file: {path.name}")
+              try:
+                  value = int(path.read_text(encoding="utf-8").strip())
+              except (OSError, ValueError) as exc:
+                  raise SystemExit(f"malformed scanner exit-code file: {path.name}") from exc
+              exits[name.replace("-", "_")] = value
+          (root / "scanner-exits.json").write_text(json.dumps(exits, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+      - name: Enforce scanner results
+        if: always()
+        run: |
+          PYTHONPATH=src:. python -m evals.enforce_security \
+            --pip-audit "$RUNNER_TEMP/k-slide-security/evidence/pip-audit.json" \
+            --gitleaks "$RUNNER_TEMP/k-slide-security/evidence/gitleaks.json" \
+            --semgrep "$RUNNER_TEMP/k-slide-security/evidence/semgrep.json" \
+            --scanner-exits "$RUNNER_TEMP/k-slide-security/evidence/scanner-exits.json"
+      - name: Compute deployment identity
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+          import sys
+
+          sys.path.insert(0, "src")
+          sys.path.insert(0, ".")
+          from evals.scenarios import DATASET_VERSION, split_manifest
+          from evals.release import build_production_sbom
+          from k_slide.certification import candidate_completeness, candidate_deployment_fingerprint, canonical_candidate_factors, dependency_inventory_hash, load_candidate_spec, load_dependency_inventory, resolve_candidate_spec, sha256_file
+          from k_slide.model_policy import load_model_policy
+
+          security_root = Path(os.environ["RUNNER_TEMP"]) / "k-slide-security"
+          evidence_root = security_root / "evidence"
+          out = security_root / "identity.json"
+          candidate_path = security_root / "candidate.json"
+          split = split_manifest()
+          subject = os.environ.get("GITHUB_SHA", "UNSET")
+          candidate_source = Path(".k-slide-config/production-candidate.json")
+          candidate_input = candidate_source.is_file()
+          if not candidate_input:
+              candidate_source = Path("evals/production-candidate.yaml")
+          candidate = load_candidate_spec(candidate_source, root=Path.cwd(), strict=True)
+          candidate = resolve_candidate_spec(candidate, root=Path.cwd(), subject_git_sha=subject, model_policy=load_model_policy(Path.cwd()), corpus={
+              "version": DATASET_VERSION,
+              "corpus_fingerprint": split["corpus_fingerprint"],
+              "held_out_fingerprint": split["held_out_fingerprint"],
+          }, require_sources=bool(candidate_input))
+          candidate_path.write_text(json.dumps(candidate, sort_keys=True) + "\n", encoding="utf-8")
+          inventory_path = Path(".k-slide-config/production-dependency-inventory.json")
+          inventory = load_dependency_inventory(inventory_path)
+          build_production_sbom(Path.cwd(), Path(".k-slide-config/production-sbom.json"), inventory_path=inventory_path)
+          (evidence_root / "production-sbom.json").write_bytes((Path(".k-slide-config/production-sbom.json")).read_bytes())
+          (evidence_root / "semgrep-production.yml").write_bytes(Path("security/semgrep-production.yml").read_bytes())
+          (evidence_root / "production-dependency-inventory.json").write_bytes(inventory_path.read_bytes())
+          (evidence_root / "production-requirements.lock").write_bytes((Path(".k-slide-config/production-requirements.lock")).read_bytes())
+          inventory_hash = dependency_inventory_hash(inventory)
+          sbom_hash = sha256_file(evidence_root / "production-sbom.json")
+          lock_hash = sha256_file(evidence_root / "production-requirements.lock")
+          missing = candidate_completeness(candidate, "PRODUCTION_CERTIFIED")
+          summary = {"subject_git_sha": subject, "deployment_fingerprint": candidate_deployment_fingerprint(candidate), "candidate_spec": canonical_candidate_factors(candidate), "candidate_profile": "candidate.json", "production_evidence_eligible": not missing, "production_candidate_missing": missing}
+          out.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+          constraints_hash = sha256_file(Path("constraints-production.txt"))
+          ruleset = Path("security/semgrep-production.yml")
+          constraint_versions = {}
+          for line in Path("constraints-production.txt").read_text(encoding="utf-8").splitlines():
+              name, separator, version = line.partition("==")
+              if separator and name and version:
+                  constraint_versions[name.strip()] = version.strip()
+          audit_value = json.loads((evidence_root / "pip-audit.json").read_text(encoding="utf-8"))
+          audited_versions = {item.get("name"): item.get("version") for item in audit_value.get("dependencies", []) if isinstance(item, dict)}
+          context = {
+              "schema_version": "1.0",
+              "audited_dependency_subject": "production-env",
+              "audited_dependency_set_sha256": inventory_hash,
+              "resolved_dependency_set_sha256": inventory_hash,
+              "resolved_dependency_lock_sha256": lock_hash,
+              "production_sbom_sha256": sbom_hash,
+              "candidate_constraints_sha256": candidate.get("constraints_sha256"),
+              "audited_dependency_names": ["Pillow", "PyMuPDF", "python-pptx", "paddlepaddle", "paddleocr"],
+              "constraint_versions": constraint_versions,
+              "audited_dependency_versions": audited_versions,
+              "pip_audit_version": subprocess.check_output(["pip-audit", "--version"], text=True).strip(),
+              "semgrep_version": subprocess.check_output(["semgrep", "--version"], text=True).strip(),
+              "semgrep_ruleset_identity": ruleset.as_posix(),
+              "semgrep_ruleset_sha256": sha256_file(ruleset),
+          }
+          (evidence_root / "audit-context.json").write_text(json.dumps(context, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+      - name: Derive security evidence and enforce result
+        if: always()
+        run: |
+          eligible=$(python -c 'import json,os; print(str(json.load(open(os.path.join(os.environ["RUNNER_TEMP"],"k-slide-security","identity.json"))).get("production_evidence_eligible", False)).lower())')
+          if [ "$eligible" != "true" ]; then
+            python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          identity = json.loads((Path(os.environ["RUNNER_TEMP"]) / "k-slide-security" / "identity.json").read_text(encoding="utf-8"))
+          (Path(os.environ["RUNNER_TEMP"]) / "k-slide-security" / "evidence" / "security-evidence-status.json").write_text(json.dumps({"status": "NOT_CERTIFYING", "reason": "candidate profile is incomplete for production certification", "missing_candidate_fields": identity.get("production_candidate_missing", [])}, indent=2) + "\n", encoding="utf-8")
+          PY
+            exit 0
+          fi
+          set +e
+          subject=$(python -c 'import json,os; print(json.load(open(os.path.join(os.environ["RUNNER_TEMP"],"k-slide-security","identity.json")))["subject_git_sha"])')
+          deployment=$(python -c 'import json,os; print(json.load(open(os.path.join(os.environ["RUNNER_TEMP"],"k-slide-security","identity.json")))["deployment_fingerprint"])')
+          PYTHONPATH=src:. python -m k_slide.evidence_adapters security \
+            --output "$RUNNER_TEMP/k-slide-security/evidence/security.evidence.json" \
+            --root . \
+            --candidate-profile "$RUNNER_TEMP/k-slide-security/candidate.json" \
+            --subject-sha "$subject" \
+            --deployment-fingerprint "$deployment" \
+            --source pip_audit="$RUNNER_TEMP/k-slide-security/evidence/pip-audit.json" \
+            --source gitleaks="$RUNNER_TEMP/k-slide-security/evidence/gitleaks.json" \
+            --source semgrep="$RUNNER_TEMP/k-slide-security/evidence/semgrep.json" \
+            --source scanner_exits="$RUNNER_TEMP/k-slide-security/evidence/scanner-exits.json" \
+            --source audit_context="$RUNNER_TEMP/k-slide-security/evidence/audit-context.json" \
+            --source semgrep_ruleset="$RUNNER_TEMP/k-slide-security/evidence/semgrep-production.yml" \
+            --source dependency_inventory="$RUNNER_TEMP/k-slide-security/evidence/production-dependency-inventory.json" \
+            --source production_lock="$RUNNER_TEMP/k-slide-security/evidence/production-requirements.lock" \
+            --source production_sbom="$RUNNER_TEMP/k-slide-security/evidence/production-sbom.json"
+          code=$?
+          exit $code
+      - name: Upload sanitized security evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k-slide-security-evidence
+          path: ${{ runner.temp }}/k-slide-security/evidence/
+      - name: Remove private certification inputs
+        if: always()
+        run: |
+          rm -rf "$RUNNER_TEMP/k-slide-security/private-transport" "$RUNNER_TEMP/k-slide-security/certification-bundle.zip"
+          rm -f .k-slide-config/production-candidate.json .k-slide-config/termbase.local.json
+          rm -rf ocr

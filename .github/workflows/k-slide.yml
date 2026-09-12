@@ -1,0 +1,42 @@
+name: K-Slide
+
+on:
+  push:
+    paths:
+      - "**"
+      - ".github/workflows/k-slide.yml"
+  pull_request:
+    paths:
+      - "**"
+      - ".github/workflows/k-slide.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install verified Korean font
+        run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
+      - name: Install K-Slide test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[pdf,pptx,dev]"
+      - name: Compile
+        run: python -m compileall -q src tests evals
+      - name: Unit and integration tests
+        run: PYTHONPATH=src python -m unittest discover -s tests -v
+      - name: Doctor and installer smoke
+        run: |
+          PYTHONPATH=src python -m k_slide.cli doctor --root . --json
+          rm -rf "$RUNNER_TEMP/k-slide-host"
+          ./scripts/install_project.sh "$RUNNER_TEMP/k-slide-host"
+          ./scripts/verify_install.sh "$RUNNER_TEMP/k-slide-host"
+      - name: Synthetic artifact evaluation smoke
+        run: PYTHONPATH=src python -m evals.run_engine_eval --output "$RUNNER_TEMP/k-slide-eval" --split development --limit 2 --formats png pdf --candidate-profile evals/production-candidate.yaml

@@ -1,0 +1,302 @@
+name: K-Slide Phase 3.5 execution isolation and heavy runtime
+
+on:
+  push:
+    paths:
+      - "**"
+      - ".github/workflows/k-slide-phase32.yml"
+  pull_request:
+    paths:
+      - "**"
+      - ".github/workflows/k-slide-phase32.yml"
+  workflow_dispatch:
+    inputs:
+      certification_bundle_run_id:
+        description: "Authorized preparation workflow run ID containing the private certification artifact"
+        required: false
+        type: string
+      certification_bundle_name:
+        description: "Exact private certification artifact name"
+        required: false
+        default: "k-slide-certification-bundle"
+        type: string
+      certification_bundle_sha256:
+        description: "Authoritative SHA-256 digest of the private bundle archive"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  fast:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install verified Korean font
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk
+      - name: Install K-Slide test dependencies
+        run: python -m pip install -e ".[dev,pdf,pptx]"
+      - name: Verify Korean font and split manifest
+        run: python -m evals.generate_corpus --output /tmp/k-slide-corpus --formats png --limit 1
+      - name: Verify corpus fingerprints and certification schema
+        run: |
+          PYTHONPATH=src python -m evals.generate_corpus --output /tmp/k-slide-corpus-fingerprint --formats png --limit 1
+          python -m json.tool schemas/translation-patch.schema.json >/dev/null
+      - name: Run tests
+        run: PYTHONPATH=src python -m unittest discover -s tests -v
+      - name: Compile Python modules
+        run: python -m compileall -q src evals tests
+      - name: Doctor
+        run: PYTHONPATH=src python -m k_slide.cli doctor --root . --json
+      - name: Exercise project installer wrappers
+        run: |
+          target="$(mktemp -d)"
+          ./scripts/install_project.sh "$target"
+          ./scripts/verify_install.sh "$target"
+
+  heavy:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Download and verify authorized private certification bundle
+        if: inputs.certification_bundle_run_id != ''
+        env:
+          BUNDLE_RUN_ID: ${{ inputs.certification_bundle_run_id }}
+          BUNDLE_NAME: ${{ inputs.certification_bundle_name }}
+          BUNDLE_DIGEST: ${{ inputs.certification_bundle_sha256 }}
+          KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY: ${{ vars.KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY }}
+          KSLIDE_PRIVATE_CERTIFICATION_WORKFLOW_ID: ${{ vars.KSLIDE_PRIVATE_CERTIFICATION_WORKFLOW_ID }}
+          KSLIDE_PRIVATE_CERTIFICATION_WORKFLOW_PATH: ${{ vars.KSLIDE_PRIVATE_CERTIFICATION_WORKFLOW_PATH }}
+          KSLIDE_PRIVATE_CERTIFICATION_TOKEN: ${{ secrets.KSLIDE_PRIVATE_CERTIFICATION_TOKEN }}
+        run: |
+          set -euo pipefail
+          for required in KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY KSLIDE_PRIVATE_CERTIFICATION_WORKFLOW_ID KSLIDE_PRIVATE_CERTIFICATION_WORKFLOW_PATH KSLIDE_PRIVATE_CERTIFICATION_TOKEN; do
+            test -n "${!required}" || { echo "missing protected private certification transport configuration: $required" >&2; exit 2; }
+          done
+          test -n "$BUNDLE_DIGEST" || { echo "missing immutable certification bundle digest" >&2; exit 2; }
+          transport_root="$RUNNER_TEMP/k-slide-private-certification"
+          mkdir -p "$transport_root"
+          export GH_TOKEN="$KSLIDE_PRIVATE_CERTIFICATION_TOKEN"
+          gh api "repos/$KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY" > "$transport_root/source-repository.json"
+          gh api "repos/$KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY/actions/runs/$BUNDLE_RUN_ID" > "$transport_root/run.json"
+          gh api "repos/$KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY/actions/runs/$BUNDLE_RUN_ID/artifacts?per_page=100" > "$transport_root/artifacts.json"
+          PYTHONPATH=src:. python -m evals.validate_certification_bundle_provenance \
+            --repository-json "$transport_root/source-repository.json" \
+            --run-json "$transport_root/run.json" \
+            --artifacts-json "$transport_root/artifacts.json" \
+            --run-id "$BUNDLE_RUN_ID" \
+            --artifact-name "$BUNDLE_NAME" \
+            --source-repository "$KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY" \
+            --workflow-id "$KSLIDE_PRIVATE_CERTIFICATION_WORKFLOW_ID" \
+            --workflow-path "$KSLIDE_PRIVATE_CERTIFICATION_WORKFLOW_PATH" \
+            --target-subject-sha "$GITHUB_SHA" \
+            --artifact-sha256 "$BUNDLE_DIGEST" \
+            --public-repository "$GITHUB_REPOSITORY" > "$transport_root/provenance.json"
+          artifact_id=$(python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["artifact_id"])' "$transport_root/provenance.json")
+          PYTHONPATH=src:. python -m evals.download_certification_bundle \
+            --repository "$KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY" \
+            --artifact-id "$artifact_id" \
+            --output "$transport_root/bundle.zip" \
+            --artifact-sha256 "$BUNDLE_DIGEST" \
+            --token-env KSLIDE_PRIVATE_CERTIFICATION_TOKEN \
+            --api-base-url "${GITHUB_API_URL:-https://api.github.com}"
+          mv "$transport_root/bundle.zip" "$RUNNER_TEMP/k-slide-certification-bundle.zip"
+      - name: Materialize authorized private certification bundle
+        if: inputs.certification_bundle_run_id != ''
+        env:
+          BUNDLE_DIGEST: ${{ inputs.certification_bundle_sha256 }}
+        run: |
+          PYTHONPATH=src:. python -m evals.materialize_certification_bundle \
+            --archive "$RUNNER_TEMP/k-slide-certification-bundle.zip" \
+            --archive-sha256 "$BUNDLE_DIGEST" \
+            --output-root "$GITHUB_WORKSPACE" \
+            --target-subject-sha "$GITHUB_SHA"
+      - name: Freeze exact production dependency subject
+        run: |
+          python -m venv "$RUNNER_TEMP/k-slide-production-env"
+          lock_input=""
+          if [ -f .k-slide-config/production-requirements.lock ]; then
+            lock_input=".k-slide-config/production-requirements.lock"
+          fi
+          if [ -n "$lock_input" ]; then
+            test -f "$lock_input"
+            "$RUNNER_TEMP/k-slide-production-env/bin/python" -m pip install --disable-pip-version-check --no-input -r "$lock_input"
+          else
+            "$RUNNER_TEMP/k-slide-production-env/bin/python" -m pip install --disable-pip-version-check --no-input -r constraints-production.txt
+          fi
+          freeze_args=(--inventory-output .k-slide-config/production-dependency-inventory.json --lock-output .k-slide-config/production-requirements.lock)
+          if [ -n "$lock_input" ]; then freeze_args+=(--lock-input "$lock_input"); fi
+          PYTHONPATH=src:. "$RUNNER_TEMP/k-slide-production-env/bin/python" -m evals.freeze_production_dependencies "${freeze_args[@]}"
+      - name: Build heavy evaluation image
+        run: docker build --build-arg PRODUCTION_LOCK=.k-slide-config/production-requirements.lock -f evals/heavy/Dockerfile -t k-slide-heavy .
+      - name: Verify heavy image dependency identity
+        run: |
+          docker run --rm --entrypoint python k-slide-heavy -c 'import json; from k_slide.certification import installed_dependency_inventory; print(json.dumps(installed_dependency_inventory(), sort_keys=True))' > "$RUNNER_TEMP/k-slide-heavy-image-inventory.json"
+          PYTHONPATH=src:. python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from k_slide.certification import load_dependency_inventory
+
+          expected = load_dependency_inventory(Path(".k-slide-config/production-dependency-inventory.json"))
+          actual = json.loads((Path(os.environ["RUNNER_TEMP"]) / "k-slide-heavy-image-inventory.json").read_text(encoding="utf-8"))
+          if actual != expected:
+              raise SystemExit(json.dumps({"expected": expected, "actual": actual}, sort_keys=True))
+          PY
+      - name: Prepare explicit heavy candidate specification
+        run: |
+          PYTHONPATH=src python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from k_slide.certification import canonical_behavior_configuration, load_candidate_spec, resolve_candidate_spec
+          from k_slide.model_policy import load_model_policy
+          from evals.scenarios import split_manifest
+
+          candidate_path = Path(".k-slide-config/production-candidate.json")
+          if candidate_path.is_file():
+              candidate = load_candidate_spec(candidate_path, root=Path.cwd(), require_identity=True, strict=True)
+              candidate = resolve_candidate_spec(candidate, root=Path.cwd(), subject_git_sha=os.environ["GITHUB_SHA"], model_policy=load_model_policy(Path.cwd()), corpus=split_manifest(), require_sources=True)
+          else:
+              candidate = load_candidate_spec(Path("evals/production-candidate.yaml"), root=Path.cwd())
+              candidate["subject_git_sha"] = os.environ["GITHUB_SHA"]
+              candidate["ocr_provider"] = "paddle"
+              behavior = dict(candidate.get("behavior_configuration") or {})
+              behavior["ocr_provider"] = "paddle"
+              candidate["behavior_configuration"] = canonical_behavior_configuration(behavior)
+          output = Path(os.environ["RUNNER_TEMP"]) / "k-slide-heavy-candidate.json"
+          output.write_text(json.dumps(candidate, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+      - name: Run heavy self-test
+        run: |
+          mkdir -p "${RUNNER_TEMP}/k-slide-heavy-doctor"
+          set -o pipefail
+          docker run --rm \
+            -v "${RUNNER_TEMP}/k-slide-heavy-doctor:/out" \
+            k-slide-heavy --required \
+            | tee "${RUNNER_TEMP}/k-slide-heavy-doctor/doctor.json"
+          docker run --rm --network none \
+            -v "${RUNNER_TEMP}/k-slide-heavy-doctor:/out" \
+            k-slide-heavy --required --networkless \
+            | tee "${RUNNER_TEMP}/k-slide-heavy-doctor/networkless-doctor.json"
+      - name: Run representative heavy engine subset with production OCR routing
+        run: |
+          mkdir -p "${RUNNER_TEMP}/k-slide-heavy-engine-subset"
+          docker run --rm --network none \
+            -v "${RUNNER_TEMP}/k-slide-heavy-engine-subset:/out" \
+            -v "${RUNNER_TEMP}/k-slide-heavy-candidate.json:/candidate.json:ro" \
+            --entrypoint python k-slide-heavy -m evals.run_engine_eval \
+            --output /out \
+            --candidate-profile /candidate.json \
+            --subject-sha "${GITHUB_SHA}" \
+            --split development \
+            --scenario-ids scenario-0002 scenario-0017 scenario-0031 scenario-0051 scenario-0066 \
+            --formats png pdf pptx \
+            --ocr-provider paddle \
+            --fail-on-critical
+      - name: Verify candidate-bound OCR asset identity inside the evaluated runtime
+        if: inputs.certification_bundle_run_id != ''
+        run: |
+          docker run --rm --entrypoint python k-slide-heavy - <<'PY' > "$RUNNER_TEMP/k-slide-heavy-ocr-asset-context.json"
+          import json
+          from pathlib import Path
+          from k_slide.certification import paddle_runtime_configuration, validate_ocr_asset_manifest
+
+          manifest = Path("/opt/k-slide/ocr/manifest.json")
+          identity = validate_ocr_asset_manifest(manifest, asset_root=manifest.parent)
+          configuration = paddle_runtime_configuration(asset_root=manifest.parent, manifest_path=manifest)
+          print(json.dumps({"status": "PASS", "runtime_verified": True, "manifest_sha256": identity["sha256"], "file_count": identity["file_count"], "files": identity["entries"], "paddlex_config": configuration["paddlex_config"], "paddlex_config_sha256": configuration["paddlex_config_sha256"], "offline_assets_required": configuration["offline_assets_required"], "after_engine": True}, sort_keys=True))
+          PY
+      - name: Retain heavy dependency proof and derive evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          evidence_root="$RUNNER_TEMP/k-slide-heavy-evidence/evidence"
+          mkdir -p "$evidence_root"
+          cp --preserve=mode "$RUNNER_TEMP/k-slide-heavy-doctor/doctor.json" "$evidence_root/required-doctor.json"
+          cp --preserve=mode "$RUNNER_TEMP/k-slide-heavy-doctor/networkless-doctor.json" "$evidence_root/networkless-doctor.json"
+          cp --preserve=mode "$RUNNER_TEMP/k-slide-heavy-engine-subset/summary.json" "$evidence_root/representative-engine.json"
+          cp --preserve=mode .k-slide-config/production-dependency-inventory.json "$evidence_root/production-inventory.json"
+          cp --preserve=mode .k-slide-config/production-requirements.lock "$evidence_root/production.lock"
+          cp --preserve=mode "$RUNNER_TEMP/k-slide-heavy-image-inventory.json" "$evidence_root/built-image-inventory.json"
+          if [ -f "$RUNNER_TEMP/k-slide-heavy-ocr-asset-context.json" ]; then
+            cp --preserve=mode "$RUNNER_TEMP/k-slide-heavy-ocr-asset-context.json" "$evidence_root/ocr-asset-context.json"
+            cp --preserve=mode ocr/manifest.json "$evidence_root/ocr-asset-manifest.json"
+          fi
+          if [ -f .k-slide-config/production-candidate.json ]; then
+            deployment=$(PYTHONPATH=src:. python - <<'PY'
+          import os
+          from pathlib import Path
+          from evals.scenarios import split_manifest
+          from k_slide.certification import candidate_deployment_fingerprint, load_candidate_spec, resolve_candidate_spec
+          from k_slide.model_policy import load_model_policy
+          candidate = load_candidate_spec(Path(".k-slide-config/production-candidate.json"), root=Path.cwd(), require_identity=True, strict=True)
+          candidate = resolve_candidate_spec(candidate, root=Path.cwd(), subject_git_sha=os.environ["GITHUB_SHA"], model_policy=load_model_policy(Path.cwd()), corpus=split_manifest(), require_sources=True)
+          print(candidate_deployment_fingerprint(candidate))
+          PY
+            )
+            PYTHONPATH=src:. python -m evals.freeze_production_dependencies \
+              --retain-only \
+              --inventory-input .k-slide-config/production-dependency-inventory.json \
+              --lock-input .k-slide-config/production-requirements.lock \
+              --built-image-inventory "$RUNNER_TEMP/k-slide-heavy-image-inventory.json" \
+              --dependency-context-output "$evidence_root/dependency-context.json" \
+              --subject-sha "$GITHUB_SHA" \
+              --deployment-fingerprint "$deployment"
+            PYTHONPATH=src:. python -m k_slide.evidence_adapters heavy_runtime \
+              --output "$evidence_root/heavy_runtime.evidence.json" \
+              --root . \
+              --candidate-profile .k-slide-config/production-candidate.json \
+              --subject-sha "$GITHUB_SHA" \
+              --deployment-fingerprint "$deployment" \
+              --source required_doctor="$evidence_root/required-doctor.json" \
+              --source networkless_doctor="$evidence_root/networkless-doctor.json" \
+              --source representative_engine="$evidence_root/representative-engine.json" \
+              --source production_inventory="$evidence_root/production-inventory.json" \
+              --source production_lock="$evidence_root/production.lock" \
+              --source built_image_inventory="$evidence_root/built-image-inventory.json" \
+              --source dependency_context="$evidence_root/dependency-context.json" \
+              --source ocr_asset_manifest="$evidence_root/ocr-asset-manifest.json" \
+              --source ocr_asset_context="$evidence_root/ocr-asset-context.json"
+          else
+            EVIDENCE_ROOT="$evidence_root" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          Path(os.environ["EVIDENCE_ROOT"]).joinpath("heavy-evidence-status.json").write_text(json.dumps({"status": "NOT_CERTIFYING", "reason": "no authorized private candidate bundle was materialized"}) + "\n", encoding="utf-8")
+          PY
+          fi
+      - name: Publish heavy evaluation summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k-slide-heavy-summary
+          path: |
+            ${{ runner.temp }}/k-slide-heavy-evidence/evidence/
+      - name: Remove private certification inputs
+        if: always()
+        run: |
+          rm -rf "$RUNNER_TEMP/k-slide-private-certification" "$RUNNER_TEMP/k-slide-certification-bundle.zip" "$RUNNER_TEMP/k-slide-heavy-candidate.json"
+          rm -f .k-slide-config/production-candidate.json .k-slide-config/termbase.local.json
+          rm -rf ocr

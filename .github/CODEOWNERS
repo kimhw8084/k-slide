@@ -1,0 +1,6 @@
+# Production-sensitive K-Slide paths require review by the repository owner.
+/src/ @kimhw8084
+/.opencode/ @kimhw8084
+/schemas/ @kimhw8084
+/evals/ @kimhw8084
+/.github/workflows/ @kimhw8084

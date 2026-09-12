@@ -1,0 +1,62 @@
+name: K-Slide manual release evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      requested_state:
+        description: "Maximum release state to derive from validated evidence"
+        required: true
+        default: DEVELOPMENT
+        type: choice
+        options:
+          - DEVELOPMENT
+          - RUNTIME_READY
+          - GEMMA_EVAL_READY
+          - SYNTHETIC_PRODUCTION_CANDIDATE
+          - INTERNAL_VALIDATED
+          - PILOT_APPROVED
+          - PRODUCTION_CERTIFIED
+
+jobs:
+  release-evidence:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install K-Slide test dependencies
+        run: python -m pip install -e ".[dev,pdf,pptx]"
+      - name: Run fast certification tests
+        run: PYTHONPATH=src python -m unittest discover -s tests -q
+      - name: Compile source and evaluation modules
+        run: python -m compileall -q src evals tests
+      - name: Generate release manifest and SBOM
+        env:
+          RELEASE_STATE: ${{ inputs.requested_state }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/k-slide-release"
+          CERTIFICATION_FLAG=""
+          CERTIFIED_PROFILE_FLAG=""
+          if [ "$RELEASE_STATE" = "PRODUCTION_CERTIFIED" ]; then CERTIFICATION_FLAG="--require-certified"; fi
+          if [ "$RELEASE_STATE" = "PRODUCTION_CERTIFIED" ]; then CERTIFIED_PROFILE_FLAG="--certified-profile-output $RUNNER_TEMP/k-slide-release/production-profile.json"; fi
+          PYTHONPATH=src python -m evals.release \
+            --root . \
+            --requested-state "$RELEASE_STATE" \
+            --candidate-profile evals/production-candidate.yaml \
+            --subject-sha "$GITHUB_SHA" \
+            --resolved-candidate-output "$RUNNER_TEMP/k-slide-release/resolved-candidate.json" \
+            $CERTIFICATION_FLAG \
+            $CERTIFIED_PROFILE_FLAG \
+            --output "$RUNNER_TEMP/k-slide-release/PRODUCTION_RELEASE_MANIFEST.json" \
+            --sbom "$RUNNER_TEMP/k-slide-release/SBOM.json"
+          sha256sum "$RUNNER_TEMP/k-slide-release/PRODUCTION_RELEASE_MANIFEST.json" "$RUNNER_TEMP/k-slide-release/SBOM.json" > "$RUNNER_TEMP/k-slide-release/SHA256SUMS"
+      - name: Upload release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k-slide-release-evidence
+          path: ${{ runner.temp }}/k-slide-release/
