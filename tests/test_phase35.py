@@ -153,7 +153,7 @@ class Phase35Tests(unittest.TestCase):
         self.assertIn("DECK_INCOMPLETE", incomplete["failures"])
 
     def test_heavy_workflow_persists_host_output_and_requires_capabilities(self):
-        workflow = (ROOT.parent / ".github" / "workflows" / "k-slide-phase32.yml").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github" / "workflows" / "k-slide-phase32.yml").read_text(encoding="utf-8")
         self.assertIn("--network none", workflow)
         self.assertIn("${RUNNER_TEMP}/k-slide-heavy-engine-subset:/out", workflow)
         self.assertIn("--fail-on-critical", workflow)
@@ -275,7 +275,7 @@ class Phase35Tests(unittest.TestCase):
             self.assertIn({"name": "k-slide:completeness", "value": "development"}, sbom["metadata"]["component"]["properties"])
 
     def test_release_workflow_is_manual_and_certification_gated(self):
-        workflow = (ROOT.parent / ".github" / "workflows" / "k-slide-release.yml").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github" / "workflows" / "k-slide-release.yml").read_text(encoding="utf-8")
         self.assertIn("workflow_dispatch", workflow)
         self.assertNotIn("on:\n  push:", workflow)
         self.assertIn("--require-certified", workflow)

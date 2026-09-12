@@ -914,7 +914,7 @@ class CertificationClosureTests(unittest.TestCase):
             popen.assert_not_called()
 
     def test_security_workflow_captures_exit_codes_without_text_mutation_or_clean_fallback(self):
-        workflow = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "k-slide-security.yml").read_text(encoding="utf-8")
+        workflow = (Path(__file__).resolve().parents[1] / ".github" / "workflows" / "k-slide-security.yml").read_text(encoding="utf-8")
         self.assertIn("pip-audit.exit", workflow)
         self.assertIn("gitleaks.exit", workflow)
         self.assertIn("semgrep.exit", workflow)
@@ -1216,7 +1216,7 @@ class CertificationClosureTests(unittest.TestCase):
 
             with self.assertRaises(CertificationBundleDownloadError):
                 download_artifact_archive(repository="private-org/certification", artifact_id=31, output=root / "bundle.zip", expected_sha256="a" * 64, token="token", api_base_url="https://api.example.test", opener_factory=Opener)
-        for workflow in (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "k-slide-phase32.yml", Path(__file__).resolve().parents[2] / ".github" / "workflows" / "k-slide-security.yml"):
+        for workflow in (Path(__file__).resolve().parents[1] / ".github" / "workflows" / "k-slide-phase32.yml", Path(__file__).resolve().parents[1] / ".github" / "workflows" / "k-slide-security.yml"):
             text = workflow.read_text(encoding="utf-8")
             self.assertNotIn("gh api --output", text)
             self.assertIn("download_certification_bundle", text)
