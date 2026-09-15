@@ -9,7 +9,7 @@ K-Slide is a single-agent OpenCode workflow for Korean business slides and visua
 
 ## Runtime workflow
 
-Use the typed lifecycle tools in this order:
+Use the typed lifecycle tools in this order. The normal employee workflow has one behavior path; do not select a smart, strict, or safe mode.
 
 1. `kslide_prepare` — create or resume an immutable, hashed input run.
 2. `kslide_next` and `kslide_evidence` — obtain the bounded work unit and its evidence.

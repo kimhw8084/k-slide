@@ -13,7 +13,7 @@ From this project:
 ./scripts/verify_install.sh /path/to/your/project
 ```
 
-Then launch OpenCode in the target project. Put source files in:
+Then launch OpenCode in the target project. Attach supported local source files in the composer and run `/k-slide`. For local compatibility, source files may also be placed in:
 
 ```text
 .k-slide-input/
@@ -60,9 +60,11 @@ The model cannot author source geometry, native text, numeric facts, required-re
 
 The project installs:
 
-- `/k-slide`, `/k-slide-strict`, `/k-slide-safe`, `/k-slide-continue`, `/k-slide-status`, `/k-slide-doctor`, `/k-slide-audit`, and `/k-slide-help`;
+- `/k-slide`, `/k-slide-continue`, `/k-slide-status`, `/k-slide-doctor`, `/k-slide-audit`, and `/k-slide-help`;
 - one visible `k-slide` agent;
 - typed custom tools: `kslide_prepare`, `kslide_next`, `kslide_evidence`, `kslide_submit`, `kslide_verify`, `kslide_finalize`, `kslide_status`, and `kslide_doctor`.
+
+The normal `/k-slide` path has no employee-selectable mode. OpenCode composer attachments and approved workspace-file selections are resolved by the host adapter, validated locally, and copied into an immutable hashed run snapshot. The `.k-slide-input/` folder remains a local compatibility fallback.
 
 The installed agent does not use model-generated shell commands for K-Slide lifecycle operations. OpenCode compatibility is detected at runtime; the repository was validated against OpenCode `1.3.9` during this implementation pass.
 
