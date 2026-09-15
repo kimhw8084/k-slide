@@ -1,0 +1,472 @@
+{
+  "accepted_at": "2026-09-15T22:19:50Z",
+  "changed_files": [
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 40,
+      "deletions": 0,
+      "path": "docs/adr/0038-versioned-durable-execution-contract.md",
+      "status": "A"
+    },
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "src/k_slide/__init__.py",
+      "status": "M"
+    },
+    {
+      "additions": 12,
+      "deletions": 2,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 5,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 1075,
+      "deletions": 0,
+      "path": "src/k_slide/execution.py",
+      "status": "A"
+    },
+    {
+      "additions": 5,
+      "deletions": 2,
+      "path": "src/k_slide/host_adapter.py",
+      "status": "M"
+    },
+    {
+      "additions": 22,
+      "deletions": 3,
+      "path": "src/k_slide/ingest.py",
+      "status": "M"
+    },
+    {
+      "additions": 64,
+      "deletions": 12,
+      "path": "src/k_slide/locking.py",
+      "status": "M"
+    },
+    {
+      "additions": 29,
+      "deletions": 0,
+      "path": "src/k_slide/run_store.py",
+      "status": "A"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/support.py",
+      "status": "M"
+    },
+    {
+      "additions": 562,
+      "deletions": 0,
+      "path": "tests/test_chg16_durable_execution.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short --branch && rtk git log --oneline --decorate -12 && rtk git show -s --format=fuller 456dd9020b57db05e80a8d620649ecab32e4de50 && rtk git show -s --format=fuller ad2af10ae584b365711317e174b7710e0509406c && rtk git branch -avv && rtk git merge-base --is-ancestor 456dd9020b57db05e80a8d620649ecab32e4de50 ad2af10ae584b365711317e174b7710e0509406c; printf 'base_to_candidate_exit=%s\\\\n' \\\"\"'$?\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git merge --ff-only ad2af10ae584b365711317e174b7710e0509406c && rtk git status --short --branch && rtk git log --oneline --decorate -4'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- ADR 0038 ---' && sed -n '1,260p' docs/adr/0038-versioned-durable-execution-contract.md && printf '%s\\\\n' '--- locking.py ---' && sed -n '1,320p' src/k_slide/locking.py && printf '%s\\\\n' '--- io.py ---' && sed -n '1,360p' src/k_slide/io.py && printf '%s\\\\n' '--- execution symbols ---' && rg -n \\\"class DurableTestRunStore|class WorkspaceRunStore|def (create|commit_job|commit_checkpoint|commit_step|request_cancellation|acknowledge_cancellation|transition_operational|record_retry|commit_result)|_mutation|run_lock|lock|expected_revision|revision\\\" src/k_slide/execution.py src/k_slide/locking.py src/k_slide/io.py src/k_slide/run_store.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '240,880p' src/k_slide/execution.py && printf '%s\\\\n' '--- durable tests ---' && sed -n '1,420p' tests/test_chg16_durable_execution.py && printf '%s\\\\n' '--- all lock references/tests ---' && rg -n \\\"run_lock|\\\\.run\\\\.lock|WorkspaceRunStore|DurableTestRunStore|commit_job|commit_checkpoint|commit_step|request_cancellation|acknowledge_cancellation|transition_operational|record_retry|commit_result\\\" src tests docs -g '*.py' -g '*.md'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '640,885p' src/k_slide/execution.py && printf '%s\\\\n' '--- durable tests 1-180 ---' && sed -n '1,180p' tests/test_chg16_durable_execution.py && printf '%s\\\\n' '--- durable tests 180-340 ---' && sed -n '180,340p' tests/test_chg16_durable_execution.py && printf '%s\\\\n' '--- pyproject test config ---' && sed -n '1,240p' pyproject.toml\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,120p' src/k_slide/execution.py && sed -n '1,180p' src/k_slide/errors.py && printf '%s\\\\n' '--- all tests by CHG/lock/state/session/security ---' && rg --files tests | sort && printf '%s\\\\n' '--- possible test commands/docs ---' && rg -n \\\"pytest|unittest|Phase 3.5|phase35|CI|static|mypy|ruff|compileall|test_chg16\\\" README.md DEVELOPMENT_NOTES.md docs scripts .github pyproject.toml 2>/dev/null | sed -n '1,260p'\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 11255,
+        "output_sha256": "5e8b95cbdec9b008608ee5bc824535319fda947f14b7db1458f5c97a2bfbc3be",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest tests.test_chg16_durable_execution -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff -- src/k_slide/locking.py src/k_slide/execution.py tests/test_chg16_durable_execution.py && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest tests.test_chg16_durable_execution -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '950,1060p' src/k_slide/execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest tests.test_chg16_durable_execution -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest tests.test_chg16_durable_execution -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python3 -c 'import sys, unittest; from contextlib import contextmanager; import tests.test_chg16_durable_execution as module; from k_slide.execution import DurableTestRunStore; namespace = {}; exec(\\\"def old_mutation(self, job_id=None):\\\\\\\\n    with self._mutex:\\\\\\\\n        yield\\\\\\\\n\\\", namespace); DurableTestRunStore._mutation = contextmanager(namespace[\\\"old_mutation\\\"]); names = [\\\"tests.test_chg16_durable_execution.DurableExecutionContractTests.test_durable_recreated_stores_share_per_job_guard_without_global_serialization\\\", \\\"tests.test_chg16_durable_execution.DurableExecutionContractTests.test_independent_durable_stores_reject_conflicting_same_revision_writers\\\", \\\"tests.test_chg16_durable_execution.DurableExecutionContractTests.test_independent_durable_store_create_races_keep_idempotency_and_conflict_semantics\\\"]; result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(names)); sys.exit(0 if result.wasSuccessful() else 1)'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python3 -c 'import sys, unittest; from contextlib import contextmanager; import tests.test_chg16_durable_execution as module; from k_slide.execution import DurableTestRunStore; namespace = {}; old_code = \\\"def old_mutation(self, job_id=None):\\\" + chr(10) + \\\"    with self._mutex:\\\" + chr(10) + \\\"        yield\\\"; exec(old_code, namespace); DurableTestRunStore._mutation = contextmanager(namespace[\\\"old_mutation\\\"]); names = [\\\"tests.test_chg16_durable_execution.DurableExecutionContractTests.test_durable_recreated_stores_share_per_job_guard_without_global_serialization\\\", \\\"tests.test_chg16_durable_execution.DurableExecutionContractTests.test_independent_durable_stores_reject_conflicting_same_revision_writers\\\", \\\"tests.test_chg16_durable_execution.DurableExecutionContractTests.test_independent_durable_store_create_races_keep_idempotency_and_conflict_semantics\\\"]; result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(names)); sys.exit(0 if result.wasSuccessful() else 1)'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest tests.test_chg16_durable_execution -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python3 -c 'import sys, unittest; from contextlib import contextmanager; import tests.test_chg16_durable_execution; from k_slide.execution import DurableTestRunStore; namespace = {}; old_code = \\\"def old_mutation(self, job_id=None):\\\" + chr(10) + \\\"    with self._mutex:\\\" + chr(10) + \\\"        yield\\\"; exec(old_code, namespace); DurableTestRunStore._mutation = contextmanager(namespace[\\\"old_mutation\\\"]); names = [\\\"tests.test_chg16_durable_execution.DurableExecutionContractTests.test_durable_recreated_stores_share_per_job_guard_without_global_serialization\\\", \\\"tests.test_chg16_durable_execution.DurableExecutionContractTests.test_independent_durable_stores_reject_conflicting_same_revision_writers\\\", \\\"tests.test_chg16_durable_execution.DurableExecutionContractTests.test_independent_durable_store_create_races_keep_idempotency_and_conflict_semantics\\\"]; result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(names)); sys.exit(0 if result.wasSuccessful() else 1)'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --check && rtk git diff --stat && rtk git diff -- src/k_slide/locking.py src/k_slide/execution.py && rtk git diff -- tests/test_chg16_durable_execution.py | sed -n '1,420p' && printf '%s\\\\n' '--- current ancestry ---' && rtk git merge-base --is-ancestor 456dd9020b57db05e80a8d620649ecab32e4de50 HEAD; printf 'base_ancestor=%s\\\\n' \\\"\"'$?\"; rtk git merge-base --is-ancestor ad2af10ae584b365711317e174b7710e0509406c HEAD; printf '\"'predecessor_ancestor=%s\\\\n' \\\"\"'$?\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '150,430p' tests/test_chg16_durable_execution.py && sed -n '430,520p' tests/test_chg16_durable_execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- test scope references ---' && rg -n \\\"queue|Queue|RunState|state|session|security|secret|AccessKey|redact|host|Foundation|Phase 3.5|heavy|skip|SkipTest\\\" tests | sed -n '1,300p' && printf '%s\\\\n' '--- available check tools ---' && command -v ruff || true; command -v mypy || true; command -v pyright || true; command -v pytest || true; python3 --version && rtk git status --short\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 36434,
+        "output_sha256": "f3c607a728525805c5a449281ca46b47d6ac9778192f18afcf20e754d9802be2",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rg -n \\\"mkdir\\\\(|chmod\\\\(|atomic_write.*mode|mode=0o\\\" src/k_slide/state.py src/k_slide/queue.py src/k_slide/io.py src/k_slide/locking.py | sed -n '1,220p' && sed -n '1,180p' src/k_slide/state.py && sed -n '1,140p' src/k_slide/queue.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3 -m compileall -q src/k_slide/execution.py src/k_slide/locking.py tests/test_chg16_durable_execution.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mypy src/k_slide/execution.py src/k_slide/locking.py'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mypy src/k_slide/execution.py src/k_slide/locking.py'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,130p' .github/workflows/k-slide.yml && printf '%s\\\\n' '--- phase32 workflow ---' && sed -n '1,120p' .github/workflows/k-slide-phase32.yml && printf '%s\\\\n' '--- release workflow ---' && sed -n '1,100p' .github/workflows/k-slide-release.yml && printf '%s\\\\n' '--- package status ---' && rtk git status --short --branch\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest discover -s tests -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest -q tests.test_chg16_durable_execution.DurableExecutionContractTests.test_durable_recreated_stores_share_per_job_guard_without_global_serialization tests.test_chg16_durable_execution.DurableExecutionContractTests.test_independent_durable_stores_reject_conflicting_same_revision_writers tests.test_chg16_durable_execution.DurableExecutionContractTests.test_independent_durable_store_create_races_keep_idempotency_and_conflict_semantics'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest -q tests.test_chg16_durable_execution.DurableExecutionContractTests.test_durable_recreated_stores_share_per_job_guard_without_global_serialization tests.test_chg16_durable_execution.DurableExecutionContractTests.test_independent_durable_stores_reject_conflicting_same_revision_writers tests.test_chg16_durable_execution.DurableExecutionContractTests.test_independent_durable_store_create_races_keep_idempotency_and_conflict_semantics'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest -q tests.test_chg16_durable_execution.DurableExecutionContractTests.test_durable_recreated_stores_share_per_job_guard_without_global_serialization tests.test_chg16_durable_execution.DurableExecutionContractTests.test_independent_durable_stores_reject_conflicting_same_revision_writers tests.test_chg16_durable_execution.DurableExecutionContractTests.test_independent_durable_store_create_races_keep_idempotency_and_conflict_semantics'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3 -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mypy src/k_slide/execution.py src/k_slide/locking.py'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m k_slide.cli doctor --root . --json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mktemp -d -t kslide-host'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk ./scripts/install_project.sh /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/kslide-host.DY4CTH7fKY && rtk ./scripts/verify_install.sh /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/kslide-host.DY4CTH7fKY'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mktemp -d -t kslide-phase35'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m evals.generate_corpus --output /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/kslide-phase35.ri8xmaRR10/corpus --formats png --limit 1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m evals.generate_corpus --output /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/kslide-phase35.ri8xmaRR10/corpus-fingerprint --formats png --limit 1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3 -m json.tool schemas/translation-patch.schema.json >/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m evals.run_engine_eval --output /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/kslide-phase35.ri8xmaRR10/engine-eval --split development --limit 2 --formats png pdf --candidate-profile evals/production-candidate.yaml'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rg -n \\\"from \\\\.locking|import locking|from \\\\.errors|import errors\\\" src/k_slide/redaction.py src/k_slide/*.py | sed -n '1,180p' && printf '%s\\\\n' '--- lock helper current ---' && sed -n '1,150p' src/k_slide/locking.py && printf '%s\\\\n' '--- status and changed paths ---' && rtk git status --short --branch && rtk git diff --name-only && rtk git diff --check\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest -q tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_phase1 tests.test_phase11 tests.test_phase21 tests.test_phase32 tests.test_phase35'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git status --short --branch && rtk git diff --name-status && rtk git diff --numstat && rtk git rev-parse HEAD && rtk git rev-parse ad2af10ae584b365711317e174b7710e0509406c''^{commit} && rtk git merge-base --is-ancestor 456dd9020b57db05e80a8d620649ecab32e4de50 HEAD; printf '\"'target_main_ancestor=%s\\\\n' \\\"\"'$?\"; rtk git merge-base --is-ancestor ad2af10ae584b365711317e174b7710e0509406c HEAD; printf '\"'predecessor_ancestor=%s\\\\n' \\\"\"'$?\";'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python3 -c 'import sys, unittest; from contextlib import contextmanager; import tests.test_chg16_durable_execution; from k_slide.execution import DurableTestRunStore; namespace = {}; old_code = \\\"def old_mutation(self, job_id=None):\\\" + chr(10) + \\\"    with self._mutex:\\\" + chr(10) + \\\"        yield\\\"; exec(old_code, namespace); DurableTestRunStore._mutation = contextmanager(namespace[\\\"old_mutation\\\"]); names = [\\\"tests.test_chg16_durable_execution.DurableExecutionContractTests.test_durable_recreated_stores_share_per_job_guard_without_global_serialization\\\", \\\"tests.test_chg16_durable_execution.DurableExecutionContractTests.test_independent_durable_stores_reject_conflicting_same_revision_writers\\\", \\\"tests.test_chg16_durable_execution.DurableExecutionContractTests.test_independent_durable_store_create_races_keep_idempotency_and_conflict_semantics\\\"]; result = unittest.TextTestRunner(verbosity=1).run(unittest.defaultTestLoader.loadTestsFromNames(names)); sys.exit(0 if result.wasSuccessful() else 1)'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest -q tests.test_chg16_durable_execution'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add src/k_slide/execution.py src/k_slide/locking.py tests/test_chg16_durable_execution.py && rtk git diff --cached --check && rtk git diff --cached --stat && rtk git diff --cached --name-only'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git commit -m \"fix: share durable run-store CAS mutation locks\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git push origin codex/k-slide-chg16-durable-execution-01-fix01'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git log --oneline --decorate -4'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git merge-base --is-ancestor 456dd9020b57db05e80a8d620649ecab32e4de50 HEAD; printf 'target_main_ancestor=%s\\\\n' \\\"\"'$?\"; rtk git merge-base --is-ancestor ad2af10ae584b365711317e174b7710e0509406c HEAD; printf '\"'predecessor_ancestor=%s\\\\n' \\\"\"'$?\"; rtk git diff HEAD''^ HEAD --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git ls-remote origin refs/heads/codex/k-slide-chg16-durable-execution-01-fix01'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 143,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 95.22,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 6014720,
+      "fresh_input_tokens": 302055,
+      "input_tokens": 6316775,
+      "non_reasoning_output_tokens": 16933,
+      "output_tokens": 46480,
+      "reasoning_output_tokens": 29547,
+      "total_processed_tokens": 6363255
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "834435642b0b87277510f3e95e9debd6673987b1",
+      "subject": "fix: share durable run-store CAS mutation locks"
+    },
+    {
+      "sha": "ad2af10ae584b365711317e174b7710e0509406c",
+      "subject": "feat: add durable execution run-store contract"
+    }
+  ],
+  "diff": {
+    "additions": 1819,
+    "changed_files": 12,
+    "commit_count": 2,
+    "deletions": 20
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 2,
+    "items": [
+      {
+        "bytes": 25443,
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "6a63578613418c8493bda8c8edd5e3a1649d20a267097ab5076fb1435b207064"
+      },
+      {
+        "bytes": 2029,
+        "path": "docs/adr/0038-versioned-durable-execution-contract.md",
+        "sha256": "dbd768b919176e230978c2d8e093e42dfcc2eb9c3f41f54a982fd32775ece876"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.2",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.2",
+  "failure_class": null,
+  "finished_at": "2026-09-15T22:35:39Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "456dd9020b57db05e80a8d620649ecab32e4de50",
+    "branch": "codex/k-slide-chg16-durable-execution-01-fix01",
+    "head_sha": "834435642b0b87277510f3e95e9debd6673987b1",
+    "remote_exact_head": true,
+    "remote_head_sha": "834435642b0b87277510f3e95e9debd6673987b1",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "456dd9020b57db05e80a8d620649ecab32e4de50",
+    "work_branch": "codex/k-slide-chg16-durable-execution-01-fix01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-8eeb8efd9ab1fdbd401e00e1",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-durable-execution-01-fix01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-durable-execution-01-fix01"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.2",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "ac9bd8dedb364d22fc9c0fc6a50334cbf5b7f53a5a0602aa17553d680a87690e"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-durable-execution-01-fix01",
+  "schema_version": 1,
+  "started_at": "2026-09-15T22:19:50Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 949,
+    "queue_seconds": 0,
+    "total_seconds": 949
+  },
+  "transport": {
+    "bytes": 11263,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 10937,
+    "prompt_sha256": "b850219178f9ff6dc4cf0a091d68de11152de021b15b8f7a32b627244b052ee0",
+    "sha256": "8eeb8efd9ab1fdbd401e00e131ebb4a235d4a50fa120461cda0316d2fe7a2d7e"
+  }
+}
