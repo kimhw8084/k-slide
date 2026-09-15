@@ -1,0 +1,705 @@
+{
+  "accepted_at": "2026-09-15T13:33:37Z",
+  "changed_files": [
+    {
+      "additions": 2,
+      "deletions": 2,
+      "path": ".opencode/commands/k-slide-help.md",
+      "status": "M"
+    },
+    {
+      "additions": 0,
+      "deletions": 15,
+      "path": ".opencode/commands/k-slide-safe.md",
+      "status": "D"
+    },
+    {
+      "additions": 0,
+      "deletions": 15,
+      "path": ".opencode/commands/k-slide-strict.md",
+      "status": "D"
+    },
+    {
+      "additions": 2,
+      "deletions": 4,
+      "path": ".opencode/commands/k-slide.md",
+      "status": "M"
+    },
+    {
+      "additions": 54,
+      "deletions": 0,
+      "path": ".opencode/plugin/k-slide-host.ts",
+      "status": "A"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": ".opencode/skills/k-slide/SKILL.md",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 3,
+      "path": ".opencode/skills/k-slide/bin/prepare_run.sh",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 2,
+      "path": ".opencode/skills/k-slide/references/troubleshooting.md",
+      "status": "M"
+    },
+    {
+      "additions": 16,
+      "deletions": 2,
+      "path": ".opencode/tools/kslide.ts",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "DEVELOPMENT_NOTES.md",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 2,
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "additions": 58,
+      "deletions": 9,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 211,
+      "deletions": 0,
+      "path": "src/k_slide/host_adapter.py",
+      "status": "A"
+    },
+    {
+      "additions": 43,
+      "deletions": 12,
+      "path": "src/k_slide/ingest.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "src/k_slide/installer.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/rendering/reports.py",
+      "status": "M"
+    },
+    {
+      "additions": 28,
+      "deletions": 11,
+      "path": "src/k_slide/security.py",
+      "status": "M"
+    },
+    {
+      "additions": 221,
+      "deletions": 0,
+      "path": "tests/test_chg16_host_integration.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk opencode debug config 2>&1 | sed -n '1,360p'; printf '\\\\n--- debug paths ---\\\\n'; rtk opencode debug paths 2>&1 | sed -n '1,220p'; printf '\\\\n--- repo opencode jsonc ---\\\\n'; rtk sed -n '1,220p' opencode.example.jsonc; printf '\\\\n--- current session logs plugin/config lines ---\\\\n'; rtk rg -n \\\"service=(plugin|config)|plugin name|path=.*opencode|plugins\\\" /Users/haewonkim/.local/share/opencode/log/2026-09-15*.log 2>/dev/null | sed -n '1,240p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk opencode plugin --help 2>&1 | sed -n '1,220p'; printf '\\\\n--- debug agent ---\\\\n'; rtk opencode debug agent k-slide 2>&1 | sed -n '1,260p'; printf '\\\\n--- global config files ---\\\\n'; rtk find /Users/haewonkim/.config/opencode -maxdepth 2 -type f | sed -n '1,120p'; for f in /Users/haewonkim/.config/opencode/opencode.json /Users/haewonkim/.config/opencode/opencode.jsonc /Users/haewonkim/.config/opencode/config.json; do if [ -f \\\"\"'$f\" ]; then echo --- \"$f\"; rtk sed -n '\"'1,180p' \\\"\"'$f\"; fi; done'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"mode=|\\\\.mode|mode\\\" src tests .opencode README.md DEVELOPMENT_NOTES.md evals | sed -n '1,320p'; printf '\\\\n--- queue ---\\\\n'; rtk sed -n '1,280p' src/k_slide/queue.py; printf '\\\\n--- normalization/extraction failure writes ---\\\\n'; rtk rg -n \\\"FAILED_|transition\\\\(\\\" src/k_slide/normalization.py src/k_slide/extraction.py src/k_slide/verify.py src/k_slide/translation.py src/k_slide/completion.py | sed -n '1,360p'; printf '\\\\n--- support metadata ---\\\\n'; rtk sed -n '1,260p' src/k_slide/support.py; printf '\\\\n--- redaction ---\\\\n'; rtk sed -n '1,380p' src/k_slide/redaction.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"strings /Users/haewonkim/.opencode/bin/opencode | rg -n -C3 \\\"\\\\.opencode/(plugins|plugin)|plugins/|plugin/|load.*plugin|plugin.*load|Plugin .*directory|Path plugin\\\" | sed -n '1,300p'; printf '\\\\n--- installed OpenCode config schema/config code refs ---\\\\n'; rtk rg -n \\\"plugin.*\\\\[|plugin.*directory|plugins/|\\\\.opencode/plugins|resolvePlugin|plugin:\\\" /Users/haewonkim/.opencode /Users/haewonkim/.config/opencode -g '*.js' -g '*.d.ts' -g '*.json' | sed -n '1,400p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"strings /Users/haewonkim/.opencode/bin/opencode | rg -n -C12 \\\"function loadPlugin|loadPlugin\\\\(dir|loadPlugin =|plugin\\\\.push\\\" | sed -n '1,280p'; printf '\\\\n--- plugin loader source chunks ---\\\\n'; strings /Users/haewonkim/.opencode/bin/opencode | rg -n -C25 \\\"src/config/loader|src/config|loadCommand\\\\(dir\\\" | sed -n '1,360p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"source_path|source_name|input_sha256|RUN_MANIFEST|00_input_inventory|attachments\\\" tests src README.md docs | sed -n '1,420p'; printf '\\\\n--- ingest tests and document identity ---\\\\n'; rtk rg -n -A30 -B20 \\\"prepare_run|InputArtifact|source_input_id|document_id|source_sha256|multi|input_count\\\" tests | sed -n '1,520p'; printf '\\\\n--- documents ---\\\\n'; rtk sed -n '1,340p' src/k_slide/documents.py; printf '\\\\n--- normalization identity refs ---\\\\n'; rtk rg -n \\\"source-|source_name|source_sha|input_id|document_id|source_path|manifest\\\" src/k_slide/normalization.py src/k_slide/extraction.py src/k_slide/evidence_ir.py | sed -n '1,420p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,230p' tests/test_phase1.py; printf '\\\\n--- normalization start ---\\\\n'; rtk sed -n '1,390p' src/k_slide/normalization.py; printf '\\\\n--- reports ---\\\\n'; rtk sed -n '1,120p' src/k_slide/rendering/reports.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,100p' .opencode/skills/k-slide/bin/prepare_run.sh; rtk sed -n '56,76p' README.md; rtk sed -n '1,28p' .opencode/commands/k-slide.md; rtk git status --short\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3 -m py_compile src/k_slide/*.py && rtk git diff --check && rtk git diff --stat && rtk git diff -- src/k_slide/host_adapter.py src/k_slide/ingest.py src/k_slide/security.py src/k_slide/cli.py | sed -n '1,520p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src pytest -q tests/test_chg16_foundation.py tests/test_phase1.py tests/test_cli_blackbox.py'",
+      "exit_code": 1,
+      "test_result": {
+        "counts": {
+          "failed": 6,
+          "passed": 19
+        },
+        "exit_code": 1,
+        "failing_test_ids": [
+          "tests/test_phase1.py::Phase1Tests::test_completion_is_owned_by_verifier_and_finalizer",
+          "tests/test_phase1.py::Phase1Tests::test_explicit_directory_discovers_supported_inputs",
+          "tests/test_phase1.py::Phase1Tests::test_input_extension_and_magic_must_agree",
+          "tests/test_phase1.py::Phase1Tests::test_next_fails_closed_before_normalization_exists",
+          "tests/test_phase1.py::Phase1Tests::test_pptx_external_relationship_is_rejected",
+          "tests/test_phase1.py::Phase1Tests::test_prepare_creates_immutable_hashed_snapshot_and_session_binding"
+        ],
+        "framework": "pytest",
+        "outcome": "test_failures",
+        "output_bytes": 8764,
+        "output_sha256": "71b0eed46f280b8ab3a8d1abe8754c7e4d883545bd0f4c807fe96f0a56b4babc",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python3 - <<'PY'\nfrom pathlib import Path\nimport tempfile\nfrom k_slide.security import validate_input\nfrom k_slide.errors import KSlideError\nwith tempfile.TemporaryDirectory() as d:\n    p=Path(d)/'x.png'; p.write_bytes(b'not')\n    try: validate_input(p)\n    except KSlideError as e: print(e.code, e.message, e.details)\n    cur=Path(p.expanduser().anchor)\n    print('path',p,'parts',p.parts)\n    for part in p.parts[1:]:\n      cur/=part\n      print(cur,cur.is_symlink())\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src pytest -q tests/test_chg16_foundation.py tests/test_phase1.py tests/test_cli_blackbox.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 25
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 99,
+        "output_sha256": "26b1dc8e85cb199da9732b26264dccb7942f31380104367cf6eb6102ada64c57",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src pytest -q tests/test_chg16_host_integration.py'",
+      "exit_code": 1,
+      "test_result": {
+        "counts": {
+          "failed": 3,
+          "passed": 6
+        },
+        "exit_code": 1,
+        "failing_test_ids": [
+          "tests/test_chg16_host_integration.py::HostIntegrationTests::test_attachment_local_file_uri_is_accepted_but_network_uri_is_not_fetched",
+          "tests/test_chg16_host_integration.py::HostIntegrationTests::test_failure_and_semantic_review_remain_distinct_in_next_and_cli_boundaries",
+          "tests/test_chg16_host_integration.py::HostIntegrationTests::test_workspace_packet_preserves_order_identity_hashes_and_snapshot_boundaries"
+        ],
+        "framework": "pytest",
+        "outcome": "test_failures",
+        "output_bytes": 4448,
+        "output_sha256": "6d7f55b2a30a4d73151dcdd91acd8e2dc89a6f92fc34bfc1f6321fe38e8c62ad",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python3 - <<'PY'\nfrom pathlib import Path\nimport tempfile\nfrom k_slide.host_adapter import HostInputReference, validate_host_inputs\nfrom k_slide.ingest import prepare_run\nfrom k_slide.state import load_state\nPNG=b'\\\\x89PNG\\\\r\\\\n\\\\x1a\\\\nsynthetic-host-fixture'\nwith tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as o:\n root=Path(d); p=Path(o)/'upload.bin'; p.write_bytes(PNG)\n ref=HostInputReference('attachment','uploaded.png',p.as_uri())\n try: print(validate_host_inputs((ref,), approved_root=root))\n except Exception as e: print('validate',type(e),getattr(e,'code',None),getattr(e,'message',e),getattr(e,'details',None))\n run=prepare_run(root,host_input_refs=(ref,),approved_root=root)\n print(load_state(run).as_dict()); print((run/'RUN_FAILED.md').read_text())\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src pytest -q tests/test_chg16_host_integration.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 9
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 98,
+        "output_sha256": "77b93aa3a791901b9732aaef6d9f29edc59203b7128bc5d2c6962dc6e99f0fff",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk opencode debug config 2>&1 | rg -n 'plugin|k-slide-host|command|k-slide' | sed -n '1,160p'; printf '\\\\n--- plugin load log tail ---\\\\n'; rtk rg -n \\\"k-slide-host|Failed to load plugin|loading plugin\\\" /Users/haewonkim/.local/share/opencode/log/2026-09-15*.log | tail -40\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src pytest -q'",
+      "exit_code": 2,
+      "test_result": {
+        "counts": {
+          "errors": 6
+        },
+        "error_test_ids": [
+          "tests/test_certification_closure.py",
+          "tests/test_phase21.py",
+          "tests/test_phase32.py",
+          "tests/test_phase33.py",
+          "tests/test_phase34.py",
+          "tests/test_phase35.py"
+        ],
+        "exit_code": 2,
+        "framework": "pytest",
+        "outcome": "interrupted",
+        "output_bytes": 4481,
+        "output_sha256": "ee20ff89399efef0ccfac803681829612998b6a3652f2e47e86d3be28f89ad58",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. pytest -q'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 200,
+          "skipped": 2,
+          "warnings": 1
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 786,
+        "output_sha256": "45ac701bd40ecbf21d671f9540c571efa2d366301873124dc7d6abfa13ab6fa0",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short && rtk git diff --check && rtk python3 -m compileall -q src tests && printf '\\\\n--- static tools ---\\\\n'; command -v semgrep || true; command -v mypy || true; command -v pyright || true; command -v tsc || true; printf '\\\\n--- OpenCode config/plugin load ---\\\\n'; rtk opencode debug config >/tmp/k-slide-opencode-config.json 2>/tmp/k-slide-opencode-config.err; code=\"'$?; echo \"debug_config_exit=$code\"; rtk rg -n '\"'k-slide-host|\\\"plugin\\\"|\\\"k-slide\\\"' /tmp/k-slide-opencode-config.json | sed -n '1,30p'; rtk tail -20 /tmp/k-slide-opencode-config.err; printf '\\\\n--- mode/attachment audit ---\\\\n'; rtk rg -n \\\"k-slide-(strict|safe)|mode.*(smart|strict|safe)|--mode|host_input_refs|chat.message|tool.execute.before|source_path\\\" README.md DEVELOPMENT_NOTES.md .opencode src tests | sed -n '1,360p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mypy src/k_slide/host_adapter.py src/k_slide/ingest.py src/k_slide/security.py src/k_slide/cli.py'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/cli.py | sed -n '180,200p'; rtk mypy src/k_slide/host_adapter.py 2>&1\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk mypy --follow-imports=skip src/k_slide/host_adapter.py; printf 'mypy_host_adapter_exit=%s\\\\n' \\\"\"'$?\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,340p' src/k_slide/host_adapter.py; printf '\\\\n--- plugin ---\\\\n'; rtk sed -n '1,240p' .opencode/plugin/k-slide-host.ts; printf '\\\\n--- tool prepare ---\\\\n'; rtk sed -n '1,190p' .opencode/tools/kslide.ts; printf '\\\\n--- installer diff ---\\\\n'; rtk git diff -- src/k_slide/installer.py .opencode/commands/k-slide.md .opencode/skills/k-slide/bin/prepare_run.sh README.md | sed -n '1,360p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk timeout 6 opencode serve --hostname 127.0.0.1 --port 0 --print-logs --log-level DEBUG > /tmp/k-slide-opencode-serve.out 2>&1; code=$?; echo \"serve_exit=$code\"; rtk rg -n \"k-slide-host|failed to load plugin|loading plugin|server started|listening|error\" /tmp/k-slide-opencode-serve.out | sed -n '\"'1,180p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,240p' /tmp/k-slide-opencode-serve.out; printf '\\\\n--- newest OpenCode log plugin lines ---\\\\n'; rtk rg -n \\\"k-slide-host|failed to load plugin|loading plugin|plugin\\\" /Users/haewonkim/.local/share/opencode/log/2026-09-15*.log | tail -80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. pytest -q'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 200,
+          "skipped": 2,
+          "warnings": 1
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 786,
+        "output_sha256": "0d018367fb6b0c0e6b16330d3b7d4ad82b761f07f2cb27fb286d9948caa6f6e5",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src pytest -q tests/test_chg16_host_integration.py tests/test_chg16_foundation.py && rtk python3 -m py_compile src/k_slide/*.py && rtk git diff --check'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 17
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 100,
+        "output_sha256": "0b0b8ec055c1af75d5e3f4f7d6ac25a3ad7ffc89355b74ed821fa61bcb596394",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --name-status; rtk git status --short; printf '\\\\n--- changed source references ---\\\\n'; rtk rg -n \\\"HostResult|HostProgress|HOST_ADAPTER|operational_state|semantic_outcome|source_path|attachments.*supported\\\" src tests .opencode README.md | sed -n '1,420p'; printf '\\\\n--- root commit ancestry ---\\\\n'; rtk git merge-base --is-ancestor a0997460fe5826a4079fc36e750b1170aa0db83e HEAD; echo \\\"ancestor_exit=\"'$?\"; rtk git branch --show-current; rtk git log -1 --oneline --decorate'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"k-slide-(strict|safe)|running K-Slide in `smart`|mode `smart`|mode:|--mode\" .opencode README.md DEVELOPMENT_NOTES.md src/k_slide | sed -n '\"'1,240p' || true; printf '\\\\n--- plugin/runtime status ---\\\\n'; rtk opencode debug config >/tmp/k-slide-opencode-config-final.json 2>/tmp/k-slide-opencode-config-final.err; echo \\\"debug_config_exit=\"'$?\"; rtk rg -n '\"'k-slide-host|\\\"plugin\\\"' /tmp/k-slide-opencode-config-final.json | sed -n '1,20p'; printf '\\\\n--- static checks final ---\\\\n'; rtk mypy --follow-imports=skip src/k_slide/host_adapter.py; rtk git diff --check; rtk python3 -m py_compile src/k_slide/*.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. pytest -q'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 200,
+          "skipped": 2,
+          "warnings": 1
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 786,
+        "output_sha256": "66de5892ecb4ab24e5790148824013822a9a7d7d4792bede1ac21d528673f2a8",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git add -A && rtk git status --short && printf '\\\\n--- staged stat ---\\\\n' && rtk git diff --cached --stat && printf '\\\\n--- staged names ---\\\\n' && rtk git diff --cached --name-status\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --cached --check && rtk git diff --cached -- .opencode src/k_slide tests/test_chg16_host_integration.py | sed -n '1,1200p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git commit -m \"feat: add CHG-16 host integration boundary\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git log -1 --oneline --decorate && rtk git merge-base --is-ancestor a0997460fe5826a4079fc36e750b1170aa0db83e HEAD && echo \"ancestor_exit=$?\" && rtk git push origin HEAD:codex/k-slide-chg16-host-integration-01'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git log -1 --oneline --decorate && rtk git merge-base --is-ancestor a0997460fe5826a4079fc36e750b1170aa0db83e HEAD && echo \"ancestor_exit=$?\" && rtk git ls-remote --heads origin codex/k-slide-chg16-host-integration-01'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. pytest -q -rs'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 200,
+          "skipped": 2,
+          "warnings": 1
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 1038,
+        "output_sha256": "afdff2a13183bb73a50f862eda67dc0ae0bf399210fda61ea25ddf5e7a6aff9b",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '300,410p' src/k_slide/cli.py && rtk git status --short --branch && rtk git diff --stat\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff -- src/k_slide/cli.py && rtk git diff --check && rtk env PYTHONPATH=src pytest -q tests/test_chg16_host_integration.py tests/test_chg16_foundation.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 17
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 99,
+        "output_sha256": "3e68d501d653674821e71828e564dd166e8417dca58ce13c33c46ced19b0a792",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3 -m compileall -q src tests && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mypy --follow-imports=skip src/k_slide/host_adapter.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. pytest -q -rs'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 200,
+          "skipped": 2,
+          "warnings": 1
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 1038,
+        "output_sha256": "cdef7880aee05e4f672b29bdb7daae8c49f5e687d528cd14d8d192a97ea6510b",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git diff --stat && rtk git add src/k_slide/cli.py && rtk git commit -m \"fix: remove legacy mode from normal CLI surface\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git push origin HEAD:codex/k-slide-chg16-host-integration-01 && rtk git status --short --branch && rtk git log -3 --oneline --decorate && rtk git merge-base --is-ancestor a0997460fe5826a4079fc36e750b1170aa0db83e HEAD && rtk git rev-parse HEAD && rtk git ls-remote origin refs/heads/codex/k-slide-chg16-host-integration-01'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'mode|smart|strict|safe' src/k_slide/ingest.py src/k_slide/cli.py .opencode README.md DEVELOPMENT_NOTES.md | head -160\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '95,185p' src/k_slide/ingest.py && rtk rg -n 'prepare_run\\\\([\"'^'\"\\\\n]*mode=|mode=\\\"(smart|strict|safe)\\\"|mode=.*(smart|strict|safe)' tests src .opencode | head -120\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n '\\\\.mode|mode=' src/k_slide | head -160 && rtk sed -n '1,110p' src/k_slide/state.py 2>/dev/null || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3 -m py_compile src/k_slide/*.py && rtk git diff --check && rtk mypy --follow-imports=skip src/k_slide/host_adapter.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src pytest -q tests/test_chg16_host_integration.py tests/test_chg16_foundation.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 17
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 99,
+        "output_sha256": "f525d39ed2c486806c7c6d4a663f9a300596593a384d5171e20346ea2e64038a",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. pytest -q -rs'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 200,
+          "skipped": 2,
+          "warnings": 1
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 1038,
+        "output_sha256": "cb619d2168c1010ab6a0ceed7254b2f6f67fe86537a03f1ff0e2e172c427a01b",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git add src/k_slide/ingest.py && rtk git commit -m \"docs: mark legacy modes internal\" && rtk git push origin HEAD:codex/k-slide-chg16-host-integration-01 && rtk git status --short --branch && rtk git log -3 --oneline --decorate && rtk git merge-base --is-ancestor a0997460fe5826a4079fc36e750b1170aa0db83e HEAD && rtk git rev-parse HEAD && rtk git ls-remote origin refs/heads/codex/k-slide-chg16-host-integration-01'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 193,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 98.0,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 16440064,
+      "fresh_input_tokens": 335184,
+      "input_tokens": 16775248,
+      "non_reasoning_output_tokens": 31004,
+      "output_tokens": 63358,
+      "reasoning_output_tokens": 32354,
+      "total_processed_tokens": 16838606
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "32d2a7ffc4fd9c65bd4a0282a822bca91b828a9c",
+      "subject": "docs: mark legacy modes internal"
+    },
+    {
+      "sha": "de1cd68b897f442924a8b9a5800b6082834a6956",
+      "subject": "fix: remove legacy mode from normal CLI surface"
+    },
+    {
+      "sha": "03e488b9cb0b4c5ef9d21d0c94ee5b1a00e68b1a",
+      "subject": "feat: add CHG-16 host integration boundary"
+    }
+  ],
+  "diff": {
+    "additions": 647,
+    "changed_files": 18,
+    "commit_count": 3,
+    "deletions": 80
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 6,
+    "items": [
+      {
+        "bytes": 537,
+        "path": ".opencode/commands/k-slide-help.md",
+        "sha256": "6e2c1a7050ab061ab0105f482ae757a1d1d8cf44042c04aadf21daa103d88380"
+      },
+      {
+        "bytes": 1048,
+        "path": ".opencode/commands/k-slide.md",
+        "sha256": "b65b903fda9c97e7ac7532a5c345f697cd17fceb160512eb23e23744ff47f50d"
+      },
+      {
+        "bytes": 2634,
+        "path": ".opencode/skills/k-slide/SKILL.md",
+        "sha256": "496d1279e398f08bea660005b74962f7a00a1d9ab1d1bf210dbb18441e12891f"
+      },
+      {
+        "bytes": 476,
+        "path": ".opencode/skills/k-slide/references/troubleshooting.md",
+        "sha256": "b06836cd2b5350534ab1afa6e710528bead36258b781e7f63b6df3ad4d6db82a"
+      },
+      {
+        "bytes": 5795,
+        "path": "DEVELOPMENT_NOTES.md",
+        "sha256": "5c1295728a0436c4d8f482d5de8a928fb165c84af1ec4ab8a31b98838ba8bee3"
+      },
+      {
+        "bytes": 9469,
+        "path": "README.md",
+        "sha256": "e8521c3556a1281ed325bbec9f6184985559f3d8085b0e96fa0f9c0a933ae512"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.2",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.2",
+  "failure_class": null,
+  "finished_at": "2026-09-15T14:04:57Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "a0997460fe5826a4079fc36e750b1170aa0db83e",
+    "branch": "codex/k-slide-chg16-host-integration-01",
+    "head_sha": "32d2a7ffc4fd9c65bd4a0282a822bca91b828a9c",
+    "remote_exact_head": true,
+    "remote_head_sha": "32d2a7ffc4fd9c65bd4a0282a822bca91b828a9c",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "a0997460fe5826a4079fc36e750b1170aa0db83e",
+    "work_branch": "codex/k-slide-chg16-host-integration-01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-6623a7b90931bab03c185d76",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-host-integration-01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-host-integration-01"
+  },
+  "operation": "BUILD",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.2",
+    "policy_sha256": "3778fba0755dd2f6b00268f73b7a589f93317203cc0603df2feff4e6d9c759f6",
+    "registry_sha256": "17d7db01a654a693b57af2b6fce2f676b1f883ea97564a690894b5f96df49aaa"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-host-integration-01",
+  "schema_version": 1,
+  "started_at": "2026-09-15T13:40:45Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1452,
+    "queue_seconds": 428,
+    "total_seconds": 1880
+  },
+  "transport": {
+    "bytes": 9556,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 9243,
+    "prompt_sha256": "62c1963fb05700762e64265fcd39b11051a74f3b9bc33d79029b3cd5cff20f10",
+    "sha256": "6623a7b90931bab03c185d76fee1d250d1ee931107bb8f90c9393152899ccaf0"
+  }
+}
