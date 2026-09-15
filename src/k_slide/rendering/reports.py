@@ -21,7 +21,7 @@ def _manifest_names(run_dir: Path) -> dict[str, str]:
     for index, item in enumerate(inputs, start=1):
         if isinstance(item, dict):
             input_id = f"source-{index:03d}"
-            names[input_id] = str(item.get("source_name", item.get("source_path", input_id)))
+            names[input_id] = str(item.get("source_name", input_id))
     return names
 
 

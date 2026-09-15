@@ -35,7 +35,10 @@ class InputArtifact:
     sha256: str
 
     def as_dict(self) -> dict[str, object]:
-        return asdict(self)
+        value = asdict(self)
+        # The absolute source path is an intake-only capability, not product identity.
+        value.pop("source_path", None)
+        return value
 
 
 def sha256_file(path: Path, *, chunk_size: int = 1024 * 1024) -> str:
@@ -81,16 +84,25 @@ def _inspect_zip(path: Path, *, extension: str) -> None:
         raise KSlideError(ErrorCode.INPUT_CORRUPT, "The Office archive is not readable.", {"reason": str(exc)}) from exc
 
 
-def validate_input(path: Path, *, allowed_root: Path | None = None) -> InputArtifact:
+def _reject_symlink_components(path: Path) -> None:
+    """Reject a symlink input; resolved containment handles parent escapes."""
+
+    try:
+        if path.expanduser().is_symlink():
+            raise KSlideError(ErrorCode.INPUT_NOT_FOUND, "Input path may not be a symbolic link.")
+    except OSError as exc:
+        raise KSlideError(ErrorCode.INPUT_NOT_FOUND, "Input path could not be inspected safely.") from exc
+
+
+def validate_input(path: Path, *, allowed_root: Path | None = None, logical_name: str | None = None) -> InputArtifact:
     """Validate a supported source without trusting its filename."""
 
     original = path.expanduser()
-    if original.is_symlink():
-        raise KSlideError(ErrorCode.INPUT_NOT_FOUND, "Input path may not be a symbolic link.", {"path": str(original)})
+    _reject_symlink_components(original)
     try:
         resolved = original.resolve(strict=True)
     except FileNotFoundError as exc:
-        raise KSlideError(ErrorCode.INPUT_NOT_FOUND, "Input file does not exist.", {"path": str(path)}) from exc
+        raise KSlideError(ErrorCode.INPUT_NOT_FOUND, "Input file does not exist.") from exc
     if allowed_root is not None:
         root = allowed_root.expanduser().resolve()
         try:
@@ -99,32 +111,37 @@ def validate_input(path: Path, *, allowed_root: Path | None = None) -> InputArti
             raise KSlideError(
                 ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT,
                 "Input file is outside the allowed project root.",
-                {"path": str(resolved), "root": str(root)},
             ) from exc
     if not resolved.is_file():
-        raise KSlideError(ErrorCode.INPUT_NOT_FOUND, "Input path is not a regular file.", {"path": str(resolved)})
+        raise KSlideError(ErrorCode.INPUT_NOT_FOUND, "Input path is not a regular file.")
     if not os.access(resolved, os.R_OK):
-        raise KSlideError(ErrorCode.INPUT_NOT_FOUND, "Input file is not readable.", {"path": str(resolved)})
+        raise KSlideError(ErrorCode.INPUT_NOT_FOUND, "Input file is not readable.")
     size = resolved.stat().st_size
     if size == 0:
-        raise KSlideError(ErrorCode.INPUT_EMPTY, "Input file is empty.", {"path": str(resolved)})
+        raise KSlideError(ErrorCode.INPUT_EMPTY, "Input file is empty.")
     if size > MAX_INPUT_BYTES:
         raise KSlideError(ErrorCode.INPUT_TOO_LARGE, "Input file exceeds the safety limit.", {"limit_bytes": MAX_INPUT_BYTES})
 
-    extension = resolved.suffix.lower()
+    display_name = logical_name or resolved.name
+    if "\x00" in display_name or "/" in display_name or "\\" in display_name or display_name in {"", ".", ".."}:
+        raise KSlideError(ErrorCode.INPUT_UNSUPPORTED, "Input logical name is not safe.")
+    extension = Path(display_name).suffix.lower()
     if extension not in SUPPORTED_EXTENSIONS:
         raise KSlideError(ErrorCode.INPUT_UNSUPPORTED, "File type is not supported by K-Slide.", {"extension": extension})
+    physical_extension = resolved.suffix.lower()
+    if logical_name and physical_extension in SUPPORTED_EXTENSIONS and physical_extension != extension:
+        raise KSlideError(ErrorCode.INPUT_TYPE_MISMATCH, "Input file extension does not match its host logical name.")
     with resolved.open("rb") as handle:
         header = handle.read(16)
     if extension in _MAGIC and not _MAGIC[extension](header):
-        raise KSlideError(ErrorCode.INPUT_TYPE_MISMATCH, "File extension does not match its content.", {"path": str(resolved)})
+        raise KSlideError(ErrorCode.INPUT_TYPE_MISMATCH, "File extension does not match its content.")
     if extension == ".pptx":
         _inspect_zip(resolved, extension=extension)
 
     kind = {".png": "image", ".jpg": "image", ".jpeg": "image", ".webp": "image", ".pdf": "pdf", ".pptx": "pptx"}[extension]
     return InputArtifact(
         source_path=str(resolved),
-        source_name=resolved.name,
+        source_name=display_name,
         extension=extension,
         kind=kind,
         size_bytes=size,

@@ -9,6 +9,12 @@ type ToolContext = {
   worktree: string
 }
 
+const hostInputReference = tool.schema.object({
+  source_kind: tool.schema.enum(["attachment", "workspace_file"]),
+  logical_name: tool.schema.string(),
+  locator: tool.schema.string(),
+})
+
 const hangulRetention = tool.schema.object({
   reason: tool.schema.string(),
   evidence_id: tool.schema.string(),
@@ -112,11 +118,19 @@ async function runCore(context: ToolContext, command: string, args: string[] = [
 export const prepare = tool({
   description: "Create or resume a validated immutable K-Slide run and return its next work target. Does not translate.",
   args: {
-    mode: tool.schema.enum(["smart", "strict", "safe"]).default("smart"),
     explicit_input_paths: tool.schema.array(tool.schema.string()).default([]),
+    host_input_refs: tool.schema.array(hostInputReference).default([]),
   },
   async execute(args, context) {
-    return runCore(context, "prepare", ["--mode", args.mode, "--session-id", context.sessionID, ...args.explicit_input_paths])
+    const hostInvocation = args.host_input_refs.length
+      ? JSON.stringify({ schema_version: "1.0", adapter_version: "1.0", input_refs: args.host_input_refs })
+      : null
+    return runCore(context, "prepare", [
+      "--session-id",
+      context.sessionID,
+      ...(hostInvocation ? ["--host-inputs-json", hostInvocation, "--host-worktree", context.worktree] : []),
+      ...args.explicit_input_paths,
+    ])
   },
 })
 
