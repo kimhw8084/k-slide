@@ -18,13 +18,14 @@ from .normalization import normalize_run
 from .extraction import extract_run
 from .doctor import diagnose
 from .policy import COMPLETION_POLICY, MAX_AUTO_REPAIRS_PER_UNIT
+from .redaction import redact_text
 from .retention import cleanup_expired_runs
 from .support import build_support_bundle
 from .queue import WorkUnitStatus, load_queue, save_queue
 from .runtime import discover_runtime
 from .security import sha256_file
 from .session import bind_session, incomplete_runs, resolve_run
-from .state import RunPhase, load_state, save_state
+from .state import OPERATIONAL_FAILURE_PHASES, RunPhase, load_state, save_state
 from .translation import merge_evidence_patch, parse_translation_patch
 from .rendering import render_run
 from .verify import finalize_run, verify_run
@@ -119,8 +120,15 @@ def _status(root: Path, run_id: str | None, session_id: str | None) -> dict[str,
 def _next(root: Path, run_id: str | None, session_id: str | None) -> dict[str, Any]:
     run = _find_run(root, run_id, session_id)
     state = load_state(run)
-    if state.phase in {RunPhase.FAILED_INPUT, RunPhase.FAILED_RUNTIME, RunPhase.FAILED_NORMALIZATION, RunPhase.FAILED_EXTRACTION, RunPhase.FAILED_SCHEMA, RunPhase.FAILED_INTERNAL}:
-        return {"status": "NEEDS_REVIEW", "run_id": state.run_id, "next_action": state.next_action}
+    if state.phase in OPERATIONAL_FAILURE_PHASES:
+        return {
+            "status": "PROCESSING_FAILED",
+            "run_id": state.run_id,
+            "phase": state.phase.value,
+            "error_code": state.error_code,
+            "error_message": redact_text(state.error_message or "K-Slide processing failed safely."),
+            "next_action": state.next_action,
+        }
     if state.phase == RunPhase.COMPLETE:
         return {"status": "COMPLETE", "run_id": state.run_id, "next_action": None}
     if state.phase == RunPhase.VERIFIED:
@@ -360,7 +368,9 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         if args.command == "verify" and value.get("status") == "FAIL":
             return 1
-        if args.command == "prepare" and value.get("status") in {"FAILED_INPUT", "FAILED_NORMALIZATION", "FAILED_RUNTIME", "FAILED_EXTRACTION", "FAILED_INTERNAL"}:
+        if args.command == "prepare" and value.get("status") in {phase.value for phase in OPERATIONAL_FAILURE_PHASES}:
+            return 1
+        if args.command == "next" and value.get("status") == "PROCESSING_FAILED":
             return 1
         return 0
     except KSlideError as exc:

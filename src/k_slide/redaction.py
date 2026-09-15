@@ -14,7 +14,8 @@ from pathlib import Path
 from typing import Any
 
 
-_SECRET_KEY = re.compile(r"(?:api[_-]?key|access[_-]?token|auth(?:orization)?|password|secret|cookie|private[_-]?key)", re.IGNORECASE)
+_SECRET_NAME = r"(?:api[\s_-]?key|access[\s_-]?(?:key|token)|auth(?:orization)?|password|secret|cookie|private[\s_-]?key)"
+_SECRET_KEY = re.compile(_SECRET_NAME, re.IGNORECASE)
 _CONTENT_KEYS = {
     "text",
     "english",
@@ -27,7 +28,7 @@ _CONTENT_KEYS = {
     "ocr_candidates",
 }
 _BEARER = re.compile(r"(?i)(\bbearer\s+)[A-Za-z0-9._~+/=-]+")
-_ASSIGNMENT = re.compile(r"(?i)(\b(?:api[_-]?key|access[_-]?token|authorization|password|secret)\b\s*[:=]\s*)((?:bearer\s+)?[^\s,;]+)")
+_ASSIGNMENT = re.compile(rf"(?i)(\b{_SECRET_NAME}\b['\"]?\s*[:=]\s*['\"]?)((?:bearer\s+)?[^\s,;\"']+)")
 _URL_CREDENTIALS = re.compile(r"(?i)(https?://)([^/@\s]+):([^/@\s]+)@")
 
 
