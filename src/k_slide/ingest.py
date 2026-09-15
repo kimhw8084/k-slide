@@ -115,7 +115,12 @@ def prepare_run(
     host_input_refs: Iterable[HostInputReference | dict[str, Any]] = (),
     approved_root: Path | None = None,
 ) -> Path:
-    """Create an immutable run, returning its directory even for a failed input run."""
+    """Create an immutable run, returning its directory even for failed input.
+
+    ``mode`` is retained only as internal/admin compatibility metadata for
+    older run records. The host adapter omits it, uses the standard path, and
+    no mode value selects a separate production behavior path.
+    """
 
     root = root.expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
