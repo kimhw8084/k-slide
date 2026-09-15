@@ -1,0 +1,465 @@
+{
+  "accepted_at": "2026-09-15T19:29:40Z",
+  "changed_files": [
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 40,
+      "deletions": 0,
+      "path": "docs/adr/0038-versioned-durable-execution-contract.md",
+      "status": "A"
+    },
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "src/k_slide/__init__.py",
+      "status": "M"
+    },
+    {
+      "additions": 12,
+      "deletions": 2,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 5,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 1071,
+      "deletions": 0,
+      "path": "src/k_slide/execution.py",
+      "status": "A"
+    },
+    {
+      "additions": 5,
+      "deletions": 2,
+      "path": "src/k_slide/host_adapter.py",
+      "status": "M"
+    },
+    {
+      "additions": 22,
+      "deletions": 3,
+      "path": "src/k_slide/ingest.py",
+      "status": "M"
+    },
+    {
+      "additions": 29,
+      "deletions": 0,
+      "path": "src/k_slide/run_store.py",
+      "status": "A"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/support.py",
+      "status": "M"
+    },
+    {
+      "additions": 287,
+      "deletions": 0,
+      "path": "tests/test_chg16_durable_execution.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"pwd && printf '%s\\\\n' '--- root files ---' && rg --files -g 'AGENTS.md' -g 'RTK.md' -g 'law.md' -g 'pyproject.toml' -g 'pytest.ini' -g 'setup.cfg' -g 'tox.ini' -g 'README*' -g '*ADR*' -g '*.md' | sed -n '1,160p' && printf '%s\\\\n' '--- git ---' && git status --short --branch && git log -5 --oneline --decorate\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 2724,
+        "output_sha256": "4764dfbb6f6203695ba7a33cfb6cf7a33e9dae947b5b4e4a5a878aaec53cd368",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,240p' AGENTS.md && printf '%s\\\\n' '--- RTK ---' && sed -n '1,260p' /Users/haewonkim/.codex/RTK.md && printf '%s\\\\n' '--- law ---' && sed -n '1,320p' /Users/haewonkim/.codex/law.md && printf '%s\\\\n' '--- pyproject ---' && sed -n '1,240p' pyproject.toml\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- source files ---' && rg --files src tests | sort && printf '%s\\\\n' '--- execution/state refs ---' && rg -n \\\"class RunState|RunPhase|WORK_QUEUE|WorkQueue|session|progress|continue|status|lock|atomic|AccessKey|sanitize|RUN_STATE|checkpoint|retry|cancel\\\" src tests | sed -n '1,320p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- state.py ---' && sed -n '1,280p' src/k_slide/state.py && printf '%s\\\\n' '--- queue.py ---' && sed -n '1,360p' src/k_slide/queue.py && printf '%s\\\\n' '--- session.py ---' && sed -n '1,280p' src/k_slide/session.py && printf '%s\\\\n' '--- io.py ---' && sed -n '1,280p' src/k_slide/io.py && printf '%s\\\\n' '--- locking.py ---' && sed -n '1,240p' src/k_slide/locking.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,240p' src/k_slide/__init__.py && rtk sed -n '1,320p' src/k_slide/errors.py && rtk sed -n '1,360p' src/k_slide/redaction.py && rtk sed -n '1,420p' src/k_slide/host_adapter.py && rtk sed -n '1,500p' src/k_slide/cli.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,280p' src/k_slide/cli.py && rtk sed -n '280,620p' src/k_slide/cli.py && rtk sed -n '1,420p' src/k_slide/ingest.py && rtk sed -n '1,440p' src/k_slide/translation.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,420p' src/k_slide/ingest.py && rtk sed -n '1,420p' src/k_slide/normalization.py && rtk sed -n '1,360p' src/k_slide/extraction.py && rtk sed -n '1,360p' src/k_slide/verify.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'for f in docs/adr/0003-deterministic-completion.md docs/adr/0004-local-first-privacy.md docs/adr/0007-multi-work-unit-state.md docs/adr/0008-evidence-revision.md docs/adr/0006-engine-owned-evidence.md docs/adr/0034-execution-isolation-and-heavy-proof.md docs/adr/0035-production-certification-hardening.md docs/adr/0025-certification-state-semantics.md docs/adr/0037-result-derived-machine-evidence.md; do echo \"--- $f ---\"; rtk sed -n '\"'1,260p' \\\"\"'$f\"; done'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,360p' tests/test_chg16_foundation.py && rtk sed -n '1,380p' tests/test_chg16_host_integration.py && rtk sed -n '1,260p' tests/test_phase11.py && rtk sed -n '1,240p' tests/test_phase1.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"KSA-06|durable|execution profile|run-store|job|checkpoint|cancellation|retry|process recreation|PaaS\\\" . -g '\"'!*.png'\"' -g '\"'!*.jpg'\"' -g '\"'!*.pptx'\"' -g '\"'!*.pdf'\"' | sed -n '1,300p' && printf '%s\\\\n' '--- docs/status ---' && rtk sed -n '1,260p' IMPLEMENTATION_STATUS.md && rtk sed -n '1,260p' DEVELOPMENT_NOTES.md && printf '%s\\\\n' '--- opencode files ---' && rtk find .opencode -maxdepth 4 -type f -print | sort | xargs -r -n1 sh -c 'echo --- \\\"\"'$0\"; sed -n \"1,220p\" \"$0\"'\"'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"save_state\\\\(|save_queue\\\\(|load_state\\\\(|load_queue\\\\(|run_lock\\\\(\\\" src tests | sed -n '1,320p' && rtk rg --files .opencode | sort && rtk sed -n '1,280p' .opencode/tools/kslide.ts && rtk sed -n '1,260p' .opencode/plugin/k-slide-host.ts && rtk sed -n '1,180p' .opencode/commands/k-slide-status.md && rtk sed -n '1,180p' .opencode/commands/k-slide-continue.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m unittest tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_phase11 tests.test_phase1 -q'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_phase11 tests.test_phase1 -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"def stable_revision\\\" src/k_slide/evidence_ir.py && rtk sed -n '1,110p' src/k_slide/evidence_ir.py && rtk sed -n '1,120p' src/k_slide/authentication.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m py_compile src/k_slide/execution.py src/k_slide/state.py src/k_slide/queue.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,190p' src/k_slide/cli.py && rtk sed -n '1,260p' src/k_slide/host_adapter.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_phase11 tests.test_phase1 -q'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nfrom pathlib import Path\nimport tempfile, json\nfrom k_slide.ingest import prepare_run\nfrom k_slide.execution import WorkspaceRunStore, new_execution_job, ExecutionProfile\nwith tempfile.TemporaryDirectory() as d:\n    root=Path(d)\n    (root/'a.png').write_bytes(b'\\\\x89PNG\\\\r\\\\n\\\\x1a\\\\n')\n    run=prepare_run(root, explicit_paths=[str(root/'a.png')])\n    print(run)\n    print((run/'EXECUTION_JOB.json').read_text())\n    s=WorkspaceRunStore(run)\n    j=s.load('k-slide-not')\nPY\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nfrom pathlib import Path\nimport tempfile\nfrom k_slide.execution import WorkspaceRunStore, new_execution_job, ExecutionProfile\nwith tempfile.TemporaryDirectory() as d:\n    root=Path(d)\n    job=new_execution_job('k-slide-test', profile='workspace_local', scope_ref='workspace', store_ref='workspace-k-slide-test')\n    print(type(job.profile), job.profile, job.profile is ExecutionProfile.WORKSPACE_LOCAL)\n    print(WorkspaceRunStore(root).create(job).status)\n    print((root/'EXECUTION_JOB.json').read_text())\n    print(type(WorkspaceRunStore(root).load(job.job_id).profile))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_phase11 tests.test_phase1 -q'",
+      "exit_code": 130,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_phase11 tests.test_phase1 -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_durable_execution -q'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_durable_execution -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nfrom pathlib import Path\nimport tempfile, json\nfrom k_slide.ingest import prepare_run\nfrom k_slide.execution import WorkspaceRunStore, execution_metadata\nfrom k_slide.cli import main\nfrom contextlib import redirect_stdout\nimport io\nwith tempfile.TemporaryDirectory() as d:\n    root=Path(d)\n    (root/'slide.png').write_bytes(b'\\\\x89PNG\\\\r\\\\n\\\\x1a\\\\nminimal')\n    run=prepare_run(root, explicit_paths=[str(root/'slide.png')])\n    job=WorkspaceRunStore(run).load(f'job-{run.name}')\n    print(job.profile, job.lifecycle, job.checkpoint.engine_phase, job.checkpoint.progress.total_work_units)\n    out=io.StringIO()\n    with redirect_stdout(out): code=main(['status','--root',str(root),'--run',run.name,'--json'])\n    print(code, json.loads(out.getvalue())['execution']['lifecycle'])\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,280p' src/k_slide/support.py && rtk sed -n '270,390p' src/k_slide/normalization.py && rtk sed -n '115,270p' src/k_slide/extraction.py && rtk sed -n '1,180p' .opencode/skills/k-slide/SKILL.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_durable_execution tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_phase11 tests.test_phase1 -q && rtk env PYTHONPATH=src python -m py_compile src/k_slide/*.py tests/test_chg16_durable_execution.py && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --stat && rtk git diff -- src/k_slide/execution.py src/k_slide/ingest.py src/k_slide/cli.py src/k_slide/host_adapter.py src/k_slide/errors.py src/k_slide/__init__.py | sed -n '1,420p' && rtk git status --short\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' src/k_slide/execution.py && rtk sed -n '260,560p' src/k_slide/execution.py && rtk sed -n '560,1000p' src/k_slide/execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_durable_execution tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_phase11 tests.test_phase1 -q && rtk env PYTHONPATH=src python -m py_compile src/k_slide/*.py tests/test_chg16_durable_execution.py && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk command -v ruff || true; rtk command -v mypy || true; rtk command -v pyright || true; rtk command -v pytest || true; rtk git status --short --branch'",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 405,
+        "output_sha256": "96df03a85e8e86332d8159c8fbf979d8e6e3abaa326c5956a2f8ca85ae39dae2",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mypy src/k_slide/execution.py src/k_slide/run_store.py src/k_slide/ingest.py src/k_slide/host_adapter.py src/k_slide/cli.py'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '220,470p' src/k_slide/execution.py && rtk sed -n '590,700p' src/k_slide/execution.py && rtk sed -n '810,885p' src/k_slide/execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_durable_execution -q && rtk env PYTHONPATH=src python -m py_compile src/k_slide/*.py tests/test_chg16_durable_execution.py && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mypy --follow-imports skip src/k_slide/execution.py src/k_slide/run_store.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nfrom pathlib import Path\nimport tempfile, json\nfrom k_slide.execution import *\nfrom k_slide.errors import KSlideError\nwith tempfile.TemporaryDirectory() as d:\n s=DurableTestRunStore(Path(d)); j=new_execution_job('run-a', profile=ExecutionProfile.DURABLE, scope_ref='scope', store_ref='store'); s.create(j); p=s._path_for(j.job_id); v=json.loads(p.read_text()); v['schema_version']='99.0'; p.write_text(json.dumps(v))\n try:s.load(j.job_id)\n except KSlideError as e: print(e.code, e.message)\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_durable_execution -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk wc -l src/k_slide/execution.py src/k_slide/run_store.py tests/test_chg16_durable_execution.py docs/adr/0038-versioned-durable-execution-contract.md && rtk rg -n \"pass|TODO|Callable|load_checkpoint|commit_step|sync_workspace\" src/k_slide/execution.py src/k_slide/run_store.py tests/test_chg16_durable_execution.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_durable_execution -q && rtk mypy --follow-imports skip src/k_slide/execution.py src/k_slide/run_store.py'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_durable_execution -q && rtk mypy --follow-imports skip src/k_slide/execution.py src/k_slide/run_store.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_durable_execution -q && rtk env PYTHONPATH=src python -m py_compile src/k_slide/*.py tests/test_chg16_durable_execution.py && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m compileall -q src evals tests && rtk mypy --follow-imports skip src/k_slide/execution.py src/k_slide/run_store.py && rtk pytest -q'",
+      "exit_code": 2,
+      "test_result": {
+        "exit_code": 2,
+        "framework": "pytest",
+        "outcome": "interrupted",
+        "output_bytes": 124,
+        "output_sha256": "fa2c6abfbcf70fed91215dca3bb6d1e6bedbe2a5ecbb6eec590cdc0579251850",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git status --short --branch && rtk git log -1 --oneline --decorate'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add IMPLEMENTATION_STATUS.md docs/adr/0038-versioned-durable-execution-contract.md src/k_slide/__init__.py src/k_slide/cli.py src/k_slide/errors.py src/k_slide/execution.py src/k_slide/host_adapter.py src/k_slide/ingest.py src/k_slide/run_store.py src/k_slide/support.py tests/test_chg16_durable_execution.py && rtk git diff --cached --stat && rtk git diff --cached --check && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest discover -s tests -q && rtk env PYTHONPATH=src python -m compileall -q src evals tests && rtk mypy --follow-imports skip src/k_slide/execution.py src/k_slide/run_store.py && rtk git diff --cached --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git commit -m \"feat: add durable execution run-store contract\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git push origin codex/k-slide-chg16-durable-execution-01'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git merge-base --is-ancestor 456dd9020b57db05e80a8d620649ecab32e4de50 HEAD && rtk git diff --check 456dd9020b57db05e80a8d620649ecab32e4de50..HEAD && rtk git log -2 --oneline --decorate && rtk git rev-parse HEAD && rtk git rev-parse origin/codex/k-slide-chg16-durable-execution-01'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 173,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 98.0,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 12060928,
+      "fresh_input_tokens": 246472,
+      "input_tokens": 12307400,
+      "non_reasoning_output_tokens": 34560,
+      "output_tokens": 70505,
+      "reasoning_output_tokens": 35945,
+      "total_processed_tokens": 12377905
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "ad2af10ae584b365711317e174b7710e0509406c",
+      "subject": "feat: add durable execution run-store contract"
+    }
+  ],
+  "diff": {
+    "additions": 1476,
+    "changed_files": 11,
+    "commit_count": 1,
+    "deletions": 8
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 2,
+    "items": [
+      {
+        "bytes": 25443,
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "6a63578613418c8493bda8c8edd5e3a1649d20a267097ab5076fb1435b207064"
+      },
+      {
+        "bytes": 2029,
+        "path": "docs/adr/0038-versioned-durable-execution-contract.md",
+        "sha256": "dbd768b919176e230978c2d8e093e42dfcc2eb9c3f41f54a982fd32775ece876"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.2",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.2",
+  "failure_class": null,
+  "finished_at": "2026-09-15T19:57:16Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "456dd9020b57db05e80a8d620649ecab32e4de50",
+    "branch": "codex/k-slide-chg16-durable-execution-01",
+    "head_sha": "ad2af10ae584b365711317e174b7710e0509406c",
+    "remote_exact_head": true,
+    "remote_head_sha": "ad2af10ae584b365711317e174b7710e0509406c",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "456dd9020b57db05e80a8d620649ecab32e4de50",
+    "work_branch": "codex/k-slide-chg16-durable-execution-01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-3081097c264bd0d47be079ae",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-durable-execution-01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-durable-execution-01"
+  },
+  "operation": "BUILD",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.2",
+    "policy_sha256": "3778fba0755dd2f6b00268f73b7a589f93317203cc0603df2feff4e6d9c759f6",
+    "registry_sha256": "17d7db01a654a693b57af2b6fce2f676b1f883ea97564a690894b5f96df49aaa"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-durable-execution-01",
+  "schema_version": 1,
+  "started_at": "2026-09-15T19:29:40Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1656,
+    "queue_seconds": 0,
+    "total_seconds": 1656
+  },
+  "transport": {
+    "bytes": 12325,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 12009,
+    "prompt_sha256": "8b9e92bef67d24e5870c201d1fe7badd4b47050463c06a1123c8c4756c390a7d",
+    "sha256": "3081097c264bd0d47be079ae8737b5e1a3998733b92b38cdb54957e85bce59cc"
+  }
+}
