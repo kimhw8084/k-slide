@@ -453,6 +453,22 @@ class CertificationClosureTests(unittest.TestCase):
         inventory = canonical_dependency_inventory([{"name": "pip", "version": "24.0"}, {"name": "setuptools", "version": "70.0"}, {"name": "Pillow", "version": "1.0"}])
         self.assertEqual(inventory["packages"], [{"name": "pillow", "version": "1.0"}])
 
+    def test_security_subject_binding_reconciles_safe_venv_tools_but_keeps_them_enforced(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = _security_sources(root)
+            audit = json.loads((root / "pip-audit.json").read_text(encoding="utf-8"))
+            audit["dependencies"].extend([
+                {"name": "pip", "version": "26.2.1", "vulns": []},
+                {"name": "setuptools", "version": "83.0.0", "vulns": []},
+            ])
+            _write(root / "pip-audit.json", audit)
+            build_machine_evidence(root / "safe-base-tools.json", evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
+            audit["dependencies"][-2]["vulns"] = [{"id": "PYSEC-TEST-BASE-TOOL"}]
+            _write(root / "pip-audit.json", audit)
+            with self.assertRaises(AdapterError):
+                enforce_security_scanners({key: sources[key] for key in ("pip_audit", "gitleaks", "semgrep", "scanner_exits")})
+
     def test_security_constraints_identity_mismatch_is_rejected(self):
         candidate = _candidate_spec("a" * 40)
         deployment = candidate_deployment_fingerprint(candidate)
@@ -933,6 +949,17 @@ class CertificationClosureTests(unittest.TestCase):
         self.assertIn("security/semgrep-production.yml", workflow)
         self.assertIn("audit_context", workflow)
         self.assertIn("candidate_profile", workflow)
+
+    def test_security_subject_uses_ocr_core_and_fixed_bootstrap_versions(self):
+        root = Path(__file__).resolve().parents[1]
+        constraints = (root / "constraints-production.txt").read_text(encoding="utf-8")
+        workflow = (root / ".github" / "workflows" / "k-slide-security.yml").read_text(encoding="utf-8")
+        self.assertIn("paddleocr==3.7.0", constraints)
+        self.assertNotIn("paddleocr==3.0.3", constraints)
+        self.assertIn("pip==26.2.1", workflow)
+        self.assertIn("setuptools==83.0.0", workflow)
+        self.assertIn('pip-audit --strict --format json --output "$RUNNER_TEMP/k-slide-security/evidence/pip-audit.json" --path "$production_site"', workflow)
+        self.assertNotIn("--ignore-vuln", workflow)
         self.assertIn("production_site", workflow)
         self.assertIn("evidence/production-requirements.lock", workflow)
         self.assertNotIn("--path \"$RUNNER_TEMP/k-slide-security/production-env\"", workflow)
