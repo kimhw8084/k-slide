@@ -224,6 +224,8 @@ async function referenceFromPart(part: FilePart, index: number, sessionID: strin
 const KSlideHostPlugin: Plugin = async ({ worktree }) => {
   const currentMessageInputs = new Map<string, SessionInputs>()
 
+  const isKSlideInvocation = (input: { agent?: string }): boolean => input.agent === "k-slide"
+
   const releaseSession = async (sessionID: string): Promise<void> => {
     const current = currentMessageInputs.get(sessionID)
     currentMessageInputs.delete(sessionID)
@@ -234,6 +236,8 @@ const KSlideHostPlugin: Plugin = async ({ worktree }) => {
   return {
     "chat.message": async (input, output) => {
       await releaseSession(input.sessionID)
+      if (!isKSlideInvocation(input)) return
+
       const refs: HostInputReference[] = []
       let stagingDirectory: string | undefined
       const fileParts = output.parts.filter(isFilePart)
@@ -246,6 +250,9 @@ const KSlideHostPlugin: Plugin = async ({ worktree }) => {
         } catch {
           refs.push(rejectedReference(input.sessionID, index, part.mime, stagingDirectory))
         }
+      }
+      for (let index = output.parts.length - 1; index >= 0; index -= 1) {
+        if (isFilePart(output.parts[index])) output.parts.splice(index, 1)
       }
       currentMessageInputs.set(input.sessionID, { refs, stagingDirectory })
     },

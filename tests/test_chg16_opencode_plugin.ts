@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { createHash } from "node:crypto"
 import { spawnSync } from "node:child_process"
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises"
+import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -54,16 +54,23 @@ async function hooksFor(worktree: string) {
   return KSlideHostPlugin({ worktree } as never)
 }
 
-async function capture(worktree: string, sessionID: string, parts: Record<string, unknown>[]) {
+async function stagingEntries(sessionID: string): Promise<string[]> {
+  const prefix = `k-slide-opencode-attachments-${sha256(Buffer.from(sessionID))}-`
+  const entries = await readdir(path.resolve(tmpdir()), { withFileTypes: true })
+  return entries.filter((entry) => entry.isDirectory() && entry.name.startsWith(prefix)).map((entry) => entry.name)
+}
+
+async function capture(worktree: string, sessionID: string, parts: Record<string, unknown>[], agent = "k-slide") {
   const hooks = await hooksFor(worktree)
   const message = hooks["chat.message"]
   const before = hooks["tool.execute.before"]
   const after = hooks["tool.execute.after"]
   assert.ok(message && before && after)
-  await message({ sessionID } as never, { message: {} as never, parts } as never)
+  const messageOutput = { message: {} as never, parts }
+  await message({ sessionID, agent } as never, messageOutput as never)
   const output = { args: { explicit_input_paths: [] as string[] } }
   await before({ tool: "kslide_prepare", sessionID, callID: "call-1" } as never, output)
-  return { hooks, output, after }
+  return { hooks, output, messageOutput, after }
 }
 
 function hostInvocation(refs: unknown[]): string {
@@ -105,19 +112,23 @@ async function successBoundary(): Promise<void> {
   const pdf = minimalPdf()
   const pptx = safeMinimalPptx()
   const sessionID = "composer-success-session"
-  const parts = [
+  const textPart = { type: "text", text: "/k-slide preserve this command text" }
+  const fileParts = [
     dataPart("image/png", "first-slide.png", PNG),
     dataPart("application/pdf", "second-source.pdf", pdf),
   ]
-  if (pptx) parts.push(dataPart("application/vnd.openxmlformats-officedocument.presentationml.presentation", "third-source.pptx", pptx))
+  if (pptx) fileParts.push(dataPart("application/vnd.openxmlformats-officedocument.presentationml.presentation", "third-source.pptx", pptx))
   const originalBytes = [PNG, pdf, ...(pptx ? [pptx] : [])]
   const encodedValues = originalBytes.map((bytes) => bytes.toString("base64"))
-  const { output, after } = await capture(ROOT, sessionID, [
-    ...parts,
-  ])
+  const parts = [textPart, ...fileParts]
+  const { output, messageOutput, after } = await capture(ROOT, sessionID, parts)
+  assert.deepEqual(messageOutput.parts, [textPart])
+  assert.ok(!JSON.stringify(messageOutput).includes("data:"))
+  assert.ok(!encodedValues.some((encoded) => JSON.stringify(messageOutput).includes(encoded)))
+  assert.ok(!originalBytes.some((bytes) => JSON.stringify(messageOutput).includes(bytes.toString("latin1"))))
   const args = output.args as unknown as { host_input_refs: Array<{ logical_name: string; locator: string }> }
-  assert.deepEqual(args.host_input_refs.map((ref) => ref.logical_name), parts.map((part) => part.filename))
-  assert.equal(args.host_input_refs.length, parts.length)
+  assert.deepEqual(args.host_input_refs.map((ref) => ref.logical_name), fileParts.map((part) => part.filename))
+  assert.equal(args.host_input_refs.length, fileParts.length)
   for (const ref of args.host_input_refs) {
     assert.ok(!ref.locator.startsWith("data:"))
     assert.ok(!encodedValues.some((encoded) => JSON.stringify(output.args).includes(encoded)))
@@ -140,7 +151,7 @@ async function successBoundary(): Promise<void> {
   try {
     const run = await runCoreSnapshot(snapshotRoot, sessionID, args.host_input_refs)
     const manifest = JSON.parse(await readFile(path.join(run, "RUN_MANIFEST.json"), "utf8"))
-    assert.deepEqual(manifest.inputs.map((item: { source_name: string }) => item.source_name), parts.map((part) => part.filename))
+    assert.deepEqual(manifest.inputs.map((item: { source_name: string }) => item.source_name), fileParts.map((part) => part.filename))
     assert.deepEqual(manifest.inputs.map((item: { sha256: string }) => item.sha256), originalBytes.map(sha256))
     assert.deepEqual(await readFile(path.join(run, "inputs", "source-001.png")), PNG)
     assert.deepEqual(await readFile(path.join(run, "inputs", "source-002.pdf")), pdf)
@@ -191,7 +202,9 @@ async function failureBoundary(): Promise<void> {
   ]
   for (const [index, part] of cases.entries()) {
     const sessionID = `composer-failure-${index}`
-    const { output, after } = await capture(ROOT, sessionID, [part])
+    const { output, messageOutput, after } = await capture(ROOT, sessionID, [part])
+    assert.deepEqual(messageOutput.parts, [])
+    assert.ok(!JSON.stringify(messageOutput).includes(String(part.url)))
     const args = output.args as unknown as { host_input_refs: Array<{ locator: string }> }
     assert.equal(args.host_input_refs.length, 1)
     assert.ok(!JSON.stringify(output.args).includes(String(part.url)))
@@ -213,6 +226,73 @@ async function failureBoundary(): Promise<void> {
   }
 }
 
+async function routingBoundary(): Promise<void> {
+  const command = await readFile(path.join(ROOT, ".opencode", "commands", "k-slide.md"), "utf8")
+  assert.match(command, /^agent:\s*k-slide\s*$/m)
+
+  const hooks = await hooksFor(ROOT)
+  const message = hooks["chat.message"]
+  const before = hooks["tool.execute.before"]
+  assert.ok(message && before)
+
+  const sessionID = "ordinary-agent-session"
+  const textPart = { type: "text", text: "ordinary chat text" }
+  const sourcePart = dataPart("image/png", "ordinary.png", PNG)
+  const parts = [textPart, sourcePart]
+  const messageValue = { role: "user", text: "ordinary message" }
+  const output = { message: messageValue as never, parts }
+  const beforeMessage = JSON.stringify(output)
+  await message({ sessionID, agent: "general" } as never, output as never)
+  assert.equal(JSON.stringify(output), beforeMessage)
+  assert.strictEqual(output.message, messageValue)
+  assert.strictEqual(output.parts, parts)
+  assert.deepEqual(await stagingEntries(sessionID), [])
+
+  const toolOutput = {
+    args: {
+      explicit_input_paths: [],
+      host_input_refs: [{ source_kind: "attachment", logical_name: "model.png", locator: "data:image/png;base64,AAAA" }],
+    },
+  }
+  await before({ tool: "kslide_prepare", sessionID, callID: "ordinary-call" } as never, toolOutput)
+  assert.deepEqual(toolOutput.args, { explicit_input_paths: [] })
+
+  const routedSessionID = "k-slide-agent-session"
+  const routedParts = [dataPart("image/png", "routed.png", PNG)]
+  const routedOutput = { message: {} as never, parts: routedParts }
+  await message({ sessionID: routedSessionID, agent: "k-slide" } as never, routedOutput as never)
+  assert.deepEqual(routedOutput.parts, [])
+  const routedToolOutput = { args: { explicit_input_paths: [] as string[] } }
+  await before({ tool: "kslide_prepare", sessionID: routedSessionID, callID: "routed-call" } as never, routedToolOutput)
+  const routedArgs = routedToolOutput.args as unknown as { host_input_refs: Array<{ logical_name: string }> }
+  assert.deepEqual(routedArgs.host_input_refs.map((ref) => ref.logical_name), ["routed.png"])
+  await hooks["tool.execute.after"]?.({ tool: "kslide_prepare", sessionID: routedSessionID, callID: "routed-call", args: routedToolOutput.args } as never, {} as never)
+  assert.deepEqual(await stagingEntries(routedSessionID), [])
+}
+
+async function replacementBoundary(): Promise<void> {
+  const sessionID = "replaced-k-slide-session"
+  const hooks = await hooksFor(ROOT)
+  const message = hooks["chat.message"]
+  const before = hooks["tool.execute.before"]
+  assert.ok(message && before)
+
+  const exactOutput = { message: {} as never, parts: [dataPart("image/png", "captured.png", PNG)] }
+  await message({ sessionID, agent: "k-slide" } as never, exactOutput as never)
+  assert.equal((await stagingEntries(sessionID)).length, 1)
+
+  const unrelatedParts = [{ type: "text", text: "unrelated later turn" }, dataPart("image/png", "unrelated.png", PNG)]
+  const unrelatedOutput = { message: {} as never, parts: unrelatedParts }
+  const snapshot = JSON.stringify(unrelatedOutput)
+  await message({ sessionID, agent: "general" } as never, unrelatedOutput as never)
+  assert.equal(JSON.stringify(unrelatedOutput), snapshot)
+  assert.deepEqual(await stagingEntries(sessionID), [])
+
+  const toolOutput = { args: { explicit_input_paths: [] as string[], host_input_refs: [{ source_kind: "attachment", logical_name: "stale.png", locator: "stale" }] } }
+  await before({ tool: "kslide_prepare", sessionID, callID: "replacement-call" } as never, toolOutput)
+  assert.deepEqual(toolOutput.args, { explicit_input_paths: [] })
+}
+
 async function negativeBoundary(): Promise<void> {
   const pluginSource = await readFile(path.join(ROOT, ".opencode", "plugin", "k-slide-host.ts"), "utf8")
   const maxInputBytes = 512 * 1024 * 1024
@@ -228,6 +308,8 @@ async function negativeBoundary(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  await routingBoundary()
+  await replacementBoundary()
   await successBoundary()
   await failureBoundary()
   await negativeBoundary()
