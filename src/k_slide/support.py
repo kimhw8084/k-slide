@@ -15,7 +15,7 @@ from typing import Any
 
 from . import __version__
 from .errors import ErrorCode, KSlideError
-from .redaction import redact_value
+from .redaction import sanitize_operational
 from .runtime import discover_runtime
 
 
@@ -143,10 +143,9 @@ def build_support_bundle(root: Path, output: Path) -> dict[str, Any]:
         "runs": runs,
         "excluded": ["input snapshots", "normalized renders", "crops", "EvidenceIR", "translations", "reports", "raw OpenCode events"],
     }
-    safe_payload = redact_value(payload, roots=(root,))
+    safe_payload = sanitize_operational(payload, roots=(root,))
     content = json.dumps(safe_payload, ensure_ascii=False, indent=2) + "\n"
     with zipfile.ZipFile(output, "x", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("support-metadata.json", content)
     output.chmod(0o600)
-    return {"status": "PASS", "output": str(output), "run_count": len(runs), "source_content_included": False}
-
+    return sanitize_operational({"status": "PASS", "output": str(output), "run_count": len(runs), "source_content_included": False}, roots=(root,))

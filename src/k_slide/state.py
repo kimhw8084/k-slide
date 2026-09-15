@@ -126,7 +126,7 @@ class RunState:
         self.updated_at = now_utc()
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "schema_version": self.schema_version,
             "run_id": self.run_id,
             "mode": self.mode,
@@ -143,6 +143,9 @@ class RunState:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
+        from .redaction import sanitize_operational
+
+        return sanitize_operational(value)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "RunState":

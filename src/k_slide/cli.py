@@ -18,7 +18,7 @@ from .normalization import normalize_run
 from .extraction import extract_run
 from .doctor import diagnose
 from .policy import COMPLETION_POLICY, MAX_AUTO_REPAIRS_PER_UNIT
-from .redaction import redact_text, sanitize_operational
+from .redaction import sanitize_operational
 from .retention import cleanup_expired_runs
 from .support import build_support_bundle
 from .queue import WorkUnitStatus, load_queue, save_queue
@@ -401,7 +401,7 @@ def main(argv: list[str] | None = None) -> int:
                 "status": "FAILED",
                 "error": {
                     "code": "KSLIDE_INTERNAL",
-                    "message": redact_text(str(exc)) or "K-Slide command failed safely.",
+                    "message": str(exc) or "K-Slide command failed safely.",
                     "details": {"exception_type": type(exc).__name__},
                 },
             },
