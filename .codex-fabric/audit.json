@@ -1,0 +1,508 @@
+{
+  "accepted_at": "2026-09-15T18:00:01Z",
+  "changed_files": [
+    {
+      "additions": 2,
+      "deletions": 2,
+      "path": ".opencode/commands/k-slide-help.md",
+      "status": "M"
+    },
+    {
+      "additions": 0,
+      "deletions": 15,
+      "path": ".opencode/commands/k-slide-safe.md",
+      "status": "D"
+    },
+    {
+      "additions": 0,
+      "deletions": 15,
+      "path": ".opencode/commands/k-slide-strict.md",
+      "status": "D"
+    },
+    {
+      "additions": 2,
+      "deletions": 4,
+      "path": ".opencode/commands/k-slide.md",
+      "status": "M"
+    },
+    {
+      "additions": 276,
+      "deletions": 0,
+      "path": ".opencode/plugin/k-slide-host.ts",
+      "status": "A"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": ".opencode/skills/k-slide/SKILL.md",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 3,
+      "path": ".opencode/skills/k-slide/bin/prepare_run.sh",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 2,
+      "path": ".opencode/skills/k-slide/references/troubleshooting.md",
+      "status": "M"
+    },
+    {
+      "additions": 16,
+      "deletions": 2,
+      "path": ".opencode/tools/kslide.ts",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "DEVELOPMENT_NOTES.md",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 2,
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "additions": 58,
+      "deletions": 9,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 211,
+      "deletions": 0,
+      "path": "src/k_slide/host_adapter.py",
+      "status": "A"
+    },
+    {
+      "additions": 43,
+      "deletions": 12,
+      "path": "src/k_slide/ingest.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "src/k_slide/installer.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/rendering/reports.py",
+      "status": "M"
+    },
+    {
+      "additions": 29,
+      "deletions": 12,
+      "path": "src/k_slide/security.py",
+      "status": "M"
+    },
+    {
+      "additions": 240,
+      "deletions": 0,
+      "path": "tests/test_chg16_host_integration.py",
+      "status": "A"
+    },
+    {
+      "additions": 322,
+      "deletions": 0,
+      "path": "tests/test_chg16_opencode_plugin.ts",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"pwd && printf '%s\\\\n' '--- AGENTS/instructions ---' && (rg --files -g 'AGENTS.md' -g 'RTK.md' -g 'law.md' -g 'README*' -g 'CONTRIBUTING*' -g '*INSTRUCTION*' | sort | xargs -r -n1 sh -c 'echo === \"'$0; sed -n \"1,240p\" \"$0\"'\"') && printf '%s\\\\n' '--- git state ---' && git status --short --branch && git log --oneline --decorate -12\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- RTK ---' && sed -n '1,260p' /Users/haewonkim/.codex/RTK.md && printf '%s\\\\n' '--- law ---' && sed -n '1,320p' /Users/haewonkim/.codex/law.md && printf '%s\\\\n' '--- all AGENTS in/above repo ---' && find .. -name AGENTS.md -print && printf '%s\\\\n' '--- remotes/refs ---' && git remote -v && git show-ref | rg '90adb938|codex/k-slide-chg16-host-integration|a099746|main' && printf '%s\\\\n' '--- predecessor ---' && git show --stat --oneline --decorate 90adb938163f238035ee48b061afac570f3222bd && git show --format=fuller --no-ext-diff --stat 90adb938163f238035ee48b061afac570f3222bd\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show 90adb938163f238035ee48b061afac570f3222bd:.opencode/plugin/k-slide-host.ts | sed -n '1,420p'\nprintf '%s\\\\n' '--- predecessor tests (plugin) ---'\nrtk git show 90adb938163f238035ee48b061afac570f3222bd:tests/test_chg16_opencode_plugin.ts | sed -n '1,460p'\nprintf '%s\\\\n' '--- predecessor tests (python) ---'\nrtk git show 90adb938163f238035ee48b061afac570f3222bd:tests/test_chg16_host_integration.py | sed -n '1,360p'\nprintf '%s\\\\n' '--- opencode/project files ---'\nrtk rg --files -g 'package.json' -g 'pnpm-lock.yaml' -g 'package-lock.json' -g 'bun.lock*' -g 'tsconfig*.json' -g '.opencode/**' -g 'scripts/**' | sort | sed -n '1,260p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy sh -lc 'command -v opencode; opencode --version; opencode debug config' \nprintf '%s\\\\n' '--- installed opencode candidates ---'\nrtk proxy sh -lc 'for p in \\\"\"'$(command -v opencode)\" /opt/homebrew/bin/opencode /usr/local/bin/opencode; do [ -e \"$p\" ] && ls -l \"$p\"; done'\"'\nprintf '%s\\\\n' '--- repository opencode config/manifest files ---'\nrtk rg --files -g '.opencode/**' -g 'opencode.json*' -g 'opencode*.json*' -g 'package.json' -g 'tsconfig*.json' -g 'bun.lock*' -g 'pnpm-lock.yaml' -g 'package-lock.json' -g 'yarn.lock' -g 'scripts/**' | sort\nprintf '%s\\\\n' '--- references to plugin SDK and hook contracts ---'\nrtk rg -n --hidden -g '\"'!*.lock'\"' -g '\"'!node_modules/**'\"' '@opencode-ai/(plugin|sdk)|chat\\\\.message|tool\\\\.execute\\\\.before|input\\\\.agent|agent:' . /Users/haewonkim/.local/share/opencode /Users/haewonkim/.config/opencode /Users/haewonkim/.cache/opencode 2>/dev/null | sed -n '1,360p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- @opencode-ai/plugin package ---'\nrtk sed -n '1,280p' /Users/haewonkim/.config/opencode/node_modules/@opencode-ai/plugin/dist/index.d.ts\nprintf '%s\\\\n' '--- relevant SDK type definitions ---'\nrtk rg -n -C 18 'export type UserMessage|export interface UserMessage|chat\\\\.message|type FilePart|interface FilePart|export type Part|interface Part' /Users/haewonkim/.config/opencode/node_modules/@opencode-ai/sdk/dist/gen/types.gen.d.ts /Users/haewonkim/.config/opencode/node_modules/@opencode-ai/plugin/dist/index.d.ts | sed -n '1,520p'\nprintf '%s\\\\n' '--- command/config source ---'\nfor f in .opencode/commands/k-slide.md .opencode/commands/k-slide-strict.md .opencode/commands/k-slide-safe.md opencode.example.jsonc .opencode/tools/kslide.ts; do echo === \\\"\"'$f\"; rtk sed -n '\"'1,260p' \\\"\"'$f\"; done\nprintf '\"'%s\\\\n' '--- install scripts ---'\nrtk sed -n '1,360p' scripts/install_global.sh\nrtk sed -n '1,360p' scripts/install_project.sh\nrtk sed -n '1,360p' scripts/verify_install.sh\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- command/config source ---'\nfor f in .opencode/commands/k-slide.md .opencode/commands/k-slide-strict.md .opencode/commands/k-slide-safe.md opencode.example.jsonc .opencode/tools/kslide.ts; do printf '%s\\\\n' \\\"=== \"'$f\"; rtk sed -n '\"'1,280p' \\\"\"'$f\"; done\nprintf '\"'%s\\\\n' '--- install scripts ---'\nrtk sed -n '1,360p' scripts/install_global.sh\nrtk sed -n '1,360p' scripts/install_project.sh\nrtk sed -n '1,360p' scripts/verify_install.sh\nprintf '%s\\\\n' '--- current host plugin ---'\nrtk sed -n '1,420p' .opencode/plugin/k-slide-host.ts\nprintf '%s\\\\n' '--- host history ---'\nrtk git log --all --oneline --decorate -- .opencode/plugin/k-slide-host.ts tests/test_chg16_opencode_plugin.ts tests/test_chg16_host_integration.py\nprintf '%s\\\\n' '--- predecessor parent/branch graph ---'\nrtk git log --graph --oneline --decorate --all --simplify-by-decoration --branches='codex/k-slide-chg16-host-integration-01*' --remotes='origin/codex/k-slide-chg16-host-integration-01*' | sed -n '1,160p'\nprintf '%s\\\\n' '--- predecessor diff from target ---'\nrtk git diff --stat a0997460fe5826a4079fc36e750b1170aa0db83e 90adb938163f238035ee48b061afac570f3222bd\nrtk git diff --name-status a0997460fe5826a4079fc36e750b1170aa0db83e 90adb938163f238035ee48b061afac570f3222bd\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk opencode run --help\nprintf '%s\\\\n' '--- opencode debug help ---'\nrtk opencode debug --help\nprintf '%s\\\\n' '--- global config files ---'\nrtk find /Users/haewonkim/.config/opencode -maxdepth 3 -type f -print | sort | sed -n '1,220p'\nprintf '%s\\\\n' '--- current branch installer/config references ---'\nrtk rg -n --hidden -g '\"'!*.lock'\"' 'plugin|k-slide-host|agent|command' src/k_slide/installer.py tests scripts README.md .opencode | sed -n '1,420p'\nprintf '%s\\\\n' '--- implementation history commit ---'\nrtk git show --format=fuller --stat 03e488b\nrtk git show 03e488b:.opencode/plugin/k-slide-host.ts | sed -n '1,360p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git merge --ff-only 90adb938163f238035ee48b061afac570f3222bd && rtk git status --short --branch && rtk git log --oneline --decorate -5 && rtk git merge-base --is-ancestor a0997460fe5826a4079fc36e750b1170aa0db83e HEAD && rtk git merge-base --is-ancestor 90adb938163f238035ee48b061afac570f3222bd HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- host adapter ---'\nrtk sed -n '1,420p' src/k_slide/host_adapter.py\nprintf '%s\\\\n' '--- ingest host paths/snapshot ---'\nrtk rg -n -C 16 'host_input|prepare_run|snapshot|sha256|attachment|approved_root' src/k_slide/ingest.py | sed -n '1,560p'\nprintf '%s\\\\n' '--- security changes ---'\nrtk git diff 90adb938\"'^ 90adb938 -- src/k_slide/security.py\nrtk sed -n '\"'1,340p' src/k_slide/security.py\nprintf '%s\\\\n' '--- CLI host intake ---'\nrtk rg -n -C 20 'host-input|host_input|FAILED_INPUT|PROCESSING_FAILED|semantic_outcome' src/k_slide/cli.py src/k_slide/host_adapter.py | sed -n '1,600p'\nprintf '%s\\\\n' '--- installer plugin handling ---'\nrtk sed -n '1,240p' src/k_slide/installer.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- repository opencode package ---'\nrtk sed -n '1,160p' .opencode/package.json\nprintf '%s\\\\n' '--- toolchain versions ---'\nrtk bun --version\nrtk node --version\nrtk python3 --version\nprintf '%s\\\\n' '--- current TS test imports/dependencies ---'\nrtk sed -n '1,120p' tests/test_chg16_opencode_plugin.ts\nprintf '%s\\\\n' '--- branch ancestry proof ---'\nrtk git log --oneline --decorate --ancestry-path a0997460fe5826a4079fc36e750b1170aa0db83e..HEAD\nrtk git merge-base --octopus a0997460fe5826a4079fc36e750b1170aa0db83e 90adb938163f238035ee48b061afac570f3222bd HEAD\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff -- .opencode/plugin/k-slide-host.ts tests/test_chg16_opencode_plugin.ts && printf '%s\\\\n' '--- diff check ---' && rtk git diff --check && printf '%s\\\\n' '--- status ---' && rtk git status --short --branch\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy sh -lc 'command -v bun || true; command -v deno || true; command -v tsx || true; command -v npx || true; ls -la /Users/haewonkim/.opencode/bin'\nprintf '%s\\\\n' '--- npm package resolution ---'\nrtk npm --version\nrtk npm exec --yes --offline tsx -- --version\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk node --experimental-strip-types tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 9,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk npx --yes tsx tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba tests/test_chg16_opencode_plugin.ts | sed -n '136,166p' && rtk sed -n '36,55p' tests/test_chg16_opencode_plugin.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk npx --yes tsx tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest tests.test_chg16_host_integration -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk test -d /Users/haewonkim/.config/opencode/node_modules/@types/node && rtk test -d /Users/haewonkim/.config/opencode/node_modules/@opencode-ai/plugin && rtk find /Users/haewonkim/.config/opencode/node_modules -maxdepth 2 -type d -name '@types' -print 2>/dev/null || true\nrtk npx --yes tsc --version\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- project metadata ---'\nrtk sed -n '1,260p' pyproject.toml\nprintf '%s\\\\n' '--- CI workflows/checks ---'\nrtk rg -n 'unittest|pytest|opencode|tsc|typescript|phase|foundation|host' .github scripts tests | sed -n '1,520p'\nprintf '%s\\\\n' '--- current opencode project config ---'\nrtk opencode --dir \\\"\"'$PWD\" debug config\nprintf '\"'%s\\\\n' '--- current opencode agent resolution ---'\nrtk opencode --dir \\\"\"'$PWD\" debug agent k-slide'",
+      "exit_code": 1,
+      "test_result": {
+        "exit_code": 1,
+        "framework": "pytest",
+        "outcome": "test_failures",
+        "output_bytes": 1502,
+        "output_sha256": "a5f7379ce823a0751dd745931f10ddb5ab410c40d8e0290d632ce8e0ba161f89",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk opencode debug config\nrtk opencode debug agent k-slide\nprintf '%s\\\\n' '--- workflow host checks ---'\nrtk sed -n '1,120p' .github/workflows/k-slide.yml\nrtk sed -n '1,110p' .github/workflows/k-slide-phase32.yml\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m compileall -q src tests evals && rtk env PYTHONPATH=src python3 -m unittest discover -s tests -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk curl -fsS --max-time 3 http://127.0.0.1:11434/api/tags | sed -n '1,80p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk npx --yes -p typescript tsc --version'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env NODE_PATH=/Users/haewonkim/.config/opencode/node_modules npx --yes -p typescript -p @types/node tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --skipLibCheck --types node tests/test_chg16_opencode_plugin.ts .opencode/plugin/k-slide-host.ts'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk npm exec --yes --package=typescript --package=@types/node -- tsc -- --version && rtk npm exec --yes --package=typescript --package=@types/node -- tsc -- --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --skipLibCheck --types node tests/test_chg16_opencode_plugin.ts .opencode/plugin/k-slide-host.ts'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_phase35 -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mktemp -d'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m k_slide.cli doctor --root . --json\nrtk env PYTHONPATH=src python3 -m k_slide.cli install --source-root . --target /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/tmp.vxh4GbGny7 --scope project --json\nrtk ./scripts/verify_install.sh /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/tmp.vxh4GbGny7'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rm -rf /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/tmp.vxh4GbGny7 && rtk test ! -e /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/tmp.vxh4GbGny7'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy sh -lc 'if [ -e /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/tmp.vxh4GbGny7 ]; then exit 1; fi' && rtk git status --short --branch\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- worktree status ---'\nrtk git status --short --branch\nprintf '%s\\\\n' '--- repair diff stat ---'\nrtk git diff --stat\nprintf '%s\\\\n' '--- repair diff ---'\nrtk git diff -- .opencode/plugin/k-slide-host.ts tests/test_chg16_opencode_plugin.ts\nprintf '%s\\\\n' '--- scope checks ---'\nrtk git diff --check\nrtk git diff --name-only\nprintf '%s\\\\n' '--- forbidden broad-routing/source paths in repair ---'\nrtk rg -n 'prompt|filename|slash|data:|fetch\\\\(|readFile|agent|chat\\\\.message|output\\\\.parts|host_input_refs' .opencode/plugin/k-slide-host.ts tests/test_chg16_opencode_plugin.ts | sed -n '1,360p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add .opencode/plugin/k-slide-host.ts tests/test_chg16_opencode_plugin.ts && rtk git commit -m \"fix: gate and strip K-Slide host attachments\" && rtk git status --short --branch && rtk git log --oneline --decorate -5 && rtk git merge-base --is-ancestor a0997460fe5826a4079fc36e750b1170aa0db83e HEAD && rtk git merge-base --is-ancestor 90adb938163f238035ee48b061afac570f3222bd HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git push origin HEAD:codex/k-slide-chg16-host-integration-01-fix02 && rtk git fetch origin codex/k-slide-chg16-host-integration-01-fix02 && rtk git rev-parse HEAD && rtk git rev-parse origin/codex/k-slide-chg16-host-integration-01-fix02 && rtk git status --short --branch && rtk git diff --check HEAD''^ HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files /Users/haewonkim/.config/opencode/node_modules /Users/haewonkim/.npm/_npx 2>/dev/null | rg '/(typescript|@types/node)/' | sed -n '1,160p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files /Users/haewonkim/.npm/_npx 2>/dev/null | rg '/@types/node/(index\\\\.d\\\\.ts|package\\\\.json)\"'$'\"' | sed -n '1,80p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk npx --yes -p typescript tsc -p /tmp/k-slide-host-tsconfig.json && rtk rm -f /tmp/k-slide-host-tsconfig.json && rtk proxy sh -lc 'test \"'! -e /tmp/k-slide-host-tsconfig.json'\"'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk npx --yes -p typescript tsc -p /tmp/k-slide-host-tsconfig.json'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,80p' /Users/haewonkim/.npm/_npx/ac42e9206ae38b48/node_modules/@types/node/package.json && rtk ls -ld /Users/haewonkim/.npm/_npx/ac42e9206ae38b48/node_modules/@types/node\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk npx --yes -p typescript tsc -p /tmp/k-slide-host-tsconfig.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rm -f /tmp/k-slide-host-tsconfig.json && rtk proxy sh -lc 'test \"'! -e /tmp/k-slide-host-tsconfig.json'\"' && rtk git status --short --branch && rtk git rev-parse HEAD\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk npx --yes tsx tests/test_chg16_opencode_plugin.ts && rtk git diff --check HEAD''^ HEAD && rtk git status --short --branch && rtk git rev-parse HEAD && rtk git rev-parse origin/codex/k-slide-chg16-host-integration-01-fix02 && rtk git merge-base --is-ancestor a0997460fe5826a4079fc36e750b1170aa0db83e HEAD && rtk git merge-base --is-ancestor 90adb938163f238035ee48b061afac570f3222bd HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 106,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 96.61,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 4545792,
+      "fresh_input_tokens": 159746,
+      "input_tokens": 4705538,
+      "non_reasoning_output_tokens": 12059,
+      "output_tokens": 31370,
+      "reasoning_output_tokens": 19311,
+      "total_processed_tokens": 4736908
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "bb15a36b88efc7795d2025d153acec179b2daa74",
+      "subject": "fix: gate and strip K-Slide host attachments"
+    },
+    {
+      "sha": "90adb938163f238035ee48b061afac570f3222bd",
+      "subject": "fix: materialize OpenCode composer attachments"
+    },
+    {
+      "sha": "3076f36c1812610f32817402dcc3df341cf3895e",
+      "subject": "Merge commit '32d2a7ffc4fd9c65bd4a0282a822bca91b828a9c' into codex/k-slide-chg16-host-integration-01-fix01"
+    },
+    {
+      "sha": "32d2a7ffc4fd9c65bd4a0282a822bca91b828a9c",
+      "subject": "docs: mark legacy modes internal"
+    },
+    {
+      "sha": "de1cd68b897f442924a8b9a5800b6082834a6956",
+      "subject": "fix: remove legacy mode from normal CLI surface"
+    },
+    {
+      "sha": "03e488b9cb0b4c5ef9d21d0c94ee5b1a00e68b1a",
+      "subject": "feat: add CHG-16 host integration boundary"
+    }
+  ],
+  "diff": {
+    "additions": 1212,
+    "changed_files": 20,
+    "commit_count": 6,
+    "deletions": 82
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 7,
+    "items": [
+      {
+        "bytes": 537,
+        "path": ".opencode/commands/k-slide-help.md",
+        "sha256": "6e2c1a7050ab061ab0105f482ae757a1d1d8cf44042c04aadf21daa103d88380"
+      },
+      {
+        "bytes": 1048,
+        "path": ".opencode/commands/k-slide.md",
+        "sha256": "b65b903fda9c97e7ac7532a5c345f697cd17fceb160512eb23e23744ff47f50d"
+      },
+      {
+        "bytes": 2634,
+        "path": ".opencode/skills/k-slide/SKILL.md",
+        "sha256": "496d1279e398f08bea660005b74962f7a00a1d9ab1d1bf210dbb18441e12891f"
+      },
+      {
+        "bytes": 476,
+        "path": ".opencode/skills/k-slide/references/troubleshooting.md",
+        "sha256": "b06836cd2b5350534ab1afa6e710528bead36258b781e7f63b6df3ad4d6db82a"
+      },
+      {
+        "bytes": 5795,
+        "path": "DEVELOPMENT_NOTES.md",
+        "sha256": "5c1295728a0436c4d8f482d5de8a928fb165c84af1ec4ab8a31b98838ba8bee3"
+      },
+      {
+        "bytes": 24920,
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "a620103280c9054c0731b65d2fc1abdbd022010d7e757fb4a329a4dc9095c06c"
+      },
+      {
+        "bytes": 9469,
+        "path": "README.md",
+        "sha256": "e8521c3556a1281ed325bbec9f6184985559f3d8085b0e96fa0f9c0a933ae512"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.2",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.2",
+  "failure_class": null,
+  "finished_at": "2026-09-15T18:12:17Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "a0997460fe5826a4079fc36e750b1170aa0db83e",
+    "branch": "codex/k-slide-chg16-host-integration-01-fix02",
+    "head_sha": "bb15a36b88efc7795d2025d153acec179b2daa74",
+    "remote_exact_head": true,
+    "remote_head_sha": "bb15a36b88efc7795d2025d153acec179b2daa74",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "a0997460fe5826a4079fc36e750b1170aa0db83e",
+    "work_branch": "codex/k-slide-chg16-host-integration-01-fix02",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-639c1cf0670e291f5f330ac6",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-host-integration-01-fix02",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-host-integration-01-fix02"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.2",
+    "policy_sha256": "3778fba0755dd2f6b00268f73b7a589f93317203cc0603df2feff4e6d9c759f6",
+    "registry_sha256": "17d7db01a654a693b57af2b6fce2f676b1f883ea97564a690894b5f96df49aaa"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-host-integration-01-fix02",
+  "schema_version": 1,
+  "started_at": "2026-09-15T18:00:02Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 735,
+    "queue_seconds": 1,
+    "total_seconds": 736
+  },
+  "transport": {
+    "bytes": 11059,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 10735,
+    "prompt_sha256": "d2096a1715c57dc132f7baa1a60c59e3cef1a8ce24f3c4708fb6744e741c8f90",
+    "sha256": "639c1cf0670e291f5f330ac65288b3e450a7465f44e642aa79a8faf40109bbce"
+  }
+}
