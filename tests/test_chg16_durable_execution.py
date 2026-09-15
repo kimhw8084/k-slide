@@ -4,9 +4,10 @@ import json
 import tempfile
 import unittest
 from dataclasses import replace
-from contextlib import redirect_stdout
+from contextlib import contextmanager, redirect_stdout
 import io
 from pathlib import Path
+from threading import Barrier, Event, Lock, Thread
 
 from k_slide.errors import ErrorCode, KSlideError
 from k_slide.cli import main
@@ -43,6 +44,42 @@ class _DeterministicStep:
         next_checkpoint = replace(checkpoint, revision=next_revision, engine_phase="FAKE_ENGINE_STEP", progress=progress, checkpoint_sha256="")
         marker = ResultCommitMarker(operation_id, "fake-result", stable_revision({"operation_id": operation_id}), attempt=0, committed_at="2026-01-01T00:00:00Z")
         return EngineStepResult(next_checkpoint, marker)
+
+
+class _CreateRaceGate:
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self._arrivals = 0
+        self.peer_arrived = Event()
+
+    def wait_for_peer(self) -> None:
+        with self._lock:
+            self._arrivals += 1
+            if self._arrivals == 2:
+                self.peer_arrived.set()
+        self.peer_arrived.wait(timeout=1.0)
+
+
+class _GatedCreateStore(DurableTestRunStore):
+    def __init__(self, backing_root: Path, gate: _CreateRaceGate) -> None:
+        super().__init__(backing_root)
+        self._gate = gate
+
+    def _write(self, job: ExecutionJob) -> None:
+        self._gate.wait_for_peer()
+        super()._write(job)
+
+
+class _ProbedDurableStore(DurableTestRunStore):
+    def __init__(self, backing_root: Path, entered: Event) -> None:
+        super().__init__(backing_root)
+        self._entered = entered
+
+    @contextmanager
+    def _mutation(self, job_id: str | None = None):
+        with super()._mutation(job_id):
+            self._entered.set()
+            yield
 
 
 class DurableExecutionContractTests(unittest.TestCase):
@@ -128,6 +165,244 @@ class DurableExecutionContractTests(unittest.TestCase):
             stale_result = store.commit_checkpoint(stale, expected_revision=job.revision)
             self.assertEqual(stale_result.status, StoreWriteStatus.STALE)
             self.assertEqual(store.load(job.job_id).checkpoint.engine_phase, "NORMALIZED")
+
+    def test_durable_recreated_stores_share_per_job_guard_without_global_serialization(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "durable"
+            first = DurableTestRunStore(root)
+            second = DurableTestRunStore(root)
+            job_one = ExecutionJob.new(
+                run_id="run-lock-one",
+                profile=ExecutionProfile.DURABLE_TEST,
+                scope_ref="opaque-scope",
+                store_ref="opaque-store",
+                job_id="job-lock-one",
+                execution_id="execution-lock-one",
+            )
+            job_two = ExecutionJob.new(
+                run_id="run-lock-two",
+                profile=ExecutionProfile.DURABLE_TEST,
+                scope_ref="opaque-scope",
+                store_ref="opaque-store",
+                job_id="job-lock-two",
+                execution_id="execution-lock-two",
+            )
+            self.assertEqual(first.create(job_one).status, StoreWriteStatus.ACCEPTED)
+            self.assertEqual(first.create(job_two).status, StoreWriteStatus.ACCEPTED)
+
+            held = Event()
+            release = Event()
+            entered = Event()
+            errors: list[BaseException] = []
+
+            def hold_same_job() -> None:
+                try:
+                    with first._mutation(job_one.job_id):
+                        held.set()
+                        release.wait(timeout=2.0)
+                except BaseException as exc:  # pragma: no cover - surfaced below
+                    errors.append(exc)
+
+            def enter_same_job() -> None:
+                try:
+                    with second._mutation(job_one.job_id):
+                        entered.set()
+                except BaseException as exc:  # pragma: no cover - surfaced below
+                    errors.append(exc)
+
+            holder = Thread(target=hold_same_job)
+            contender = Thread(target=enter_same_job)
+            holder.start()
+            self.assertTrue(held.wait(timeout=2.0))
+            contender.start()
+            try:
+                self.assertFalse(entered.wait(timeout=0.25))
+            finally:
+                release.set()
+                holder.join(timeout=2.0)
+                contender.join(timeout=2.0)
+            self.assertTrue(entered.is_set())
+            self.assertFalse(holder.is_alive())
+            self.assertFalse(contender.is_alive())
+            self.assertEqual(errors, [])
+
+            different_attempted = Event()
+            different_entered = Event()
+
+            def enter_different_job() -> None:
+                try:
+                    different_attempted.set()
+                    with second._mutation(job_two.job_id):
+                        different_entered.set()
+                except BaseException as exc:  # pragma: no cover - surfaced below
+                    errors.append(exc)
+
+            with first._mutation(job_one.job_id):
+                different = Thread(target=enter_different_job)
+                different.start()
+                self.assertTrue(different_attempted.wait(timeout=2.0))
+                self.assertTrue(different_entered.wait(timeout=2.0))
+                different.join(timeout=2.0)
+            self.assertFalse(different.is_alive())
+            self.assertEqual(errors, [])
+
+    def test_independent_durable_stores_reject_conflicting_same_revision_writers(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "durable"
+            winner_store = DurableTestRunStore(root)
+            contender_entered = Event()
+            contender_store = _ProbedDurableStore(root, contender_entered)
+            job = self._created(winner_store, ExecutionProfile.DURABLE_TEST, run_id="run-cas")
+
+            checkpoint_one = replace(
+                job.checkpoint,
+                revision=1,
+                engine_phase="WRITER_ONE",
+                progress=ProgressSnapshot("WRITER_ONE", 1, 3, "unit-one"),
+                metadata={"cursor": "writer-one"},
+                checkpoint_sha256="",
+            )
+            checkpoint_one = replace(checkpoint_one, checkpoint_sha256=checkpoint_one.computed_sha256())
+            candidate_one = replace(
+                job,
+                lifecycle=OperationalLifecycle.RUNNING,
+                revision=1,
+                checkpoint=checkpoint_one,
+                updated_at="2026-01-01T00:00:01Z",
+            )
+            checkpoint_two = replace(
+                job.checkpoint,
+                revision=1,
+                engine_phase="WRITER_TWO",
+                progress=ProgressSnapshot("WRITER_TWO", 1, 3, "unit-two"),
+                metadata={"cursor": "writer-two"},
+                checkpoint_sha256="",
+            )
+            checkpoint_two = replace(checkpoint_two, checkpoint_sha256=checkpoint_two.computed_sha256())
+            candidate_two = replace(
+                job,
+                lifecycle=OperationalLifecycle.RUNNING,
+                revision=1,
+                checkpoint=checkpoint_two,
+                updated_at="2026-01-01T00:00:02Z",
+            )
+
+            held = Event()
+            release = Event()
+            results: list = []
+            errors: list[BaseException] = []
+
+            def hold_guard() -> None:
+                try:
+                    with winner_store._mutation(job.job_id):
+                        held.set()
+                        release.wait(timeout=2.0)
+                except BaseException as exc:  # pragma: no cover - surfaced below
+                    errors.append(exc)
+
+            def commit_contender() -> None:
+                try:
+                    results.append(contender_store.commit_job(candidate_two, expected_revision=job.revision))
+                except BaseException as exc:  # pragma: no cover - surfaced below
+                    errors.append(exc)
+
+            holder = Thread(target=hold_guard)
+            contender = Thread(target=commit_contender)
+            holder.start()
+            self.assertTrue(held.wait(timeout=2.0))
+            contender.start()
+            try:
+                self.assertFalse(contender_entered.wait(timeout=0.25))
+            finally:
+                release.set()
+                holder.join(timeout=2.0)
+                contender.join(timeout=2.0)
+            self.assertFalse(holder.is_alive())
+            self.assertFalse(contender.is_alive())
+            self.assertEqual(errors, [])
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0].status, StoreWriteStatus.ACCEPTED)
+
+            stale = winner_store.commit_job(candidate_one, expected_revision=job.revision)
+            self.assertEqual(stale.status, StoreWriteStatus.STALE)
+
+            reloaded = DurableTestRunStore(root).load(job.job_id)
+            self.assertEqual(reloaded.as_dict(), candidate_two.as_dict())
+            self.assertEqual(reloaded.revision, 1)
+            self.assertEqual(reloaded.checkpoint.metadata, {"cursor": "writer-two"})
+
+    def test_independent_durable_store_create_races_keep_idempotency_and_conflict_semantics(self) -> None:
+        def run_create_race(store_one, job_one: ExecutionJob, store_two, job_two: ExecutionJob) -> list:
+            results: list = []
+            errors: list[BaseException] = []
+            start = Barrier(3)
+
+            def create(store, job) -> None:
+                try:
+                    start.wait(timeout=2.0)
+                    results.append(store.create(job))
+                except BaseException as exc:  # pragma: no cover - surfaced below
+                    errors.append(exc)
+
+            first = Thread(target=create, args=(store_one, job_one))
+            second = Thread(target=create, args=(store_two, job_two))
+            first.start()
+            second.start()
+            start.wait(timeout=2.0)
+            first.join(timeout=3.0)
+            second.join(timeout=3.0)
+            self.assertFalse(first.is_alive())
+            self.assertFalse(second.is_alive())
+            self.assertEqual(errors, [])
+            return results
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "identical"
+            identical = ExecutionJob.new(
+                run_id="run-create-identical",
+                profile=ExecutionProfile.DURABLE_TEST,
+                scope_ref="opaque-scope",
+                store_ref="opaque-store",
+                job_id="job-create-identical",
+                execution_id="execution-create-identical",
+            )
+            gate = _CreateRaceGate()
+            results = run_create_race(
+                _GatedCreateStore(root, gate),
+                identical,
+                _GatedCreateStore(root, gate),
+                identical,
+            )
+            self.assertCountEqual([item.status for item in results], [StoreWriteStatus.ACCEPTED, StoreWriteStatus.IDEMPOTENT])
+            self.assertEqual(len(list((root / "jobs").glob("*.json"))), 1)
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "incompatible"
+            first_job = ExecutionJob.new(
+                run_id="run-create-one",
+                profile=ExecutionProfile.DURABLE_TEST,
+                scope_ref="opaque-scope",
+                store_ref="opaque-store",
+                job_id="job-create-conflict",
+                execution_id="execution-create-one",
+            )
+            second_job = ExecutionJob.new(
+                run_id="run-create-two",
+                profile=ExecutionProfile.DURABLE_TEST,
+                scope_ref="opaque-scope",
+                store_ref="opaque-store",
+                job_id="job-create-conflict",
+                execution_id="execution-create-two",
+            )
+            gate = _CreateRaceGate()
+            results = run_create_race(
+                _GatedCreateStore(root, gate),
+                first_job,
+                _GatedCreateStore(root, gate),
+                second_job,
+            )
+            self.assertCountEqual([item.status for item in results], [StoreWriteStatus.ACCEPTED, StoreWriteStatus.CONFLICT])
+            self.assertEqual(len(list((root / "jobs").glob("*.json"))), 1)
 
     def test_restart_resume_uses_last_committed_checkpoint_and_preserves_ordered_unit_refs(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

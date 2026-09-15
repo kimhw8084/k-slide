@@ -21,7 +21,7 @@ from . import EXECUTION_CONTRACT_VERSION, RUN_STORE_SCHEMA_VERSION
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import stable_revision
 from .io import atomic_write_json, read_json
-from .locking import run_lock
+from .locking import filesystem_lock, run_lock
 from .queue import WorkQueue, load_queue
 from .state import RunPhase, RunState, load_state, now_utc
 
@@ -870,7 +870,11 @@ class DurableTestRunStore(_FilesystemRunStore):
 
     @contextmanager
     def _mutation(self, job_id: str | None = None) -> Iterator[None]:
-        with self._mutex:
+        if job_id is None:
+            raise _invalid("Durable execution mutations require a job ID.")
+        _identifier(job_id, "job ID")
+        lock_path = self.root / ".durable-locks" / f"{job_id}.lock"
+        with filesystem_lock(lock_path, require_shared=True, reject_symlink=True):
             yield
 
 
