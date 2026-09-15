@@ -97,19 +97,21 @@ jobs:
       - name: Materialize exact production dependency subject
         run: |
           python -m venv "$RUNNER_TEMP/k-slide-security/production-env"
+          production_python="$RUNNER_TEMP/k-slide-security/production-env/bin/python"
+          "$production_python" -m pip install --disable-pip-version-check --no-input --upgrade pip==26.2.1 setuptools==83.0.0
           lock_input=""
           if [ -f .k-slide-config/production-requirements.lock ]; then
             lock_input=".k-slide-config/production-requirements.lock"
           fi
           if [ -n "$lock_input" ]; then
             test -f "$lock_input"
-            "$RUNNER_TEMP/k-slide-security/production-env/bin/python" -m pip install --disable-pip-version-check --no-input -r "$lock_input"
+            "$production_python" -m pip install --disable-pip-version-check --no-input -r "$lock_input"
           else
-            "$RUNNER_TEMP/k-slide-security/production-env/bin/python" -m pip install --disable-pip-version-check --no-input -r constraints-production.txt
+            "$production_python" -m pip install --disable-pip-version-check --no-input -r constraints-production.txt
           fi
           freeze_args=(--inventory-output .k-slide-config/production-dependency-inventory.json --lock-output .k-slide-config/production-requirements.lock)
           if [ -n "$lock_input" ]; then freeze_args+=(--lock-input "$lock_input"); fi
-          PYTHONPATH=src:. "$RUNNER_TEMP/k-slide-security/production-env/bin/python" -m evals.freeze_production_dependencies "${freeze_args[@]}"
+          PYTHONPATH=src:. "$production_python" -m evals.freeze_production_dependencies "${freeze_args[@]}"
           mkdir -p "$RUNNER_TEMP/k-slide-security/evidence"
           cp --preserve=mode .k-slide-config/production-dependency-inventory.json "$RUNNER_TEMP/k-slide-security/evidence/production-dependency-inventory.json"
           cp --preserve=mode .k-slide-config/production-requirements.lock "$RUNNER_TEMP/k-slide-security/evidence/production-requirements.lock"

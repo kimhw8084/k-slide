@@ -26,6 +26,7 @@ from .certification import (
     resolve_candidate_spec,
     NOT_APPLICABLE_VALUE,
     NOT_EXPOSED_VALUE,
+    _NON_DEPLOYED_BASE_PACKAGES,
     sha256_file,
     safe_path_under,
     safe_relative_path,
@@ -865,6 +866,12 @@ def _derive_security(sources: dict[str, Path], *, root: Path | None = None, cand
     for item in dependencies:
         if not isinstance(item, dict) or not item.get("name") or not item.get("version"):
             raise AdapterError("pip-audit dependency set contains an invalid package record")
+        # ``pip-audit --path`` also sees the venv bootstrap distributions.
+        # They remain scanner-enforced above, but are not part of K-Slide's
+        # deployed dependency subject or its canonical inventory.
+        audited_name = canonical_package_name(item["name"])
+        if audited_name in _NON_DEPLOYED_BASE_PACKAGES:
+            continue
         audited_records.append({"name": item["name"], "version": item["version"]})
     try:
         audited_inventory = canonical_dependency_inventory(audited_records)

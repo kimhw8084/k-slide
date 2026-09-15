@@ -21,6 +21,7 @@ class ErrorCode(str, Enum):
     INVALID_TRANSITION = "KSLIDE_INVALID_STATE_TRANSITION"
     SCHEMA_INVALID = "KSLIDE_SCHEMA_INVALID"
     CONFIG_INVALID = "KSLIDE_CONFIG_INVALID"
+    AUTHENTICATION_FAILED = "KSLIDE_AUTHENTICATION_FAILED"
     VERIFICATION_FAILED = "KSLIDE_VERIFICATION_FAILED"
     COMPLETION_BLOCKED = "KSLIDE_COMPLETION_BLOCKED"
     INSTALL_COLLISION = "KSLIDE_INSTALL_COLLISION"
@@ -72,4 +73,9 @@ class KSlideError(Exception):
         super().__init__(self.message)
 
     def as_dict(self) -> dict[str, Any]:
-        return {"code": self.code.value, "message": self.message, "details": self.details}
+        # Error dictionaries are operational data and may cross the CLI or
+        # OpenCode boundary. Keep the source/evidence payloads separate; only
+        # this diagnostic representation is sanitized.
+        from .redaction import sanitize_operational
+
+        return sanitize_operational({"code": self.code.value, "message": self.message, "details": self.details})

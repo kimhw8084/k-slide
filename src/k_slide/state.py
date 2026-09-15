@@ -65,6 +65,17 @@ _TERMINAL = {
     RunPhase.FAILED_INTERNAL,
 }
 
+OPERATIONAL_FAILURE_PHASES = frozenset(
+    {
+        RunPhase.FAILED_INPUT,
+        RunPhase.FAILED_RUNTIME,
+        RunPhase.FAILED_NORMALIZATION,
+        RunPhase.FAILED_EXTRACTION,
+        RunPhase.FAILED_SCHEMA,
+        RunPhase.FAILED_INTERNAL,
+    }
+)
+
 
 def now_utc() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -115,7 +126,7 @@ class RunState:
         self.updated_at = now_utc()
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "schema_version": self.schema_version,
             "run_id": self.run_id,
             "mode": self.mode,
@@ -132,6 +143,9 @@ class RunState:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
+        from .redaction import sanitize_operational
+
+        return sanitize_operational(value)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "RunState":

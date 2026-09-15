@@ -18,13 +18,14 @@ from .normalization import normalize_run
 from .extraction import extract_run
 from .doctor import diagnose
 from .policy import COMPLETION_POLICY, MAX_AUTO_REPAIRS_PER_UNIT
+from .redaction import sanitize_operational
 from .retention import cleanup_expired_runs
 from .support import build_support_bundle
 from .queue import WorkUnitStatus, load_queue, save_queue
 from .runtime import discover_runtime
 from .security import sha256_file
 from .session import bind_session, incomplete_runs, resolve_run
-from .state import RunPhase, load_state, save_state
+from .state import OPERATIONAL_FAILURE_PHASES, RunPhase, load_state, save_state
 from .translation import merge_evidence_patch, parse_translation_patch
 from .rendering import render_run
 from .verify import finalize_run, verify_run
@@ -36,6 +37,10 @@ def _run_root(root: Path) -> Path:
 
 def _json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, indent=2)
+
+
+def _diagnostic_roots(root: Path | None) -> tuple[Path, ...]:
+    return (root.expanduser().resolve(),) if root is not None else ()
 
 
 def _find_run(root: Path, run_id: str | None, session_id: str | None) -> Path:
@@ -101,8 +106,8 @@ def _status(root: Path, run_id: str | None, session_id: str | None) -> dict[str,
     if run is None:
         choices = [path.name for path in incomplete_runs(_run_root(root))]
         if choices:
-            return {"status": "AMBIGUOUS", "choices": choices, "next": "Pass a run ID or reconnect the original OpenCode session."}
-        return {"status": "NO_RUN", "next": "/k-slide"}
+            return sanitize_operational({"status": "AMBIGUOUS", "choices": choices, "next": "Pass a run ID or reconnect the original OpenCode session."}, roots=_diagnostic_roots(root))
+        return sanitize_operational({"status": "NO_RUN", "next": "/k-slide"}, roots=_diagnostic_roots(root))
     state = load_state(run)
     try:
         queue = load_queue(run)
@@ -113,14 +118,25 @@ def _status(root: Path, run_id: str | None, session_id: str | None) -> dict[str,
     except KSlideError:
         queue_info = {"status": "INVALID"}
     artifacts = {name: (run / name).is_file() for name in ["RUN_STATE.json", "RUN_MANIFEST.json", *COMPLETION_POLICY.required_artifacts, "RUN_FAILED.md"]}
-    return {"status": state.phase.value, "run_id": state.run_id, "input_count": state.input_count, "current_work_unit": state.current_work_unit, "next_action": state.next_action, "artifacts": artifacts, "work_queue": queue_info}
+    return sanitize_operational({"status": state.phase.value, "run_id": state.run_id, "input_count": state.input_count, "current_work_unit": state.current_work_unit, "next_action": state.next_action, "artifacts": artifacts, "work_queue": queue_info}, roots=_diagnostic_roots(root))
 
 
 def _next(root: Path, run_id: str | None, session_id: str | None) -> dict[str, Any]:
+    return sanitize_operational(_next_unsanitized(root, run_id, session_id), roots=_diagnostic_roots(root))
+
+
+def _next_unsanitized(root: Path, run_id: str | None, session_id: str | None) -> dict[str, Any]:
     run = _find_run(root, run_id, session_id)
     state = load_state(run)
-    if state.phase in {RunPhase.FAILED_INPUT, RunPhase.FAILED_RUNTIME, RunPhase.FAILED_NORMALIZATION, RunPhase.FAILED_EXTRACTION, RunPhase.FAILED_SCHEMA, RunPhase.FAILED_INTERNAL}:
-        return {"status": "NEEDS_REVIEW", "run_id": state.run_id, "next_action": state.next_action}
+    if state.phase in OPERATIONAL_FAILURE_PHASES:
+        return {
+            "status": "PROCESSING_FAILED",
+            "run_id": state.run_id,
+            "phase": state.phase.value,
+            "error_code": state.error_code,
+            "error_message": state.error_message or "K-Slide processing failed safely.",
+            "next_action": state.next_action,
+        }
     if state.phase == RunPhase.COMPLETE:
         return {"status": "COMPLETE", "run_id": state.run_id, "next_action": None}
     if state.phase == RunPhase.VERIFIED:
@@ -238,9 +254,17 @@ def _evidence(root: Path, run_id: str | None, session_id: str | None) -> dict[st
 
 def _render_text_status(value: dict[str, Any]) -> str:
     lines = [str(value.get("status", "UNKNOWN"))]
-    for key in ("run_id", "input_count", "current_work_unit", "next_action", "reason"):
+    for key in ("run_id", "input_count", "current_work_unit", "phase", "error_code", "error_message", "next_action", "reason"):
         if value.get(key) is not None:
             lines.append(f"{key}: {value[key]}")
+    error = value.get("error")
+    if isinstance(error, dict):
+        if error.get("code") is not None:
+            lines.append(f"error_code: {error['code']}")
+        if error.get("message") is not None:
+            lines.append(f"error_message: {error['message']}")
+        if error.get("details"):
+            lines.append(f"error_details: {json.dumps(error['details'], ensure_ascii=False, sort_keys=True)}")
     if value.get("checks"):
         for item in value["checks"]:
             status = item.get("status")
@@ -353,6 +377,8 @@ def main(argv: list[str] | None = None) -> int:
             value = {"status": "PASS" if all(passed for _, passed in checks) else "FAIL", "checks": [{"label": label, "passed": passed} for label, passed in checks]}
         else:
             raise KSlideError(ErrorCode.INTERNAL, "Unknown K-Slide command.")
+        if args.command != "evidence":
+            value = sanitize_operational(value, roots=_diagnostic_roots(getattr(args, "root", None)))
         print(_json(value) if getattr(args, "json", False) else _render_text_status(value))
         if args.command == "doctor" and value.get("overall") == "FAIL":
             return 1
@@ -360,15 +386,27 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         if args.command == "verify" and value.get("status") == "FAIL":
             return 1
-        if args.command == "prepare" and value.get("status") in {"FAILED_INPUT", "FAILED_NORMALIZATION", "FAILED_RUNTIME", "FAILED_EXTRACTION", "FAILED_INTERNAL"}:
+        if args.command == "prepare" and value.get("status") in {phase.value for phase in OPERATIONAL_FAILURE_PHASES}:
+            return 1
+        if args.command == "next" and value.get("status") == "PROCESSING_FAILED":
             return 1
         return 0
     except KSlideError as exc:
-        value = {"status": "FAILED", "error": exc.as_dict()}
+        value = sanitize_operational({"status": "FAILED", "error": exc.as_dict()}, roots=_diagnostic_roots(getattr(args, "root", None)))
         print(_json(value) if getattr(args, "json", False) else _render_text_status(value))
         return 1
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
-        value = {"status": "FAILED", "error": {"code": "KSLIDE_INTERNAL", "message": str(exc)}}
+    except Exception as exc:
+        value = sanitize_operational(
+            {
+                "status": "FAILED",
+                "error": {
+                    "code": "KSLIDE_INTERNAL",
+                    "message": str(exc) or "K-Slide command failed safely.",
+                    "details": {"exception_type": type(exc).__name__},
+                },
+            },
+            roots=_diagnostic_roots(getattr(args, "root", None)),
+        )
         print(_json(value) if getattr(args, "json", False) else _render_text_status(value))
         return 1
 

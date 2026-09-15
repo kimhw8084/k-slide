@@ -14,7 +14,7 @@ from .runtime import discover_runtime
 from .security import validate_input
 from .ocr.policy import create_ocr_provider, load_ocr_policy
 from .production import production_checks
-from .redaction import redact_value
+from .redaction import sanitize_operational
 
 
 def _check(label: str, status: str, detail: str) -> dict[str, str]:
@@ -108,4 +108,4 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
         checks.extend(production_checks(root, runtime))
     overall = "FAIL" if any(item["status"] == "FAIL" for item in checks) else ("WARN" if any(item["status"] == "WARN" for item in checks) else "PASS")
     result = {"k_slide_version": __version__, "mode": "production" if production else "development", "overall": overall, "runtime": runtime.as_dict(), "checks": checks}
-    return redact_value(result, roots=(root,)) if production else result
+    return sanitize_operational(result, roots=(root,))

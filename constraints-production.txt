@@ -9,4 +9,6 @@ Pillow==12.3.0
 PyMuPDF==1.28.2
 python-pptx==1.0.2
 paddlepaddle==3.0.0
-paddleocr==3.0.3
+# Keep the production OCR subject on PaddleX's ocr-core extra.  PaddleOCR
+# 3.0.3 activated IE extras that pulled in vulnerable LangChain 0.x packages.
+paddleocr==3.7.0
