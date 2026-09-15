@@ -201,6 +201,25 @@ class HostIntegrationTests(unittest.TestCase):
             self.assertNotIn(str(attachment), support)
             self.assertNotIn("SECRET-SOURCE-CONTENT", support)
 
+    def test_host_validation_failure_does_not_persist_local_source_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside_directory:
+            root = Path(directory)
+            attachment = Path(outside_directory) / "not-an-image.png"
+            attachment.write_bytes(b"not-a-png")
+            run = prepare_run(
+                root,
+                host_input_refs=(self._reference(attachment, "not-an-image.png", "attachment"),),
+                approved_root=root,
+            )
+            self.assertEqual(load_state(run).phase, RunPhase.FAILED_INPUT)
+            for name in ("RUN_STATE.json", "00_input_inventory.json", "RUN_FAILED.md"):
+                self.assertNotIn(str(attachment), (run / name).read_text(encoding="utf-8"))
+            output = root / "support.zip"
+            build_support_bundle(root, output)
+            with zipfile.ZipFile(output) as archive:
+                support = archive.read("support-metadata.json").decode("utf-8")
+            self.assertNotIn(str(attachment), support)
+
     def test_opencode_native_bridge_uses_supported_parts_and_is_installed(self) -> None:
         root = Path(__file__).resolve().parents[1]
         plugin = (root / ".opencode" / "plugin" / "k-slide-host.ts").read_text(encoding="utf-8")

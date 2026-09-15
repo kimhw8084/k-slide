@@ -134,7 +134,7 @@ def validate_input(path: Path, *, allowed_root: Path | None = None, logical_name
     with resolved.open("rb") as handle:
         header = handle.read(16)
     if extension in _MAGIC and not _MAGIC[extension](header):
-        raise KSlideError(ErrorCode.INPUT_TYPE_MISMATCH, "File extension does not match its content.", {"path": str(resolved)})
+        raise KSlideError(ErrorCode.INPUT_TYPE_MISMATCH, "File extension does not match its content.")
     if extension == ".pptx":
         _inspect_zip(resolved, extension=extension)
 
