@@ -311,9 +311,6 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     prepare = sub.add_parser("prepare")
     prepare.add_argument("--root", type=Path, default=Path.cwd())
-    # Legacy modes remain hidden for diagnostics/backward compatibility; the
-    # normal host adapter never sends this option.
-    prepare.add_argument("--mode", choices=["standard", "smart", "strict", "safe"], default="standard", help=argparse.SUPPRESS)
     prepare.add_argument("--host-inputs-json", help=argparse.SUPPRESS)
     prepare.add_argument("--host-worktree", type=Path, help=argparse.SUPPRESS)
     prepare.add_argument("--session-id")
@@ -385,7 +382,6 @@ def main(argv: list[str] | None = None) -> int:
             invocation = HostInvocation.from_json(args.host_inputs_json)
             run = prepare_run(
                 args.root,
-                mode=args.mode,
                 explicit_paths=args.paths,
                 session_id=args.session_id,
                 perform_processing=True,
