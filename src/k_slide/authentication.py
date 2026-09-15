@@ -10,6 +10,7 @@ the key into K-Slide state or metadata.
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 
@@ -17,6 +18,8 @@ from .errors import ErrorCode, KSlideError
 
 
 ACCESS_KEY_ENV = "AccessKey"
+ACCESS_KEY_TOKEN_PATTERN = r"[A-Za-z0-9._~+/=-]+"
+ACCESS_KEY_VALUE_RE = re.compile(rf"(?:bearer\s+{ACCESS_KEY_TOKEN_PATTERN}|{ACCESS_KEY_TOKEN_PATTERN})", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -31,7 +34,13 @@ class AuthenticationReadiness:
 
 
 def authentication_readiness(environment: Mapping[str, str] | None = None) -> AuthenticationReadiness:
-    """Check the process-provisioned AccessKey without returning its value."""
+    """Check a process-provisioned AccessKey without returning its value.
+
+    The bounded representation contract is an opaque token made from the
+    URL-safe/base64-safe alphabet, optionally prefixed by ``Bearer ``. The
+    contract deliberately excludes diagnostic delimiters and line breaks so a
+    value accepted here can be fully masked in assignment-style diagnostics.
+    """
 
     values = os.environ if environment is None else environment
     value = values.get(ACCESS_KEY_ENV)
@@ -41,9 +50,7 @@ def authentication_readiness(environment: Mapping[str, str] | None = None) -> Au
         return AuthenticationReadiness(False, "unusable")
     if not value.strip():
         return AuthenticationReadiness(False, "empty")
-    if value != value.strip():
-        return AuthenticationReadiness(False, "unusable")
-    if any(ord(character) < 32 or ord(character) == 127 for character in value):
+    if not ACCESS_KEY_VALUE_RE.fullmatch(value):
         return AuthenticationReadiness(False, "unusable")
     return AuthenticationReadiness(True, "available")
 

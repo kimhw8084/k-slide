@@ -99,8 +99,14 @@ async function runCore(context: ToolContext, command: string, args: string[] = [
   const stdout = await new Response(child.stdout).text()
   const stderr = await new Response(child.stderr).text()
   const exitCode = await child.exited
-  if (exitCode !== 0 && !stdout.trim()) return JSON.stringify({ status: "FAILED", error: stderr.trim() || "K-Slide core failed." })
-  return stdout.trim() || JSON.stringify({ status: exitCode === 0 ? "OK" : "FAILED", detail: stderr.trim() })
+  if (stdout.trim()) return stdout.trim()
+  // A crashed/empty core response may contain arbitrary interpreter or
+  // dependency text. Never forward stderr across the OpenCode boundary.
+  return JSON.stringify(
+    exitCode === 0
+      ? { status: "OK" }
+      : { status: "FAILED", error: { code: "KSLIDE_INTERNAL", message: "K-Slide core failed before producing a safe response." } },
+  )
 }
 
 export const prepare = tool({

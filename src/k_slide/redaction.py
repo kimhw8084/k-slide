@@ -13,8 +13,11 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .authentication import ACCESS_KEY_TOKEN_PATTERN, ACCESS_KEY_VALUE_RE
 
-_SECRET_NAME = r"(?:api[\s_-]?key|access[\s_-]?(?:key|token)|auth(?:orization)?|password|secret|cookie|private[\s_-]?key)"
+_ACCESS_KEY_NAME = r"access[\s_-]?(?:key|token)"
+_GENERIC_SECRET_NAME = r"(?:api[\s_-]?key|auth(?:orization)?|password|secret|cookie|private[\s_-]?key)"
+_SECRET_NAME = rf"(?:{_ACCESS_KEY_NAME}|{_GENERIC_SECRET_NAME})"
 _SECRET_KEY = re.compile(_SECRET_NAME, re.IGNORECASE)
 _CONTENT_KEYS = {
     "text",
@@ -27,8 +30,11 @@ _CONTENT_KEYS = {
     "source_candidates",
     "ocr_candidates",
 }
-_BEARER = re.compile(r"(?i)(\bbearer\s+)[A-Za-z0-9._~+/=-]+")
-_ASSIGNMENT = re.compile(rf"(?i)(\b{_SECRET_NAME}\b['\"]?\s*[:=]\s*['\"]?)((?:bearer\s+)?[^\s,;\"']+)")
+_BEARER = re.compile(rf"(?i)(\bbearer\s+){ACCESS_KEY_TOKEN_PATTERN}")
+_ACCESS_KEY_ASSIGNMENT = re.compile(
+    rf"(?i)(\b{_ACCESS_KEY_NAME}\b['\"]?\s*[:=]\s*['\"]?)({ACCESS_KEY_VALUE_RE.pattern})"
+)
+_ASSIGNMENT = re.compile(rf"(?i)(\b{_GENERIC_SECRET_NAME}\b['\"]?\s*[:=]\s*['\"]?)((?:bearer\s+)?[^\s,;\"']+)")
 _URL_CREDENTIALS = re.compile(r"(?i)(https?://)([^/@\s]+):([^/@\s]+)@")
 
 
@@ -44,10 +50,21 @@ def redact_text(value: str, *, roots: tuple[Path, ...] = ()) -> str:
             result = result.replace(str(root.resolve()), "$KSLIDE_ROOT")
         except OSError:
             continue
-    result = _BEARER.sub(r"\1[REDACTED]", result)
+    result = _ACCESS_KEY_ASSIGNMENT.sub(r"\1[REDACTED]", result)
     result = _ASSIGNMENT.sub(r"\1[REDACTED]", result)
+    result = _BEARER.sub(r"\1[REDACTED]", result)
     result = _URL_CREDENTIALS.sub(r"\1[REDACTED]@", result)
     return result
+
+
+def sanitize_operational(value: Any, *, roots: tuple[Path, ...] = ()) -> Any:
+    """Sanitize operational/error metadata at an external output boundary.
+
+    Callers must not use this for source-owned evidence or translated business
+    content. Those payloads have a separate model-facing/output contract.
+    """
+
+    return redact_value(value, roots=roots)
 
 
 def redact_value(value: Any, *, roots: tuple[Path, ...] = (), key: str | None = None) -> Any:

@@ -73,4 +73,9 @@ class KSlideError(Exception):
         super().__init__(self.message)
 
     def as_dict(self) -> dict[str, Any]:
-        return {"code": self.code.value, "message": self.message, "details": self.details}
+        # Error dictionaries are operational data and may cross the CLI or
+        # OpenCode boundary. Keep the source/evidence payloads separate; only
+        # this diagnostic representation is sanitized.
+        from .redaction import sanitize_operational
+
+        return sanitize_operational({"code": self.code.value, "message": self.message, "details": self.details})
