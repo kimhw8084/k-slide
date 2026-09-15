@@ -113,7 +113,7 @@ def _run_summary(run: Path) -> dict[str, Any]:
         "queue": _queue_summary(run / "WORK_QUEUE.json"),
         "artifacts": {
             name: (run / name).is_file()
-            for name in ("RUN_STATE.json", "RUN_MANIFEST.json", "RUNTIME_METADATA.json", "WORK_QUEUE.json", "RUN_COMPLETE.md", "RUN_FAILED.md")
+            for name in ("RUN_STATE.json", "EXECUTION_JOB.json", "RUN_MANIFEST.json", "RUNTIME_METADATA.json", "WORK_QUEUE.json", "RUN_COMPLETE.md", "RUN_FAILED.md")
         },
     }
 
