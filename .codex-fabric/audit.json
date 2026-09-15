@@ -1,0 +1,415 @@
+{
+  "accepted_at": "2026-09-15T01:15:00Z",
+  "changed_files": [
+    {
+      "additions": 8,
+      "deletions": 2,
+      "path": ".opencode/tools/kslide.ts",
+      "status": "M"
+    },
+    {
+      "additions": 74,
+      "deletions": 0,
+      "path": "src/k_slide/authentication.py",
+      "status": "A"
+    },
+    {
+      "additions": 49,
+      "deletions": 11,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 1,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 22,
+      "deletions": 4,
+      "path": "src/k_slide/redaction.py",
+      "status": "M"
+    },
+    {
+      "additions": 11,
+      "deletions": 0,
+      "path": "src/k_slide/state.py",
+      "status": "M"
+    },
+    {
+      "additions": 213,
+      "deletions": 0,
+      "path": "tests/test_chg16_foundation.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc 'find src -maxdepth 3 -type f -print | sort && find tests -maxdepth 2 -type f -print | sort'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'git show e408e6e7ea20276d7927ed6f779304c0b9895efe -- src/k_slide/authentication.py src/k_slide/cli.py src/k_slide/errors.py src/k_slide/redaction.py src/k_slide/state.py tests/test_chg16_foundation.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,220p' src/k_slide/errors.py; sed -n '1,260p' src/k_slide/state.py; sed -n '1,220p' src/k_slide/support.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,240p' src/k_slide/redaction.py; sed -n '1,460p' src/k_slide/cli.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,260p' tests/test_cli_blackbox.py; sed -n '1,220p' tests/test_phase11.py; sed -n '1,220p' tests/test_phase34.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'git log --all --oneline --decorate -- src/k_slide/redaction.py src/k_slide/cli.py tests/test_chg16_foundation.py | head -30; git branch -avv'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git cherry-pick e408e6e7ea20276d7927ed6f779304c0b9895efe && rtk git status --short --branch && rtk git log --oneline --decorate -3'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '280,460p' src/k_slide/cli.py; sed -n '1,180p' src/k_slide/errors.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rg -n \\\"print\\\\(|stdout|stderr|json\\\\.dumps|as_dict\\\\(\\\\)|KSlideError|Exception|error_message|next_action|error_code\\\" src .opencode scripts evals tests --glob '*.py' --glob '*.ts' --glob '*.js' --glob '*.md'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"find .opencode scripts -maxdepth 4 -type f -print | sort | xargs -r rg -n \\\"k-slide|kslide|cli|output|stderr|stdout|error|exception\\\" --glob '*.ts' --glob '*.py' --glob '*.sh' --glob '*.md'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"git show f6ecbb9:src/k_slide/cli.py | sed -n '330,440p'; git show f6ecbb9:tests/test_chg16_foundation.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,220p' src/k_slide/retention.py; sed -n '1,220p' src/k_slide/runtime.py; sed -n '1,200p' src/k_slide/installer.py; sed -n '1,210p' src/k_slide/io.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,180p' .opencode/tools/kslide.ts; sed -n '1,220p' src/k_slide/doctor.py; sed -n '1,240p' src/k_slide/verify.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rg -n \\\"runCli|kslide_.*|child|stderr|stdout\\\" tests .opencode --glob '*.ts' --glob '*.py' --glob '*.md' | head -240\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rg -n \\\"def .*as_dict|return \\\\{.*error|details=|details\\\\{|raise .*Exception|except Exception|except .* as exc|str\\\\(exc\\\\)|repr\\\\(exc\\\\)\\\" src/k_slide --glob '*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rg -n \\\"\\\\.as_dict\\\\(\\\\)|\\\\[\\\\\\\"error\\\\\\\"\\\\]|error\\\\]|details|message\\\" tests --glob '*.py' | head -260\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,230p' src/k_slide/retention.py; sed -n '1,240p' src/k_slide/runtime.py; sed -n '1,170p' src/k_slide/model.py; sed -n '1,220p' src/k_slide/security.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '220,290p' src/k_slide/extraction.py; sed -n '320,365p' src/k_slide/normalization.py; sed -n '430,600p' src/k_slide/production.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'git show --format=fuller --stat e408e6e7ea20276d7927ed6f779304c0b9895efe; git merge-base --is-ancestor af5836540304b424289bedbe57a87dbb5d02763f HEAD; echo \"base_ancestor=$?\"; git diff --stat af5836540304b424289bedbe57a87dbb5d02763f HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest tests.test_chg16_foundation tests.test_cli_blackbox -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,190p' src/k_slide/support.py; sed -n '1,210p' src/k_slide/state.py; sed -n '1,170p' src/k_slide/evidence_ir.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,130p' src/k_slide/authentication.py; sed -n '1,150p' src/k_slide/redaction.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '20,170p' src/k_slide/cli.py; sed -n '170,245p' src/k_slide/cli.py; sed -n '305,430p' src/k_slide/cli.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,130p' src/k_slide/errors.py; sed -n '88,112p' .opencode/tools/kslide.ts; git diff --check; git diff --stat\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"nl -ba src/k_slide/cli.py | sed -n '108,170p'; nl -ba src/k_slide/cli.py | sed -n '286,330p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'git diff --check && rtk git status --short'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python3 - <<'PY'\nfrom k_slide.authentication import authentication_readiness\nfrom k_slide.redaction import redact_text\nfor value in ('fixture-token-001._~+/==', 'Bearer [REDACTED_SECRET]', 'fixture,token'):\n    print(authentication_readiness({'AccessKey': value}).as_dict())\n    print(redact_text(f'AccessKey=\\\"{value}\\\", next_action=retry'))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m compileall -q src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest tests.test_chg16_foundation tests.test_cli_blackbox -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rg -n \\\"exc\\\\.message|error\\\\.message|message\\\\}|message\\\\)|str\\\\(exc\\\\)|RUN_FAILED|ERROR\\\\.json|print\\\\(\\\" src/k_slide --glob '*.py' | sed -n '1,260p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'git diff -- src/k_slide/authentication.py src/k_slide/redaction.py src/k_slide/errors.py src/k_slide/cli.py .opencode/tools/kslide.ts tests/test_chg16_foundation.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'command -v bun || true; command -v tsc || true; command -v mypy || true; command -v pyright || true'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m compileall -q src tests evals'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest discover -s tests -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rg -n \\\"def finalize_run|return \\\\{|class Final\\\" src/k_slide/verify.py src/k_slide/completion.py src/k_slide/rendering/reports.py | tail -100; sed -n '170,260p' src/k_slide/verify.py; sed -n '1,120p' src/k_slide/completion.py; sed -n '1,150p' src/k_slide/retention.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'git diff --numstat && git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m compileall -q src tests evals && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mypy src/k_slide/authentication.py src/k_slide/redaction.py src/k_slide/errors.py src/k_slide/cli.py tests/test_chg16_foundation.py --ignore-missing-imports'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '160,230p' tests/test_phase35.py; rg -n \\\"redact_text|redact_value\\\" tests src | head -100\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mypy --follow-imports=skip src/k_slide/authentication.py src/k_slide/redaction.py src/k_slide/errors.py src/k_slide/cli.py tests/test_chg16_foundation.py --ignore-missing-imports'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m compileall -q src tests evals'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mypy --follow-imports=skip src/k_slide/authentication.py src/k_slide/redaction.py src/k_slide/errors.py src/k_slide/cli.py tests/test_chg16_foundation.py --ignore-missing-imports'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest discover -s tests -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add .opencode/tools/kslide.ts src/k_slide/authentication.py src/k_slide/cli.py src/k_slide/errors.py src/k_slide/redaction.py tests/test_chg16_foundation.py && rtk git commit -m \"Fix CHG-16 credential and diagnostic boundaries\" && rtk git status --short --branch && rtk git log --oneline --decorate -4'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git push -u origin codex/k-slide-chg16-foundation-fix01'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --stat af5836540304b424289bedbe57a87dbb5d02763f HEAD; rtk git show --stat --oneline --decorate f6ecbb9; rtk git show --stat --oneline --decorate HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git merge-base --is-ancestor af5836540304b424289bedbe57a87dbb5d02763f HEAD; printf 'bound_base_ancestor=%s\\\\n' \\\"\"'$?\"; rtk git merge-base --is-ancestor f6ecbb9 HEAD; printf '\"'foundation_parent=%s\\\\n' \\\"\"'$?\"; rtk git diff --check HEAD''^ HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git rev-parse HEAD main origin/codex/k-slide-chg16-foundation-fix01 && rtk git log --oneline --decorate -4'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 136,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 95.74,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 3620608,
+      "fresh_input_tokens": 161054,
+      "input_tokens": 3781662,
+      "non_reasoning_output_tokens": 13123,
+      "output_tokens": 33626,
+      "reasoning_output_tokens": 20503,
+      "total_processed_tokens": 3815288
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "2717b4979a8588e2f429d0135f520607db2b9461",
+      "subject": "Fix CHG-16 credential and diagnostic boundaries"
+    },
+    {
+      "sha": "f6ecbb935a7ec537af46f7740c9d56ad1143308b",
+      "subject": "Implement CHG-16 foundation auth and failure boundaries"
+    }
+  ],
+  "diff": {
+    "additions": 384,
+    "changed_files": 7,
+    "commit_count": 2,
+    "deletions": 18
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 0,
+    "items": [],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.2",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.2",
+  "failure_class": null,
+  "finished_at": "2026-09-15T01:27:34Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "af5836540304b424289bedbe57a87dbb5d02763f",
+    "branch": "codex/k-slide-chg16-foundation-fix01",
+    "head_sha": "2717b4979a8588e2f429d0135f520607db2b9461",
+    "remote_exact_head": true,
+    "remote_head_sha": "2717b4979a8588e2f429d0135f520607db2b9461",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "af5836540304b424289bedbe57a87dbb5d02763f",
+    "work_branch": "codex/k-slide-chg16-foundation-fix01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-a373f9b071972a3fc6f7124a",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-foundation-01-fix02",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-foundation-01-fix02"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.2",
+    "policy_sha256": "3778fba0755dd2f6b00268f73b7a589f93317203cc0603df2feff4e6d9c759f6",
+    "registry_sha256": "17d7db01a654a693b57af2b6fce2f676b1f883ea97564a690894b5f96df49aaa"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-foundation-01-fix02",
+  "schema_version": 1,
+  "started_at": "2026-09-15T01:15:00Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 754,
+    "queue_seconds": 0,
+    "total_seconds": 754
+  },
+  "transport": {
+    "bytes": 5176,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 4868,
+    "prompt_sha256": "b61054fd00bb9e3ecaa214677b6f117cd6d4a205b7da86813d8343b7ccdc1fd0",
+    "sha256": "a373f9b071972a3fc6f7124ac123ac9df142e7a0cf4ee11c2e63b1bf6197cc19"
+  }
+}
