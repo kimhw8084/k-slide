@@ -1,0 +1,550 @@
+{
+  "accepted_at": "2026-09-15T03:24:41Z",
+  "changed_files": [
+    {
+      "additions": 5,
+      "deletions": 3,
+      "path": ".github/workflows/k-slide-security.yml",
+      "status": "M"
+    },
+    {
+      "additions": 8,
+      "deletions": 2,
+      "path": ".opencode/tools/kslide.ts",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 1,
+      "path": "constraints-production.txt",
+      "status": "M"
+    },
+    {
+      "additions": 64,
+      "deletions": 0,
+      "path": "src/k_slide/authentication.py",
+      "status": "A"
+    },
+    {
+      "additions": 49,
+      "deletions": 11,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 2,
+      "path": "src/k_slide/doctor.py",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 1,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 0,
+      "path": "src/k_slide/evidence_adapters.py",
+      "status": "M"
+    },
+    {
+      "additions": 46,
+      "deletions": 12,
+      "path": "src/k_slide/redaction.py",
+      "status": "M"
+    },
+    {
+      "additions": 15,
+      "deletions": 1,
+      "path": "src/k_slide/state.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 4,
+      "path": "src/k_slide/support.py",
+      "status": "M"
+    },
+    {
+      "additions": 27,
+      "deletions": 0,
+      "path": "tests/test_certification_closure.py",
+      "status": "M"
+    },
+    {
+      "additions": 240,
+      "deletions": 0,
+      "path": "tests/test_chg16_foundation.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk unzip -p /tmp/k-slide-pkg-meta/paddleocr-3.2.0*.whl '*METADATA' | rtk rg -i '\"'^Requires-Dist:'\"' | head -70\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk unzip -p /tmp/k-slide-pkg-meta/paddleocr-3.2.0*.whl 'paddleocr/_pipelines/ocr.py' | rtk rg -n -C 3 \\\"class PaddleOCR|def __init__|def predict|export_paddlex_config_to_yaml\\\" && rtk unzip -l /tmp/k-slide-pkg-meta/paddleocr-3.2.0*.whl | rtk rg 'paddleocr/_pipelines/ocr.py|paddleocr/__init__.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python -m pip download --disable-pip-version-check --no-deps --only-binary=:all: --dest /tmp/k-slide-pkg-meta paddlex==3.2.1 && rtk unzip -p /tmp/k-slide-pkg-meta/paddlex-3.2.1*.whl '*METADATA' | rtk rg -i '\"'^Requires-Dist: (langchain|paddle|numpy|pillow|paddleocr)'\"'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python -m pip install --disable-pip-version-check --dry-run --ignore-installed --report /tmp/k-slide-resolve-paddleocr320.json paddleocr==3.2.0 paddlepaddle==3.0.0 Pillow==12.3.0 PyMuPDF==1.28.2 python-pptx==1.0.2 && rtk jq -r '.install[] | [.metadata.name,.metadata.version] | @tsv' /tmp/k-slide-resolve-paddleocr320.json | rtk rg -i 'langchain|paddlex|paddleocr|paddlepaddle|pip|setuptools' || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk unzip -l /tmp/k-slide-pkg-meta/paddleocr-3.2.0*.whl | rtk rg 'paddlex_config|pipeline' | head -120 && rtk unzip -p /tmp/k-slide-pkg-meta/paddleocr-3.2.0*.whl 'paddleocr/_pipelines/base.py' | rtk rg -n -C 4 'export_paddlex_config_to_yaml' && rtk unzip -p /tmp/k-slide-pkg-meta/paddleocr-3.2.0*.whl 'paddleocr/_pipelines/ocr.py' | rtk sed -n '50,145p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python -m pip install --disable-pip-version-check --dry-run --ignore-installed --report /tmp/k-slide-resolve-paddleocr370.json paddleocr==3.7.0 paddlepaddle==3.0.0 Pillow==12.3.0 PyMuPDF==1.28.2 python-pptx==1.0.2 > /tmp/k-slide-resolve-paddleocr370.log && rtk jq -r '.install[] | [.metadata.name,.metadata.version] | @tsv' /tmp/k-slide-resolve-paddleocr370.json | rtk tee /tmp/k-slide-resolve-paddleocr370.tsv >/dev/null && printf '%s\\\\n' '-- selected OCR/runtime packages --' && rtk rg -i 'paddleocr|paddlex|paddlepaddle|pillow|pymupdf|python-pptx' /tmp/k-slide-resolve-paddleocr370.tsv && printf '%s\\\\n' '-- langchain packages (must be absent) --' && if rtk rg -i '\"'^langchain'\"' /tmp/k-slide-resolve-paddleocr370.tsv; then exit 1; else printf '%s\\\\n' 'none'; fi && printf '%s\\\\n' '-- resolver summary --' && rtk tail -5 /tmp/k-slide-resolve-paddleocr370.log\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"freeze\\\\(|freeze_production_dependencies|dependency_lock_text|installed_dependency_inventory|enforce_security|scanner-exits|pip-audit\\\" tests/test_certification_closure.py tests/test_phase35.py tests/test_phase*.py | head -260\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,140p' evals/enforce_security.py && rtk sed -n '107,150p' src/k_slide/evidence_adapters.py && rtk sed -n '885,920p' src/k_slide/evidence_adapters.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '130,190p' tests/test_certification_closure.py && rtk sed -n '400,470p' tests/test_certification_closure.py && rtk sed -n '800,845p' tests/test_certification_closure.py && rtk sed -n '900,935p' tests/test_certification_closure.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk jq -n --slurpfile audit /tmp/k-slide-security-evidence-34924141668/pip-audit.json --slurpfile inventory /tmp/k-slide-security-evidence-34924141668/production-dependency-inventory.json '{audit_count:(\"'$audit[0].dependencies|length),inventory_count:($inventory[0].packages|length),audit_not_inventory:([ $audit[0].dependencies[].name | ascii_downcase ] - [ $inventory[0].packages[].name ] | unique),inventory_not_audit:([ $inventory[0].packages[].name ] - [ $audit[0].dependencies[].name | ascii_downcase ] | unique)}'\"' && printf '\\\\n-- inventory base/tool names --\\\\n' && rtk jq -r '.packages[] | select(.name|test(\\\"\"'^(pip|setuptools|wheel|pip-audit|semgrep)$\"))'\"' /tmp/k-slide-security-evidence-34924141668/production-dependency-inventory.json || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1000,1075p' tests/test_certification_closure.py && rtk sed -n '1060,1125p' tests/test_certification_closure.py && rtk sed -n '1,90p' tests/test_certification_closure.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m py_compile evals/enforce_security.py evals/freeze_production_dependencies.py src/k_slide/certification.py src/k_slide/evidence_adapters.py src/k_slide/ocr/paddle.py tests/test_certification_closure.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git status --short --branch && rtk git diff --stat && rtk git diff --no-ext-diff -- constraints-production.txt .github/workflows/k-slide-security.yml tests/test_certification_closure.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python -m pytest -q tests/test_certification_closure.py -k 'security or dependency or heavy_workflow_sequence' --disable-warnings\"",
+      "exit_code": 2,
+      "test_result": {
+        "counts": {
+          "errors": 1
+        },
+        "error_test_ids": [
+          "tests/test_certification_closure.py"
+        ],
+        "exit_code": 2,
+        "framework": "pytest",
+        "outcome": "interrupted",
+        "output_bytes": 1105,
+        "output_sha256": "2e1bb1a7d100ba9192680acad6c132ce10a97167ec4f084bca6716b953f4a2ea",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. python -m pytest -q tests/test_certification_closure.py -k 'security or dependency or heavy_workflow_sequence' --disable-warnings\"",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "deselected": 63,
+          "passed": 16,
+          "warnings": 1
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 125,
+        "output_sha256": "c7ab6e5fc7e1784c4afd306f165741aabd92d2b859fedd6e7ad94a7aabb5ad18",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'task_root=/tmp/k-slide-security-local-34924141668-fixed\nrtk mkdir -p \"$task_root/evidence\"\nrtk python -m venv \"$task_root/production-env\"\nproduction_python=\"$task_root/production-env/bin/python\"\n\"$production_python\" -m pip install --disable-pip-version-check --no-input --upgrade pip==26.1.2 setuptools==83.0.0\n\"$production_python\" -m pip install --disable-pip-version-check --no-input -r \"$PWD/constraints-production.txt\"\nPYTHONPATH=\"$PWD/src:$PWD\" \"$production_python\" -m evals.freeze_production_dependencies --inventory-output \"$task_root/evidence/production-dependency-inventory.json\" --lock-output \"$task_root/evidence/production-requirements.lock\"\nsite=\"$($production_python -c '\"'import site; print(site.getsitepackages()[0])')\\\"\nprintf '%s\\\\n' \\\"\"'$site\" > \"$task_root/production-site.txt\"\nrtk jq '\"'{package_count:(.packages|length),ocr:(.packages|map(select(.name|test(\\\"\"'^(paddleocr|paddlex|paddlepaddle)$\")))),langchain:(.packages|map(select(.name|startswith(\"langchain\"))))}'\"' \\\"\"'$task_root/evidence/production-dependency-inventory.json\"\n\"$production_python\" -c '\"'import importlib.metadata as m; print(\\\"pip=\\\" + m.version(\\\"pip\\\")); print(\\\"setuptools=\\\" + m.version(\\\"setuptools\\\")); print(\\\"paddleocr=\\\" + m.version(\\\"paddleocr\\\")); print(\\\"paddlex=\\\" + m.version(\\\"paddlex\\\"))'\nprintf '%s\\\\n' \\\"production_env=\"'$task_root/production-env\" \"production_site=$site\" \"evidence=$task_root/evidence\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'task_root=/tmp/k-slide-security-local-34924141668-fixed\nset +e\nrtk docker run --rm -v \"$PWD:/repo:ro\" -v \"$task_root/evidence:/reports\" zricethezav/gitleaks:v8.24.2 detect --source=/repo --no-banner --redact --report-format json --report-path /reports/gitleaks.json\ncode=$?\nset -e\nprintf '\"'%s\\\\n' \\\"\"'$code\" > \"$task_root/evidence/gitleaks.exit\"\nif test -f \"$task_root/evidence/gitleaks.json\"; then rtk jq '\"'length' \\\"\"'$task_root/evidence/gitleaks.json\"; fi\nprintf '\"'%s\\\\n' \\\"gitleaks_exit=\"'$code\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk ls -la /tmp/k-slide-security-local-34924141668-fixed/evidence && if test -f /tmp/k-slide-security-local-34924141668-fixed/evidence/pip-audit.json; then rtk jq '{dependencies:(.dependencies|length),vulnerable_packages:([.dependencies[]|select((.vulns|length)>0)|.name]),vulnerability_count:([.dependencies[].vulns[]]|length)}' /tmp/k-slide-security-local-34924141668-fixed/evidence/pip-audit.json; fi\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk ps -axo pid=,command= | rtk rg 'k-slide-security-local-34924141668-fixed|pip install.*pip-audit|semgrep==1\\\\.89\\\\.0' || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk docker run --rm zricethezav/gitleaks:v8.24.2 detect --help | rtk rg -n -- '--no-git|git' | head -30\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'task_root=/tmp/k-slide-security-local-34924141668-fixed\nrtk cat \"$task_root/evidence/pip-audit.exit\" 2>/dev/null || true\nrtk ls -la \"$task_root/evidence\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'task_root=/tmp/k-slide-security-local-34924141668-fixed\nrtk \"$task_root/scanner-env/bin/pip-audit\" --version || true\nrtk \"$task_root/scanner-env/bin/semgrep\" --version || true\nrtk ls -la \"$task_root/scanner-env/bin\" | rtk rg '\"'pip-audit|semgrep|python'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'task_root=/tmp/k-slide-security-local-34924141668-fixed\nscanner_python=\"$task_root/scanner-env/bin/python\"\n\"$scanner_python\" -m pip install --disable-pip-version-check --no-input pip-audit==2.9.0 semgrep==1.89.0\n\"$task_root/scanner-env/bin/pip-audit\" --version\n\"$task_root/scanner-env/bin/semgrep\" --version'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'task_root=/tmp/k-slide-security-local-34924141668-fixed\nscanner_root=\"$task_root/scanner-env\"\nrtk python -m venv \"$scanner_root\"\nscanner_python=\"$scanner_root/bin/python\"\n\"$scanner_python\" -m pip install --disable-pip-version-check --no-input pip-audit==2.9.0 semgrep==1.89.0\nsite=\"$(rtk sed -n '\"'1p' \\\"\"'$task_root/production-site.txt\")\"\nset +e\n\"$scanner_root/bin/pip-audit\" --strict --format json --output \"$task_root/evidence/pip-audit.json\" --path \"$site\"\ncode=$?\nset -e\nprintf '\"'%s\\\\n' \\\"\"'$code\" > \"$task_root/evidence/pip-audit.exit\"\nrtk jq '\"'{dependencies:(.dependencies|length),vulnerable_packages:([.dependencies[]|select((.vulns|length)>0)|.name]),vulnerability_count:([.dependencies[].vulns[]]|length)}' \\\"\"'$task_root/evidence/pip-audit.json\"\nprintf '\"'%s\\\\n' \\\"pip_audit_exit=\"'$code\" \"scanner_root=$scanner_root\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'task_root=/tmp/k-slide-security-local-34924141668-fixed\nrepo_root=\"$PWD\"\nevidence_root=\"$task_root/evidence\"\nsite=\"$(rtk sed -n '\"'1p' \\\"\"'$task_root/production-site.txt\")\"\nset +e\n\"$task_root/scanner-env/bin/pip-audit\" --strict --format json --output \"$evidence_root/pip-audit.json\" --path \"$site\"\npip_code=$?\n\"$task_root/scanner-env/bin/semgrep\" --config \"$repo_root/security/semgrep-production.yml\" --error --json --output \"$evidence_root/semgrep.json\" \"$repo_root/src\" \"$repo_root/evals\"\nsemgrep_code=$?\nrtk docker run --rm -v \"$repo_root:/repo:ro\" -v \"$evidence_root:/reports\" zricethezav/gitleaks:v8.24.2 detect --no-git --source=/repo --no-banner --redact --report-format json --report-path /reports/gitleaks.json\ngitleaks_code=$?\nset -e\nprintf '\"'%s\\\\n' \\\"\"'$pip_code\" > \"$evidence_root/pip-audit.exit\"\nprintf '\"'%s\\\\n' \\\"\"'$semgrep_code\" > \"$evidence_root/semgrep.exit\"\nprintf '\"'%s\\\\n' \\\"\"'$gitleaks_code\" > \"$evidence_root/gitleaks.exit\"\nrtk jq -n --argjson pip_audit \"$pip_code\" --argjson gitleaks \"$gitleaks_code\" --argjson semgrep \"$semgrep_code\" '\"'{pip_audit:\"'$pip_audit,gitleaks:$gitleaks,semgrep:$semgrep}'\"' > \\\"\"'$evidence_root/scanner-exits.json\"\nprintf '\"'%s\\\\n' '-- scanner exits --'\nrtk jq . \\\"\"'$evidence_root/scanner-exits.json\"\nprintf '\"'%s\\\\n' '-- pip-audit result --'\nrtk jq '{dependencies:(.dependencies|length),vulnerable_packages:([.dependencies[]|select((.vulns|length)>0)|.name]),vulnerability_count:([.dependencies[].vulns[]]|length)}' \\\"\"'$evidence_root/pip-audit.json\"\nprintf '\"'%s\\\\n' '-- gitleaks result --'\nrtk jq 'length' \\\"\"'$evidence_root/gitleaks.json\"\nprintf '\"'%s\\\\n' '-- semgrep result --'\nrtk jq '{results:(.results|length),errors:(.errors|length)}' \\\"\"'$evidence_root/semgrep.json\"\nprintf '\"'%s\\\\n' '-- enforced result --'\nrtk env PYTHONPATH=src:. python -m evals.enforce_security --pip-audit \\\"\"'$evidence_root/pip-audit.json\" --gitleaks \"$evidence_root/gitleaks.json\" --semgrep \"$evidence_root/semgrep.json\" --scanner-exits \"$evidence_root/scanner-exits.json\"'",
+      "exit_code": 2,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk jq -r '.dependencies[] | select(.name==\\\"pip\\\") | [.name,.version, (.vulns[] | [.id,.fix_versions|join(\\\"|\\\") ,.aliases|join(\\\"|\\\")]|join(\\\" \\\"))] | @tsv' /tmp/k-slide-security-local-34924141668-fixed/evidence/pip-audit.json\"",
+      "exit_code": 5,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk jq -r '.dependencies[] | select((.vulns|length)>0) | [.name,.version,([.vulns[].id]|join(\\\",\\\"))] | @tsv' /tmp/k-slide-security-local-34924141668-fixed/evidence/pip-audit.json && rtk jq '{dependencies:(.dependencies|length),vulnerabilities:([.dependencies[].vulns[]]|length)}' /tmp/k-slide-security-local-34924141668-fixed/evidence/pip-audit.json\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python -m pip index versions pip | rtk rg -o 'pip \\\\([\"'^)]*'\"\\\\)|LATEST:.*|Available versions: (26\\\\.2[\"'^,]*)'\"' | head -5\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk jq -r '.dependencies[] | select(.name==\\\"pip\\\") | .vulns[] | [\\\"pip\\\", input_filename, .id, (.fix_versions|join(\\\"|\\\")), (.aliases|join(\\\"|\\\")), .description] | @tsv' /tmp/k-slide-security-local-34924141668-fixed/evidence/pip-audit.json\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'task_root=/tmp/k-slide-security-local-34924141668-fixed\nrepo_root=\"$PWD\"\nevidence_root=\"$task_root/evidence\"\nproduction_python=\"$task_root/production-env/bin/python\"\nsite=\"$(rtk sed -n '\"'1p' \\\"\"'$task_root/production-site.txt\")\"\n\"$production_python\" -m pip install --disable-pip-version-check --no-input --upgrade pip==26.2.1 setuptools==83.0.0\nset +e\n\"$task_root/scanner-env/bin/pip-audit\" --strict --format json --output \"$evidence_root/pip-audit.json\" --path \"$site\"\npip_code=$?\n\"$task_root/scanner-env/bin/semgrep\" --config \"$repo_root/security/semgrep-production.yml\" --error --json --output \"$evidence_root/semgrep.json\" \"$repo_root/src\" \"$repo_root/evals\"\nsemgrep_code=$?\nrtk docker run --rm -v \"$repo_root:/repo:ro\" -v \"$evidence_root:/reports\" zricethezav/gitleaks:v8.24.2 detect --no-git --source=/repo --no-banner --redact --report-format json --report-path /reports/gitleaks.json\ngitleaks_code=$?\nset -e\nprintf '\"'%s\\\\n' \\\"\"'$pip_code\" > \"$evidence_root/pip-audit.exit\"\nprintf '\"'%s\\\\n' \\\"\"'$semgrep_code\" > \"$evidence_root/semgrep.exit\"\nprintf '\"'%s\\\\n' \\\"\"'$gitleaks_code\" > \"$evidence_root/gitleaks.exit\"\nrtk jq -n --argjson pip_audit \"$pip_code\" --argjson gitleaks \"$gitleaks_code\" --argjson semgrep \"$semgrep_code\" '\"'{pip_audit:\"'$pip_audit,gitleaks:$gitleaks,semgrep:$semgrep}'\"' > \\\"\"'$evidence_root/scanner-exits.json\"\nprintf '\"'%s\\\\n' '-- production bootstrap --'\n\\\"\"'$production_python\" -c '\"'import importlib.metadata as m; print(\\\"pip=\\\" + m.version(\\\"pip\\\")); print(\\\"setuptools=\\\" + m.version(\\\"setuptools\\\"))'\nprintf '%s\\\\n' '-- scanner exits --'\nrtk jq . \\\"\"'$evidence_root/scanner-exits.json\"\nprintf '\"'%s\\\\n' '-- pip-audit result --'\nrtk jq '{dependencies:(.dependencies|length),vulnerable_packages:([.dependencies[]|select((.vulns|length)>0)|.name]),vulnerability_count:([.dependencies[].vulns[]]|length)}' \\\"\"'$evidence_root/pip-audit.json\"\nprintf '\"'%s\\\\n' '-- gitleaks result --'\nrtk jq 'length' \\\"\"'$evidence_root/gitleaks.json\"\nprintf '\"'%s\\\\n' '-- semgrep result --'\nrtk jq '{results:(.results|length),errors:(.errors|length)}' \\\"\"'$evidence_root/semgrep.json\"\nprintf '\"'%s\\\\n' '-- enforced result --'\nrtk env PYTHONPATH=src:. python -m evals.enforce_security --pip-audit \\\"\"'$evidence_root/pip-audit.json\" --gitleaks \"$evidence_root/gitleaks.json\" --semgrep \"$evidence_root/semgrep.json\" --scanner-exits \"$evidence_root/scanner-exits.json\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'task_root=/tmp/k-slide-security-local-34924141668-fixed\nrepo_root=\"$PWD\"\nproduction_python=\"$task_root/production-env/bin/python\"\nPYTHONPATH=\"$repo_root/src:$repo_root\" \"$production_python\" -m evals.freeze_production_dependencies --inventory-output \"$task_root/evidence/production-dependency-inventory-rerun.json\" --lock-output \"$task_root/evidence/production-requirements-rerun.lock\" --lock-input \"$task_root/evidence/production-requirements.lock\"\nrtk cmp \"$task_root/evidence/production-dependency-inventory.json\" \"$task_root/evidence/production-dependency-inventory-rerun.json\"\nrtk cmp \"$task_root/evidence/production-requirements.lock\" \"$task_root/evidence/production-requirements-rerun.lock\"\nprintf '\"'%s\\\\n' '-- lock round-trip --'\nrtk env PYTHONPATH=src:. python -c 'import json,sys; from pathlib import Path; from k_slide.certification import dependency_inventory_hash,load_dependency_inventory; left=load_dependency_inventory(Path(sys.argv[1])); right=load_dependency_inventory(Path(sys.argv[2])); print(json.dumps({\\\"equal\\\":left==right,\\\"package_count\\\":len(left[\\\"packages\\\"]),\\\"inventory_sha256\\\":dependency_inventory_hash(left),\\\"contains_langchain\\\":any(item[\\\"name\\\"].startswith(\\\"langchain\\\") for item in left[\\\"packages\\\"])},sort_keys=True))' \\\"\"'$task_root/evidence/production-dependency-inventory.json\" \"$task_root/evidence/production-dependency-inventory-rerun.json\"\nprintf '\"'%s\\\\n' '-- candidate input resolution --'\nrtk env PYTHONPATH=src:. python -c 'import json; from pathlib import Path; from evals.scenarios import DATASET_VERSION,split_manifest; from k_slide.certification import candidate_deployment_fingerprint,load_candidate_spec,resolve_candidate_spec; from k_slide.model_policy import load_model_policy; root=Path.cwd(); candidate=load_candidate_spec(root/\\\"evals/production-candidate.yaml\\\",root=root,strict=True); resolved=resolve_candidate_spec(candidate,root=root,subject_git_sha=\\\"2187315a2500b4a51ad88c16dd5483bde1f9bede\\\",model_policy=load_model_policy(root),corpus={\\\"version\\\":DATASET_VERSION,**{key:split_manifest()[key] for key in (\\\"corpus_fingerprint\\\",\\\"held_out_fingerprint\\\")}}); print(json.dumps({\\\"constraints_sha256\\\":resolved[\\\"constraints_sha256\\\"],\\\"resolved_dependency_set_sha256\\\":resolved.get(\\\"resolved_dependency_set_sha256\\\"),\\\"deployment_fingerprint\\\":candidate_deployment_fingerprint(resolved),\\\"missing_production_fields\\\":__import__(\\\"k_slide.certification\\\",fromlist=[\\\"candidate_completeness\\\"]).candidate_completeness(resolved,\\\"PRODUCTION_CERTIFIED\\\")},sort_keys=True))'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk command -v ruff || true && rtk command -v mypy || true && rtk command -v bandit || true && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m pytest -q'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 190,
+          "skipped": 2,
+          "warnings": 1
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 786,
+        "output_sha256": "7256872b291ad8f7cef2d2540e9a677b7ac7a820635e1ad27defc080adedbedc",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. mypy src evals'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,70p' src/k_slide/evidence_adapters.py && rtk sed -n '850,905p' src/k_slide/evidence_adapters.py && rtk rg -n \\\"audited_dependency_versions|audited_packages|_NON_DEPLOYED_BASE_PACKAGES\\\" src/k_slide/evidence_adapters.py src/k_slide/certification.py tests/test_certification_closure.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1010,1115p' src/k_slide/evidence_adapters.py && rtk rg -n \\\"def build_machine_evidence|derive_payload\\\" src/k_slide/evidence_adapters.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --no-ext-diff --stat && rtk git diff --no-ext-diff -- src/k_slide/evidence_adapters.py tests/test_certification_closure.py .github/workflows/k-slide-security.yml constraints-production.txt'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m py_compile src/k_slide/evidence_adapters.py tests/test_certification_closure.py && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. python -m pytest -q tests/test_certification_closure.py -k 'security or dependency or heavy_workflow_sequence' --disable-warnings\"",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "deselected": 63,
+          "passed": 17,
+          "warnings": 1
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 125,
+        "output_sha256": "7d41479c8a843e33d211249aff5a292066f55789b8a6b00be963e37f1160126a",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m compileall -q src evals tests && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk ps -axo pid=,etime=,command= | rtk rg 'pytest -q|compileall|paddleocr' || true\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'task_root=/tmp/k-slide-security-local-34924141668-fixed\nevidence_root=\"$task_root/evidence\"\nrtk env PYTHONPATH=src:. python -m evals.enforce_security --pip-audit \"$evidence_root/pip-audit.json\" --gitleaks \"$evidence_root/gitleaks.json\" --semgrep \"$evidence_root/semgrep.json\" --scanner-exits \"$evidence_root/scanner-exits.json\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git diff --numstat && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'task_root=/tmp/k-slide-security-local-34924141668-fixed\nproduction_python=\"$task_root/production-env/bin/python\"\nrtk \"$production_python\" -m pip check\nrtk \"$production_python\" -c '\"'import importlib.metadata as m; print({\\\"pip\\\":m.version(\\\"pip\\\"),\\\"setuptools\\\":m.version(\\\"setuptools\\\"),\\\"paddleocr\\\":m.version(\\\"paddleocr\\\"),\\\"paddlex\\\":m.version(\\\"paddlex\\\"),\\\"paddlepaddle\\\":m.version(\\\"paddlepaddle\\\")})'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'task_root=/tmp/k-slide-security-local-34924141668-fixed\nproduction_python=\"$task_root/production-env/bin/python\"\nrtk \"$production_python\" -c '\"'from paddleocr import PaddleOCR; import inspect, importlib.metadata as metadata; print({\\\"paddleocr\\\":metadata.version(\\\"paddleocr\\\"),\\\"paddlex\\\":metadata.version(\\\"paddlex\\\"),\\\"paddlepaddle\\\":metadata.version(\\\"paddlepaddle\\\"),\\\"predict\\\":hasattr(PaddleOCR,\\\"predict\\\"),\\\"export_paddlex_config_to_yaml\\\":hasattr(PaddleOCR,\\\"export_paddlex_config_to_yaml\\\"),\\\"signature\\\":str(inspect.signature(PaddleOCR))})'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m pytest -q'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 191,
+          "skipped": 2,
+          "warnings": 1
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 797,
+        "output_sha256": "853e299903c865ce1236a95c04e6fad409c9820a04ca2b9e4402600c84a338b6",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m pytest -q'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 191,
+          "skipped": 2,
+          "warnings": 1
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 786,
+        "output_sha256": "9dfe57f9ca340c2ad6059653a08a673c8747f14e85cb79f9ab1f4e1cd4538eab",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check\nrtk git add .github/workflows/k-slide-security.yml constraints-production.txt src/k_slide/evidence_adapters.py tests/test_certification_closure.py\nrtk git diff --cached --check\nrtk git commit -m \"fix: close PR dependency security subject\"\nrtk git show --no-ext-diff --stat --oneline --decorate HEAD\nrtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"base=af5836540304b424289bedbe57a87dbb5d02763f\npredecessor=2187315a2500b4a51ad88c16dd5483bde1f9bede\nbranch=codex/k-slide-chg16-foundation-01-fix04\nrtk git show -s --format='HEAD=%H%nPARENT=%P%nSUBJECT=%s' HEAD\nrtk git merge-base --is-ancestor \\\"\"'$base\" HEAD\nprintf '\"'%s\\\\n' 'base ancestor: PASS'\nrtk git merge-base --is-ancestor \\\"\"'$predecessor\" HEAD\nprintf '\"'%s\\\\n' 'predecessor ancestor: PASS'\nrtk git diff --name-only \\\"\"'$predecessor\" HEAD\nprintf '\"'%s\\\\n' \\\"origin/main=\"'$(rtk git rev-parse origin/main)\"\nrtk git status --short --branch\nrtk git push origin \"HEAD:refs/heads/$branch\"\nprintf '\"'%s\\\\n' '-- remote branch --'\nrtk git ls-remote --heads origin \\\"\"'$branch\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 260,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 96.84,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 7570944,
+      "fresh_input_tokens": 247189,
+      "input_tokens": 7818133,
+      "non_reasoning_output_tokens": 23551,
+      "output_tokens": 49600,
+      "reasoning_output_tokens": 26049,
+      "total_processed_tokens": 7867733
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "47d9f2469da7cc20128915cff292381f401a5b9e",
+      "subject": "fix: close PR dependency security subject"
+    },
+    {
+      "sha": "2187315a2500b4a51ad88c16dd5483bde1f9bede",
+      "subject": "fix: make AccessKey readiness opaque"
+    },
+    {
+      "sha": "2717b4979a8588e2f429d0135f520607db2b9461",
+      "subject": "Fix CHG-16 credential and diagnostic boundaries"
+    },
+    {
+      "sha": "f6ecbb935a7ec537af46f7740c9d56ad1143308b",
+      "subject": "Implement CHG-16 foundation auth and failure boundaries"
+    }
+  ],
+  "diff": {
+    "additions": 476,
+    "changed_files": 13,
+    "commit_count": 4,
+    "deletions": 37
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 1,
+    "items": [
+      {
+        "bytes": 75120,
+        "path": "src/k_slide/evidence_adapters.py",
+        "sha256": "aeda697d41d9fba7947b185ea32ebf727616715421803f5490c21be9fb7c3c58"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.2",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.2",
+  "failure_class": null,
+  "finished_at": "2026-09-15T04:01:27Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "af5836540304b424289bedbe57a87dbb5d02763f",
+    "branch": "codex/k-slide-chg16-foundation-01-fix04",
+    "head_sha": "47d9f2469da7cc20128915cff292381f401a5b9e",
+    "remote_exact_head": true,
+    "remote_head_sha": "47d9f2469da7cc20128915cff292381f401a5b9e",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "af5836540304b424289bedbe57a87dbb5d02763f",
+    "work_branch": "codex/k-slide-chg16-foundation-01-fix04",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-f6b4647bafbf48f4a97ea11e",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-foundation-01-fix04",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-foundation-01-fix04"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.2",
+    "policy_sha256": "3778fba0755dd2f6b00268f73b7a589f93317203cc0603df2feff4e6d9c759f6",
+    "registry_sha256": "17d7db01a654a693b57af2b6fce2f676b1f883ea97564a690894b5f96df49aaa"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-foundation-01-fix04",
+  "schema_version": 1,
+  "started_at": "2026-09-15T03:39:43Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1304,
+    "queue_seconds": 902,
+    "total_seconds": 2206
+  },
+  "transport": {
+    "bytes": 6906,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 6595,
+    "prompt_sha256": "b6cc31e8c17c6057dcecfffd22dc411de2b4dd47ed2e767b159f9f10b20dd77c",
+    "sha256": "f6b4647bafbf48f4a97ea11ee5ba599f41aa77995530aeb824fc24949d2d6e9a"
+  }
+}
