@@ -98,6 +98,7 @@ def install(source_root: Path, target: Path, *, scope: str = "project") -> Path:
     files.update(_copy_owned(source_root / ".opencode" / "commands", opencode_root / "commands", target_root=target, previous=previous))
     files.update(_copy_owned(source_root / ".opencode" / "agents", opencode_root / "agents", target_root=target, previous=previous))
     files.update(_copy_owned(source_root / ".opencode" / "skills" / "k-slide", opencode_root / "skills" / "k-slide", target_root=target, previous=previous))
+    files.update(_copy_owned(source_root / ".opencode" / "plugin", opencode_root / "plugin", target_root=target, previous=previous))
     files.update(_copy_owned(source_root / ".opencode" / "tools", opencode_root / "tools", target_root=target, previous=previous))
     files.update(_copy_owned(source_root / ".opencode" / "package.json", opencode_root, target_root=target, previous=previous))
 
@@ -132,6 +133,7 @@ def verify_install(target: Path, *, scope: str = "project") -> list[tuple[str, b
         ("main command", (target / ".opencode" if scope == "project" else target) / "commands" / "k-slide.md"),
         ("agent", (target / ".opencode" if scope == "project" else target) / "agents" / "k-slide.md"),
         ("skill", (target / ".opencode" if scope == "project" else target) / "skills" / "k-slide" / "SKILL.md"),
+        ("host adapter plugin", (target / ".opencode" if scope == "project" else target) / "plugin" / "k-slide-host.ts"),
         ("custom tools", (target / ".opencode" if scope == "project" else target) / "tools" / "kslide.ts"),
         ("core", target / (".k-slide-engine" if scope == "project" else "k-slide-engine") / "src" / "k_slide" / "cli.py"),
     ]

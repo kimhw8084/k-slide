@@ -10,6 +10,7 @@ from typing import Any
 
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import load_evidence
+from .host_adapter import HostInvocation, add_host_contract
 from .ingest import prepare_run
 from .installer import install, verify_install
 from .io import atomic_write_json, atomic_write_text, read_json
@@ -51,6 +52,20 @@ def _find_run(root: Path, run_id: str | None, session_id: str | None) -> Path:
             raise KSlideError(ErrorCode.RUN_NOT_FOUND, "Multiple incomplete K-Slide runs exist; pass an explicit run ID or continue from the original session.", {"choices": choices})
         raise KSlideError(ErrorCode.RUN_NOT_FOUND, "No K-Slide run could be resolved.")
     return run
+
+
+def _attach_run_contract(root: Path, value: dict[str, Any], run_id: str | None, session_id: str | None) -> dict[str, Any]:
+    if "adapter_version" in value:
+        return value
+    run = resolve_run(_run_root(root), explicit=run_id or value.get("run_id"), session_id=session_id)
+    if run is None:
+        return add_host_contract(value, phase=None)
+    state = load_state(run)
+    try:
+        queue = load_queue(run)
+    except KSlideError:
+        queue = None
+    return add_host_contract(value, phase=state.phase, queue=queue, input_count=state.input_count)
 
 
 def _submit(root: Path, run_id: str, payload_json: str, session_id: str | None) -> dict[str, Any]:
@@ -106,8 +121,8 @@ def _status(root: Path, run_id: str | None, session_id: str | None) -> dict[str,
     if run is None:
         choices = [path.name for path in incomplete_runs(_run_root(root))]
         if choices:
-            return sanitize_operational({"status": "AMBIGUOUS", "choices": choices, "next": "Pass a run ID or reconnect the original OpenCode session."}, roots=_diagnostic_roots(root))
-        return sanitize_operational({"status": "NO_RUN", "next": "/k-slide"}, roots=_diagnostic_roots(root))
+            return sanitize_operational(add_host_contract({"status": "AMBIGUOUS", "choices": choices, "next": "Pass a run ID or reconnect the original OpenCode session."}, phase=None), roots=_diagnostic_roots(root))
+        return sanitize_operational(add_host_contract({"status": "NO_RUN", "next": "/k-slide"}, phase=None), roots=_diagnostic_roots(root))
     state = load_state(run)
     try:
         queue = load_queue(run)
@@ -118,11 +133,26 @@ def _status(root: Path, run_id: str | None, session_id: str | None) -> dict[str,
     except KSlideError:
         queue_info = {"status": "INVALID"}
     artifacts = {name: (run / name).is_file() for name in ["RUN_STATE.json", "RUN_MANIFEST.json", *COMPLETION_POLICY.required_artifacts, "RUN_FAILED.md"]}
-    return sanitize_operational({"status": state.phase.value, "run_id": state.run_id, "input_count": state.input_count, "current_work_unit": state.current_work_unit, "next_action": state.next_action, "artifacts": artifacts, "work_queue": queue_info}, roots=_diagnostic_roots(root))
+    return sanitize_operational(
+        add_host_contract(
+            {"status": state.phase.value, "run_id": state.run_id, "input_count": state.input_count, "current_work_unit": state.current_work_unit, "next_action": state.next_action, "artifacts": artifacts, "work_queue": queue_info},
+            phase=state.phase,
+            queue=queue if queue_info.get("status") != "INVALID" else None,
+            input_count=state.input_count,
+        ),
+        roots=_diagnostic_roots(root),
+    )
 
 
 def _next(root: Path, run_id: str | None, session_id: str | None) -> dict[str, Any]:
-    return sanitize_operational(_next_unsanitized(root, run_id, session_id), roots=_diagnostic_roots(root))
+    value = _next_unsanitized(root, run_id, session_id)
+    run = _find_run(root, run_id, session_id)
+    state = load_state(run)
+    try:
+        queue = load_queue(run)
+    except KSlideError:
+        queue = None
+    return sanitize_operational(add_host_contract(value, phase=state.phase, queue=queue, input_count=state.input_count), roots=_diagnostic_roots(root))
 
 
 def _next_unsanitized(root: Path, run_id: str | None, session_id: str | None) -> dict[str, Any]:
@@ -141,6 +171,8 @@ def _next_unsanitized(root: Path, run_id: str | None, session_id: str | None) ->
         return {"status": "COMPLETE", "run_id": state.run_id, "next_action": None}
     if state.phase == RunPhase.VERIFIED:
         return {"status": "VERIFIED", "run_id": state.run_id, "next_action": "kslide_finalize"}
+    if state.phase == RunPhase.NEEDS_REVIEW:
+        return {"status": "NEEDS_REVIEW", "run_id": state.run_id, "next_action": "Human review or explicit repair is required."}
     with run_lock(run):
         bind_session(_run_root(root), session_id, run.name)
         state = load_state(run)
@@ -279,7 +311,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     prepare = sub.add_parser("prepare")
     prepare.add_argument("--root", type=Path, default=Path.cwd())
-    prepare.add_argument("--mode", choices=["smart", "strict", "safe"], default="smart")
+    # Legacy modes remain hidden for diagnostics/backward compatibility; the
+    # normal host adapter never sends this option.
+    prepare.add_argument("--mode", choices=["standard", "smart", "strict", "safe"], default="standard", help=argparse.SUPPRESS)
+    prepare.add_argument("--host-inputs-json", help=argparse.SUPPRESS)
+    prepare.add_argument("--host-worktree", type=Path, help=argparse.SUPPRESS)
     prepare.add_argument("--session-id")
     prepare.add_argument("--json", action="store_true")
     prepare.add_argument("paths", nargs="*")
@@ -346,7 +382,16 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "runtime":
             value = discover_runtime().as_dict()
         elif args.command == "prepare":
-            run = prepare_run(args.root, mode=args.mode, explicit_paths=args.paths, session_id=args.session_id, perform_processing=True)
+            invocation = HostInvocation.from_json(args.host_inputs_json)
+            run = prepare_run(
+                args.root,
+                mode=args.mode,
+                explicit_paths=args.paths,
+                session_id=args.session_id,
+                perform_processing=True,
+                host_input_refs=invocation.input_refs if invocation is not None else (),
+                approved_root=args.host_worktree or args.root,
+            )
             value = _status(args.root, run.name, args.session_id)
         elif args.command == "normalize":
             value = normalize_run(_find_run(args.root, args.run, args.session_id)).as_dict()
@@ -378,6 +423,8 @@ def main(argv: list[str] | None = None) -> int:
         else:
             raise KSlideError(ErrorCode.INTERNAL, "Unknown K-Slide command.")
         if args.command != "evidence":
+            if args.command in {"prepare", "normalize", "extract", "submit", "verify", "finalize", "status", "next"}:
+                value = _attach_run_contract(getattr(args, "root", Path.cwd()), value, getattr(args, "run", None), getattr(args, "session_id", None))
             value = sanitize_operational(value, roots=_diagnostic_roots(getattr(args, "root", None)))
         print(_json(value) if getattr(args, "json", False) else _render_text_status(value))
         if args.command == "doctor" and value.get("overall") == "FAIL":
@@ -392,11 +439,14 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         return 0
     except KSlideError as exc:
-        value = sanitize_operational({"status": "FAILED", "error": exc.as_dict()}, roots=_diagnostic_roots(getattr(args, "root", None)))
+        value = add_host_contract({"status": "FAILED", "error": exc.as_dict()}, phase=None)
+        value["operational_state"] = "PROCESSING_FAILED"
+        value["semantic_outcome"] = None
+        value = sanitize_operational(value, roots=_diagnostic_roots(getattr(args, "root", None)))
         print(_json(value) if getattr(args, "json", False) else _render_text_status(value))
         return 1
     except Exception as exc:
-        value = sanitize_operational(
+        value = add_host_contract(
             {
                 "status": "FAILED",
                 "error": {
@@ -405,8 +455,11 @@ def main(argv: list[str] | None = None) -> int:
                     "details": {"exception_type": type(exc).__name__},
                 },
             },
-            roots=_diagnostic_roots(getattr(args, "root", None)),
+            phase=None,
         )
+        value["operational_state"] = "PROCESSING_FAILED"
+        value["semantic_outcome"] = None
+        value = sanitize_operational(value, roots=_diagnostic_roots(getattr(args, "root", None)))
         print(_json(value) if getattr(args, "json", False) else _render_text_status(value))
         return 1
 

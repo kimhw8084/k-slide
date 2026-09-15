@@ -12,7 +12,7 @@ The v6 package already provides:
 - Mandatory Markdown table reconstruction with row and column preservation.
 - Visible-item cardinality checks for bullets, process boxes, chart labels, and callouts.
 - Verification and recovery artifacts, including an explicit completion sentinel.
-- Smart, strict, safe, continue, status, audit, doctor, and help commands.
+- One standard `/k-slide` path plus continue, status, audit, doctor, and help commands.
 
 The current `0.3.5` implementation extends that foundation through the Phase 3.5 execution-isolation and heavy-runtime-proof boundary. The engine owns input validation, immutable snapshots, globally unique work units, state transitions, session resolution, typed OpenCode tools, collision-safe installation, runtime/model discovery, deterministic reports/completion, document normalization, native evidence, configured OCR selection, region crops, numeric evidence, semantic enums, termbase loading, and source-bound visual evidence. The evaluation lab now uses isolated clean/project OpenCode workspaces, shared process-group cleanup, fail-closed OCR configuration, host-persisted heavy outputs, required heavy-mode gates, local PaddleOCR asset prefetch configuration, and stricter multi-unit deck completion contracts. Gemma receives only bounded EvidenceIR packets and returns a strict TranslationPatch; it does not author source evidence. See [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) for the tested boundary and next task.
 
