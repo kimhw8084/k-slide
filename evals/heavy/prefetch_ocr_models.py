@@ -106,6 +106,8 @@ def main() -> int:
     os.environ["PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK"] = "1"
     local_pipeline = PaddleOCR(
         paddlex_config=str(config_path),
+        text_detection_model_name=detector,
+        text_recognition_model_name=recognizer,
         use_doc_orientation_classify=False,
         use_doc_unwarping=False,
         use_textline_orientation=False,
