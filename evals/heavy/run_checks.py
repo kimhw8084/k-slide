@@ -92,8 +92,13 @@ def main(argv: list[str] | None = None) -> int:
     for directory in (args.doctor_dir, args.engine_dir, args.product_dir):
         _prepare_mount(directory)
     candidate_value = json.loads(args.candidate.read_text(encoding="utf-8"))
-    if isinstance(candidate_value, dict) and candidate_value.get("subject_git_sha") != args.subject_sha:
-        candidate_value["subject_git_sha"] = args.subject_sha
+    subject_sha = str(args.subject_sha or "").strip()
+    if not subject_sha or subject_sha.upper() == "UNSET":
+        subject_sha = str(candidate_value.get("subject_git_sha") or "").strip() if isinstance(candidate_value, dict) else ""
+    if not subject_sha or subject_sha.upper() == "UNSET":
+        subject_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    if isinstance(candidate_value, dict) and candidate_value.get("subject_git_sha") != subject_sha:
+        candidate_value["subject_git_sha"] = subject_sha
         args.candidate.write_text(json.dumps(candidate_value, sort_keys=True) + "\n", encoding="utf-8")
 
     outcomes: list[dict[str, Any]] = []
@@ -102,10 +107,13 @@ def main(argv: list[str] | None = None) -> int:
     failures.append(_run_check("required_doctor", ["docker", "run", "--rm", "-v", doctor_mount, "--entrypoint", "python", args.image, "-m", "evals.heavy.doctor", "--required"], args.doctor_dir / "doctor.json", outcomes))
     failures.append(_run_check("networkless_doctor", ["docker", "run", "--rm", "--network", "none", "-v", doctor_mount, "--entrypoint", "python", args.image, "-m", "evals.heavy.doctor", "--required", "--networkless"], args.doctor_dir / "networkless-doctor.json", outcomes))
     product_mount = str(args.product_dir.resolve()) + ":/workspace"
-    failures.append(_run_check("networkless_product_doctor", ["docker", "run", "--rm", "--network", "none", "--read-only", "--tmpfs", "/tmp", "--tmpfs", "/home/kslide:rw,uid=10001,gid=10001,mode=700", "-v", product_mount, args.image, "doctor", "--json"], args.product_dir / "product-doctor.json", outcomes))
+    policy_dir = args.product_dir / ".k-slide-config"
+    policy_dir.mkdir(parents=True, exist_ok=True)
+    policy_dir.joinpath("ocr.local.yaml").write_text("ocr_provider: paddle\n", encoding="utf-8")
+    failures.append(_run_check("networkless_product_doctor", ["docker", "run", "--rm", "--network", "none", "--read-only", "--tmpfs", "/tmp", "--tmpfs", "/home/kslide:rw,uid=10001,gid=10001,mode=700", "-v", product_mount, "--entrypoint", "k-slide", args.image, "doctor", "--root", "/workspace", "--engine-root", "/opt/k-slide", "--json"], args.product_dir / "product-doctor.json", outcomes))
     engine_mount = str(args.engine_dir.resolve()) + ":/out"
     candidate_mount = str(args.candidate.resolve()) + ":/candidate.json:ro"
-    failures.append(_run_check("representative_engine", ["docker", "run", "--rm", "--network", "none", "-v", engine_mount, "-v", candidate_mount, "--entrypoint", "python", args.image, "-m", "evals.run_engine_eval", "--output", "/out", "--candidate-profile", "/candidate.json", "--subject-sha", args.subject_sha, "--split", "development", "--scenario-ids", "scenario-0002", "scenario-0017", "scenario-0031", "scenario-0051", "scenario-0066", "--formats", "png", "pdf", "pptx", "--ocr-provider", "paddle", "--fail-on-critical"], args.engine_dir / "engine-command.json", outcomes, expected_after=args.engine_dir / "summary.json"))
+    failures.append(_run_check("representative_engine", ["docker", "run", "--rm", "--network", "none", "-v", engine_mount, "-v", candidate_mount, "--entrypoint", "python", args.image, "-m", "evals.run_engine_eval", "--output", "/out", "--candidate-profile", "/candidate.json", "--subject-sha", subject_sha, "--split", "development", "--scenario-ids", "scenario-0002", "scenario-0017", "scenario-0031", "scenario-0051", "scenario-0066", "--formats", "png", "pdf", "pptx", "--ocr-provider", "paddle", "--fail-on-critical"], args.engine_dir / "engine-command.json", outcomes, expected_after=args.engine_dir / "summary.json"))
     failures.append(_run_check("ocr_asset_identity", ["docker", "run", "--rm", "--network", "none", "--entrypoint", "python", args.image, "-c", _ocr_identity_script()], args.ocr_output, outcomes))
     reproducibility_script = Path(__file__).resolve().parents[2] / "scripts" / "verify_runtime_reproducibility.py"
     failures.append(_run_check("clean_build_reproducibility", [sys.executable, str(reproducibility_script), "--first-artifact", str(args.first_artifact), "--second-artifact", str(args.second_artifact), "--output", str(args.reproducibility_output)], args.reproducibility_output, outcomes))
