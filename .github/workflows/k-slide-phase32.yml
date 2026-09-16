@@ -146,11 +146,22 @@ jobs:
           freeze_args=(--inventory-output .k-slide-config/production-dependency-inventory.json --lock-output .k-slide-config/production-requirements.lock)
           if [ -n "$lock_input" ]; then freeze_args+=(--lock-input "$lock_input"); fi
           PYTHONPATH=src:. "$RUNNER_TEMP/k-slide-production-env/bin/python" -m evals.freeze_production_dependencies "${freeze_args[@]}"
-      - name: Build heavy evaluation image
-        run: docker build --build-arg PRODUCTION_LOCK=.k-slide-config/production-requirements.lock -f evals/heavy/Dockerfile -t k-slide-heavy .
-      - name: Verify heavy image dependency identity
+      - name: Build canonical K-Slide runtime artifact
         run: |
-          docker run --rm --entrypoint python k-slide-heavy -c 'import json; from k_slide.certification import installed_dependency_inventory; print(json.dumps(installed_dependency_inventory(), sort_keys=True))' > "$RUNNER_TEMP/k-slide-heavy-image-inventory.json"
+          set -euo pipefail
+          build_args=(build --output "$RUNNER_TEMP/k-slide-runtime-artifact" --image k-slide-runtime:workflow)
+          if [ -f .k-slide-config/production-requirements.lock ] && [ -f .k-slide-config/production-dependency-inventory.json ]; then
+            build_args+=(--lock .k-slide-config/production-requirements.lock --inventory .k-slide-config/production-dependency-inventory.json)
+          fi
+          if [ -f ocr/manifest.json ]; then
+            build_args+=(--ocr-root ocr)
+          else
+            build_args+=(--allow-development-ocr-prefetch)
+          fi
+          PYTHONPATH=src:. python scripts/build_runtime_artifact.py "${build_args[@]}"
+      - name: Verify canonical runtime dependency identity
+        run: |
+          docker run --rm --entrypoint python k-slide-runtime:workflow -c 'import json; from k_slide.certification import installed_dependency_inventory; print(json.dumps(installed_dependency_inventory(), sort_keys=True))' > "$RUNNER_TEMP/k-slide-heavy-image-inventory.json"
           PYTHONPATH=src:. python - <<'PY'
           import json
           import os
@@ -194,19 +205,23 @@ jobs:
           set -o pipefail
           docker run --rm \
             -v "${RUNNER_TEMP}/k-slide-heavy-doctor:/out" \
-            k-slide-heavy --required \
+            --entrypoint python k-slide-runtime:workflow -m evals.heavy.doctor --required \
             | tee "${RUNNER_TEMP}/k-slide-heavy-doctor/doctor.json"
           docker run --rm --network none \
             -v "${RUNNER_TEMP}/k-slide-heavy-doctor:/out" \
-            k-slide-heavy --required --networkless \
+            --entrypoint python k-slide-runtime:workflow -m evals.heavy.doctor --required --networkless \
             | tee "${RUNNER_TEMP}/k-slide-heavy-doctor/networkless-doctor.json"
+          mkdir -p "${RUNNER_TEMP}/k-slide-product-workspace"
+          docker run --rm --network none --read-only --tmpfs /tmp --tmpfs /home/kslide \
+            -v "${RUNNER_TEMP}/k-slide-product-workspace:/workspace" \
+            k-slide-runtime:workflow doctor --json
       - name: Run representative heavy engine subset with production OCR routing
         run: |
           mkdir -p "${RUNNER_TEMP}/k-slide-heavy-engine-subset"
           docker run --rm --network none \
             -v "${RUNNER_TEMP}/k-slide-heavy-engine-subset:/out" \
             -v "${RUNNER_TEMP}/k-slide-heavy-candidate.json:/candidate.json:ro" \
-            --entrypoint python k-slide-heavy -m evals.run_engine_eval \
+            --entrypoint python k-slide-runtime:workflow -m evals.run_engine_eval \
             --output /out \
             --candidate-profile /candidate.json \
             --subject-sha "${GITHUB_SHA}" \
@@ -218,7 +233,7 @@ jobs:
       - name: Verify candidate-bound OCR asset identity inside the evaluated runtime
         if: inputs.certification_bundle_run_id != ''
         run: |
-          docker run --rm --entrypoint python k-slide-heavy - <<'PY' > "$RUNNER_TEMP/k-slide-heavy-ocr-asset-context.json"
+          docker run --rm --entrypoint python k-slide-runtime:workflow - <<'PY' > "$RUNNER_TEMP/k-slide-heavy-ocr-asset-context.json"
           import json
           from pathlib import Path
           from k_slide.certification import paddle_runtime_configuration, validate_ocr_asset_manifest
@@ -240,6 +255,9 @@ jobs:
           cp --preserve=mode .k-slide-config/production-dependency-inventory.json "$evidence_root/production-inventory.json"
           cp --preserve=mode .k-slide-config/production-requirements.lock "$evidence_root/production.lock"
           cp --preserve=mode "$RUNNER_TEMP/k-slide-heavy-image-inventory.json" "$evidence_root/built-image-inventory.json"
+          cp --preserve=mode "$RUNNER_TEMP/k-slide-runtime-artifact/runtime-manifest.json" "$evidence_root/runtime-manifest.json"
+          cp --preserve=mode "$RUNNER_TEMP/k-slide-runtime-artifact/runtime-sbom.json" "$evidence_root/runtime-sbom.json"
+          cp --preserve=mode "$RUNNER_TEMP/k-slide-runtime-artifact/artifact-identity.json" "$evidence_root/artifact-identity.json"
           if [ -f "$RUNNER_TEMP/k-slide-heavy-ocr-asset-context.json" ]; then
             cp --preserve=mode "$RUNNER_TEMP/k-slide-heavy-ocr-asset-context.json" "$evidence_root/ocr-asset-context.json"
             cp --preserve=mode ocr/manifest.json "$evidence_root/ocr-asset-manifest.json"

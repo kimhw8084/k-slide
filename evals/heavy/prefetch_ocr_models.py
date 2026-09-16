@@ -39,6 +39,7 @@ def main() -> int:
         raise RuntimeError("PaddleOCR did not materialize a local pipeline configuration")
     manifest = {
         "provider": "paddle",
+        "asset_provenance": "development-prefetch",
         "paddleocr_version": getattr(__import__("paddleocr"), "__version__", "unknown"),
         "paddle_version": getattr(__import__("paddle"), "__version__", "unknown"),
         "ocr_version": os.environ.get("KSLIDE_PADDLE_OCR_VERSION", "PP-OCRv5"),

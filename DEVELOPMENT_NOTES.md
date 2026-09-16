@@ -44,9 +44,16 @@ isolation attestation, or canary evidence.
 
 Current dominant blocker: `OPENCODE_PROVIDER_RUNTIME_BLOCKED`. OpenCode 1.3.9
 passes executable/config/model-inventory discovery but pure and normal clean
-Qwen runs time out with zero structured events. Docker is also unavailable in
-the local environment, so heavy runtime results remain unexecuted rather than
-being inferred from the Dockerfile.
+Qwen runs time out with zero structured events. The KSA-07 canonical runtime
+surface is now repository-native: it uses a digest-qualified `linux/amd64`
+Python base, an immutable Debian snapshot package manifest, committed exact
+production lock/inventory inputs, offline OCR verification, a source-free
+runtime manifest, and a CycloneDX SBOM bound to the same dependency subject.
+Docker reached the pinned system-package layer in the local clean build, but
+the emulated Paddle install did not complete within the capability wait window;
+the real image/doctor/networkless result remains VERIFY/BLOCKED, not inferred
+from the Dockerfile. A certifying OCR overlay is still required for a candidate
+artifact.
 
 The final repository-side certification micro-closure requires reliability
 evidence to contain explicit timeout-recovery, resume, concurrency, 50-slide,

@@ -98,6 +98,9 @@ CANDIDATE_INPUT_FIELDS = (
     "corpus_identity",
     "constraints_sha256",
     "resolved_dependency_set_sha256",
+    "runtime_artifact_identity",
+    "runtime_artifact_manifest_sha256",
+    "runtime_sbom_sha256",
     "behavior_configuration",
 )
 
@@ -206,7 +209,7 @@ _PRODUCTION_COMPLETENESS_FIELDS = (
 _OPTIONAL_PROVIDER_METADATA = frozenset({"provider_backend", "model_revision", "quantization_or_dtype"})
 _NOT_EXPOSED_SOURCES = frozenset({"not_exposed_by_runtime", "not_exposed"})
 _NOT_APPLICABLE_SOURCES = frozenset({"not_applicable", "not_applicable_by_runtime"})
-_NON_DEPLOYED_BASE_PACKAGES = frozenset({"pip", "setuptools", "wheel"})
+_NON_DEPLOYED_BASE_PACKAGES = frozenset({"k-slide", "pip", "setuptools", "wheel"})
 _SCANNER_PACKAGES = frozenset({"pip-audit", "semgrep", "cyclonedx-bom", "cyclonedx-python-lib"})
 
 
@@ -383,7 +386,7 @@ def validate_cyclonedx_1_5(value: dict[str, Any]) -> None:
     for component in components:
         if not isinstance(component, dict) or set(component) - {"type", "name", "version"}:
             raise EvidenceValidationError("production SBOM contains an invalid component")
-        if component.get("type") != "library" or not isinstance(component.get("name"), str) or not component["name"] or not isinstance(component.get("version"), str) or not component["version"]:
+        if component.get("type") not in {"library", "operating-system"} or not isinstance(component.get("name"), str) or not component["name"] or not isinstance(component.get("version"), str) or not component["version"]:
             raise EvidenceValidationError("production SBOM component name/version is invalid")
         component_name = canonical_package_name(component["name"])
         if component_name in seen_components:
@@ -568,6 +571,9 @@ DEPLOYMENT_PROFILE_FIELDS = (
     "retention_days",
     "tenant_isolation",
     "network_egress",
+    "runtime_artifact_identity",
+    "runtime_artifact_manifest_sha256",
+    "runtime_sbom_sha256",
     "normalization_behavior",
     "repair_policy",
     "generation_settings",

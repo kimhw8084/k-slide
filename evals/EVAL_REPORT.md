@@ -100,7 +100,8 @@ claim is made.
 
 ## Heavy environment status
 
-The reproducible definition is `evals/heavy/Dockerfile`. The local Python
+The canonical reproducible definition is `deploy/runtime/Dockerfile`, built
+and inspected through `scripts/build_runtime_artifact.py`. The local Python
 environment self-test passed Pillow, PyMuPDF, python-pptx, and Korean-font
 checks, but reported:
 
@@ -111,10 +112,11 @@ PaddleOCR: unavailable
 Paddle load: blocked
 ```
 
-The Docker client was present, but its OrbStack daemon socket was unavailable,
-so `docker build` could not start and actual LibreOffice/PaddleOCR integration
-was not executed locally. The heavy job remains an explicit
-manual/workflow-dispatch tier rather than a silently skipped claim.
+The runtime artifact build requires an approved portable OCR bundle for a
+candidate image. A development-only OCR prefetch is explicit and marks the
+artifact `DEVELOPMENT_ONLY`; it is not candidate or certification evidence.
+The heavy job remains an explicit manual/workflow-dispatch tier rather than a
+silently skipped claim.
 
 ## Certification semantics
 
