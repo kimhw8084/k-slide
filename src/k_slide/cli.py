@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from .errors import ErrorCode, KSlideError
+from .execution import execution_metadata, sync_workspace_execution
 from .evidence_ir import load_evidence
 from .host_adapter import HostInvocation, add_host_contract
 from .ingest import prepare_run
@@ -44,6 +45,12 @@ def _diagnostic_roots(root: Path | None) -> tuple[Path, ...]:
     return (root.expanduser().resolve(),) if root is not None else ()
 
 
+def _execution_for_run(run: Path) -> dict[str, Any] | None:
+    if not (run / "EXECUTION_JOB.json").is_file():
+        return None
+    return execution_metadata(sync_workspace_execution(run))
+
+
 def _find_run(root: Path, run_id: str | None, session_id: str | None) -> Path:
     run = resolve_run(_run_root(root), explicit=run_id, session_id=session_id)
     if run is None:
@@ -65,7 +72,7 @@ def _attach_run_contract(root: Path, value: dict[str, Any], run_id: str | None, 
         queue = load_queue(run)
     except KSlideError:
         queue = None
-    return add_host_contract(value, phase=state.phase, queue=queue, input_count=state.input_count)
+    return add_host_contract(value, phase=state.phase, queue=queue, input_count=state.input_count, execution=_execution_for_run(run))
 
 
 def _submit(root: Path, run_id: str, payload_json: str, session_id: str | None) -> dict[str, Any]:
@@ -123,6 +130,7 @@ def _status(root: Path, run_id: str | None, session_id: str | None) -> dict[str,
         if choices:
             return sanitize_operational(add_host_contract({"status": "AMBIGUOUS", "choices": choices, "next": "Pass a run ID or reconnect the original OpenCode session."}, phase=None), roots=_diagnostic_roots(root))
         return sanitize_operational(add_host_contract({"status": "NO_RUN", "next": "/k-slide"}, phase=None), roots=_diagnostic_roots(root))
+    execution = _execution_for_run(run)
     state = load_state(run)
     try:
         queue = load_queue(run)
@@ -139,6 +147,7 @@ def _status(root: Path, run_id: str | None, session_id: str | None) -> dict[str,
             phase=state.phase,
             queue=queue if queue_info.get("status") != "INVALID" else None,
             input_count=state.input_count,
+            execution=execution,
         ),
         roots=_diagnostic_roots(root),
     )
@@ -147,12 +156,13 @@ def _status(root: Path, run_id: str | None, session_id: str | None) -> dict[str,
 def _next(root: Path, run_id: str | None, session_id: str | None) -> dict[str, Any]:
     value = _next_unsanitized(root, run_id, session_id)
     run = _find_run(root, run_id, session_id)
+    execution = _execution_for_run(run)
     state = load_state(run)
     try:
         queue = load_queue(run)
     except KSlideError:
         queue = None
-    return sanitize_operational(add_host_contract(value, phase=state.phase, queue=queue, input_count=state.input_count), roots=_diagnostic_roots(root))
+    return sanitize_operational(add_host_contract(value, phase=state.phase, queue=queue, input_count=state.input_count, execution=execution), roots=_diagnostic_roots(root))
 
 
 def _next_unsanitized(root: Path, run_id: str | None, session_id: str | None) -> dict[str, Any]:

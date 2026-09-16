@@ -6,11 +6,12 @@ import json
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 from urllib.parse import unquote, urlparse
 
 from .errors import ErrorCode, KSlideError
 from .queue import WorkQueue, WorkUnitStatus
+from .redaction import sanitize_operational
 from .security import InputArtifact, SUPPORTED_EXTENSIONS, validate_input
 from .state import OPERATIONAL_FAILURE_PHASES, RunPhase
 
@@ -179,7 +180,7 @@ def phase_contract(phase: RunPhase | None) -> tuple[str | None, str | None]:
     return OperationalState.RUNNING.value, SemanticOutcome.PENDING.value
 
 
-def add_host_contract(value: dict[str, Any], *, phase: RunPhase | None, queue: WorkQueue | None = None, input_count: int | None = None) -> dict[str, Any]:
+def add_host_contract(value: dict[str, Any], *, phase: RunPhase | None, queue: WorkQueue | None = None, input_count: int | None = None, execution: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Add stable host lifecycle/progress fields while preserving legacy status."""
 
     operational_state, semantic_outcome = phase_contract(phase)
@@ -208,4 +209,6 @@ def add_host_contract(value: dict[str, Any], *, phase: RunPhase | None, queue: W
     )
     for key, item in contract.as_dict().items():
         result.setdefault(key, item)
+    if execution is not None:
+        result.setdefault("execution", sanitize_operational(dict(execution)))
     return result

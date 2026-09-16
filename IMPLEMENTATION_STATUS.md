@@ -33,6 +33,7 @@ the generic attestation writer.
 - Engine-controlled `EvidenceIR + TranslationPatch → SlideIR` merge with explicit provenance.
 - Evidence revision, work-unit identity, table/cell identity, required-region coverage, and source-field injection checks.
 - Persisted multi-work-unit queue with sequential scheduling, repair states, optimistic revisions, run locking, and resumable `NEEDS_REVIEW`.
+- Versioned source-free execution/job and run-store contract with workspace-local and deterministic durable-profile reference adapters, monotonic checkpoint CAS, durable cancellation, bounded operational retry, restart/replay tests, and host-visible execution metadata. This is the KSA-06 implementation boundary; it is not a production PaaS worker, runtime binding, tenancy system, or production readiness claim.
 - Finalization that re-runs verification against current artifacts before creating `RUN_COMPLETE.md`.
 - Central completion policy in `src/k_slide/policy.py`, used by manifests, verification, and finalization.
 - Typed OpenCode `kslide_submit` payload schema; no model-facing JSON-in-a-string contract.
@@ -255,3 +256,4 @@ materialized by these tests.
 - [ADR 0034 — Execution isolation and heavy proof](docs/adr/0034-execution-isolation-and-heavy-proof.md)
 - [ADR 0036 — Evidence-bound release state](docs/adr/0036-evidence-bound-release-state.md)
 - [ADR 0037 — Result-derived machine evidence](docs/adr/0037-result-derived-machine-evidence.md)
+- [ADR 0038 — Versioned durable execution contract](docs/adr/0038-versioned-durable-execution-contract.md)
