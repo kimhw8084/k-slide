@@ -46,6 +46,14 @@ def _set_selected_model_dirs(config: dict[str, Any], *, root: Path, detector: st
     return selected
 
 
+def _remove_hoster_cache(root: Path) -> None:
+    """Drop downloader bookkeeping that is not consumed by Paddle inference."""
+
+    for cache in sorted(root.rglob(".cache"), reverse=True):
+        if cache.is_dir() and not cache.is_symlink():
+            shutil.rmtree(cache)
+
+
 def main() -> int:
     root = Path(os.environ.get("KSLIDE_OCR_ASSET_ROOT", "/opt/k-slide-ocr-assets")).expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
@@ -83,6 +91,7 @@ def main() -> int:
             if source.is_symlink() or not source.is_dir():
                 raise RuntimeError(f"PaddleX did not materialize the selected model locally: {name}")
             shutil.copytree(source, target, symlinks=False)
+        _remove_hoster_cache(root_models)
 
         config_path = root / "PaddleOCR.yaml"
         temporary_config = root / ".PaddleOCR.exported.yaml"

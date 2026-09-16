@@ -251,12 +251,18 @@ jobs:
             fi
           }
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-doctor/doctor.json" "$evidence_root/required-doctor.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-heavy-doctor/doctor.json.stderr.log" "$evidence_root/required-doctor.stderr.log"
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-doctor/networkless-doctor.json" "$evidence_root/networkless-doctor.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-heavy-doctor/networkless-doctor.json.stderr.log" "$evidence_root/networkless-doctor.stderr.log"
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-engine-subset/summary.json" "$evidence_root/representative-engine.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-heavy-engine-subset/engine-command.json.stderr.log" "$evidence_root/representative-engine.stderr.log"
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-doctor/check-outcomes.json" "$evidence_root/check-outcomes.json"
           copy_or_record "$RUNNER_TEMP/k-slide-product-workspace/product-doctor.json" "$evidence_root/product-doctor.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-product-workspace/product-doctor.json.stderr.log" "$evidence_root/product-doctor.stderr.log"
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-ocr-asset-context.json" "$evidence_root/ocr-asset-context.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-heavy-ocr-asset-context.json.stderr.log" "$evidence_root/ocr-asset-context.stderr.log"
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-reproducibility.json" "$evidence_root/reproducibility.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-heavy-reproducibility.json.stderr.log" "$evidence_root/reproducibility.stderr.log"
           copy_or_record .k-slide-config/production-dependency-inventory.json "$evidence_root/production-inventory.json"
           copy_or_record .k-slide-config/production-requirements.lock "$evidence_root/production.lock"
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-image-inventory.json" "$evidence_root/built-image-inventory.json"

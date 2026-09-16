@@ -10,7 +10,10 @@ import platform
 import shutil
 import subprocess
 import tempfile
+import warnings
 from pathlib import Path
+
+warnings.filterwarnings("ignore", message=r"The `fitz` API is deprecated")
 
 
 def _command_version(command: str) -> str | None:
