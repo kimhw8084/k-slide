@@ -1259,8 +1259,16 @@ def validate_ocr_asset_manifest(path: Path, *, expected_sha256: str | None = Non
         raise EvidenceValidationError("OCR PaddleX configuration hash is invalid")
     if verify_files and sha256_file(config_path) != config_hash:
         raise EvidenceValidationError("OCR PaddleX configuration hash does not match the selected file")
-    model_identity = _selected_paddlex_models(config_path, asset_root=root, require_local=require_model_identity)
     declared_model_identity = value.get("model_identity")
+    # Basic manifest consumers run in the lightweight test/install surface,
+    # where PaddleX and PyYAML are intentionally absent. Parse and bind the
+    # selected model tree only for the strict runtime path or when the
+    # manifest explicitly declares a model identity to validate.
+    model_identity = (
+        _selected_paddlex_models(config_path, asset_root=root, require_local=require_model_identity)
+        if require_model_identity or isinstance(declared_model_identity, dict)
+        else {}
+    )
     if require_model_identity and not isinstance(declared_model_identity, dict):
         raise EvidenceValidationError("OCR asset manifest does not declare the selected model identity")
     if isinstance(declared_model_identity, dict) and model_identity and declared_model_identity != model_identity:
