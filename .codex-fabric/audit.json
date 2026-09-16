@@ -1,0 +1,550 @@
+{
+  "accepted_at": "2026-09-16T02:38:20Z",
+  "changed_files": [
+    {
+      "additions": 26,
+      "deletions": 8,
+      "path": ".github/workflows/k-slide-phase32.yml",
+      "status": "M"
+    },
+    {
+      "additions": 10,
+      "deletions": 3,
+      "path": "DEVELOPMENT_NOTES.md",
+      "status": "M"
+    },
+    {
+      "additions": 9,
+      "deletions": 7,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 15,
+      "deletions": 8,
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "additions": 15,
+      "deletions": 0,
+      "path": "deploy/README.md",
+      "status": "M"
+    },
+    {
+      "additions": 112,
+      "deletions": 0,
+      "path": "deploy/runtime/Dockerfile",
+      "status": "A"
+    },
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": "deploy/runtime/ocr-context/.keep",
+      "status": "A"
+    },
+    {
+      "additions": 76,
+      "deletions": 0,
+      "path": "deploy/runtime/production-dependency-inventory.json",
+      "status": "A"
+    },
+    {
+      "additions": 71,
+      "deletions": 0,
+      "path": "deploy/runtime/production-requirements.lock",
+      "status": "A"
+    },
+    {
+      "additions": 16,
+      "deletions": 0,
+      "path": "deploy/runtime/system-packages-linux-amd64.json",
+      "status": "A"
+    },
+    {
+      "additions": 49,
+      "deletions": 0,
+      "path": "docs/adr/0039-pinned-runtime-artifact.md",
+      "status": "A"
+    },
+    {
+      "additions": 7,
+      "deletions": 5,
+      "path": "evals/EVAL_REPORT.md",
+      "status": "M"
+    },
+    {
+      "additions": 0,
+      "deletions": 52,
+      "path": "evals/heavy/Dockerfile",
+      "status": "D"
+    },
+    {
+      "additions": 45,
+      "deletions": 105,
+      "path": "evals/heavy/README.md",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": "evals/heavy/prefetch_ocr_models.py",
+      "status": "M"
+    },
+    {
+      "additions": 287,
+      "deletions": 0,
+      "path": "scripts/build_runtime_artifact.py",
+      "status": "A"
+    },
+    {
+      "additions": 8,
+      "deletions": 2,
+      "path": "src/k_slide/certification.py",
+      "status": "M"
+    },
+    {
+      "additions": 564,
+      "deletions": 0,
+      "path": "src/k_slide/runtime_artifact.py",
+      "status": "A"
+    },
+    {
+      "additions": 5,
+      "deletions": 2,
+      "path": "tests/test_phase35.py",
+      "status": "M"
+    },
+    {
+      "additions": 129,
+      "deletions": 0,
+      "path": "tests/test_runtime_artifact.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1030,1075p' tests/test_certification_closure.py && rtk rg -n 'heavy/Dockerfile|k-slide-heavy|docker build|runtime-artifact' tests .github README.md evals deploy | sed -n '1,240p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '90,130p' evals/EVAL_REPORT.md && rtk sed -n '145,170p' tests/test_phase35.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'evals/heavy/Dockerfile|k-slide-heavy|python:3\\\\.11-slim|UNSET_UNTIL_HEAVY_PROOF|runtime artifact|runtime-artifact' README.md evals deploy .github src tests | sed -n '1,320p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'def canonical_candidate_factors|CANDIDATE_INPUT_FIELDS|DEPLOYMENT_PROFILE_FIELDS|candidate_completeness' src/k_slide/certification.py | sed -n '1,120p' && rtk sed -n '1020,1110p' src/k_slide/certification.py && rtk rg -n 'DEPLOYMENT_PROFILE_FIELDS|candidate_deployment_fingerprint' src/k_slide/certification.py | sed -n '1,100p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '80,110p' src/k_slide/certification.py && rtk sed -n '570,600p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '545,590p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_runtime_artifact -v && rtk env PYTHONPATH=src:. python -m unittest tests.test_phase35.Phase35Tests.test_heavy_workflow_persists_host_output_and_requires_capabilities -v && rtk git diff --check'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_phase35.Phase35Tests.test_heavy_workflow_persists_host_output_and_requires_capabilities -v && rtk env PYTHONPATH=src:. python -m unittest tests.test_certification_closure.CertificationClosureTests.test_dependency_inventory_rejects_scanner_environment_tools -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '168,184p' tests/test_phase35.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy ps -axo pid,etime,command | rg 'docker|buildkit|python scripts' | sed -n '1,80p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk docker ps --format '{{.ID}} {{.Status}} {{.Image}} {{.Command}}' | sed -n '1,40p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk docker ps -a --no-trunc --format '{{.ID}} {{.Status}} {{.Image}}' | sed -n '1,80p' && rtk ps aux | rg 'docker|build_runtime' | sed -n '1,80p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python scripts/build_runtime_artifact.py build --allow-development-ocr-prefetch --output /tmp/k-slide-runtime-artifact-ksa07 --image k-slide-runtime:ksa07-dev'",
+      "exit_code": 2,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '37,68p' deploy/runtime/Dockerfile\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk ps -axo pid,etime,pcpu,pmem,command | rg 'docker|buildkit|qemu|build_runtime' | head -30\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk docker ps --format '{{.ID}} {{.Image}} {{.Status}}'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk docker buildx du --verbose | head -40'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,180p' IMPLEMENTATION_STATUS.md && rtk sed -n '1,100p' DEVELOPMENT_NOTES.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python scripts/build_runtime_artifact.py build --allow-development-ocr-prefetch --output /tmp/k-slide-runtime-artifact-ksa07 --image k-slide-runtime:ksa07-dev'",
+      "exit_code": 130,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,320p' scripts/build_runtime_artifact.py && rtk sed -n '1,280p' src/k_slide/runtime_artifact.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'def cli|runtime-root|subparsers|def verify_runtime_artifact|expected' src/k_slide/runtime_artifact.py && rtk sed -n '430,680p' src/k_slide/runtime_artifact.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '300,440p' src/k_slide/runtime_artifact.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' deploy/runtime/Dockerfile && rtk sed -n '1,220p' deploy/runtime/system-packages-linux-amd64.json && rtk git status --short\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_runtime_artifact -q; rtk env PYTHONPATH=src:. python -m unittest discover -s tests -q; rtk env PYTHONPATH=src:. python -m compileall -q src evals tests; rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'Docker unavailable|Docker daemon unavailable|heavy Docker|evals/heavy/Dockerfile|UNSET_UNTIL_HEAVY_PROOF|runtime artifact|canonical runtime' README.md deploy docs evals IMPLEMENTATION_STATUS.md DEVELOPMENT_NOTES.md .github/workflows/k-slide-phase32.yml constraints-production.txt | head -160\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '160,215p' IMPLEMENTATION_STATUS.md; rtk sed -n '88,130p' README.md; rtk sed -n '105,125p' evals/EVAL_REPORT.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,320p' tests/test_runtime_artifact.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,240p' tests/test_phase35.py | rg -n -C 4 'Docker|runtime|freeze|workflow'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '125,250p' .github/workflows/k-slide-phase32.yml\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,130p' .github/workflows/k-slide-phase32.yml\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,220p' deploy/README.md; rtk sed -n '1,180p' evals/heavy/README.md; rtk sed -n '1,180p' docs/adr/0039-pinned-runtime-artifact.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_runtime_artifact tests.test_phase35 -q; rtk env PYTHONPATH=src:. python -m compileall -q src evals tests scripts; rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '82,175p' scripts/build_runtime_artifact.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '170,285p' scripts/build_runtime_artifact.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '235,325p' src/k_slide/runtime_artifact.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_runtime_artifact tests.test_phase35 -q; rtk env PYTHONPATH=src:. python -m compileall -q src evals tests scripts; rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_runtime_artifact tests.test_phase35 -q; rtk env PYTHONPATH=src:. python -m compileall -q src evals tests scripts; rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --stat; rtk git status --short; rtk git diff -- .github/workflows/k-slide-phase32.yml src/k_slide/certification.py tests/test_phase35.py | head -260'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n '\"'^FROM|apt-get install|pip install|ENV .*KEY|ARG .*KEY|COPY .*'\"\\\\.git|PYTHONPATH' deploy/runtime/Dockerfile scripts/build_runtime_artifact.py src/k_slide/runtime_artifact.py; rtk rg -n 'evals/heavy/Dockerfile|k-slide-heavy' . --glob '\"'!*.pyc'\"' --glob '\"'!runs/**'\"' | head -80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest discover -s tests -q; rtk env PYTHONPATH=src:. python -m compileall -q src evals tests scripts; rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short; rtk git diff --check; rtk git log -1 --oneline; rtk git branch --show-current'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk find deploy/runtime -maxdepth 3 -type f -print | sort; rtk wc -l deploy/runtime/* scripts/build_runtime_artifact.py src/k_slide/runtime_artifact.py tests/test_runtime_artifact.py'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk find deploy/runtime -type f'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk ls -la deploy/runtime/ocr-context; rtk git check-ignore -v deploy/runtime/ocr-context/.keep || true'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --untracked-files=all | tail -30'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add -A && rtk git commit -m \"build canonical pinned K-Slide runtime artifact\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short; rtk git log -2 --oneline --decorate; rtk git merge-base --is-ancestor 16f940717f4948298d0433e54179f1b5b5babb04 HEAD && rtk git diff --check HEAD''^ HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git push -u origin codex/k-slide-chg16-pinned-runtime-01'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --porcelain=v1; rtk git rev-parse HEAD; rtk git branch --show-current; rtk git log -1 --format='%H %s'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 267,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.64,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 21607680,
+      "fresh_input_tokens": 522738,
+      "input_tokens": 22130418,
+      "non_reasoning_output_tokens": 52744,
+      "output_tokens": 86582,
+      "reasoning_output_tokens": 33838,
+      "total_processed_tokens": 22217000
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "0c6572085fb3bf8d6d7e40a2276a1d5da99db2af",
+      "subject": "build canonical pinned K-Slide runtime artifact"
+    }
+  ],
+  "diff": {
+    "additions": 1446,
+    "changed_files": 20,
+    "commit_count": 1,
+    "deletions": 192
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 12,
+    "items": [
+      {
+        "bytes": 6307,
+        "path": "DEVELOPMENT_NOTES.md",
+        "sha256": "61c74f377077a8d080afd1b0492049d414299e297d4592bb69c4e91ba784779e"
+      },
+      {
+        "bytes": 27174,
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "9ba6cb68a6fa24c931b1d41a0793ede872e3213b2d7ede9ed8fda8e48b0a3fc6"
+      },
+      {
+        "bytes": 9887,
+        "path": "README.md",
+        "sha256": "28328df9d2b40e3a7913092aa481572f4516ba00393345f7f0504b4d72856095"
+      },
+      {
+        "bytes": 2485,
+        "path": "deploy/README.md",
+        "sha256": "c02c56993cab358668715f44d5d8b57b10fbe2ce0f6adb6f9b2c2cd4b7a0bbe1"
+      },
+      {
+        "bytes": 3419,
+        "path": "deploy/runtime/production-dependency-inventory.json",
+        "sha256": "b78c7c76464efb920e3b0301669c5bbd2134a255736991d337bc707cf5a6a6e4"
+      },
+      {
+        "bytes": 562,
+        "path": "deploy/runtime/system-packages-linux-amd64.json",
+        "sha256": "fa63cdc6d31e3e574fee1b74ccc80a8bdffaf60fa087552349d46627be83444c"
+      },
+      {
+        "bytes": 2427,
+        "path": "docs/adr/0039-pinned-runtime-artifact.md",
+        "sha256": "e3203cfc1b5277383e1ddf2c2494e9ec1db6e916389fca1c04d4c813509d8183"
+      },
+      {
+        "bytes": 7375,
+        "path": "evals/EVAL_REPORT.md",
+        "sha256": "d092e03d29ad796ee8b0a0c99b9518a7a6f152fc97114607d28dddffc5d36da9"
+      },
+      {
+        "bytes": 2773,
+        "path": "evals/heavy/README.md",
+        "sha256": "5547ab6721f57a6680fc97cdd3086482e731a9531eb0db62c84b1e222d45285e"
+      },
+      {
+        "bytes": 14854,
+        "path": "scripts/build_runtime_artifact.py",
+        "sha256": "6d59f4f2d304ebb8d1fb9bc2705e328c50e358fa572cafd1f308dc60b233e2b2"
+      },
+      {
+        "bytes": 31410,
+        "path": "src/k_slide/runtime_artifact.py",
+        "sha256": "529da56a1844f9257750c2de652af69633c63399a4877911748461e1829c3b0d"
+      },
+      {
+        "bytes": 6646,
+        "path": "tests/test_runtime_artifact.py",
+        "sha256": "f67db1c894c97a4ac03803c3d4b00affed55e702b2197ed46ebd4d7059db95fe"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.2",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.2",
+  "failure_class": null,
+  "finished_at": "2026-09-16T03:51:25Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "16f940717f4948298d0433e54179f1b5b5babb04",
+    "branch": "codex/k-slide-chg16-pinned-runtime-01",
+    "head_sha": "0c6572085fb3bf8d6d7e40a2276a1d5da99db2af",
+    "remote_exact_head": true,
+    "remote_head_sha": "0c6572085fb3bf8d6d7e40a2276a1d5da99db2af",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "16f940717f4948298d0433e54179f1b5b5babb04",
+    "work_branch": "codex/k-slide-chg16-pinned-runtime-01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-45baa4ee827b3e144f4d3da1",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-pinned-runtime-01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-pinned-runtime-01"
+  },
+  "operation": "BUILD",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.2",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "ac9bd8dedb364d22fc9c0fc6a50334cbf5b7f53a5a0602aa17553d680a87690e"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-pinned-runtime-01",
+  "schema_version": 1,
+  "started_at": "2026-09-16T02:38:20Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 4385,
+    "queue_seconds": 0,
+    "total_seconds": 4385
+  },
+  "transport": {
+    "bytes": 18683,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 18373,
+    "prompt_sha256": "55b504ae0f5d90e58d327e1b5333d6cb277d3bb0a38a640e8744827244d0c160",
+    "sha256": "45baa4ee827b3e144f4d3da10b711e7f6dce56806894906f665994dcde4144f1"
+  }
+}
