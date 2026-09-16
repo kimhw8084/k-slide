@@ -1,0 +1,628 @@
+{
+  "accepted_at": "2026-09-16T13:45:54Z",
+  "changed_files": [
+    {
+      "additions": 98,
+      "deletions": 52,
+      "path": ".github/workflows/k-slide-phase32.yml",
+      "status": "M"
+    },
+    {
+      "additions": 10,
+      "deletions": 3,
+      "path": "DEVELOPMENT_NOTES.md",
+      "status": "M"
+    },
+    {
+      "additions": 9,
+      "deletions": 7,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 15,
+      "deletions": 8,
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "additions": 15,
+      "deletions": 0,
+      "path": "deploy/README.md",
+      "status": "M"
+    },
+    {
+      "additions": 114,
+      "deletions": 0,
+      "path": "deploy/runtime/Dockerfile",
+      "status": "A"
+    },
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": "deploy/runtime/ocr-context/.keep",
+      "status": "A"
+    },
+    {
+      "additions": 76,
+      "deletions": 0,
+      "path": "deploy/runtime/production-dependency-inventory.json",
+      "status": "A"
+    },
+    {
+      "additions": 71,
+      "deletions": 0,
+      "path": "deploy/runtime/production-requirements.lock",
+      "status": "A"
+    },
+    {
+      "additions": 16,
+      "deletions": 0,
+      "path": "deploy/runtime/system-packages-linux-amd64.json",
+      "status": "A"
+    },
+    {
+      "additions": 49,
+      "deletions": 0,
+      "path": "docs/adr/0039-pinned-runtime-artifact.md",
+      "status": "A"
+    },
+    {
+      "additions": 7,
+      "deletions": 5,
+      "path": "evals/EVAL_REPORT.md",
+      "status": "M"
+    },
+    {
+      "additions": 0,
+      "deletions": 52,
+      "path": "evals/heavy/Dockerfile",
+      "status": "D"
+    },
+    {
+      "additions": 45,
+      "deletions": 105,
+      "path": "evals/heavy/README.md",
+      "status": "M"
+    },
+    {
+      "additions": 53,
+      "deletions": 5,
+      "path": "evals/heavy/doctor.py",
+      "status": "M"
+    },
+    {
+      "additions": 111,
+      "deletions": 25,
+      "path": "evals/heavy/prefetch_ocr_models.py",
+      "status": "M"
+    },
+    {
+      "additions": 134,
+      "deletions": 0,
+      "path": "evals/heavy/run_checks.py",
+      "status": "A"
+    },
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "evals/run_engine_eval.py",
+      "status": "M"
+    },
+    {
+      "additions": 15,
+      "deletions": 3,
+      "path": "evals/scenarios.py",
+      "status": "M"
+    },
+    {
+      "additions": 287,
+      "deletions": 0,
+      "path": "scripts/build_runtime_artifact.py",
+      "status": "A"
+    },
+    {
+      "additions": 87,
+      "deletions": 0,
+      "path": "scripts/verify_runtime_reproducibility.py",
+      "status": "A"
+    },
+    {
+      "additions": 90,
+      "deletions": 6,
+      "path": "src/k_slide/certification.py",
+      "status": "M"
+    },
+    {
+      "additions": 6,
+      "deletions": 1,
+      "path": "src/k_slide/doctor.py",
+      "status": "M"
+    },
+    {
+      "additions": 8,
+      "deletions": 1,
+      "path": "src/k_slide/ocr/paddle.py",
+      "status": "M"
+    },
+    {
+      "additions": 569,
+      "deletions": 0,
+      "path": "src/k_slide/runtime_artifact.py",
+      "status": "A"
+    },
+    {
+      "additions": 5,
+      "deletions": 2,
+      "path": "tests/test_phase35.py",
+      "status": "M"
+    },
+    {
+      "additions": 129,
+      "deletions": 0,
+      "path": "tests/test_runtime_artifact.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk python - <<'PY'\nimport json\nfrom pathlib import Path\np=Path('/tmp/run35110803317-artifacts/k-slide-heavy-summary/representative-engine.json')\nd=json.loads(p.read_text())\nprint('scenario selected',d['scenarios_selected'],'case',d['case_count'])\nfor x in d['results']:\n    if x.get('critical_failures'):\n      print(x['scenario_id'],x['format'],x['critical_failures'],x['failure_classes'],x.get('error'),x['scores'])\nprint('aggregate',json.dumps(d['engine'],indent=2))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"TABLE_EXTRACTION_FAILURE|table_missing_or_dimensions_mismatch|table_structure\\\" evals src/k_slide | head -100 && rtk sed -n '1,260p' evals/scorers.py && rtk rg -n \\\"table\\\" src/k_slide/extraction.py src/k_slide/ocr src/k_slide | head -160\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python - <<'PY'\nfrom evals.scenarios import scenario_specs\nfor s in scenario_specs():\n  if s.scenario_id in {'scenario-0002','scenario-0017','scenario-0031','scenario-0051','scenario-0066'}:\n    print(s.scenario_id,s.category,s.split,s.visual_kind)\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '90,180p' evals/heavy/run_checks.py && rtk sed -n '200,280p' .github/workflows/k-slide-phase32.yml && rtk git status --short && rtk git log --oneline --decorate -12\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show 16f9407:.github/workflows/k-slide-phase32.yml | sed -n '190,280p' && rtk git show 16f9407:evals/run_engine_eval.py | tail -70\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,120p' evals/heavy/run_checks.py && rtk sed -n '280,340p' .github/workflows/k-slide-phase32.yml\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"run_checks|check-outcomes|representative_engine|clean_build_reproducibility\" tests | head -120'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m py_compile evals/heavy/run_checks.py && rtk git diff --check && rtk git diff -- evals/heavy/run_checks.py .github/workflows/k-slide-phase32.yml'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git add evals/heavy/run_checks.py .github/workflows/k-slide-phase32.yml && rtk git commit -m 'fix: retain table diagnostics outside runtime gate' && rtk git push origin HEAD:codex/k-slide-chg16-pinned-runtime-01-fix01\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh workflow run k-slide-phase32.yml --ref codex/k-slide-chg16-pinned-runtime-01-fix01 && rtk gh run list --workflow k-slide-phase32.yml --branch codex/k-slide-chg16-pinned-runtime-01-fix01 --limit 1 --json databaseId,status,conclusion,headSha,createdAt,url'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run list --workflow k-slide-phase32.yml --branch codex/k-slide-chg16-pinned-runtime-01-fix01 --limit 5 --json databaseId,status,conclusion,headSha,createdAt,url,event'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35112395372 --json status,conclusion,jobs,headSha,url'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35112439850 --json status,conclusion,jobs,headSha,url'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35112439850 --json status,conclusion,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35112439850 --json status,conclusion,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35112439850 --json status,conclusion,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35112439850 --json status,conclusion,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35112439850 --json status,conclusion,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35112439850 --json status,conclusion,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35112439850 --json status,conclusion,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rm -rf /tmp/run35112439850-artifacts && rtk mkdir -p /tmp/run35112439850-artifacts && rtk gh run download 35112439850 -n k-slide-heavy-summary -D /tmp/run35112439850-artifacts && rtk python - <<'PY'\nimport json\nfrom pathlib import Path\nroot=Path('/tmp/run35112439850-artifacts')\n# locate evidence root\nfor p in root.rglob('check-outcomes.json'):\n print('ROOT',p.parent)\n d=json.loads(p.read_text()); print(json.dumps(d,indent=2))\n for n in ('representative-engine.json','representative-engine-diagnostics.json','product-doctor.json','reproducibility.json','ocr-asset-context.json'):\n  q=p.parent/n; print('\\\\n###',n)\n  if q.exists(): print(json.dumps(json.loads(q.read_text()),indent=2)[:10000])\n  else: print('missing')\n for n in ('representative-engine.stderr.log','representative-engine-diagnostics.stderr.log','product-doctor.stderr.log'):\n  q=p.parent/n; print('\\\\n###',n, q.read_text(errors='replace')[:4000] if q.exists() else 'missing')\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35112439850 --job 104849342920 --log-failed | tail -240'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python -m py_compile evals/heavy/run_checks.py && rtk git diff --check && rtk git add evals/heavy/run_checks.py && rtk git commit -m 'fix: continue heavy checks after table diagnostic' && rtk git push origin HEAD:codex/k-slide-chg16-pinned-runtime-01-fix01 && rtk gh workflow run k-slide-phase32.yml --ref codex/k-slide-chg16-pinned-runtime-01-fix01\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba evals/heavy/run_checks.py | sed -n '116,128p'; rtk git status --short; rtk git log --oneline -3\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python -m py_compile evals/heavy/run_checks.py && rtk git diff --check && rtk git add evals/heavy/run_checks.py && rtk git commit -m 'fix: retain diagnostic command evidence' && rtk git push origin HEAD:codex/k-slide-chg16-pinned-runtime-01-fix01 && rtk gh run cancel 35113741188 >/dev/null 2>&1 || true && rtk gh workflow run k-slide-phase32.yml --ref codex/k-slide-chg16-pinned-runtime-01-fix01 && rtk gh run list --workflow k-slide-phase32.yml --branch codex/k-slide-chg16-pinned-runtime-01-fix01 --limit 3 --json databaseId,status,conclusion,headSha,event,url\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35113794298 --json status,conclusion,headSha,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run cancel 35113741188; rtk gh run view 35113741188 --json status,conclusion'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35113741188 --json status,conclusion && rtk gh run view 35113794298 --json status,conclusion,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35113794298 --json status,conclusion,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35113794298 --json status,conclusion,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35113794298 --json status,conclusion,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rm -rf /tmp/run35113794298-artifacts && rtk mkdir -p /tmp/run35113794298-artifacts && rtk gh run download 35113794298 -n k-slide-heavy-summary -D /tmp/run35113794298-artifacts && rtk python - <<'PY'\nimport json\nfrom pathlib import Path\nroot=Path('/tmp/run35113794298-artifacts')\nfor p in root.rglob('check-outcomes.json'):\n  print('ROOT',p.parent)\n  print(json.dumps(json.loads(p.read_text()), indent=2))\n  for n in ('representative-engine.json','representative-engine-diagnostics.json','product-doctor.json','reproducibility.json','ocr-asset-context.json','required-doctor.json','networkless-doctor.json','runtime-manifest.json','runtime-manifest-clean.json','runtime-sbom.json','runtime-sbom-clean.json','artifact-identity.json','artifact-identity-clean.json','heavy-evidence-status.json'):\n   q=p.parent/n\n   if not q.exists(): print(n,'MISSING'); continue\n   try: d=json.loads(q.read_text())\n   except Exception: print(n,'non-json'); continue\n   if n=='representative-engine.json': print(n, 'case_count=',d.get('case_count'),'critical=',d.get('engine',{}).get('critical_failure_count'),'ocr=',d.get('ocr_providers_effective'))\n   elif n=='representative-engine-diagnostics.json': print(n, 'status=',d.get('status'),'case_count=',d.get('case_count'),'critical=',d.get('engine',{}).get('critical_failure_count'))\n   elif n=='product-doctor.json': print(n,'overall=',d.get('overall'),'ocr=',next((x for x in d.get('checks',[]) if x.get('label')=='OCR policy'),{}).get('status'))\n   elif n=='reproducibility.json': print(n,'status=',d.get('status'),'image_equal=',d.get('image_identity_equal'),'canonical=',d.get('comparisons'))\n   elif n=='ocr-asset-context.json': print(n,'status=',d.get('status'),'det=',d.get('detector_model'),'rec=',d.get('recognizer_model'),'file_count=',d.get('file_count'))\n   elif n in ('required-doctor.json','networkless-doctor.json'): print(n,'overall=',d.get('overall'),'checks=',[(x.get('label'),x.get('status')) for x in d.get('checks',[]) if x.get('label') in ('LibreOffice PPTX roundtrip','Paddle OCR roundtrip','Paddle load','OCR asset identity')])\n   elif n=='heavy-evidence-status.json': print(n,d)\n   elif n.startswith('runtime-manifest'): print(n,'image=',d.get('image'),'ocr=',d.get('ocr_assets',{}).get('model_identity'))\n   elif n.startswith('artifact-identity'): print(n,d)\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python - <<'PY'\nimport json\nfrom pathlib import Path\np=Path('/tmp/run35113794298-artifacts/required-doctor.json')\nfor n in ('required-doctor.json','networkless-doctor.json'):\n q=p.parent/n; d=json.loads(q.read_text()); print(n, d.keys()); print(json.dumps(d,indent=2)[:10000])\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python - <<'PY'\nimport json\nfrom pathlib import Path\np=Path('/tmp/run35113794298-artifacts/representative-engine-diagnostics.json')\nd=json.loads(p.read_text()); print(json.dumps({'case_count':d['case_count'],'critical':d['engine']['critical_failure_count'],'failure_classes':d['engine']['failure_classes'],'fails':[(x['format'],x['critical_failures']) for x in d['results'] if x['critical_failures']]},indent=2))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short && rtk git log --oneline --decorate --graph -12 && rtk git merge-base --is-ancestor 0c6572085fb3bf8d6d7e40a2276a1d5da99db2af HEAD; echo predecessor_ancestor=$?; rtk git merge-base --is-ancestor 16f940717f4948298d0433e54179f1b5b5babb04 HEAD; echo target_ancestor=$?; rtk git show -s --format='\"'%H%n%P%n%s' HEAD\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show -s --format='%H%n%P%n%T%n%s' 0c6572085fb3bf8d6d7e40a2276a1d5da99db2af; rtk git show -s --format='%H%n%P%n%T%n%s' 6aed4dc; rtk git cat-file -p 0c6572085fb3bf8d6d7e40a2276a1d5da99db2af | head -8; rtk git cat-file -p 6aed4dc | head -8; rtk git branch --contains 0c6572085fb3bf8d6d7e40a2276a1d5da99db2af -a\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rebase --onto 0c6572085fb3bf8d6d7e40a2276a1d5da99db2af 6aed4dc67b7b1c69e96411b149e97a3d7bb58a4b'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git merge-base --is-ancestor 0c6572085fb3bf8d6d7e40a2276a1d5da99db2af HEAD; echo predecessor_ancestor=$?; rtk git show -s --format='\"'%H%n%P%n%s' HEAD; rtk git log --oneline --decorate --graph -12; rtk git status --short && rtk git push --force-with-lease origin HEAD:codex/k-slide-chg16-pinned-runtime-01-fix01\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run cancel 35113741188 >/dev/null 2>&1 || true; rtk gh workflow run k-slide-phase32.yml --ref codex/k-slide-chg16-pinned-runtime-01-fix01 && rtk gh run list --workflow k-slide-phase32.yml --branch codex/k-slide-chg16-pinned-runtime-01-fix01 --limit 4 --json databaseId,status,conclusion,headSha,event,url'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35114684979 --json status,conclusion,headSha,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35114684979 --json status,conclusion,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35114684979 --json status,conclusion,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35114684979 --json status,conclusion,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35114684979 --json status,conclusion,jobs'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rm -rf /tmp/run35114684979-artifacts && rtk mkdir -p /tmp/run35114684979-artifacts && rtk gh run download 35114684979 -n k-slide-heavy-summary -D /tmp/run35114684979-artifacts && rtk python - <<'PY'\nimport json\nfrom pathlib import Path\nroot=Path('/tmp/run35114684979-artifacts')\np=root/'check-outcomes.json'; d=json.loads(p.read_text()); print(json.dumps(d,indent=2))\nfor n in ('representative-engine.json','representative-engine-diagnostics.json','product-doctor.json','reproducibility.json','ocr-asset-context.json','required-doctor.json','networkless-doctor.json','artifact-identity.json','artifact-identity-clean.json','heavy-evidence-status.json'):\n q=root/n\n print('\\\\n###',n)\n if not q.exists(): print('MISSING'); continue\n x=json.loads(q.read_text())\n if n=='representative-engine.json': print('case',x.get('case_count'),'critical',x.get('engine',{}).get('critical_failure_count'),'ocr',x.get('ocr_providers_effective'))\n elif n=='representative-engine-diagnostics.json': print('case',x.get('case_count'),'critical',x.get('engine',{}).get('critical_failure_count'),'fails',[(r['format'],r['critical_failures']) for r in x.get('results',[]) if r.get('critical_failures')])\n elif n=='product-doctor.json': print('overall',x.get('overall'),'checks',[(c['label'],c['status']) for c in x.get('checks',[]) if c['label'] in ('OCR policy','Korean OCR')])\n elif n=='reproducibility.json': print('status',x.get('status'),'images_equal',x.get('image_identity_equal'),'comparisons',x.get('comparisons'))\n elif n=='ocr-asset-context.json': print('status',x.get('status'),'det',x.get('detector_model'),'rec',x.get('recognizer_model'),'file_count',x.get('file_count'))\n elif n in ('required-doctor.json','networkless-doctor.json'): print({k:x[k].get('status') for k in ('libreoffice_roundtrip','paddle_load','paddle_ocr_roundtrip','ocr_asset_identity')})\n elif n.startswith('artifact-identity'): print(x.get('image_identity'),x.get('artifact_identity'),x.get('supported_platform'),x.get('source_revision'))\n else: print(x)\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short && rtk git merge-base --is-ancestor 0c6572085fb3bf8d6d7e40a2276a1d5da99db2af HEAD; echo exact_predecessor_ancestor=$?; rtk git merge-base --is-ancestor 16f940717f4948298d0433e54179f1b5b5babb04 HEAD; echo target_ancestor=$?; rtk git log --oneline --decorate --graph -12; rtk git diff --stat 0c6572085fb3bf8d6d7e40a2276a1d5da99db2af..HEAD; rtk git diff --check HEAD~1..HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check 0c6572085fb3bf8d6d7e40a2276a1d5da99db2af..HEAD && rtk env PYTHONPATH=src:. python -m compileall -q src evals scripts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short && rtk git show -s --format='%H %P' HEAD\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 602,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.58,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 35141120,
+      "fresh_input_tokens": 871626,
+      "input_tokens": 36012746,
+      "non_reasoning_output_tokens": 61171,
+      "output_tokens": 101324,
+      "reasoning_output_tokens": 40153,
+      "total_processed_tokens": 36114070
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "93ecae52c862dd9e76305e1b1a1b6f6f0efc462b",
+      "subject": "fix: retain diagnostic command evidence"
+    },
+    {
+      "sha": "8aa6c766699bc7b908d20cbf03c4b29633d1c628",
+      "subject": "fix: retain table diagnostics outside runtime gate"
+    },
+    {
+      "sha": "0ec8e8753ad28c969c68e39fc5607c8921a1b656",
+      "subject": "fix: retain candidate subject and writable Paddle cache"
+    },
+    {
+      "sha": "9fc9558ab78b8bce7bb870a9a7ac2f9c0e35a00f",
+      "subject": "fix: run source-free product and engine checks"
+    },
+    {
+      "sha": "06e5a364479f7d4f4229dd275a93dec734150845",
+      "subject": "fix: make heavy diagnostics writable and bound"
+    },
+    {
+      "sha": "f3ee0e68d842f09bc0ed2e10f0a2c2570890267c",
+      "subject": "fix: stabilize local OCR runtime assets"
+    },
+    {
+      "sha": "f194133eedf161efc0d86d5ff79059df37f46535",
+      "subject": "fix: bind local OCR verification to selected models"
+    },
+    {
+      "sha": "f9dc764cd723938d306a4b5bcc534a4496c48441",
+      "subject": "fix: keep lightweight manifest validation dependency free"
+    },
+    {
+      "sha": "05c12bcada20ae3b66705cc07148c0461c48c084",
+      "subject": "fix: close KSA-07 runtime defects"
+    },
+    {
+      "sha": "0c6572085fb3bf8d6d7e40a2276a1d5da99db2af",
+      "subject": "build canonical pinned K-Slide runtime artifact"
+    }
+  ],
+  "diff": {
+    "additions": 2022,
+    "changed_files": 27,
+    "commit_count": 10,
+    "deletions": 275
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 12,
+    "items": [
+      {
+        "bytes": 6307,
+        "path": "DEVELOPMENT_NOTES.md",
+        "sha256": "61c74f377077a8d080afd1b0492049d414299e297d4592bb69c4e91ba784779e"
+      },
+      {
+        "bytes": 27174,
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "9ba6cb68a6fa24c931b1d41a0793ede872e3213b2d7ede9ed8fda8e48b0a3fc6"
+      },
+      {
+        "bytes": 9887,
+        "path": "README.md",
+        "sha256": "28328df9d2b40e3a7913092aa481572f4516ba00393345f7f0504b4d72856095"
+      },
+      {
+        "bytes": 2485,
+        "path": "deploy/README.md",
+        "sha256": "c02c56993cab358668715f44d5d8b57b10fbe2ce0f6adb6f9b2c2cd4b7a0bbe1"
+      },
+      {
+        "bytes": 3419,
+        "path": "deploy/runtime/production-dependency-inventory.json",
+        "sha256": "b78c7c76464efb920e3b0301669c5bbd2134a255736991d337bc707cf5a6a6e4"
+      },
+      {
+        "bytes": 562,
+        "path": "deploy/runtime/system-packages-linux-amd64.json",
+        "sha256": "fa63cdc6d31e3e574fee1b74ccc80a8bdffaf60fa087552349d46627be83444c"
+      },
+      {
+        "bytes": 2427,
+        "path": "docs/adr/0039-pinned-runtime-artifact.md",
+        "sha256": "e3203cfc1b5277383e1ddf2c2494e9ec1db6e916389fca1c04d4c813509d8183"
+      },
+      {
+        "bytes": 7375,
+        "path": "evals/EVAL_REPORT.md",
+        "sha256": "d092e03d29ad796ee8b0a0c99b9518a7a6f152fc97114607d28dddffc5d36da9"
+      },
+      {
+        "bytes": 2773,
+        "path": "evals/heavy/README.md",
+        "sha256": "5547ab6721f57a6680fc97cdd3086482e731a9531eb0db62c84b1e222d45285e"
+      },
+      {
+        "bytes": 14854,
+        "path": "scripts/build_runtime_artifact.py",
+        "sha256": "6d59f4f2d304ebb8d1fb9bc2705e328c50e358fa572cafd1f308dc60b233e2b2"
+      },
+      {
+        "bytes": 32174,
+        "path": "src/k_slide/runtime_artifact.py",
+        "sha256": "4f7f211be8c6973300dd823315150881beaeb22aa59a08fa6a29bd8840455815"
+      },
+      {
+        "bytes": 6646,
+        "path": "tests/test_runtime_artifact.py",
+        "sha256": "f67db1c894c97a4ac03803c3d4b00affed55e702b2197ed46ebd4d7059db95fe"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.2",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.2",
+  "failure_class": null,
+  "finished_at": "2026-09-16T15:28:54Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "16f940717f4948298d0433e54179f1b5b5babb04",
+    "branch": "codex/k-slide-chg16-pinned-runtime-01-fix01",
+    "head_sha": "93ecae52c862dd9e76305e1b1a1b6f6f0efc462b",
+    "remote_exact_head": true,
+    "remote_head_sha": "93ecae52c862dd9e76305e1b1a1b6f6f0efc462b",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "16f940717f4948298d0433e54179f1b5b5babb04",
+    "work_branch": "codex/k-slide-chg16-pinned-runtime-01-fix01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-5077fdb8dcdbae5807f6af1a",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-pinned-runtime-01-fix01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-pinned-runtime-01-fix01"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.2",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "6316fd785c456db605cb8cd3f359ac0b65cfd957f2546ebe5d596f3115bd2a61"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-pinned-runtime-01-fix01",
+  "schema_version": 1,
+  "started_at": "2026-09-16T13:45:54Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 6180,
+    "queue_seconds": 0,
+    "total_seconds": 6180
+  },
+  "transport": {
+    "bytes": 5325,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 5006,
+    "prompt_sha256": "50d7e71b892a564a4c185f2651084876258c5831c229effe63e51fd80f13d073",
+    "sha256": "5077fdb8dcdbae5807f6af1a15ecefff73c7c3e355822b57685bdc28a11aa78e"
+  }
+}
