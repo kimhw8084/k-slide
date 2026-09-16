@@ -251,8 +251,10 @@ jobs:
             fi
           }
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-doctor/doctor.json" "$evidence_root/required-doctor.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-heavy-doctor/doctor.json.stdout.log" "$evidence_root/required-doctor.stdout.log"
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-doctor/doctor.json.stderr.log" "$evidence_root/required-doctor.stderr.log"
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-doctor/networkless-doctor.json" "$evidence_root/networkless-doctor.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-heavy-doctor/networkless-doctor.json.stdout.log" "$evidence_root/networkless-doctor.stdout.log"
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-doctor/networkless-doctor.json.stderr.log" "$evidence_root/networkless-doctor.stderr.log"
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-engine-subset/summary.json" "$evidence_root/representative-engine.json"
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-engine-subset/engine-command.json.stderr.log" "$evidence_root/representative-engine.stderr.log"

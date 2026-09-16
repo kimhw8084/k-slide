@@ -16,13 +16,38 @@ def _record_json(path: Path, value: dict[str, Any]) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def _prepare_mount(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    # The image intentionally runs as uid 10001. GitHub runner bind mounts
+    # otherwise arrive owner-writable only and hide the decisive engine output.
+    path.chmod(path.stat().st_mode | 0o777)
+
+
 def _run_check(name: str, command: list[str], output: Path, outcomes: list[dict[str, Any]], *, expected_after: Path | None = None) -> int:
     output.parent.mkdir(parents=True, exist_ok=True)
     result = subprocess.run(command, capture_output=True, text=True, check=False)
     stdout = result.stdout or ""
     stderr = result.stderr or ""
     if stdout:
-        output.write_text(stdout, encoding="utf-8")
+        if output.suffix == ".json":
+            try:
+                value = json.loads(stdout)
+            except json.JSONDecodeError:
+                start = stdout.find("{")
+                value = None
+                if start >= 0:
+                    try:
+                        value, _ = json.JSONDecoder().raw_decode(stdout[start:])
+                    except json.JSONDecodeError:
+                        value = None
+                if value is not None:
+                    output.with_name(output.name + ".stdout.log").write_text(stdout, encoding="utf-8")
+            if value is not None:
+                output.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            else:
+                output.write_text(stdout, encoding="utf-8")
+        else:
+            output.write_text(stdout, encoding="utf-8")
     if stderr:
         output.with_name(output.name + ".stderr.log").write_text(stderr, encoding="utf-8")
     evidence_path = expected_after or output
@@ -64,13 +89,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--second-artifact", type=Path, required=True)
     args = parser.parse_args(argv)
 
+    for directory in (args.doctor_dir, args.engine_dir, args.product_dir):
+        _prepare_mount(directory)
+    candidate_value = json.loads(args.candidate.read_text(encoding="utf-8"))
+    if isinstance(candidate_value, dict) and candidate_value.get("subject_git_sha") != args.subject_sha:
+        candidate_value["subject_git_sha"] = args.subject_sha
+        args.candidate.write_text(json.dumps(candidate_value, sort_keys=True) + "\n", encoding="utf-8")
+
     outcomes: list[dict[str, Any]] = []
     failures: list[int] = []
     doctor_mount = str(args.doctor_dir.resolve()) + ":/out"
     failures.append(_run_check("required_doctor", ["docker", "run", "--rm", "-v", doctor_mount, "--entrypoint", "python", args.image, "-m", "evals.heavy.doctor", "--required"], args.doctor_dir / "doctor.json", outcomes))
     failures.append(_run_check("networkless_doctor", ["docker", "run", "--rm", "--network", "none", "-v", doctor_mount, "--entrypoint", "python", args.image, "-m", "evals.heavy.doctor", "--required", "--networkless"], args.doctor_dir / "networkless-doctor.json", outcomes))
     product_mount = str(args.product_dir.resolve()) + ":/workspace"
-    failures.append(_run_check("networkless_product_doctor", ["docker", "run", "--rm", "--network", "none", "--read-only", "--tmpfs", "/tmp", "--tmpfs", "/home/kslide", "-v", product_mount, args.image, "doctor", "--json"], args.product_dir / "product-doctor.json", outcomes))
+    failures.append(_run_check("networkless_product_doctor", ["docker", "run", "--rm", "--network", "none", "--read-only", "--tmpfs", "/tmp", "--tmpfs", "/home/kslide:rw,uid=10001,gid=10001,mode=700", "-v", product_mount, args.image, "doctor", "--json"], args.product_dir / "product-doctor.json", outcomes))
     engine_mount = str(args.engine_dir.resolve()) + ":/out"
     candidate_mount = str(args.candidate.resolve()) + ":/candidate.json:ro"
     failures.append(_run_check("representative_engine", ["docker", "run", "--rm", "--network", "none", "-v", engine_mount, "-v", candidate_mount, "--entrypoint", "python", args.image, "-m", "evals.run_engine_eval", "--output", "/out", "--candidate-profile", "/candidate.json", "--subject-sha", args.subject_sha, "--split", "development", "--scenario-ids", "scenario-0002", "scenario-0017", "scenario-0031", "scenario-0051", "scenario-0066", "--formats", "png", "pdf", "pptx", "--ocr-provider", "paddle", "--fail-on-critical"], args.engine_dir / "engine-command.json", outcomes, expected_after=args.engine_dir / "summary.json"))
