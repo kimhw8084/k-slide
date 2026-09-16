@@ -289,6 +289,7 @@ def build_runtime_manifest(
             "paddlex_config": str(ocr_identity["paddlex_config"]),
             "paddlex_config_sha256": ocr_config_sha,
             "asset_provenance": provenance,
+            **({"model_identity": dict(ocr_identity["model_identity"])} if isinstance(ocr_identity.get("model_identity"), dict) else {}),
         },
         "sbom": {
             "format": "CycloneDX",
@@ -384,7 +385,7 @@ def validate_runtime_manifest(
     if isinstance(value.get("dependency_package_count"), bool) or not isinstance(value.get("dependency_package_count"), int) or value["dependency_package_count"] <= 0:
         raise EvidenceValidationError("runtime manifest dependency package count is invalid")
     ocr = value.get("ocr_asset_manifest")
-    if not isinstance(ocr, dict) or set(ocr) != {"sha256", "file_count", "paddlex_config", "paddlex_config_sha256", "asset_provenance"}:
+    if not isinstance(ocr, dict) or set(ocr) - {"sha256", "file_count", "paddlex_config", "paddlex_config_sha256", "asset_provenance", "model_identity"} or not {"sha256", "file_count", "paddlex_config", "paddlex_config_sha256", "asset_provenance"}.issubset(ocr):
         raise EvidenceValidationError("runtime manifest OCR identity is invalid")
     ocr_hash = _require_sha(ocr.get("sha256"), "ocr_asset_manifest.sha256")
     _require_sha(ocr.get("paddlex_config_sha256"), "ocr_asset_manifest.paddlex_config_sha256")
@@ -392,6 +393,10 @@ def validate_runtime_manifest(
         raise EvidenceValidationError("runtime manifest OCR configuration identity is invalid")
     if isinstance(ocr.get("file_count"), bool) or not isinstance(ocr.get("file_count"), int) or ocr["file_count"] <= 0:
         raise EvidenceValidationError("runtime manifest OCR file count is invalid")
+    if "model_identity" in ocr:
+        model_identity = ocr["model_identity"]
+        if not isinstance(model_identity, dict) or set(model_identity) != {"detector_model", "detector_model_dir", "recognizer_model", "recognizer_model_dir"} or not all(isinstance(model_identity.get(key), str) and model_identity[key].strip() for key in model_identity):
+            raise EvidenceValidationError("runtime manifest OCR model identity is invalid")
     if expected_ocr_manifest_sha256 is not None and ocr_hash != _require_sha(expected_ocr_manifest_sha256, "expected_ocr_manifest_sha256"):
         raise EvidenceValidationError("runtime manifest OCR asset identity does not match the expected manifest")
     sbom = value.get("sbom")
@@ -457,7 +462,7 @@ def emit_runtime_artifact(*, output_root: Path, lock_path: Path, inventory_path:
     if libreoffice_version is None:
         raise EvidenceValidationError("verified LibreOffice is unavailable")
     ocr_manifest = ocr_root.expanduser().resolve() / "manifest.json"
-    ocr_identity = validate_ocr_asset_manifest(ocr_manifest, asset_root=ocr_root.expanduser().resolve())
+    ocr_identity = validate_ocr_asset_manifest(ocr_manifest, asset_root=ocr_root.expanduser().resolve(), require_model_identity=True)
     raw_ocr = json.loads(ocr_manifest.read_text(encoding="utf-8"))
     ocr_identity["asset_provenance"] = str(raw_ocr.get("asset_provenance") or "certifying-bundle")
     ocr_identity["libreoffice_version"] = libreoffice_version
@@ -510,7 +515,7 @@ def verify_runtime_artifact(*, runtime_root: Path, expected_source_revision: str
     if lock_inventory != inventory or installed_dependency_inventory() != inventory:
         raise EvidenceValidationError("runtime dependency subject is not exact")
     system_manifest = load_system_package_manifest(system_path)
-    identity = validate_ocr_asset_manifest(runtime_root.expanduser().resolve().parent / "ocr" / "manifest.json", asset_root=runtime_root.expanduser().resolve().parent / "ocr")
+    identity = validate_ocr_asset_manifest(runtime_root.expanduser().resolve().parent / "ocr" / "manifest.json", asset_root=runtime_root.expanduser().resolve().parent / "ocr", require_model_identity=True)
     validate_runtime_manifest(manifest, expected_source_revision=expected_source_revision, expected_inventory_sha256=expected_inventory_hash, expected_lock_sha256=sha256_file(lock_path), expected_ocr_manifest_sha256=identity["sha256"], expected_sbom_sha256=sha256_file(sbom_path), expected_system_manifest=system_manifest)
     if sbom.get("metadata", {}).get("component", {}).get("properties", [{}])[0].get("value") != expected_inventory_hash:
         raise EvidenceValidationError("runtime SBOM is not bound to the runtime inventory")

@@ -1164,7 +1164,49 @@ def safe_path_under(root: Path, raw: str | Path, *, label: str, require_file: bo
     return safe_relative_path(trusted_root, value, label=label, require_file=require_file)
 
 
-def validate_ocr_asset_manifest(path: Path, *, expected_sha256: str | None = None, asset_root: Path | None = None, verify_files: bool = True) -> dict[str, Any]:
+def _selected_paddlex_models(config_path: Path, *, asset_root: Path, require_local: bool) -> dict[str, str]:
+    """Read selected model names and bind their directories to the asset tree."""
+
+    try:
+        import yaml
+    except ImportError as exc:
+        raise EvidenceValidationError("PyYAML is required to validate the PaddleX configuration") from exc
+    try:
+        value = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, yaml.YAMLError) as exc:
+        raise EvidenceValidationError("OCR PaddleX configuration is unreadable") from exc
+    if not isinstance(value, dict):
+        raise EvidenceValidationError("OCR PaddleX configuration must be a mapping")
+    modules = value.get("SubModules")
+    if not isinstance(modules, dict):
+        if require_local:
+            raise EvidenceValidationError("OCR PaddleX configuration has no selected text models")
+        return {}
+    selected: dict[str, str] = {}
+    for role, key in (("detector", "TextDetection"), ("recognizer", "TextRecognition")):
+        module = modules.get(key)
+        if not isinstance(module, dict) or not isinstance(module.get("model_name"), str) or not module["model_name"].strip():
+            raise EvidenceValidationError(f"OCR PaddleX configuration has no selected {role} model")
+        selected[f"{role}_model"] = module["model_name"].strip()
+        raw_dir = module.get("model_dir")
+        if not require_local:
+            continue
+        if not isinstance(raw_dir, str) or not raw_dir.strip():
+            raise EvidenceValidationError(f"OCR PaddleX configuration has no local {role} model directory")
+        model_dir = Path(raw_dir).expanduser()
+        if not model_dir.is_absolute():
+            model_dir = config_path.parent / model_dir
+        model_dir = safe_path_under(asset_root, model_dir, label=f"OCR {role} model directory")
+        if model_dir.is_symlink() or not model_dir.is_dir():
+            raise EvidenceValidationError(f"OCR {role} model directory is not a local directory")
+        files = [item for item in model_dir.rglob("*") if item.is_file()]
+        if not files or any(item.is_symlink() for item in model_dir.rglob("*")):
+            raise EvidenceValidationError(f"OCR {role} model directory has no complete local model files")
+        selected[f"{role}_model_dir"] = model_dir.relative_to(asset_root).as_posix()
+    return selected
+
+
+def validate_ocr_asset_manifest(path: Path, *, expected_sha256: str | None = None, asset_root: Path | None = None, verify_files: bool = True, require_model_identity: bool = False) -> dict[str, Any]:
     """Validate a portable, exact Paddle asset tree and return its identity."""
 
     manifest = safe_path_under(path.parent, path, label="OCR asset manifest", require_file=True)
@@ -1217,6 +1259,22 @@ def validate_ocr_asset_manifest(path: Path, *, expected_sha256: str | None = Non
         raise EvidenceValidationError("OCR PaddleX configuration hash is invalid")
     if verify_files and sha256_file(config_path) != config_hash:
         raise EvidenceValidationError("OCR PaddleX configuration hash does not match the selected file")
+    model_identity = _selected_paddlex_models(config_path, asset_root=root, require_local=require_model_identity)
+    declared_model_identity = value.get("model_identity")
+    if require_model_identity and not isinstance(declared_model_identity, dict):
+        raise EvidenceValidationError("OCR asset manifest does not declare the selected model identity")
+    if isinstance(declared_model_identity, dict) and model_identity and declared_model_identity != model_identity:
+        raise EvidenceValidationError("OCR asset manifest model identity does not match the selected configuration")
+    if model_identity:
+        for field in ("detector_model", "recognizer_model"):
+            declared = value.get(field)
+            if declared is not None and declared != model_identity[field]:
+                raise EvidenceValidationError(f"OCR asset manifest {field} does not match the selected configuration")
+    provenance = value.get("asset_provenance")
+    if provenance is not None and provenance not in {"certifying-bundle", "development-prefetch"}:
+        raise EvidenceValidationError("OCR asset provenance is invalid")
+    if provenance == "development-prefetch" and value.get("asset_status") != "DEVELOPMENT_ONLY":
+        raise EvidenceValidationError("development-prefetched OCR assets must remain DEVELOPMENT_ONLY")
     if verify_files:
         listed = {manifest.relative_to(root).as_posix(), *seen}
         actual_files: set[str] = set()
@@ -1228,7 +1286,7 @@ def validate_ocr_asset_manifest(path: Path, *, expected_sha256: str | None = Non
         if actual_files - listed:
             raise EvidenceValidationError("OCR asset root contains unlisted files")
     entries = [{"path": item["path"], "sha256": str(item["sha256"]).lower(), **({"bytes": item["bytes"]} if "bytes" in item else {})} for item in files]
-    return {"sha256": actual_manifest_hash, "file_count": len(files), "files": sorted(seen), "entries": sorted(entries, key=lambda item: item["path"]), "paddlex_config": config, "paddlex_config_sha256": config_hash}
+    return {"sha256": actual_manifest_hash, "file_count": len(files), "files": sorted(seen), "entries": sorted(entries, key=lambda item: item["path"]), "paddlex_config": config, "paddlex_config_sha256": config_hash, **({"model_identity": model_identity} if model_identity else {})}
 
 
 def paddle_runtime_configuration(*, asset_root: Path, manifest_path: Path | None = None, configured_config: str | None = None, require_local: bool | None = None) -> dict[str, Any]:
@@ -1253,10 +1311,22 @@ def paddle_runtime_configuration(*, asset_root: Path, manifest_path: Path | None
         raise EvidenceValidationError(f"selected PaddleX configuration must be {PADDLE_OCR_CONFIG}")
     manifest_identity: dict[str, Any] | None = None
     if manifest.is_file() or manifest.is_symlink():
-        manifest_identity = validate_ocr_asset_manifest(manifest, asset_root=root, verify_files=True)
+        try:
+            raw_manifest_value = json.loads(manifest.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            raw_manifest_value = {}
+        strict_model_identity = local_required and isinstance(raw_manifest_value, dict) and isinstance(raw_manifest_value.get("model_identity"), dict)
+        manifest_identity = validate_ocr_asset_manifest(manifest, asset_root=root, verify_files=True, require_model_identity=strict_model_identity)
         if manifest_identity["paddlex_config"] != relative.as_posix() or manifest_identity["paddlex_config_sha256"] != sha256_file(config_path):
             raise EvidenceValidationError("selected PaddleX configuration does not match the asset manifest")
-    return {"paddlex_config": relative.as_posix(), "paddlex_config_sha256": sha256_file(config_path), "offline_assets_required": bool(local_required), "asset_manifest_sha256": manifest_identity["sha256"] if manifest_identity else None}
+    declared_model_identity = manifest_identity.get("model_identity") if manifest_identity else None
+    # Older non-runtime fixtures may carry a generic pipeline config and a
+    # manifest without model identity. Keep those fixtures readable while the
+    # strict artifact build/verification path still requires the identity.
+    model_identity = declared_model_identity if isinstance(declared_model_identity, dict) else (
+        {} if manifest_identity else _selected_paddlex_models(config_path, asset_root=root, require_local=local_required)
+    )
+    return {"paddlex_config": relative.as_posix(), "paddlex_config_sha256": sha256_file(config_path), "offline_assets_required": bool(local_required), "asset_manifest_sha256": manifest_identity["sha256"] if manifest_identity else None, **model_identity}
 
 
 def _require_hex(value: Any, label: str) -> str:

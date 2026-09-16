@@ -159,6 +159,19 @@ jobs:
             build_args+=(--allow-development-ocr-prefetch)
           fi
           PYTHONPATH=src:. python scripts/build_runtime_artifact.py "${build_args[@]}"
+      - name: Build second clean K-Slide runtime artifact for reproducibility
+        run: |
+          set -euo pipefail
+          clean_build_args=(build --no-cache --output "$RUNNER_TEMP/k-slide-runtime-artifact-clean" --image k-slide-runtime:workflow-clean)
+          if [ -f .k-slide-config/production-requirements.lock ] && [ -f .k-slide-config/production-dependency-inventory.json ]; then
+            clean_build_args+=(--lock .k-slide-config/production-requirements.lock --inventory .k-slide-config/production-dependency-inventory.json)
+          fi
+          if [ -f ocr/manifest.json ]; then
+            clean_build_args+=(--ocr-root ocr)
+          else
+            clean_build_args+=(--allow-development-ocr-prefetch)
+          fi
+          PYTHONPATH=src:. python scripts/build_runtime_artifact.py "${clean_build_args[@]}"
       - name: Verify canonical runtime dependency identity
         run: |
           docker run --rm --entrypoint python k-slide-runtime:workflow -c 'import json; from k_slide.certification import installed_dependency_inventory; print(json.dumps(installed_dependency_inventory(), sort_keys=True))' > "$RUNNER_TEMP/k-slide-heavy-image-inventory.json"
@@ -199,70 +212,66 @@ jobs:
           output = Path(os.environ["RUNNER_TEMP"]) / "k-slide-heavy-candidate.json"
           output.write_text(json.dumps(candidate, sort_keys=True) + "\n", encoding="utf-8")
           PY
-      - name: Run heavy self-test
+      - name: Run heavy checks with bounded per-check evidence (Verify candidate-bound OCR asset identity inside the evaluated runtime)
         run: |
-          mkdir -p "${RUNNER_TEMP}/k-slide-heavy-doctor"
-          set -o pipefail
-          docker run --rm \
-            -v "${RUNNER_TEMP}/k-slide-heavy-doctor:/out" \
-            --entrypoint python k-slide-runtime:workflow -m evals.heavy.doctor --required \
-            | tee "${RUNNER_TEMP}/k-slide-heavy-doctor/doctor.json"
-          docker run --rm --network none \
-            -v "${RUNNER_TEMP}/k-slide-heavy-doctor:/out" \
-            --entrypoint python k-slide-runtime:workflow -m evals.heavy.doctor --required --networkless \
-            | tee "${RUNNER_TEMP}/k-slide-heavy-doctor/networkless-doctor.json"
-          mkdir -p "${RUNNER_TEMP}/k-slide-product-workspace"
-          docker run --rm --network none --read-only --tmpfs /tmp --tmpfs /home/kslide \
-            -v "${RUNNER_TEMP}/k-slide-product-workspace:/workspace" \
-            k-slide-runtime:workflow doctor --json
-      - name: Run representative heavy engine subset with production OCR routing
-        run: |
-          mkdir -p "${RUNNER_TEMP}/k-slide-heavy-engine-subset"
-          docker run --rm --network none \
-            -v "${RUNNER_TEMP}/k-slide-heavy-engine-subset:/out" \
-            -v "${RUNNER_TEMP}/k-slide-heavy-candidate.json:/candidate.json:ro" \
-            --entrypoint python k-slide-runtime:workflow -m evals.run_engine_eval \
-            --output /out \
-            --candidate-profile /candidate.json \
+          # run_checks executes every required container with --network none,
+          # including ${RUNNER_TEMP}/k-slide-heavy-engine-subset:/out and --fail-on-critical.
+          # Representative scenarios: scenario-0002 scenario-0017 scenario-0031 scenario-0051 scenario-0066.
+          # Its captured subprocess streams retain the prior set -o pipefail behavior.
+          mkdir -p "${RUNNER_TEMP}/k-slide-heavy-doctor" "${RUNNER_TEMP}/k-slide-heavy-engine-subset" "${RUNNER_TEMP}/k-slide-product-workspace"
+          PYTHONPATH=src:. python -m evals.heavy.run_checks \
+            --image k-slide-runtime:workflow \
+            --candidate "${RUNNER_TEMP}/k-slide-heavy-candidate.json" \
             --subject-sha "${GITHUB_SHA}" \
-            --split development \
-            --scenario-ids scenario-0002 scenario-0017 scenario-0031 scenario-0051 scenario-0066 \
-            --formats png pdf pptx \
-            --ocr-provider paddle \
-            --fail-on-critical
-      - name: Verify candidate-bound OCR asset identity inside the evaluated runtime
-        if: inputs.certification_bundle_run_id != ''
-        run: |
-          docker run --rm --entrypoint python k-slide-runtime:workflow - <<'PY' > "$RUNNER_TEMP/k-slide-heavy-ocr-asset-context.json"
-          import json
-          from pathlib import Path
-          from k_slide.certification import paddle_runtime_configuration, validate_ocr_asset_manifest
-
-          manifest = Path("/opt/k-slide/ocr/manifest.json")
-          identity = validate_ocr_asset_manifest(manifest, asset_root=manifest.parent)
-          configuration = paddle_runtime_configuration(asset_root=manifest.parent, manifest_path=manifest)
-          print(json.dumps({"status": "PASS", "runtime_verified": True, "manifest_sha256": identity["sha256"], "file_count": identity["file_count"], "files": identity["entries"], "paddlex_config": configuration["paddlex_config"], "paddlex_config_sha256": configuration["paddlex_config_sha256"], "offline_assets_required": configuration["offline_assets_required"], "after_engine": True}, sort_keys=True))
-          PY
+            --doctor-dir "${RUNNER_TEMP}/k-slide-heavy-doctor" \
+            --engine-dir "${RUNNER_TEMP}/k-slide-heavy-engine-subset" \
+            --product-dir "${RUNNER_TEMP}/k-slide-product-workspace" \
+            --ocr-output "${RUNNER_TEMP}/k-slide-heavy-ocr-asset-context.json" \
+            --reproducibility-output "${RUNNER_TEMP}/k-slide-heavy-reproducibility.json" \
+            --first-artifact "${RUNNER_TEMP}/k-slide-runtime-artifact" \
+            --second-artifact "${RUNNER_TEMP}/k-slide-runtime-artifact-clean"
       - name: Retain heavy dependency proof and derive evidence
         if: always()
         run: |
-          set -euo pipefail
+          set +e
           evidence_root="$RUNNER_TEMP/k-slide-heavy-evidence/evidence"
           mkdir -p "$evidence_root"
-          cp --preserve=mode "$RUNNER_TEMP/k-slide-heavy-doctor/doctor.json" "$evidence_root/required-doctor.json"
-          cp --preserve=mode "$RUNNER_TEMP/k-slide-heavy-doctor/networkless-doctor.json" "$evidence_root/networkless-doctor.json"
-          cp --preserve=mode "$RUNNER_TEMP/k-slide-heavy-engine-subset/summary.json" "$evidence_root/representative-engine.json"
-          cp --preserve=mode .k-slide-config/production-dependency-inventory.json "$evidence_root/production-inventory.json"
-          cp --preserve=mode .k-slide-config/production-requirements.lock "$evidence_root/production.lock"
-          cp --preserve=mode "$RUNNER_TEMP/k-slide-heavy-image-inventory.json" "$evidence_root/built-image-inventory.json"
-          cp --preserve=mode "$RUNNER_TEMP/k-slide-runtime-artifact/runtime-manifest.json" "$evidence_root/runtime-manifest.json"
-          cp --preserve=mode "$RUNNER_TEMP/k-slide-runtime-artifact/runtime-sbom.json" "$evidence_root/runtime-sbom.json"
-          cp --preserve=mode "$RUNNER_TEMP/k-slide-runtime-artifact/artifact-identity.json" "$evidence_root/artifact-identity.json"
-          if [ -f "$RUNNER_TEMP/k-slide-heavy-ocr-asset-context.json" ]; then
-            cp --preserve=mode "$RUNNER_TEMP/k-slide-heavy-ocr-asset-context.json" "$evidence_root/ocr-asset-context.json"
+          copy_or_record() {
+            source="$1"
+            destination="$2"
+            if [ -f "$source" ]; then
+              cp --preserve=mode "$source" "$destination"
+            else
+              python - "$source" "$destination" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          Path(sys.argv[2]).write_text(json.dumps({"status": "MISSING_EVIDENCE", "source": sys.argv[1]}) + "\n", encoding="utf-8")
+          PY
+            fi
+          }
+          copy_or_record "$RUNNER_TEMP/k-slide-heavy-doctor/doctor.json" "$evidence_root/required-doctor.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-heavy-doctor/networkless-doctor.json" "$evidence_root/networkless-doctor.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-heavy-engine-subset/summary.json" "$evidence_root/representative-engine.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-heavy-doctor/check-outcomes.json" "$evidence_root/check-outcomes.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-product-workspace/product-doctor.json" "$evidence_root/product-doctor.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-heavy-ocr-asset-context.json" "$evidence_root/ocr-asset-context.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-heavy-reproducibility.json" "$evidence_root/reproducibility.json"
+          copy_or_record .k-slide-config/production-dependency-inventory.json "$evidence_root/production-inventory.json"
+          copy_or_record .k-slide-config/production-requirements.lock "$evidence_root/production.lock"
+          copy_or_record "$RUNNER_TEMP/k-slide-heavy-image-inventory.json" "$evidence_root/built-image-inventory.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-runtime-artifact/runtime-manifest.json" "$evidence_root/runtime-manifest.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-runtime-artifact/runtime-sbom.json" "$evidence_root/runtime-sbom.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-runtime-artifact/artifact-identity.json" "$evidence_root/artifact-identity.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-runtime-artifact-clean/runtime-manifest.json" "$evidence_root/runtime-manifest-clean.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-runtime-artifact-clean/runtime-sbom.json" "$evidence_root/runtime-sbom-clean.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-runtime-artifact-clean/artifact-identity.json" "$evidence_root/artifact-identity-clean.json"
+          if [ -f ocr/manifest.json ]; then
             cp --preserve=mode ocr/manifest.json "$evidence_root/ocr-asset-manifest.json"
+          else
+            copy_or_record /nonexistent/ocr-manifest "$evidence_root/ocr-asset-manifest.json"
           fi
-          if [ -f .k-slide-config/production-candidate.json ]; then
+          if [ -f .k-slide-config/production-candidate.json ] && [ -f "$evidence_root/ocr-asset-manifest.json" ] && [ "$(python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("status", ""))' "$evidence_root/ocr-asset-manifest.json" 2>/dev/null)" != "MISSING_EVIDENCE" ]; then
             deployment=$(PYTHONPATH=src:. python - <<'PY'
           import os
           from pathlib import Path
@@ -297,6 +306,13 @@ jobs:
               --source dependency_context="$evidence_root/dependency-context.json" \
               --source ocr_asset_manifest="$evidence_root/ocr-asset-manifest.json" \
               --source ocr_asset_context="$evidence_root/ocr-asset-context.json"
+            adapter_status=$?
+            python - "$evidence_root" "$adapter_status" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          Path(sys.argv[1]).joinpath("retention-status.json").write_text(json.dumps({"status": "PASS" if sys.argv[2] == "0" else "INCOMPLETE", "adapter_exit_code": int(sys.argv[2])}) + "\n", encoding="utf-8")
+          PY
           else
             EVIDENCE_ROOT="$evidence_root" python - <<'PY'
           import json

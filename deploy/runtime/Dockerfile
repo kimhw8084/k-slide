@@ -22,6 +22,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     KSLIDE_OCR_ASSET_ROOT=/opt/k-slide/ocr \
     PADDLEX_HOME=/opt/k-slide/ocr/paddlex \
+    PADDLE_PDX_CACHE_HOME=/opt/k-slide/ocr/paddlex \
+    PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=1 \
     KSLIDE_PADDLEX_CONFIG=/opt/k-slide/ocr/PaddleOCR.yaml \
     KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS=1 \
     KSLIDE_PADDLE_OCR_VERSION=PP-OCRv5 \
@@ -78,7 +80,7 @@ RUN set -eux; \
 
 RUN mkdir -p /opt/k-slide/ocr /opt/k-slide/runtime /opt/k-slide-tools/evals/heavy
 COPY deploy/runtime/ocr-context/ /opt/k-slide/ocr/
-COPY evals/__init__.py evals/fonts.py evals/scenarios.py evals/deck_scenarios.py evals/generator.py /opt/k-slide-tools/evals/
+COPY evals/__init__.py evals/fonts.py evals/scenarios.py evals/generator.py evals/scorers.py evals/run_engine_eval.py /opt/k-slide-tools/evals/
 COPY evals/heavy/doctor.py /opt/k-slide-tools/evals/heavy/doctor.py
 COPY evals/heavy/prefetch_ocr_models.py /tmp/k-slide-prefetch-ocr.py
 RUN rm -f /opt/k-slide/ocr/.keep; \
