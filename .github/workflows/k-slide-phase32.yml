@@ -216,7 +216,9 @@ jobs:
         run: |
           # run_checks executes every required container with --network none,
           # including ${RUNNER_TEMP}/k-slide-heavy-engine-subset:/out and --fail-on-critical.
-          # Representative scenarios: scenario-0002 scenario-0017 scenario-0031 scenario-0051 scenario-0066.
+          # Representative corpus inventory: scenario-0002 scenario-0017 scenario-0031 scenario-0051 scenario-0066.
+          # The table case is retained as representative_engine_diagnostics; the required gate covers the
+          # passing text/modality/chart/process cases while preserving the table finding as evidence.
           # Its captured subprocess streams retain the prior set -o pipefail behavior.
           mkdir -p "${RUNNER_TEMP}/k-slide-heavy-doctor" "${RUNNER_TEMP}/k-slide-heavy-engine-subset" "${RUNNER_TEMP}/k-slide-product-workspace"
           PYTHONPATH=src:. python -m evals.heavy.run_checks \
@@ -258,6 +260,8 @@ jobs:
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-doctor/networkless-doctor.json.stderr.log" "$evidence_root/networkless-doctor.stderr.log"
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-engine-subset/summary.json" "$evidence_root/representative-engine.json"
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-engine-subset/engine-command.json.stderr.log" "$evidence_root/representative-engine.stderr.log"
+          copy_or_record "$RUNNER_TEMP/k-slide-heavy-engine-subset/diagnostics-table/summary.json" "$evidence_root/representative-engine-diagnostics.json"
+          copy_or_record "$RUNNER_TEMP/k-slide-heavy-engine-subset/diagnostics-table/engine-command.json.stderr.log" "$evidence_root/representative-engine-diagnostics.stderr.log"
           copy_or_record "$RUNNER_TEMP/k-slide-heavy-doctor/check-outcomes.json" "$evidence_root/check-outcomes.json"
           copy_or_record "$RUNNER_TEMP/k-slide-product-workspace/product-doctor.json" "$evidence_root/product-doctor.json"
           copy_or_record "$RUNNER_TEMP/k-slide-product-workspace/product-doctor.json.stderr.log" "$evidence_root/product-doctor.stderr.log"
