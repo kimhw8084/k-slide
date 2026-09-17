@@ -5,13 +5,16 @@ import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from unittest.mock import patch
 
 from k_slide.errors import ErrorCode, KSlideError
 from k_slide.execution import (
     EngineStepResult,
+    OperationalLifecycle,
     ProgressSnapshot,
     ResultCommitMarker,
     StoreWriteStatus,
+    TerminalOutcome,
 )
 from k_slide.evidence_ir import stable_revision
 from k_slide.paas import (
@@ -21,6 +24,7 @@ from k_slide.paas import (
     PaaSWorker,
     QueueAdmissionState,
     ReferencePaaSJobService,
+    ReferencePaaSRunStore,
     ReferenceWorkerEngine,
     ScopedPaaSRunStore,
     RuntimeIdentity,
@@ -28,6 +32,21 @@ from k_slide.paas import (
 
 
 RUNTIME = RuntimeIdentity("runtime-pinned", "model-pinned", "ocr-pinned", "termbase-pinned")
+
+
+class _NeedsReviewEngine:
+    def operation_id(self, job):
+        return f"{job.execution_id}-review-{job.checkpoint.revision + 1}"
+
+    def step(self, checkpoint, operation_id):
+        next_checkpoint = replace(
+            checkpoint,
+            revision=checkpoint.revision + 1,
+            engine_phase="NEEDS_REVIEW",
+            progress=ProgressSnapshot("NEEDS_REVIEW", 0, checkpoint.progress.total_work_units),
+            checkpoint_sha256="",
+        )
+        return EngineStepResult(next_checkpoint)
 
 
 def _submit_process(root_text: str, user: str, workspace: str, scope: str, run_id: str, output) -> None:
@@ -146,6 +165,95 @@ class ScopedAdmissionIntegrationTests(unittest.TestCase):
             result = PaaSWorker(reconstructed, worker_id="worker-two", runtime_identity=RUNTIME, engine=ReferenceWorkerEngine(), scope_context=context).run_until_terminal(first.identity)
             self.assertEqual(result.status, "DONE")
             self.assertEqual(reconstructed.queue(scope_context=context).active_job_id, second.job_id)
+
+    def test_record_only_admission_reserves_sequence_across_store_create_crash(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            context = self._context()
+            service = ReferencePaaSJobService(root)
+            with patch.object(ReferencePaaSRunStore, "create", side_effect=RuntimeError("stop before store create")):
+                with self.assertRaisesRegex(RuntimeError, "stop before store create"):
+                    self._submit(service, context, "run-first")
+
+            recreated = ReferencePaaSJobService(root)
+            second = self._submit(recreated, context, "run-second")
+            self.assertEqual(second.status, StoreWriteStatus.ACCEPTED)
+            before_reconcile = recreated.queue(scope_context=context)
+            self.assertEqual([entry.sequence for entry in before_reconcile.entries], [1, 2])
+            self.assertIsNone(before_reconcile.active_job_id)
+
+            contradictory_retry = self._submit(recreated, context, "run-first", total=2)
+            self.assertEqual(contradictory_retry.status, StoreWriteStatus.CONFLICT)
+            first_retry = self._submit(ReferencePaaSJobService(root), context, "run-first")
+            self.assertEqual(first_retry.status, StoreWriteStatus.ACCEPTED)
+            final = ReferencePaaSJobService(root).queue(scope_context=context)
+            self.assertEqual([entry.sequence for entry in final.entries], [1, 2])
+            self.assertEqual(len({entry.sequence for entry in final.entries}), 2)
+            self.assertEqual([entry.identity.run_id for entry in final.entries], ["run-first", "run-second"])
+            self.assertEqual(final.active_job_id, first_retry.job_id)
+
+            reconstructed_again = ReferencePaaSJobService(root)
+            self.assertEqual(
+                [(entry.sequence, entry.identity.job_id) for entry in reconstructed_again.queue(scope_context=context).entries],
+                [(1, first_retry.job_id), (2, second.job_id)],
+            )
+
+    def test_needs_review_releases_slot_but_only_explicit_fifo_resume_reacquires_it(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            context = self._context()
+            service = ReferencePaaSJobService(root)
+            first = self._submit(service, context, "run-review")
+            second = self._submit(service, context, "run-second")
+            third = self._submit(service, context, "run-third")
+            review_worker = PaaSWorker(
+                service,
+                worker_id="review-worker",
+                runtime_identity=RUNTIME,
+                engine=_NeedsReviewEngine(),
+                scope_context=context,
+            )
+            review = review_worker.run_once(first.identity)
+            self.assertEqual(review.status, "NEEDS_REVIEW")
+            self.assertEqual(review.job.lifecycle, OperationalLifecycle.COMPLETED)
+            self.assertEqual(review.job.terminal_outcome, TerminalOutcome.NEEDS_REVIEW)
+
+            queue = service.queue(scope_context=context)
+            self.assertEqual(queue.active_job_id, second.job_id)
+            self.assertEqual([entry.admission_state.value for entry in queue.entries], ["TERMINAL", "ACTIVE", "QUEUED"])
+            with self.assertRaises(KSlideError) as raised:
+                review_worker.run_once(first.identity)
+            self.assertEqual(raised.exception.code, ErrorCode.EXECUTION_CONFLICT)
+
+            worker = PaaSWorker(
+                service,
+                worker_id="fifo-worker",
+                runtime_identity=RUNTIME,
+                engine=ReferenceWorkerEngine(),
+                scope_context=context,
+            )
+            self.assertEqual(worker.run_until_terminal(second.identity).status, "DONE")
+            self.assertEqual(service.queue(scope_context=context).active_job_id, third.job_id)
+            self.assertEqual(worker.run_until_terminal(third.identity).status, "DONE")
+
+            reconstructed = ReferencePaaSJobService(root)
+            settled = reconstructed.queue(scope_context=context)
+            self.assertIsNone(settled.active_job_id)
+            self.assertTrue(all(entry.admission_state is QueueAdmissionState.TERMINAL for entry in settled.entries))
+            with self.assertRaises(KSlideError) as raised:
+                reconstructed.claim_next(worker_id="automatic-worker", runtime_identity=RUNTIME, scope_context=context)
+            self.assertEqual(raised.exception.code, ErrorCode.EXECUTION_NOT_FOUND)
+
+            resumed = PaaSWorker(
+                reconstructed,
+                worker_id="resume-worker",
+                runtime_identity=RUNTIME,
+                engine=ReferenceWorkerEngine(),
+                scope_context=context,
+            ).run_until_terminal(first.identity)
+            self.assertEqual(resumed.status, "DONE")
+            self.assertEqual(resumed.job.terminal_outcome, TerminalOutcome.DONE)
+            self.assertIsNone(reconstructed.queue(scope_context=context).active_job_id)
 
     def test_terminal_and_acknowledged_cancellation_advance_exactly_one_successor(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

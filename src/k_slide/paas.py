@@ -744,6 +744,7 @@ class _ScopedJobRecord:
     admission_sequence: int
     scope_context: AuthorizedScopeContext
     references: ScopedArtifactReferences
+    submission_fingerprint: str | None = None
     schema_version: str = SCOPED_PAAS_CONTRACT_VERSION
 
     def as_dict(self) -> dict[str, Any]:
@@ -756,13 +757,15 @@ class _ScopedJobRecord:
             "scope": self.scope_context.as_dict(),
             "references": self.references.as_dict(),
         }
+        if self.submission_fingerprint is not None:
+            value["submission_fingerprint"] = self.submission_fingerprint
         value["record_sha256"] = stable_revision(value)
         return value
 
 
 def _scoped_record_from_dict(value: Any) -> _ScopedJobRecord:
     required = {"schema_version", "identity", "runtime_identity", "submitted_at", "admission_sequence", "scope", "references", "record_sha256"}
-    if not isinstance(value, dict) or set(value) != required:
+    if not isinstance(value, dict) or set(value) not in (required, required | {"submission_fingerprint"}):
         raise _invalid("Scoped PaaS job record is corrupt.", code=ErrorCode.STATE_CORRUPT)
     without_hash = dict(value)
     record_hash = without_hash.pop("record_sha256")
@@ -772,6 +775,9 @@ def _scoped_record_from_dict(value: Any) -> _ScopedJobRecord:
         raise _invalid("Unsupported scoped PaaS job record version.", code=ErrorCode.EXECUTION_UNSUPPORTED_VERSION)
     if not isinstance(value["admission_sequence"], int) or value["admission_sequence"] < 1:
         raise _invalid("Scoped PaaS job admission sequence is invalid.", code=ErrorCode.STATE_CORRUPT)
+    submission_fingerprint = value.get("submission_fingerprint")
+    if submission_fingerprint is not None and (not isinstance(submission_fingerprint, str) or not re.fullmatch(r"[0-9a-f]{64}", submission_fingerprint)):
+        raise _invalid("Scoped PaaS submission fingerprint is invalid.", code=ErrorCode.STATE_CORRUPT)
     try:
         identity = DurableJobIdentity.from_dict(value["identity"])
         runtime_identity = RuntimeIdentity.from_dict(value["runtime_identity"])
@@ -780,13 +786,34 @@ def _scoped_record_from_dict(value: Any) -> _ScopedJobRecord:
         _validate_scoped_identity(identity)
         if identity.scope_ref != context.scope_ref or references.scope_ref != context.scope_ref or references.store_ref != identity.store_ref:
             raise _invalid("Scoped PaaS job references do not match its authorized scope.", code=ErrorCode.STATE_CORRUPT)
-        record = _ScopedJobRecord(identity, runtime_identity, value["submitted_at"], value["admission_sequence"], context, references, value["schema_version"])
+        record = _ScopedJobRecord(
+            identity,
+            runtime_identity,
+            value["submitted_at"],
+            value["admission_sequence"],
+            context,
+            references,
+            submission_fingerprint,
+            value["schema_version"],
+        )
     except KSlideError:
         raise
     except (KeyError, TypeError, ValueError) as exc:
         raise _invalid("Scoped PaaS job record is invalid.", code=ErrorCode.STATE_CORRUPT) from exc
     _timestamp(record.submitted_at, "scoped submission")
     return record
+
+
+def _scoped_submission_fingerprint(job: ExecutionJob, runtime_identity: RuntimeIdentity) -> str:
+    return stable_revision(
+        {
+            "identity": DurableJobIdentity.from_job(job).as_dict(),
+            "runtime_identity": runtime_identity.as_dict(),
+            "total_work_units": job.checkpoint.progress.total_work_units,
+            "max_attempts": job.retry.max_attempts,
+            "engine_state_revision": job.checkpoint.engine_state_revision,
+        }
+    )
 
 
 class ScopedPaaSRunStore(PaaSRunStore):
@@ -982,7 +1009,10 @@ class ReferencePaaSJobService(RunStoreResolver):
         if not path.is_file():
             raise KSlideError(ErrorCode.EXECUTION_NOT_FOUND, "Durable PaaS job does not exist.", {"job_id": job_id})
         try:
-            return _scoped_record_from_dict(read_json(path))
+            record = _scoped_record_from_dict(read_json(path))
+            if record.identity.job_id != job_id:
+                raise _invalid("Scoped durable PaaS job record identity does not match its path.", code=ErrorCode.STATE_CORRUPT)
+            return record
         except KSlideError as exc:
             if exc.code is ErrorCode.EXECUTION_UNSUPPORTED_VERSION:
                 raise
@@ -998,30 +1028,42 @@ class ReferencePaaSJobService(RunStoreResolver):
         except (OSError, TypeError, ValueError) as exc:
             raise KSlideError(ErrorCode.STATE_CORRUPT, "Scoped admission state is corrupt or unreadable.", {"path": path.name}) from exc
 
-    def _recover_scoped_state(self, scope_context: AuthorizedScopeContext) -> _ScopedControlState:
-        entries: list[_ScopedQueueRecord] = []
+    def _read_scoped_records(self, scope_context: AuthorizedScopeContext) -> dict[str, _ScopedJobRecord]:
+        records: dict[str, _ScopedJobRecord] = {}
         jobs_root = self._scope_root(scope_context) / "jobs"
         if jobs_root.is_dir():
             for path in sorted(jobs_root.glob("*.json")):
                 record = self._read_scoped_record(scope_context, path.stem)
                 if record.scope_context != scope_context:
                     raise KSlideError(ErrorCode.STATE_CORRUPT, "Scoped job record belongs to a different authorized scope.")
-                entries.append(_ScopedQueueRecord(record.admission_sequence, record.identity, record.references))
-        entries.sort(key=lambda item: (item.sequence, item.identity.job_id))
-        active_job_id: str | None = None
-        store = self._scoped_store(scope_context)
-        for entry in entries:
-            try:
-                job = store.load(entry.identity.job_id)
-            except KSlideError as exc:
-                if exc.code is ErrorCode.EXECUTION_NOT_FOUND:
-                    continue
-                raise
-            if not self._terminal_for_admission(job):
-                active_job_id = entry.identity.job_id
-                break
-        live_entries = tuple(entry for entry in entries if (self._scope_root(scope_context) / "run-store" / "jobs" / f"{entry.identity.job_id}.json").is_file())
-        return _ScopedControlState(scope_context=scope_context, active_job_id=active_job_id if active_job_id in {entry.identity.job_id for entry in live_entries} else None, entries=live_entries, next_sequence=max((item.sequence for item in live_entries), default=0) + 1)
+                if record.identity.job_id in records:
+                    raise KSlideError(ErrorCode.STATE_CORRUPT, "Scoped admission records contain a duplicate job identity.")
+                records[record.identity.job_id] = record
+
+        store_jobs_root = self._scope_root(scope_context) / "run-store" / "jobs"
+        if store_jobs_root.is_dir():
+            for path in sorted(store_jobs_root.glob("*.json")):
+                if path.stem not in records:
+                    raise KSlideError(ErrorCode.STATE_CORRUPT, "Scoped run-store job has no matching admission record.")
+
+        sequences = [record.admission_sequence for record in records.values()]
+        if len(sequences) != len(set(sequences)):
+            raise KSlideError(ErrorCode.STATE_CORRUPT, "Scoped admission records do not own unique sequences.")
+        return records
+
+    def _recover_scoped_state(self, scope_context: AuthorizedScopeContext) -> _ScopedControlState:
+        records = self._read_scoped_records(scope_context)
+        entries = tuple(
+            sorted(
+                (_ScopedQueueRecord(record.admission_sequence, record.identity, record.references) for record in records.values()),
+                key=lambda item: (item.sequence, item.identity.job_id),
+            )
+        )
+        return _ScopedControlState(
+            scope_context=scope_context,
+            entries=entries,
+            next_sequence=max((item.sequence for item in entries), default=0) + 1,
+        )
 
     def _load_scoped_state(self, scope_context: AuthorizedScopeContext) -> _ScopedControlState:
         control_path = self._scope_control_path(scope_context)
@@ -1062,39 +1104,67 @@ class ReferencePaaSJobService(RunStoreResolver):
 
     @staticmethod
     def _terminal_for_admission(job: ExecutionJob) -> bool:
-        return job.lifecycle in {OperationalLifecycle.CANCELED, OperationalLifecycle.PROCESSING_FAILED} or (
-            job.lifecycle is OperationalLifecycle.COMPLETED and job.terminal_outcome is TerminalOutcome.DONE
-        )
+        return job.lifecycle in {OperationalLifecycle.CANCELED, OperationalLifecycle.PROCESSING_FAILED, OperationalLifecycle.COMPLETED}
 
     def _normalize_scoped_state(self, state: _ScopedControlState) -> _ScopedControlState:
         store = self._scoped_store(state.scope_context)
-        valid_entries: list[_ScopedQueueRecord] = []
+        records = self._read_scoped_records(state.scope_context)
+        entries_by_job_id: dict[str, _ScopedQueueRecord] = {}
         for entry in state.entries:
-            try:
-                record = self._read_scoped_record(state.scope_context, entry.identity.job_id)
-                job = store.load(entry.identity.job_id)
-            except KSlideError as exc:
-                if exc.code is ErrorCode.EXECUTION_NOT_FOUND:
-                    continue
-                raise
+            record = records.get(entry.identity.job_id)
+            if record is None:
+                raise KSlideError(ErrorCode.STATE_CORRUPT, "Scoped queue entry has no matching admission record.")
             if record.identity != entry.identity or record.references != entry.references:
                 raise KSlideError(ErrorCode.STATE_CORRUPT, "Scoped queue entry does not match its durable job record.")
-            valid_entries.append(entry)
-            del job
-        valid_entries.sort(key=lambda item: (item.sequence, item.identity.job_id))
-        desired_active = state.active_job_id if any(item.identity.job_id == state.active_job_id for item in valid_entries) else None
-        if desired_active is not None:
-            current = store.load(desired_active)
-            if self._terminal_for_admission(current):
-                desired_active = None
-        if desired_active is None:
-            for entry in valid_entries:
-                if not self._terminal_for_admission(store.load(entry.identity.job_id)):
-                    desired_active = entry.identity.job_id
-                    break
-        if tuple(valid_entries) == state.entries and desired_active == state.active_job_id:
+            if entry.identity.job_id in entries_by_job_id:
+                raise KSlideError(ErrorCode.STATE_CORRUPT, "Scoped queue contains a duplicate job identity.")
+            entries_by_job_id[entry.identity.job_id] = entry
+
+        for job_id, record in records.items():
+            entry = _ScopedQueueRecord(record.admission_sequence, record.identity, record.references)
+            existing = entries_by_job_id.get(job_id)
+            if existing is not None:
+                if existing != entry:
+                    raise KSlideError(ErrorCode.STATE_CORRUPT, "Scoped admission record disagrees with its queue entry.")
+                continue
+            entries_by_job_id[job_id] = entry
+
+        valid_entries = sorted(entries_by_job_id.values(), key=lambda item: (item.sequence, item.identity.job_id))
+        sequences = [entry.sequence for entry in valid_entries]
+        if len(sequences) != len(set(sequences)):
+            raise KSlideError(ErrorCode.STATE_CORRUPT, "Scoped queue entries do not own unique sequences.")
+
+        jobs: dict[str, ExecutionJob | None] = {}
+        for entry in valid_entries:
+            try:
+                job = store.load(entry.identity.job_id)
+            except KSlideError as exc:
+                if exc.code is not ErrorCode.EXECUTION_NOT_FOUND:
+                    raise
+                # The admission record owns the sequence while a retry
+                # reconciles a crash between record and KSA-06 store create.
+                job = None
+            if job is not None:
+                self._check_scoped_job(job, entry.identity, records[entry.identity.job_id])
+            jobs[entry.identity.job_id] = job
+
+        desired_active: str | None = None
+        blocked_by_pending_store = False
+        for entry in valid_entries:
+            job = jobs[entry.identity.job_id]
+            if job is None:
+                blocked_by_pending_store = True
+                continue
+            if blocked_by_pending_store:
+                continue
+            if desired_active is None and not self._terminal_for_admission(job):
+                desired_active = entry.identity.job_id
+
+        next_sequence = max(state.next_sequence, max(sequences, default=0) + 1)
+        normalized_entries = tuple(valid_entries)
+        if normalized_entries == state.entries and desired_active == state.active_job_id and next_sequence == state.next_sequence:
             return state
-        return replace(state, revision=state.revision + 1, active_job_id=desired_active, entries=tuple(valid_entries), next_sequence=max((item.sequence for item in valid_entries), default=0) + 1)
+        return replace(state, revision=state.revision + 1, active_job_id=desired_active, entries=normalized_entries, next_sequence=next_sequence)
 
     def _resolve_scoped_identity(self, identity: DurableJobIdentity | str, scope_context: AuthorizedScopeContext) -> tuple[DurableJobIdentity, _ScopedJobRecord]:
         if isinstance(identity, DurableJobIdentity):
@@ -1117,7 +1187,18 @@ class ReferencePaaSJobService(RunStoreResolver):
 
     @staticmethod
     def _same_scoped_submission(existing: ExecutionJob, candidate: ExecutionJob, existing_record: _ScopedJobRecord, runtime_identity: RuntimeIdentity) -> bool:
-        return ReferencePaaSJobService._same_submission(existing, candidate) and existing_record.runtime_identity == runtime_identity
+        return (
+            ReferencePaaSJobService._same_submission(existing, candidate)
+            and existing_record.runtime_identity == runtime_identity
+            and (existing_record.submission_fingerprint is None or existing_record.submission_fingerprint == _scoped_submission_fingerprint(candidate, runtime_identity))
+        )
+
+    @staticmethod
+    def _same_scoped_admission(record: _ScopedJobRecord, candidate: ExecutionJob, runtime_identity: RuntimeIdentity) -> bool:
+        # A record-only crash window must be reconciled against the immutable
+        # source-free submission fingerprint; a legacy record without one
+        # cannot safely be interpreted as a new payload.
+        return record.submission_fingerprint is not None and record.submission_fingerprint == _scoped_submission_fingerprint(candidate, runtime_identity)
 
     def _scoped_status(self, identity: DurableJobIdentity, job: ExecutionJob, references: ScopedArtifactReferences) -> PaaSJobStatus:
         return PaaSJobStatus.from_job(job, references=references)
@@ -1227,22 +1308,37 @@ class ReferencePaaSJobService(RunStoreResolver):
                 except KSlideError as exc:
                     if exc.code is not ErrorCode.EXECUTION_NOT_FOUND:
                         raise
-                    if record.identity != identity or record.runtime_identity != runtime_identity:
+                    if record.identity != identity or not self._same_scoped_admission(record, job, runtime_identity):
                         return PaaSSubmissionReceipt(StoreWriteStatus.CONFLICT, record.identity, record.references)
                     stored = backend.create(job)
                     if stored.status is StoreWriteStatus.CONFLICT:
                         return PaaSSubmissionReceipt(StoreWriteStatus.CONFLICT, record.identity, record.references)
-                    if not any(entry.identity.job_id == identity.job_id for entry in state.entries):
-                        entry = _ScopedQueueRecord(record.admission_sequence, identity, references)
-                        next_state = replace(state, revision=state.revision + 1, next_sequence=max(state.next_sequence, record.admission_sequence + 1), active_job_id=state.active_job_id or identity.job_id, entries=tuple(sorted((*state.entries, entry), key=lambda item: (item.sequence, item.identity.job_id))))
-                        self._persist_scoped_state(next_state)
+                    entry = _ScopedQueueRecord(record.admission_sequence, identity, record.references)
+                    entries = tuple(item for item in state.entries if item.identity.job_id != identity.job_id)
+                    reconciled = self._normalize_scoped_state(
+                        replace(
+                            state,
+                            entries=tuple((*entries, entry)),
+                            next_sequence=max(state.next_sequence, record.admission_sequence + 1),
+                        )
+                    )
+                    if reconciled.as_dict() != state.as_dict():
+                        self._persist_scoped_state(reconciled)
                     return PaaSSubmissionReceipt(StoreWriteStatus.ACCEPTED, identity, references)
                 self._check_scoped_job(existing, record.identity, record)
                 if not self._same_scoped_submission(existing, job, record, runtime_identity):
                     return PaaSSubmissionReceipt(StoreWriteStatus.CONFLICT, record.identity, record.references)
                 return PaaSSubmissionReceipt(StoreWriteStatus.IDEMPOTENT, record.identity, record.references)
             sequence = state.next_sequence
-            record = _ScopedJobRecord(identity, runtime_identity, now_utc(), sequence, scope_context, references)
+            record = _ScopedJobRecord(
+                identity,
+                runtime_identity,
+                now_utc(),
+                sequence,
+                scope_context,
+                references,
+                _scoped_submission_fingerprint(job, runtime_identity),
+            )
             try:
                 orphaned = backend.load(identity.job_id)
             except KSlideError as exc:
@@ -1254,11 +1350,9 @@ class ReferencePaaSJobService(RunStoreResolver):
                 # interrupted prior transaction.  Do not overwrite it with a
                 # different submission; recovery/repair must remain explicit.
                 return PaaSSubmissionReceipt(StoreWriteStatus.CONFLICT, identity, references)
-            # The source-free record is written first.  If a process stops
-            # before the KSA-06 store create, recovery drops this uncommitted
-            # admission record; if it stops after the store create, recovery
-            # retains the record and reconstructs the queue.  Both files are
-            # still protected by the scope transaction lock.
+            # The source-free record owns the sequence before the KSA-06 store
+            # create. Recovery therefore retains this reservation if a
+            # process stops in the interleaving between these two writes.
             atomic_write_json(path, record.as_dict(), mode=0o600)
             stored = backend.create(job)
             if stored.status is StoreWriteStatus.CONFLICT:
@@ -1268,8 +1362,13 @@ class ReferencePaaSJobService(RunStoreResolver):
                     return PaaSSubmissionReceipt(StoreWriteStatus.IDEMPOTENT, existing_record.identity, existing_record.references)
                 return PaaSSubmissionReceipt(StoreWriteStatus.CONFLICT, existing_record.identity, existing_record.references)
             entry = _ScopedQueueRecord(sequence, identity, references)
-            active_job_id = state.active_job_id or identity.job_id
-            next_state = replace(state, revision=state.revision + 1, next_sequence=sequence + 1, active_job_id=active_job_id, entries=tuple(sorted((*state.entries, entry), key=lambda item: (item.sequence, item.identity.job_id))))
+            next_state = self._normalize_scoped_state(
+                replace(
+                    state,
+                    next_sequence=sequence + 1,
+                    entries=tuple((*state.entries, entry)),
+                )
+            )
             self._persist_scoped_state(next_state)
             return PaaSSubmissionReceipt(stored.status, identity, references)
 
@@ -1374,6 +1473,32 @@ class ReferencePaaSJobService(RunStoreResolver):
                 raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Worker runtime identity does not match the durable job binding.", {"job_id": resolved.job_id})
             job = self._scoped_store(scope_context).load(resolved.job_id)
             self._check_scoped_job(job, resolved, record)
+            if job.lifecycle is OperationalLifecycle.COMPLETED and job.terminal_outcome is TerminalOutcome.NEEDS_REVIEW:
+                if job.resume_eligibility is not ResumeEligibility.ELIGIBLE:
+                    raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Durable review job is not eligible for explicit resume.")
+                if state.active_job_id not in {None, resolved.job_id}:
+                    raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Durable scope already has an active heavy job.")
+                for entry in state.entries:
+                    if entry.identity.job_id == resolved.job_id:
+                        break
+                    try:
+                        earlier = self._scoped_store(scope_context).load(entry.identity.job_id)
+                    except KSlideError as exc:
+                        if exc.code is ErrorCode.EXECUTION_NOT_FOUND:
+                            raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Durable review job cannot resume ahead of an unresolved admission.") from exc
+                        raise
+                    if not self._terminal_for_admission(earlier):
+                        raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Durable review job cannot resume ahead of queued work.")
+                resumed = self._scoped_store(scope_context).transition_operational(
+                    resolved.job_id,
+                    expected_revision=job.revision,
+                    lifecycle=OperationalLifecycle.RETRYING,
+                )
+                if not resumed.accepted:
+                    raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Durable review job changed before explicit resume.")
+                job = resumed.job
+                state = replace(state, revision=state.revision + 1, active_job_id=resolved.job_id)
+                self._persist_scoped_state(state)
             if not self._terminal_for_admission(job) and state.active_job_id != resolved.job_id:
                 raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Durable job is queued behind another job in this scope.")
             claim_state = "reattach" if job.lifecycle is OperationalLifecycle.RUNNING else "claim"
@@ -1438,7 +1563,16 @@ class ReferencePaaSJobService(RunStoreResolver):
             store = self._scoped_store(scope_context)
             for entry in state.entries:
                 record = self._read_scoped_record(scope_context, entry.identity.job_id)
-                job = store.load(entry.identity.job_id)
+                try:
+                    job = store.load(entry.identity.job_id)
+                except KSlideError as exc:
+                    if exc.code is not ErrorCode.EXECUTION_NOT_FOUND:
+                        raise
+                    # A record-only admission is a reserved FIFO position
+                    # awaiting its idempotent KSA-06 store reconciliation.
+                    entries.append(PaaSQueueEntry(entry.sequence, entry.identity, OperationalLifecycle.QUEUED, QueueAdmissionState.QUEUED, record.references))
+                    continue
+                self._check_scoped_job(job, entry.identity, record)
                 admission_state = QueueAdmissionState.TERMINAL if self._terminal_for_admission(job) else QueueAdmissionState.ACTIVE if state.active_job_id == entry.identity.job_id else QueueAdmissionState.QUEUED
                 entries.append(PaaSQueueEntry(entry.sequence, entry.identity, job.lifecycle, admission_state, record.references))
             return PaaSQueueStatus(scope_context, state.revision, state.active_job_id, tuple(entries))
