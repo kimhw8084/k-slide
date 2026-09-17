@@ -21,6 +21,7 @@ from .runtime import discover_runtime
 from .redaction import sanitize_operational
 from .security import InputArtifact, SUPPORTED_EXTENSIONS, sha256_file, validate_input
 from .session import bind_session
+from .storage import StorageArtifact, StorageLayout, StoragePlane, storage_path
 from .state import RunPhase, RunState, save_state
 
 
@@ -70,7 +71,7 @@ def _artifact_manifest(artifacts: list[InputArtifact]) -> dict[str, Any]:
 
 def _write_recovery(run_dir: Path, run_id: str) -> None:
     atomic_write_text(
-        run_dir / "RUN_RECOVERY_GUIDE.md",
+        storage_path(run_dir, StorageArtifact.RECOVERY_GUIDE, "RUN_RECOVERY_GUIDE.md", create_parent=True),
         "# K-Slide Recovery Guide\n\n"
         f"Run folder: `.k-slide-runs/{run_id}`\n\n"
         "If the session stops unexpectedly, run:\n\n"
@@ -80,7 +81,7 @@ def _write_recovery(run_dir: Path, run_id: str) -> None:
 
 
 def _write_compatibility_artifacts(run_dir: Path, run_id: str, artifacts: list[InputArtifact], *, host_inputs: bool = False) -> None:
-    atomic_write_json(run_dir / "RUN_MANIFEST.json", _artifact_manifest(artifacts), mode=0o600)
+    atomic_write_json(storage_path(run_dir, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json", create_parent=True), _artifact_manifest(artifacts), mode=0o600)
     inventory = {
         "schema_version": SCHEMA_VERSION,
         "status": "validated",
@@ -90,12 +91,12 @@ def _write_compatibility_artifacts(run_dir: Path, run_id: str, artifacts: list[I
         "supported_extensions": sorted(SUPPORTED_EXTENSIONS),
         "attachments": {"supported": host_inputs, "reason": "validated local host references" if host_inputs else "No host references were supplied; using the local compatibility folder."},
     }
-    atomic_write_json(run_dir / "00_input_inventory.json", inventory, mode=0o600)
+    atomic_write_json(storage_path(run_dir, StorageArtifact.INPUT_INVENTORY, "00_input_inventory.json", create_parent=True), inventory, mode=0o600)
     lines = ["# K-Slide Run Manifest", "", f"Run ID: {run_id}", f"Input count: {len(artifacts)}", ""]
     lines.extend(f"- {artifact.source_name} ({artifact.kind}, sha256 `{artifact.sha256}`)" for artifact in artifacts)
-    atomic_write_text(run_dir / "00_run_manifest.md", "\n".join(lines) + "\n")
+    atomic_write_text(storage_path(run_dir, StorageArtifact.SOURCE_MANIFEST, "00_run_manifest.md", create_parent=True), "\n".join(lines) + "\n")
     atomic_write_json(
-        run_dir / "ARTIFACT_MANIFEST.json",
+        storage_path(run_dir, StorageArtifact.SOURCE_MANIFEST, "ARTIFACT_MANIFEST.json", create_parent=True),
         {
             "schema_version": SCHEMA_VERSION,
             "required_for_complete": list(COMPLETION_POLICY.required_artifacts),
@@ -104,7 +105,7 @@ def _write_compatibility_artifacts(run_dir: Path, run_id: str, artifacts: list[I
         },
         mode=0o600,
     )
-    atomic_write_json(run_dir / "metrics.json", {"slides_processed": 0, "tables_processed": 0, "regions_processed": 0, "numbers_verified": 0, "unresolved_count": 0, "repair_count": 0, "phase": "INPUT_VALIDATED"}, mode=0o600)
+    atomic_write_json(storage_path(run_dir, StorageArtifact.METRICS, "metrics.json", create_parent=True), {"slides_processed": 0, "tables_processed": 0, "regions_processed": 0, "numbers_verified": 0, "unresolved_count": 0, "repair_count": 0, "phase": "INPUT_VALIDATED"}, mode=0o600)
 
 
 def prepare_run(
@@ -138,6 +139,8 @@ def prepare_run(
     run_dir = run_root / run_id
     run_dir.mkdir(mode=0o700)
     run_dir.chmod(0o700)
+    workspace_storage = StorageLayout.for_workspace(run_dir)
+    workspace_storage.ensure_root(StoragePlane.EPHEMERAL_PROCESSING_SCRATCH)
     for name in ("inputs", "normalized", "native", "regions", "evidence", "ir", "translations", "verification"):
         directory = run_dir / name
         directory.mkdir(mode=0o700)
@@ -166,8 +169,8 @@ def prepare_run(
         state.transition(RunPhase.FAILED_INPUT, next_action="Correct the input and retry /k-slide.", error_code=exc.code.value, error_message=exc.message)
         save_state(run_dir, state)
         sync_workspace_execution(run_dir, environment_identity=bound_environment)
-        atomic_write_json(run_dir / "00_input_inventory.json", {"schema_version": SCHEMA_VERSION, "status": "failed_input", "error": sanitize_operational(exc.as_dict(), roots=(root,))}, mode=0o600)
-        atomic_write_text(run_dir / "RUN_FAILED.md", f"# FAILED\n\n{exc.message}\n\nError code: `{exc.code.value}`\n")
+        atomic_write_json(storage_path(run_dir, StorageArtifact.INPUT_INVENTORY, "00_input_inventory.json", create_parent=True), {"schema_version": SCHEMA_VERSION, "status": "failed_input", "error": sanitize_operational(exc.as_dict(), roots=(root,))}, mode=0o600)
+        atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{exc.message}\n\nError code: `{exc.code.value}`\n")
         return run_dir
     candidates = [] if raw_host_refs else _input_candidates(root, explicit_paths)
     host_inputs = bool(raw_host_refs)
@@ -175,8 +178,8 @@ def prepare_run(
         state.transition(RunPhase.FAILED_INPUT, next_action="Add a supported file to .k-slide-input/ or pass an explicit path.", error_code=ErrorCode.INPUT_NOT_FOUND.value, error_message="No supported input files were found.")
         save_state(run_dir, state)
         sync_workspace_execution(run_dir, environment_identity=bound_environment)
-        atomic_write_json(run_dir / "00_input_inventory.json", {"schema_version": SCHEMA_VERSION, "status": "failed_no_input", "input_count": 0, "supported_extensions": sorted(SUPPORTED_EXTENSIONS)}, mode=0o600)
-        atomic_write_text(run_dir / "RUN_FAILED.md", "# FAILED\n\nNo supported input files were found. Add a slide image, PDF, or PPTX and run `/k-slide` again.\n")
+        atomic_write_json(storage_path(run_dir, StorageArtifact.INPUT_INVENTORY, "00_input_inventory.json", create_parent=True), {"schema_version": SCHEMA_VERSION, "status": "failed_no_input", "input_count": 0, "supported_extensions": sorted(SUPPORTED_EXTENSIONS)}, mode=0o600)
+        atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), "# FAILED\n\nNo supported input files were found. Add a slide image, PDF, or PPTX and run `/k-slide` again.\n")
         return run_dir
 
     artifacts: list[InputArtifact] = []
@@ -191,25 +194,25 @@ def prepare_run(
         state.transition(RunPhase.FAILED_INPUT, next_action="Correct the input and retry /k-slide.", error_code=exc.code.value, error_message=exc.message)
         save_state(run_dir, state)
         sync_workspace_execution(run_dir, environment_identity=bound_environment)
-        atomic_write_json(run_dir / "00_input_inventory.json", {"schema_version": SCHEMA_VERSION, "status": "failed_input", "error": sanitize_operational(exc.as_dict(), roots=(root,))}, mode=0o600)
-        atomic_write_text(run_dir / "RUN_FAILED.md", f"# FAILED\n\n{exc.message}\n\nError code: `{exc.code.value}`\n")
+        atomic_write_json(storage_path(run_dir, StorageArtifact.INPUT_INVENTORY, "00_input_inventory.json", create_parent=True), {"schema_version": SCHEMA_VERSION, "status": "failed_input", "error": sanitize_operational(exc.as_dict(), roots=(root,))}, mode=0o600)
+        atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{exc.message}\n\nError code: `{exc.code.value}`\n")
         return run_dir
 
     for index, artifact in enumerate(artifacts, start=1):
-        destination = run_dir / "inputs" / f"source-{index:03d}{artifact.extension}"
+        destination = storage_path(run_dir, StorageArtifact.SOURCE_SNAPSHOT, f"inputs/source-{index:03d}{artifact.extension}", create_parent=True)
         shutil.copyfile(artifact.source_path, destination)
         destination.chmod(0o600)
         if sha256_file(destination) != artifact.sha256:
             state.transition(RunPhase.FAILED_RUNTIME, next_action="Retry after checking local storage.", error_code="KSLIDE_SNAPSHOT_HASH_MISMATCH", error_message="Immutable input copy failed hash verification.")
             save_state(run_dir, state)
             sync_workspace_execution(run_dir, environment_identity=bound_environment)
-            atomic_write_text(run_dir / "RUN_FAILED.md", "# FAILED\n\nImmutable input snapshot hash verification failed.\n")
+            atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), "# FAILED\n\nImmutable input snapshot hash verification failed.\n")
             return run_dir
 
-    atomic_write_json(run_dir / "inputs" / "checksums.json", _artifact_manifest(artifacts), mode=0o600)
+    atomic_write_json(storage_path(run_dir, StorageArtifact.SOURCE_MANIFEST, "inputs/checksums.json", create_parent=True), _artifact_manifest(artifacts), mode=0o600)
     _write_compatibility_artifacts(run_dir, run_id, artifacts, host_inputs=host_inputs)
     runtime = discover_runtime()
-    atomic_write_json(run_dir / "RUNTIME_METADATA.json", runtime.as_dict(), mode=0o600)
+    atomic_write_json(storage_path(run_dir, StorageArtifact.RUNTIME_METADATA, "RUNTIME_METADATA.json", create_parent=True), runtime.as_dict(), mode=0o600)
     state.input_count = len(artifacts)
     queue = create_queue(run_id, input_count=len(artifacts), now=state.updated_at)
     save_queue(run_dir, queue)

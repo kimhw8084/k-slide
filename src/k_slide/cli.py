@@ -16,6 +16,7 @@ from .host_adapter import HostInvocation, add_host_contract
 from .ingest import prepare_run
 from .installer import install, verify_install
 from .io import atomic_write_json, atomic_write_text, read_json
+from .storage import StorageArtifact, storage_path
 from .locking import run_lock
 from .normalization import normalize_run
 from .extraction import extract_run
@@ -47,7 +48,7 @@ def _diagnostic_roots(root: Path | None) -> tuple[Path, ...]:
 
 
 def _execution_for_run(run: Path) -> dict[str, Any] | None:
-    if not (run / "EXECUTION_JOB.json").is_file():
+    if not storage_path(run, StorageArtifact.EXECUTION_JOB, "EXECUTION_JOB.json").is_file():
         return None
     state = load_state(run)
     return execution_metadata(WorkspaceRunStore(run).load(f"job-{state.run_id}"))
@@ -111,15 +112,16 @@ def _submit(
             if not patch.repair_revision or patch.repair_revision != unit.translation_revision:
                 raise KSlideError(ErrorCode.WORK_UNIT_CONFLICT, "Repair submission must identify the current translation revision.", {"work_unit_id": unit.work_unit_id})
         patch.validate_against(evidence)
-        runtime = read_json(run_dir / "RUNTIME_METADATA.json") if (run_dir / "RUNTIME_METADATA.json").is_file() else {}
+        runtime_path = storage_path(run_dir, StorageArtifact.RUNTIME_METADATA, "RUNTIME_METADATA.json")
+        runtime = read_json(runtime_path) if runtime_path.is_file() else {}
         translation_revision = patch.revision()
         canonical = merge_evidence_patch(evidence, patch, runtime_metadata=runtime, translation_revision=translation_revision)
-        atomic_write_json(run_dir / "translations" / f"{unit.work_unit_id}.json", patch.as_dict(), mode=0o600)
-        atomic_write_json(run_dir / "ir" / f"{unit.work_unit_id}.json", canonical.as_dict(), mode=0o600)
+        atomic_write_json(storage_path(run_dir, StorageArtifact.TRANSLATION_PATCH, f"translations/{unit.work_unit_id}.json", create_parent=True), patch.as_dict(), mode=0o600)
+        atomic_write_json(storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json", create_parent=True), canonical.as_dict(), mode=0o600)
         render_run(run_dir)
         unit.status = WorkUnitStatus.TRANSLATED
         unit.translation_revision = translation_revision
-        unit.canonical_ir_sha256 = sha256_file(run_dir / "ir" / f"{unit.work_unit_id}.json")
+        unit.canonical_ir_sha256 = sha256_file(storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json"))
         unit.translation_attempts += 1
         unit.revision += 1
         unit.verification_status = "NOT_RUN"
@@ -129,7 +131,7 @@ def _submit(
         if state.phase == RunPhase.NEEDS_REVIEW:
             state.transition(RunPhase.TRANSLATING, next_action=state.next_action)
         save_state(run_dir, state)
-        return {"status": "ACCEPTED", "run_id": state.run_id, "work_unit_id": unit.work_unit_id, "translation_revision": translation_revision, "stored": str((run_dir / "ir" / f"{unit.work_unit_id}.json").relative_to(root.resolve()))}
+        return {"status": "ACCEPTED", "run_id": state.run_id, "work_unit_id": unit.work_unit_id, "translation_revision": translation_revision, "stored": str(storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json").relative_to(root.resolve()))}
 
 
 def _status(
@@ -145,7 +147,7 @@ def _status(
             return sanitize_operational(add_host_contract({"status": "AMBIGUOUS", "choices": choices, "next": "Pass a run ID or reconnect the original OpenCode session."}, phase=None), roots=_diagnostic_roots(root))
         return sanitize_operational(add_host_contract({"status": "NO_RUN", "next": "/k-slide"}, phase=None), roots=_diagnostic_roots(root))
     environment_error: dict[str, Any] | None = None
-    if environment_identity is not None and (run / "EXECUTION_JOB.json").is_file():
+    if environment_identity is not None and storage_path(run, StorageArtifact.EXECUTION_JOB, "EXECUTION_JOB.json").is_file():
         try:
             ensure_workspace_environment_compatible(run, environment_identity=environment_identity)
         except KSlideError as exc:
@@ -162,7 +164,13 @@ def _status(
         queue_info: dict[str, Any] = {"revision": queue.queue_revision, "counts": counts, "total": len(queue.work_units)}
     except KSlideError:
         queue_info = {"status": "INVALID"}
-    artifacts = {name: (run / name).is_file() for name in ["RUN_STATE.json", "RUN_MANIFEST.json", *COMPLETION_POLICY.required_artifacts, "RUN_FAILED.md"]}
+    artifact_classes = {
+        "RUN_STATE.json": StorageArtifact.RUN_STATE,
+        "RUN_MANIFEST.json": StorageArtifact.RUN_MANIFEST,
+        "RUN_FAILED.md": StorageArtifact.FAILURE_MARKER,
+        **{name: StorageArtifact.REPORT if name.startswith(("05_", "07_")) else StorageArtifact.VERIFICATION if name.startswith("06_") else StorageArtifact.COMPLETION_MARKER for name in COMPLETION_POLICY.required_artifacts},
+    }
+    artifacts = {name: storage_path(run, artifact_classes[name], name).is_file() for name in artifact_classes}
     return sanitize_operational(
         add_host_contract(
             {"status": state.phase.value, "run_id": state.run_id, "input_count": state.input_count, "current_work_unit": state.current_work_unit, "next_action": state.next_action, "artifacts": artifacts, "work_queue": queue_info, **({"environment_compatibility": "INCOMPATIBLE", "environment_error": environment_error} if environment_error is not None else {})},
@@ -183,7 +191,7 @@ def _next(
 ) -> dict[str, Any]:
     value = _next_unsanitized(root, run_id, session_id, environment_identity)
     run = _find_run(root, run_id, session_id)
-    if (run / "EXECUTION_JOB.json").is_file():
+    if storage_path(run, StorageArtifact.EXECUTION_JOB, "EXECUTION_JOB.json").is_file():
         sync_workspace_execution(run, environment_identity=environment_identity)
     execution = _execution_for_run(run)
     state = load_state(run)
@@ -295,7 +303,13 @@ def _evidence(
     def visible_path(relative_path: str | None) -> str | None:
         if not relative_path:
             return None
-        candidate = (run / relative_path).resolve()
+        if relative_path.startswith("regions/"):
+            candidate = storage_path(run, StorageArtifact.REGION_CROP, relative_path)
+        elif relative_path.startswith("normalized/"):
+            candidate = storage_path(run, StorageArtifact.NORMALIZED_RENDER, relative_path)
+        else:
+            raise KSlideError(ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT, "Evidence media reference is not a recognized durable artifact.")
+        candidate = candidate.resolve()
         try:
             return str(candidate.relative_to(project_root))
         except ValueError:

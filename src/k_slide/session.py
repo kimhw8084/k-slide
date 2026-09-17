@@ -9,6 +9,7 @@ from pathlib import Path
 from .errors import KSlideError
 from .io import atomic_write_json, read_json
 from .state import RunPhase, load_state
+from .storage import StorageArtifact, StorageLayout
 
 
 def session_key(session_id: str | None) -> str | None:
@@ -21,9 +22,9 @@ def bind_session(run_root: Path, session_id: str | None, run_id: str) -> str | N
     key = session_key(session_id)
     if key is None:
         return None
-    session_dir = run_root / "_sessions"
-    session_dir.mkdir(parents=True, exist_ok=True)
-    atomic_write_json(session_dir / f"{key}.json", {"session_key": key, "run_id": run_id})
+    layout = StorageLayout.for_workspace_root(run_root.parent)
+    session_path = layout.path(StorageArtifact.SESSION_BINDING, f"_sessions/{key}.json", create_parent=True)
+    atomic_write_json(session_path, {"session_key": key, "run_id": run_id})
     return key
 
 
@@ -64,7 +65,7 @@ def resolve_run(run_root: Path, *, explicit: str | None = None, session_id: str 
 
     key = session_key(session_id)
     if key:
-        mapping = run_root / "_sessions" / f"{key}.json"
+        mapping = StorageLayout.for_workspace_root(run_root.parent).path(StorageArtifact.SESSION_BINDING, f"_sessions/{key}.json")
         if mapping.is_file():
             try:
                 run_id = str(read_json(mapping)["run_id"])

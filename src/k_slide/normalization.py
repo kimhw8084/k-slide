@@ -18,6 +18,7 @@ from .io import atomic_write_json, atomic_write_text, read_json
 from .locking import run_lock
 from .queue import WorkUnit, WorkUnitStatus, WorkQueue, load_queue, save_queue
 from .security import sha256_file
+from .storage import StorageArtifact, StorageLayout, storage_path
 from .state import RunPhase, load_state, save_state
 def _terminate_subprocess_group(process: subprocess.Popen[str], grace_seconds: float = 5.0) -> None:
     """Keep document conversion cleanup local to the core runtime."""
@@ -71,12 +72,13 @@ def _json_safe(value: Any) -> Any:
 
 
 def _snapshot_inputs(run_dir: Path) -> list[tuple[str, Path, dict[str, Any]]]:
-    manifest = read_json(run_dir / "RUN_MANIFEST.json")
+    manifest = read_json(storage_path(run_dir, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json"))
     values = manifest.get("inputs", []) if isinstance(manifest, dict) else []
     results: list[tuple[str, Path, dict[str, Any]]] = []
     for index, item in enumerate(values, start=1):
         extension = str(item.get("extension", "")).lower()
-        source = next((path for path in (run_dir / "inputs").glob(f"source-{index:03d}.*") if path.is_file()), None)
+        inputs_root = storage_path(run_dir, StorageArtifact.SOURCE_SNAPSHOT, "inputs")
+        source = next((path for path in inputs_root.glob(f"source-{index:03d}.*") if path.is_file()), None)
         if source is None:
             raise KSlideError(ErrorCode.INPUT_NOT_FOUND, "Immutable input snapshot is missing.", {"input_id": f"source-{index:03d}"})
         results.append((f"source-{index:03d}", source, {**item, "extension": extension}))
@@ -98,16 +100,17 @@ def _normalize_image(run_dir: Path, input_id: str, source: Path, index: int, doc
             if image.mode not in {"RGB", "RGBA"}:
                 image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
             work_unit_id = f"{document_id}-image-0001"
-            render = run_dir / "normalized" / f"{work_unit_id}.png"
+            render = storage_path(run_dir, StorageArtifact.NORMALIZED_RENDER, f"normalized/{work_unit_id}.png", create_parent=True)
             image.save(render, format="PNG", optimize=True)
             render.chmod(0o600)
     except KSlideError:
         raise
     except (OSError, UnidentifiedImageError, DecompressionBombError, ValueError) as exc:
         raise KSlideError(ErrorCode.IMAGE_DECODE_FAILED, "Image could not be decoded safely.", {"input": source.name, "reason": str(exc)}) from exc
-    native_path = run_dir / "native" / f"{work_unit_id}.json"
+    native_path = storage_path(run_dir, StorageArtifact.NATIVE_EXTRACTION, f"native/{work_unit_id}.json", create_parent=True)
     atomic_write_json(native_path, {"provider": "image_decoder", "regions": []}, mode=0o600)
-    return [DocumentUnit(work_unit_id, document_id, input_id, index - 1, "image", width, height, str(render.relative_to(run_dir)), sha256_file(render), str(native_path.relative_to(run_dir)), ())]
+    durable_root = Path(run_dir).resolve()
+    return [DocumentUnit(work_unit_id, document_id, input_id, index - 1, "image", width, height, str(render.resolve().relative_to(durable_root)), sha256_file(render), str(native_path.relative_to(durable_root)), ())]
 
 
 def _pdf_units(run_dir: Path, input_id: str, source: Path, document_id: str, source_index: int) -> list[DocumentUnit]:
@@ -137,14 +140,15 @@ def _pdf_units(run_dir: Path, input_id: str, source: Path, document_id: str, sou
             matrix = fitz.Matrix(RENDER_DPI / 72.0, RENDER_DPI / 72.0)
             pixmap = page.get_pixmap(matrix=matrix, alpha=False)
             work_unit_id = f"{document_id}-page-{page_index + 1:04d}"
-            render = run_dir / "normalized" / f"{work_unit_id}.png"
+            render = storage_path(run_dir, StorageArtifact.NORMALIZED_RENDER, f"normalized/{work_unit_id}.png", create_parent=True)
             pixmap.save(str(render))
             render.chmod(0o600)
             native = page.get_text("dict")
-            native_path = run_dir / "native" / f"{work_unit_id}.json"
+            native_path = storage_path(run_dir, StorageArtifact.NATIVE_EXTRACTION, f"native/{work_unit_id}.json", create_parent=True)
             safe_blocks = _json_safe(native.get("blocks", []))
             atomic_write_json(native_path, {"provider": "pymupdf", "page_index": page_index, "blocks": safe_blocks}, mode=0o600)
-            units.append(DocumentUnit(work_unit_id, document_id, input_id, page_index, "page", pixmap.width, pixmap.height, str(render.relative_to(run_dir)), sha256_file(render), str(native_path.relative_to(run_dir)), tuple(safe_blocks), RENDER_DPI))
+            durable_root = Path(run_dir).resolve()
+            units.append(DocumentUnit(work_unit_id, document_id, input_id, page_index, "page", pixmap.width, pixmap.height, str(render.resolve().relative_to(durable_root)), sha256_file(render), str(native_path.relative_to(durable_root)), tuple(safe_blocks), RENDER_DPI))
     finally:
         document.close()
     return units
@@ -242,9 +246,10 @@ def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, r
             if chart is not None:
                 item["chart"] = chart
             objects.append(item)
-        native_path = run_dir / "native" / f"{work_unit_id}.json"
+        native_path = storage_path(run_dir, StorageArtifact.NATIVE_EXTRACTION, f"native/{work_unit_id}.json", create_parent=True)
         atomic_write_json(native_path, {"provider": "python-pptx", "slide_index": slide_index, "slide_width_px": render_width, "slide_height_px": render_height, "objects": objects}, mode=0o600)
-        units.append(DocumentUnit(work_unit_id, document_id, input_id, slide_index, "slide", render_width, render_height, str(render.relative_to(run_dir)), sha256_file(render), str(native_path.relative_to(run_dir)), tuple(objects)))
+        durable_root = Path(run_dir).resolve()
+        units.append(DocumentUnit(work_unit_id, document_id, input_id, slide_index, "slide", render_width, render_height, str(render.resolve().relative_to(durable_root)), sha256_file(render), str(native_path.relative_to(durable_root)), tuple(objects)))
     return units
 
 
@@ -252,7 +257,9 @@ def _render_pptx(source: Path, run_dir: Path, document_id: str) -> list[Path]:
     binary = shutil.which("libreoffice") or shutil.which("soffice")
     if not binary:
         raise KSlideError(ErrorCode.PPTX_RENDER_UNAVAILABLE, "LibreOffice/soffice is required to render PPTX slides.", {"input": source.name})
-    with tempfile.TemporaryDirectory(prefix="k-slide-office-") as temporary:
+    scratch = StorageLayout.for_workspace(run_dir)
+    scratch.ensure_root("ephemeral_processing_scratch")
+    with tempfile.TemporaryDirectory(prefix="k-slide-office-", dir=scratch.scratch_root) as temporary:
         output = Path(temporary) / "out"
         profile = Path(temporary) / "profile"
         output.mkdir()
@@ -279,7 +286,7 @@ def _render_pptx(source: Path, run_dir: Path, document_id: str) -> list[Path]:
         try:
             renders: list[Path] = []
             for index, page in enumerate(document):
-                render = run_dir / "normalized" / f"{document_id}-slide-{index + 1:04d}.png"
+                render = storage_path(run_dir, StorageArtifact.NORMALIZED_RENDER, f"normalized/{document_id}-slide-{index + 1:04d}.png", create_parent=True)
                 page.get_pixmap(matrix=fitz.Matrix(RENDER_DPI / 72, RENDER_DPI / 72), alpha=False).save(str(render))
                 render.chmod(0o600)
                 renders.append(render)
@@ -330,11 +337,11 @@ def normalize_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity
             total_pixels = sum(unit.width_px * unit.height_px for unit in units)
             if total_pixels > MAX_TOTAL_RENDER_PIXELS:
                 raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Total normalized render pixels exceed the configured safety limit.", {"pixels": total_pixels, "max_pixels": MAX_TOTAL_RENDER_PIXELS})
-            normalized_bytes = sum((run_dir / unit.canonical_render_path).stat().st_size for unit in units if (run_dir / unit.canonical_render_path).is_file())
+            normalized_bytes = sum(storage_path(run_dir, StorageArtifact.NORMALIZED_RENDER, unit.canonical_render_path).stat().st_size for unit in units if storage_path(run_dir, StorageArtifact.NORMALIZED_RENDER, unit.canonical_render_path).is_file())
             if normalized_bytes > MAX_NORMALIZED_BYTES:
                 raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Normalized render bytes exceed the configured safety limit.", {"bytes": normalized_bytes, "max_bytes": MAX_NORMALIZED_BYTES})
             result = NormalizationResult(tuple(documents), tuple(warnings), {"render_dpi": RENDER_DPI, "max_image_pixels": MAX_IMAGE_PIXELS})
-            atomic_write_json(run_dir / "normalized" / "DOCUMENT_MANIFEST.json", result.as_dict(), mode=0o600)
+            atomic_write_json(storage_path(run_dir, StorageArtifact.NORMALIZATION_MANIFEST, "normalized/DOCUMENT_MANIFEST.json", create_parent=True), result.as_dict(), mode=0o600)
             now = state.updated_at
             queue = WorkQueue(run_id=state.run_id, work_units=[WorkUnit(unit.work_unit_id, unit.document_id, unit.input_id, unit.source_index, unit.kind, WorkUnitStatus.NORMALIZED, created_at=now, updated_at=now) for unit in units])
             save_queue(run_dir, queue)
@@ -346,21 +353,21 @@ def normalize_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity
             state = load_state(run_dir)
             state.transition(RunPhase.FAILED_NORMALIZATION, next_action="Fix the normalization capability or source file and retry", error_code=exc.code.value, error_message=exc.message)
             save_state(run_dir, state)
-            atomic_write_json(run_dir / "normalized" / "NORMALIZATION_ERROR.json", exc.as_dict(), mode=0o600)
-            atomic_write_text(run_dir / "RUN_FAILED.md", f"# FAILED\n\n{exc.message}\n\nError code: `{exc.code.value}`\n")
+            atomic_write_json(storage_path(run_dir, StorageArtifact.NORMALIZATION_ERROR, "normalized/NORMALIZATION_ERROR.json", create_parent=True), exc.as_dict(), mode=0o600)
+            atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{exc.message}\n\nError code: `{exc.code.value}`\n")
             raise
         except (ImportError, OSError, RuntimeError, ValueError) as exc:
             error = KSlideError(ErrorCode.NORMALIZATION_FAILED, "Document normalization failed safely.", {"reason": str(exc)})
             state = load_state(run_dir)
             state.transition(RunPhase.FAILED_NORMALIZATION, next_action="Fix the normalization capability or source file and retry", error_code=error.code.value, error_message=error.message)
             save_state(run_dir, state)
-            atomic_write_json(run_dir / "normalized" / "NORMALIZATION_ERROR.json", error.as_dict(), mode=0o600)
-            atomic_write_text(run_dir / "RUN_FAILED.md", f"# FAILED\n\n{error.message}\n\nError code: `{error.code.value}`\n")
+            atomic_write_json(storage_path(run_dir, StorageArtifact.NORMALIZATION_ERROR, "normalized/NORMALIZATION_ERROR.json", create_parent=True), error.as_dict(), mode=0o600)
+            atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{error.message}\n\nError code: `{error.code.value}`\n")
             raise error from exc
 
 
 def _load_normalization_result(run_dir: Path) -> NormalizationResult:
-    value = read_json(run_dir / "normalized" / "DOCUMENT_MANIFEST.json")
+    value = read_json(storage_path(run_dir, StorageArtifact.NORMALIZATION_MANIFEST, "normalized/DOCUMENT_MANIFEST.json"))
     documents: list[NormalizedDocument] = []
     for item in value.get("documents", []):
         units = tuple(DocumentUnit(**{**unit, "native_evidence": tuple(unit.get("native_evidence", [])), "warnings": tuple(unit.get("warnings", []))}) for unit in item.get("units", []))

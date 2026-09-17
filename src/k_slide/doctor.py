@@ -15,6 +15,7 @@ from .security import validate_input
 from .ocr.policy import create_ocr_provider, load_ocr_policy
 from .production import production_checks
 from .redaction import sanitize_operational
+from .storage import StorageLayout, StoragePlane
 
 
 def _check(label: str, status: str, detail: str) -> dict[str, str]:
@@ -23,6 +24,8 @@ def _check(label: str, status: str, detail: str) -> dict[str, str]:
 
 def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path | None = None, production: bool = False) -> dict[str, Any]:
     root = root.resolve()
+    storage = StorageLayout.for_workspace_root(root)
+    scratch_root = storage.ensure_root(StoragePlane.EPHEMERAL_PROCESSING_SCRATCH)
     default_engine = root / ".k-slide-engine" if (root / ".k-slide-engine").is_dir() else root
     engine_root = (engine_root or default_engine).resolve()
     opencode_root = (opencode_root or (root / ".opencode")).resolve()
@@ -56,7 +59,7 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
         try:
             from PIL import Image
 
-            with tempfile.NamedTemporaryFile(suffix=".png", dir=root, delete=False) as handle:
+            with tempfile.NamedTemporaryFile(suffix=".png", dir=scratch_root, delete=False) as handle:
                 image_path = Path(handle.name)
             try:
                 Image.new("RGB", (8, 8), "white").save(image_path, format="PNG")
@@ -87,7 +90,7 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
         checks.append(_check("OCR policy", "FAIL", str(exc)))
     try:
         root.joinpath(".k-slide-runs").mkdir(parents=True, exist_ok=True, mode=0o700)
-        with tempfile.NamedTemporaryFile(prefix=".doctor-", dir=root / ".k-slide-runs", delete=True) as handle:
+        with tempfile.NamedTemporaryFile(prefix=".doctor-", dir=scratch_root, delete=True) as handle:
             handle.write(b"k-slide")
             handle.flush()
         checks.append(_check("Writable run directory", "PASS", str(root / ".k-slide-runs")))
@@ -97,7 +100,7 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
         if importlib.util.find_spec("PIL"):
             from PIL import Image
 
-            with tempfile.NamedTemporaryFile(suffix=".png", dir=root, delete=False) as handle:
+            with tempfile.NamedTemporaryFile(suffix=".png", dir=scratch_root, delete=False) as handle:
                 image_path = Path(handle.name)
             try:
                 Image.new("RGB", (8, 8), "white").save(image_path, format="PNG")

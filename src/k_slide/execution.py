@@ -24,6 +24,7 @@ from .evidence_ir import stable_revision
 from .io import atomic_write_json, read_json
 from .locking import filesystem_lock, run_lock
 from .queue import WorkQueue, load_queue
+from .storage import StorageArtifact, StorageLayout, StoragePlane
 from .state import RunPhase, RunState, load_state, now_utc
 
 
@@ -664,14 +665,23 @@ _OPERATIONAL_TRANSITIONS: dict[OperationalLifecycle, frozenset[OperationalLifecy
 
 
 class _FilesystemRunStore:
-    def __init__(self, root: Path, *, profile: ExecutionProfile) -> None:
+    def __init__(self, root: Path, *, profile: ExecutionProfile, auxiliary_root: Path | None = None) -> None:
         self.root = Path(root).expanduser().resolve()
         self.profile = profile
+        if profile is ExecutionProfile.WORKSPACE_LOCAL:
+            self._layout = StorageLayout.for_workspace(self.root)
+        else:
+            auxiliary = Path(auxiliary_root or self.root.parent).expanduser().resolve()
+            self._layout = StorageLayout(
+                durable_root=self.root,
+                scratch_root=auxiliary / "scratch" / self.root.name,
+                telemetry_root=auxiliary / "telemetry",
+            )
         self._mutex = RLock()
 
     @property
     def job_path(self) -> Path:
-        return self.root / "EXECUTION_JOB.json"
+        return self._layout.path(StorageArtifact.EXECUTION_JOB, "EXECUTION_JOB.json")
 
     @contextmanager
     def _mutation(self, job_id: str | None = None) -> Iterator[None]:
@@ -680,7 +690,7 @@ class _FilesystemRunStore:
 
     def _path_for(self, job_id: str) -> Path:
         _identifier(job_id, "job ID")
-        return self.job_path
+        return self._layout.path(StorageArtifact.EXECUTION_JOB, "EXECUTION_JOB.json")
 
     def _read(self, path: Path, job_id: str) -> ExecutionJob:
         try:
@@ -719,7 +729,7 @@ class _FilesystemRunStore:
                 if existing.as_dict() == job.as_dict():
                     return StoreWriteResult(StoreWriteStatus.IDEMPOTENT, existing)
                 return StoreWriteResult(StoreWriteStatus.CONFLICT, existing)
-            self.root.mkdir(parents=True, exist_ok=True)
+            self._layout.ensure_root(StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA)
             self._write(job)
             return StoreWriteResult(StoreWriteStatus.ACCEPTED, job)
 
@@ -892,13 +902,13 @@ class WorkspaceRunStore(_FilesystemRunStore):
 class DurableTestRunStore(_FilesystemRunStore):
     """Deterministic restartable reference adapter, not a PaaS implementation."""
 
-    def __init__(self, backing_root: Path) -> None:
-        super().__init__(backing_root, profile=ExecutionProfile.DURABLE)
+    def __init__(self, backing_root: Path, *, auxiliary_root: Path | None = None) -> None:
+        super().__init__(backing_root, profile=ExecutionProfile.DURABLE, auxiliary_root=auxiliary_root)
         self._jobs_root = self.root / "jobs"
 
     def _path_for(self, job_id: str) -> Path:
         _identifier(job_id, "job ID")
-        return self._jobs_root / f"{job_id}.json"
+        return self._layout.path(StorageArtifact.EXECUTION_JOB, f"jobs/{job_id}.json")
 
     @property
     def job_path(self) -> Path:
@@ -909,7 +919,7 @@ class DurableTestRunStore(_FilesystemRunStore):
         if job_id is None:
             raise _invalid("Durable execution mutations require a job ID.")
         _identifier(job_id, "job ID")
-        lock_path = self.root / ".durable-locks" / f"{job_id}.lock"
+        lock_path = self._layout.path(StorageArtifact.COORDINATION_LOCK, f"locks/{job_id}.lock", create_parent=True)
         with filesystem_lock(lock_path, require_shared=True, reject_symlink=True):
             yield
 

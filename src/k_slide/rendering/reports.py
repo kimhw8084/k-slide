@@ -9,11 +9,12 @@ from ..evidence_ir import load_evidence
 from ..io import atomic_write_text, read_json
 from ..ir import SlideIR
 from ..queue import WorkUnitStatus, load_queue
+from ..storage import StorageArtifact, storage_path
 
 
 def _manifest_names(run_dir: Path) -> dict[str, str]:
     try:
-        value = read_json(run_dir / "RUN_MANIFEST.json")
+        value = read_json(storage_path(run_dir, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json"))
     except (OSError, ValueError, TypeError):
         return {}
     inputs = value.get("inputs", []) if isinstance(value, dict) else []
@@ -47,7 +48,7 @@ def _table_markdown(table: Any) -> list[str]:
 
 
 def _unit_sections(run_dir: Path, unit: Any, source_name: str) -> tuple[list[str], list[dict[str, Any]], list[dict[str, Any]]]:
-    ir_path = run_dir / "ir" / f"{unit.work_unit_id}.json"
+    ir_path = storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json")
     if not ir_path.is_file():
         return [f"## {unit.document_id} — {unit.work_unit_id}", "", "_Translation not submitted yet._", ""], [], []
     slide = SlideIR.from_dict(read_json(ir_path))
@@ -119,7 +120,7 @@ def render_run(run_dir: Path) -> dict[str, str]:
     else:
         for item in review_items:
             unresolved_lines.extend([f"## {item['work_unit_id']} — `{item['source_id']}`", "", f"- Severity: {item['severity']}", f"- Reason: {item['reason']}", f"- Crop: `{item.get('crop_path') or '[not available]'}`", f"- Recommended action: {item['recommended_action']}", ""])
-    atomic_write_text(run_dir / "05_final_report.md", "\n".join(final_lines) + "\n")
-    atomic_write_text(run_dir / "05_executive_brief.md", "\n".join(brief_lines) + "\n")
-    atomic_write_text(run_dir / "07_unresolved_items.md", "\n".join(unresolved_lines) + "\n")
-    return {"final_report": str(run_dir / "05_final_report.md"), "executive_brief": str(run_dir / "05_executive_brief.md"), "unresolved": str(run_dir / "07_unresolved_items.md")}
+    atomic_write_text(storage_path(run_dir, StorageArtifact.REPORT, "05_final_report.md", create_parent=True), "\n".join(final_lines) + "\n")
+    atomic_write_text(storage_path(run_dir, StorageArtifact.REPORT, "05_executive_brief.md", create_parent=True), "\n".join(brief_lines) + "\n")
+    atomic_write_text(storage_path(run_dir, StorageArtifact.REPORT, "07_unresolved_items.md", create_parent=True), "\n".join(unresolved_lines) + "\n")
+    return {"final_report": str(storage_path(run_dir, StorageArtifact.REPORT, "05_final_report.md")), "executive_brief": str(storage_path(run_dir, StorageArtifact.REPORT, "05_executive_brief.md")), "unresolved": str(storage_path(run_dir, StorageArtifact.REPORT, "07_unresolved_items.md"))}
