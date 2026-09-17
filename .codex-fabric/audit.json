@@ -1,0 +1,528 @@
+{
+  "accepted_at": "2026-09-17T23:08:06Z",
+  "changed_files": [
+    {
+      "additions": 83,
+      "deletions": 0,
+      "path": "docs/adr/0043-three-plane-storage-contract.md",
+      "status": "A"
+    },
+    {
+      "additions": 24,
+      "deletions": 10,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 22,
+      "deletions": 6,
+      "path": "src/k_slide/doctor.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "src/k_slide/evidence_ir.py",
+      "status": "M"
+    },
+    {
+      "additions": 18,
+      "deletions": 8,
+      "path": "src/k_slide/execution.py",
+      "status": "M"
+    },
+    {
+      "additions": 13,
+      "deletions": 11,
+      "path": "src/k_slide/extraction.py",
+      "status": "M"
+    },
+    {
+      "additions": 19,
+      "deletions": 16,
+      "path": "src/k_slide/ingest.py",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 1,
+      "path": "src/k_slide/locking.py",
+      "status": "M"
+    },
+    {
+      "additions": 26,
+      "deletions": 19,
+      "path": "src/k_slide/normalization.py",
+      "status": "M"
+    },
+    {
+      "additions": 39,
+      "deletions": 15,
+      "path": "src/k_slide/paas.py",
+      "status": "M"
+    },
+    {
+      "additions": 10,
+      "deletions": 1,
+      "path": "src/k_slide/policy.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "src/k_slide/queue.py",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 6,
+      "path": "src/k_slide/rendering/reports.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "src/k_slide/retention.py",
+      "status": "M"
+    },
+    {
+      "additions": 38,
+      "deletions": 0,
+      "path": "src/k_slide/run_store.py",
+      "status": "M"
+    },
+    {
+      "additions": 5,
+      "deletions": 4,
+      "path": "src/k_slide/session.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "src/k_slide/state.py",
+      "status": "M"
+    },
+    {
+      "additions": 467,
+      "deletions": 0,
+      "path": "src/k_slide/storage.py",
+      "status": "A"
+    },
+    {
+      "additions": 14,
+      "deletions": 5,
+      "path": "src/k_slide/support.py",
+      "status": "M"
+    },
+    {
+      "additions": 385,
+      "deletions": 0,
+      "path": "src/k_slide/telemetry.py",
+      "status": "A"
+    },
+    {
+      "additions": 12,
+      "deletions": 11,
+      "path": "src/k_slide/verify.py",
+      "status": "M"
+    },
+    {
+      "additions": 464,
+      "deletions": 0,
+      "path": "tests/test_chg16_storage_planes.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,100p' src/k_slide/execution.py && rtk rg -n \\\"class ResultCommitMarker|class RunCheckpoint|class ExecutionJob|checkpoint|result_markers|environment_identity\\\" src/k_slide/execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"run_once|commit_result|checkpoint|result_markers|environment_identity\" src/k_slide/execution.py | head -120'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' pyproject.toml && rtk rg -n \\\"K-Slide CI|Phase 3.5|phase35|unittest|ci\\\" .github Makefile scripts README.md tests --glob '*'\"",
+      "exit_code": 2,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_storage_planes -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"def save_evidence|EVIDENCE_IR|OCR_METADATA|REGION_CROP\" src/k_slide/evidence_ir.py src/k_slide/extraction.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '55,125p' src/k_slide/ingest.py && rtk sed -n '220,280p' src/k_slide/extraction.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,130p' src/k_slide/evidence_ir.py && rtk sed -n '130,290p' src/k_slide/extraction.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '115,340p' tests/test_chg16_storage_planes.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '18,105p' docs/adr/0043-three-plane-storage-contract.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_storage_planes -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"DURABLE_CHECKPOINT|RESULT_COMMIT_MARKER|ENVIRONMENT_BINDING|OCR_EVIDENCE|TRANSIENT_RENDER_WORK|TRANSIENT_OCR_WORKSPACE|from_internal\\\\(\\\" src tests docs --glob '*.{py,md}'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,220p' src/k_slide/telemetry.py && rtk sed -n '1,110p' src/k_slide/run_store.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --stat && rtk git diff --check && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '990,1090p' src/k_slide/paas.py && rtk sed -n '1090,1190p' src/k_slide/paas.py && rtk sed -n '1330,1470p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff -- tests/test_chg16_storage_planes.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff -- src/k_slide/telemetry.py src/k_slide/storage.py src/k_slide/normalization.py src/k_slide/run_store.py docs/adr/0043-three-plane-storage-contract.md'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"def _render_pptx|CONVERSION_STAGING|StorageArtifact\\\" tests/test_normalization.py tests --glob '*.py' | head -100\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"StorageArtifact\\\" docs README.md .github --glob '*.{md,yml,yaml}'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,180p' src/k_slide/__init__.py && rtk rg -n \\\"from k_slide\\\\.run_store|from k_slide import .*Telemetry|TelemetryMachineId\\\" tests src --glob '*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_storage_planes -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest discover -s tests -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"fast|Phase 3\\\\.5|phase35|unittest discover|pytest|K-Slide CI\\\" .github scripts evals README.md --glob '*.{yml,yaml,md,py,sh}'\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 1480,
+        "output_sha256": "5009fe7359136ca6f55c12dc0b118a22e147707e15e6c40d60a6b1094b04ec73",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,130p' .github/workflows/k-slide.yml && rtk sed -n '1,125p' .github/workflows/k-slide-phase32.yml\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git log --graph --oneline --decorate -7 && rtk git merge-base --is-ancestor 52ec321168d4ea18919d8294dc81a55f6ed8a2e0 HEAD && rtk git merge-base --is-ancestor 513bd1ecfd62f760bdc388f8b1b85a9bb27fa766 HEAD && rtk git merge-base --is-ancestor 7b2904ce149068a114c2382281265abada8a20fd HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mktemp -d -t k-slide-ci-XXXXXX'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m compileall -q src tests evals'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m k_slide.cli doctor --root . --json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk ./scripts/install_project.sh /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/k-slide-ci-XXXXXX.3hC66CpGa2'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk ./scripts/verify_install.sh /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/k-slide-ci-XXXXXX.3hC66CpGa2'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mktemp -d -t k-slide-eval-XXXXXX'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m evals.run_engine_eval --output /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/k-slide-eval-XXXXXX.5Zq58gWDdX --split development --limit 2 --formats png pdf --candidate-profile evals/production-candidate.yaml'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk find /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/k-slide-eval-XXXXXX.5Zq58gWDdX -maxdepth 3 -type f -print | sort'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"run_engine_eval|artifact_generation_pass_rate|engine_normalization_pass_rate\\\" evals/run_engine_eval.py evals --glob '*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"ARTIFACT_FAILURE|ENGINE_EXTRACTION|NORMALIZATION_FAILURE|error|reason|status\\\" /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/k-slide-eval-XXXXXX.5Zq58gWDdX --glob '*.json' --glob '*.md'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '235,390p' /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/k-slide-eval-XXXXXX.5Zq58gWDdX/summary.json && rtk sed -n '1,210p' evals/run_engine_eval.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk find /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/k-slide-eval-XXXXXX.5Zq58gWDdX/runs -maxdepth 5'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mktemp -d -t k-slide-corpus-XXXXXX'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m json.tool schemas/translation-patch.schema.json >/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m evals.generate_corpus --output /var/folders/nz/6q2p_ldx3txdbw_gttbpnwjr0000gn/T/k-slide-corpus-XXXXXX.N1RCWujdto --formats png --limit 1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --name-only && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m compileall -q src tests evals && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_storage_planes -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git add docs/adr/0043-three-plane-storage-contract.md src/k_slide/normalization.py src/k_slide/run_store.py src/k_slide/storage.py src/k_slide/telemetry.py tests/test_chg16_storage_planes.py && rtk git commit -m \"fix: close remaining KSA-11 telemetry and storage defects\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git show --stat --oneline HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"_INTERNAL_ID|DURABLE_CHECKPOINT|RESULT_COMMIT_MARKER|ENVIRONMENT_BINDING|OCR_EVIDENCE|TRANSIENT_RENDER_WORK|TRANSIENT_OCR_WORKSPACE|TelemetryReference\\\\.from_internal\\\\([\"'^'\"\\\\n]*\\\\\\\"\\\" src --glob '*.py'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short --branch && rtk git show -s --format='%H%n%P%n%s' HEAD && rtk git diff HEAD\"'^ HEAD --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git merge-base --is-ancestor 52ec321168d4ea18919d8294dc81a55f6ed8a2e0 HEAD && rtk git merge-base --is-ancestor 513bd1ecfd62f760bdc388f8b1b85a9bb27fa766 HEAD && rtk git merge-base --is-ancestor 7b2904ce149068a114c2382281265abada8a20fd HEAD && rtk git log --graph --oneline --decorate -5'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 227,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.01,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 7243776,
+      "fresh_input_tokens": 222892,
+      "input_tokens": 7466668,
+      "non_reasoning_output_tokens": 23183,
+      "output_tokens": 42532,
+      "reasoning_output_tokens": 19349,
+      "total_processed_tokens": 7509200
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "d3f7ff63613ec3ab71462ab9713a28e841e156ab",
+      "subject": "fix: close remaining KSA-11 telemetry and storage defects"
+    },
+    {
+      "sha": "7b2904ce149068a114c2382281265abada8a20fd",
+      "subject": "fix: close KSA-11 storage and telemetry defects"
+    },
+    {
+      "sha": "513bd1ecfd62f760bdc388f8b1b85a9bb27fa766",
+      "subject": "fabric: capture completed model changes [CF-c7455d53b6b3659209829477]"
+    }
+  ],
+  "diff": {
+    "additions": 1658,
+    "changed_files": 22,
+    "commit_count": 3,
+    "deletions": 117
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 2,
+    "items": [
+      {
+        "bytes": 4625,
+        "path": "docs/adr/0043-three-plane-storage-contract.md",
+        "sha256": "7cb97227518c2a4002436282cfab8a134130ccbd44bdecc4ffa542a2abd374e9"
+      },
+      {
+        "bytes": 13063,
+        "path": "src/k_slide/evidence_ir.py",
+        "sha256": "03246994fd4b755869186e871b82d37fe5a061dbd346b90aebdc1e3c2fa49854"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-17T23:23:33Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "52ec321168d4ea18919d8294dc81a55f6ed8a2e0",
+    "branch": "codex/k-slide-chg16-storage-planes-01-fix02",
+    "head_sha": "d3f7ff63613ec3ab71462ab9713a28e841e156ab",
+    "remote_exact_head": true,
+    "remote_head_sha": "d3f7ff63613ec3ab71462ab9713a28e841e156ab",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "52ec321168d4ea18919d8294dc81a55f6ed8a2e0",
+    "work_branch": "codex/k-slide-chg16-storage-planes-01-fix02",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-129e9a7e588a72eb0b537034",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-storage-planes-01-fix02",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-storage-planes-01-fix02"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-storage-planes-01-fix02",
+  "schema_version": 1,
+  "started_at": "2026-09-17T23:08:06Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 927,
+    "queue_seconds": 0,
+    "total_seconds": 927
+  },
+  "transport": {
+    "bytes": 8433,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 8114,
+    "prompt_sha256": "b87803abfaeaf9e0c856e2eb1bdbbc7ffcc781605d3fcf0b3afbbf6e54848069",
+    "sha256": "129e9a7e588a72eb0b5370340b78793f7b67e37c029e286c46a4db5c5f5f7e90"
+  }
+}
