@@ -1,0 +1,531 @@
+{
+  "accepted_at": "2026-09-17T18:12:49Z",
+  "changed_files": [
+    {
+      "additions": 48,
+      "deletions": 0,
+      "path": "docs/adr/0042-run-environment-identity.md",
+      "status": "A"
+    },
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": "src/k_slide/__init__.py",
+      "status": "M"
+    },
+    {
+      "additions": 49,
+      "deletions": 9,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 469,
+      "deletions": 0,
+      "path": "src/k_slide/environment.py",
+      "status": "A"
+    },
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 76,
+      "deletions": 8,
+      "path": "src/k_slide/execution.py",
+      "status": "M"
+    },
+    {
+      "additions": 11,
+      "deletions": 1,
+      "path": "src/k_slide/extraction.py",
+      "status": "M"
+    },
+    {
+      "additions": 12,
+      "deletions": 8,
+      "path": "src/k_slide/ingest.py",
+      "status": "M"
+    },
+    {
+      "additions": 5,
+      "deletions": 1,
+      "path": "src/k_slide/normalization.py",
+      "status": "M"
+    },
+    {
+      "additions": 122,
+      "deletions": 23,
+      "path": "src/k_slide/paas.py",
+      "status": "M"
+    },
+    {
+      "additions": 9,
+      "deletions": 2,
+      "path": "src/k_slide/verify.py",
+      "status": "M"
+    },
+    {
+      "additions": 9,
+      "deletions": 0,
+      "path": "src/k_slide/worker.py",
+      "status": "M"
+    },
+    {
+      "additions": 30,
+      "deletions": 0,
+      "path": "tests/reference_fixtures.py",
+      "status": "A"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "tests/test_chg16_durable_execution.py",
+      "status": "M"
+    },
+    {
+      "additions": 373,
+      "deletions": 0,
+      "path": "tests/test_chg16_environment_binding.py",
+      "status": "A"
+    },
+    {
+      "additions": 23,
+      "deletions": 7,
+      "path": "tests/test_chg16_host_integration.py",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 3,
+      "path": "tests/test_chg16_paas_worker.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "tests/test_chg16_scoped_admission.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "tests/test_cli_blackbox.py",
+      "status": "M"
+    },
+    {
+      "additions": 8,
+      "deletions": 5,
+      "path": "tests/test_normalization.py",
+      "status": "M"
+    },
+    {
+      "additions": 17,
+      "deletions": 13,
+      "path": "tests/test_phase1.py",
+      "status": "M"
+    },
+    {
+      "additions": 15,
+      "deletions": 13,
+      "path": "tests/test_phase11.py",
+      "status": "M"
+    },
+    {
+      "additions": 10,
+      "deletions": 7,
+      "path": "tests/test_phase21.py",
+      "status": "M"
+    },
+    {
+      "additions": 5,
+      "deletions": 3,
+      "path": "tests/test_phase34.py",
+      "status": "M"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba tests/test_chg16_environment_binding.py | sed -n '1,330p'; rtk nl -ba tests/test_chg16_host_integration.py | sed -n '1,280p'; rtk nl -ba tests/test_phase1.py | sed -n '1,240p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"prepare_run\\\\(\\\" tests | sed -n '1,260p'; rtk rg -n \\\"sync_workspace_execution\\\\(|_execution_for_run\\\\(|verify_run\\\\(|finalize_run\\\\(|normalize_run\\\\(|extract_run\\\\(\\\" src/k_slide tests | sed -n '1,360p'; rtk sed -n '1,180p' src/k_slide/errors.py; rtk sed -n '1,160p' src/k_slide/__init__.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"RuntimeIdentity\\\\(\\\" tests src | sed -n '1,260p'; rtk rg -n \\\"legacy_reference\\\\(\\\" tests src | sed -n '1,200p'; rtk rg -n \\\"new_execution_job\\\\(\\\" tests | sed -n '1,220p'; rtk rg -n \\\"PaaSJobRequest\\\\(\\\" tests | sed -n '1,220p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/normalization.py | sed -n '280,380p'; rtk nl -ba src/k_slide/extraction.py | sed -n '220,290p'; rtk nl -ba src/k_slide/translation.py | sed -n '1,260p'; rtk nl -ba src/k_slide/cli.py | sed -n '300,460p'; rtk nl -ba src/k_slide/queue.py | sed -n '1,330p'; rtk nl -ba src/k_slide/state.py | sed -n '1,330p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,240p' src/k_slide/locking.py; rtk sed -n '1,100p' src/k_slide/normalization.py; rtk sed -n '1,100p' src/k_slide/extraction.py; rtk sed -n '130,260p' src/k_slide/cli.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk cat docs/adr/0042-run-environment-identity.md; rtk git show 486afeffc1668ee53c156c6f20260adbdce5365b''^:docs/adr/0042-run-environment-identity.md 2>/dev/null || true; rtk rg -n \"prepare_run'\"\\\\(|sync_workspace_execution\\\\(|normalize_run\\\\(|extract_run\\\\(|verify_run\\\\(|finalize_run\\\\(\\\" src/k_slide --glob '*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"main\\\\(\\\\[.*prepare|\\\\[\\\\\\\"prepare\\\\\\\"|\\\\bprepare\\\\b\\\" tests/test_*.py | sed -n '1,240p'; rtk sed -n '1,150p' tests/test_chg16_paas_worker.py; rtk sed -n '1,110p' tests/test_chg16_scoped_admission.py; rtk sed -n '520,590p' tests/test_chg16_durable_execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,180p' tests/test_cli_blackbox.py; rtk rg -n \\\"RUNTIME =|RuntimeIdentity\\\" tests/test_chg16_paas_worker.py tests/test_chg16_scoped_admission.py | sed -n '1,100p'; rtk rg -n \\\"RUNTIME\\\" tests/test_chg16_paas_worker.py tests/test_chg16_scoped_admission.py | tail -40\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,70p' src/k_slide/security.py; rtk sed -n '1,120p' src/k_slide/runtime_artifact.py; rtk rg -n \\\"RUNTIME_ARTIFACT_SCHEMA_VERSION|def _load_candidate_mapping|def _source_path|def _resolve_candidate_path\\\" src/k_slide/certification.py src/k_slide/runtime_artifact.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '630,745p' src/k_slide/certification.py; rtk sed -n '1030,1110p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python -m compileall -q src && rtk git diff --check && rtk git diff --stat && rtk git diff -- src/k_slide/environment.py src/k_slide/ingest.py src/k_slide/execution.py src/k_slide/paas.py src/k_slide/cli.py src/k_slide/normalization.py src/k_slide/extraction.py src/k_slide/verify.py | sed -n '1,520p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk pytest -q tests/test_chg16_environment_binding.py tests/test_chg16_paas_worker.py tests/test_chg16_scoped_admission.py tests/test_chg16_durable_execution.py tests/test_normalization.py tests/test_phase1.py tests/test_cli_blackbox.py'",
+      "exit_code": 2,
+      "test_result": {
+        "exit_code": 2,
+        "framework": "pytest",
+        "outcome": "interrupted",
+        "output_bytes": 102,
+        "output_sha256": "c32408304212c922340af58bf09f497c538d232591f8985c137450fb031c7446",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m unittest tests.test_chg16_environment_binding tests.test_chg16_paas_worker tests.test_chg16_scoped_admission tests.test_chg16_durable_execution tests.test_normalization tests.test_phase1 tests.test_cli_blackbox'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m unittest tests.test_chg16_environment_binding tests.test_chg16_paas_worker tests.test_chg16_scoped_admission tests.test_chg16_durable_execution tests.test_normalization tests.test_phase1 tests.test_cli_blackbox'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '20,115p' tests/test_chg16_paas_worker.py; rtk sed -n '145,175p' tests/test_chg16_paas_worker.py; rtk sed -n '225,245p' tests/test_chg16_paas_worker.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"prepare_run\\\\(|_next\\\\(|_submit\\\\(|verify_run\\\\(|finalize_run\\\\(\\\" tests/test_phase1.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,90p' tests/test_normalization.py; rtk sed -n '1,150p' tests/test_phase11.py; rtk sed -n '140,200p' tests/test_phase21.py; rtk sed -n '80,130p' tests/test_phase34.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"prepare_run\\\\(|_next\\\\(|_submit\\\\(|verify_run\\\\(|finalize_run\\\\(|normalize_run\\\\(|extract_run\\\\(\\\" tests/test_phase11.py tests/test_normalization.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,35p' tests/test_phase21.py; rtk sed -n '1,35p' tests/test_phase34.py; rtk sed -n '1,35p' tests/test_chg16_durable_execution.py; rtk sed -n '1,40p' tests/test_chg16_host_integration.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"prepare_run\\\\(|normalize_run\\\\(|extract_run\\\\(|_next\\\\(\\\" tests/test_phase21.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba tests/test_chg16_host_integration.py | sed -n '80,225p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest tests.test_chg16_environment_binding tests.test_chg16_paas_worker tests.test_chg16_scoped_admission tests.test_chg16_durable_execution tests.test_normalization tests.test_phase1 tests.test_phase11 tests.test_phase21 tests.test_phase34 tests.test_chg16_host_integration tests.test_cli_blackbox'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest tests.test_chg16_host_integration tests.test_phase21 tests.test_phase11 tests.test_phase1 tests.test_chg16_paas_worker tests.test_chg16_scoped_admission tests.test_chg16_durable_execution tests.test_normalization tests.test_phase34 tests.test_cli_blackbox'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba docs/adr/0042-run-environment-identity.md | sed -n '1,100p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest tests.test_chg16_environment_binding'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest tests.test_chg16_environment_binding'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"prepare_run\\\\(\\\" tests | sed -n '1,300p'; rtk rg -n \\\"RuntimeIdentity\\\\(\\\" tests | sed -n '1,220p'; rtk rg -n \\\"normalize_run\\\\(|extract_run\\\\(|verify_run\\\\(|finalize_run\\\\(|_next\\\\(|_submit\\\\(\\\" tests | sed -n '1,360p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src:. rtk python -m unittest discover -s tests -p 'test_*.py'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba tests/test_chg16_foundation.py | sed -n '1,270p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest tests.test_chg16_foundation'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short && rtk git diff --stat && rtk git diff --check && rtk rg -n \\\"legacy_reference|workspace_environment_identity|environment\\\\(\\\\)\\\" src docs tests | sed -n '1,300p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short && rtk git diff --stat && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src:. rtk python -m compileall -q src tests && PYTHONPATH=src:. rtk python -m unittest discover -s tests -p 'test_*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git log --oneline --decorate -4 && rtk git merge-base --is-ancestor 258401198618c2c0541a7fb751849639831cc9df 486afeffc1668ee53c156c6f20260adbdce5365b && rtk git merge-base --is-ancestor 486afeffc1668ee53c156c6f20260adbdce5365b HEAD && rtk rg -n \\\"legacy_reference|resolve_effective_environment|ensure_workspace_environment_compatible|sync_workspace_execution\\\\(\\\" src tests docs/adr/0042-run-environment-identity.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,280p' src/k_slide/environment.py && rtk sed -n '380,500p' src/k_slide/environment.py && rtk sed -n '1040,1130p' src/k_slide/execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '260,445p' src/k_slide/environment.py && rtk sed -n '1,270p' src/k_slide/cli.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff -- src/k_slide/ingest.py src/k_slide/paas.py src/k_slide/normalization.py src/k_slide/extraction.py src/k_slide/verify.py docs/adr/0042-run-environment-identity.md'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '260,440p' src/k_slide/cli.py && rtk git diff -- src/k_slide/cli.py src/k_slide/execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '440,620p' src/k_slide/cli.py && rtk sed -n '1,260p' src/k_slide/paas.py | tail -n 90 && rtk git diff -- tests/reference_fixtures.py tests/test_chg16_environment_binding.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '340,410p' tests/test_chg16_environment_binding.py && rtk sed -n '1,90p' tests/test_chg16_environment_binding.py && rtk git diff -- tests/test_phase1.py tests/test_phase11.py tests/test_phase21.py tests/test_phase34.py tests/test_normalization.py tests/test_chg16_host_integration.py tests/test_chg16_durable_execution.py tests/test_chg16_paas_worker.py tests/test_chg16_scoped_admission.py tests/test_cli_blackbox.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files -g '*candidate*' -g '*runtime*manifest*' -g '*.yaml' -g '*.yml' | head -80 && rtk rg -n \\\"production-candidate|resolved-candidate|runtime-manifest|load_candidate_spec\\\\(\\\" src tests docs | head -160\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '260,360p' src/k_slide/production.py && rtk sed -n '700,800p' src/k_slide/certification.py && rtk sed -n '400,540p' src/k_slide/runtime_artifact.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,220p' evals/production-candidate.yaml && rtk sed -n '1,140p' src/k_slide/runtime_artifact.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest tests.test_chg16_environment_binding && PYTHONPATH=src:. rtk python -m compileall -q src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,180p' evals/production-candidate.example.yaml && rtk rg -n \\\"runtime_artifact_identity|runtime_image_identity|runtime_sbom_sha256|model_config_identity|semantic_config_identity|ocr_config_identity|termbase_hash\\\" tests src | head -160\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '180,370p' tests/test_certification_closure.py && rtk sed -n '840,930p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src:. rtk python -m unittest discover -s tests -p 'test_*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git diff --name-only && rtk git status --short'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add docs/adr/0042-run-environment-identity.md src/k_slide/cli.py src/k_slide/environment.py src/k_slide/execution.py src/k_slide/extraction.py src/k_slide/ingest.py src/k_slide/normalization.py src/k_slide/paas.py src/k_slide/verify.py tests/test_chg16_durable_execution.py tests/test_chg16_environment_binding.py tests/test_chg16_host_integration.py tests/test_chg16_paas_worker.py tests/test_chg16_scoped_admission.py tests/test_cli_blackbox.py tests/test_normalization.py tests/test_phase1.py tests/test_phase11.py tests/test_phase21.py tests/test_phase34.py tests/reference_fixtures.py && rtk git commit -m \"fix: enforce exact KSA-10 workspace resume binding\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short && rtk git log --oneline --decorate -4 && rtk git merge-base --is-ancestor 258401198618c2c0541a7fb751849639831cc9df HEAD && rtk git merge-base --is-ancestor 486afeffc1668ee53c156c6f20260adbdce5365b HEAD && rtk git show --stat --oneline --summary HEAD && rtk git diff --check HEAD''^ HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 210,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.68,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 17693696,
+      "fresh_input_tokens": 420331,
+      "input_tokens": 18114027,
+      "non_reasoning_output_tokens": 25972,
+      "output_tokens": 52180,
+      "reasoning_output_tokens": 26208,
+      "total_processed_tokens": 18166207
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "0b93a5cbb61c128eea0471ddb9fc962ad365f78f",
+      "subject": "fix: enforce exact KSA-10 workspace resume binding"
+    },
+    {
+      "sha": "486afeffc1668ee53c156c6f20260adbdce5365b",
+      "subject": "fabric: capture completed model changes [CF-ff4062080f5775b66b36e815]"
+    }
+  ],
+  "diff": {
+    "additions": 1306,
+    "changed_files": 24,
+    "commit_count": 2,
+    "deletions": 106
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 1,
+    "items": [
+      {
+        "bytes": 2668,
+        "path": "docs/adr/0042-run-environment-identity.md",
+        "sha256": "e476fd16f98c537679e9d3f97f3800928b27c1b154a536ddd184faca1b4dc88c"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-17T18:34:31Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "258401198618c2c0541a7fb751849639831cc9df",
+    "branch": "codex/k-slide-chg16-resume-binding-01-fix01",
+    "head_sha": "0b93a5cbb61c128eea0471ddb9fc962ad365f78f",
+    "remote_exact_head": true,
+    "remote_head_sha": "0b93a5cbb61c128eea0471ddb9fc962ad365f78f",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "258401198618c2c0541a7fb751849639831cc9df",
+    "work_branch": "codex/k-slide-chg16-resume-binding-01-fix01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-f49a6ff0d65c00943ae17f3b",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-resume-binding-01-fix01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-resume-binding-01-fix01"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-resume-binding-01-fix01",
+  "schema_version": 1,
+  "started_at": "2026-09-17T18:12:49Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1302,
+    "queue_seconds": 0,
+    "total_seconds": 1302
+  },
+  "transport": {
+    "bytes": 6718,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 6399,
+    "prompt_sha256": "64023bc780dadb38612a54ea73427584095cfe29a3e2a3e73c498cace81cded7",
+    "sha256": "f49a6ff0d65c00943ae17f3b734d4e6022d69476aca684264eac3e199bf6b13b"
+  }
+}
