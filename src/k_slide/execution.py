@@ -882,12 +882,17 @@ DeterministicDurableRunStore = DurableTestRunStore
 
 
 def run_store_for_profile(profile: ExecutionProfile, root: Path) -> RunStore:
-    """Select a reference adapter without changing the engine execution path."""
+    """Select the execution adapter without changing the engine path."""
 
     if profile is ExecutionProfile.WORKSPACE_LOCAL:
         return WorkspaceRunStore(root)
     if profile is ExecutionProfile.DURABLE:
-        return DurableTestRunStore(root)
+        # Keep the durable product profile on the controller/worker boundary.
+        # The boundary's default local backend is explicitly a reference
+        # adapter; it is not the KSA-06 test adapter exposed above.
+        from .paas import ReferencePaaSRunStore
+
+        return ReferencePaaSRunStore(root)
     raise _invalid("Execution profile has no reference run-store adapter.")
 
 
@@ -920,6 +925,8 @@ class ExecutionController:
         if job.cancellation.requested:
             if not job.cancellation.acknowledged:
                 acknowledged = self.store.acknowledge_cancellation(job_id, expected_revision=job.revision, safe_boundary=True)
+                if not acknowledged.accepted:
+                    return ControllerResult(acknowledged.status.value, acknowledged.job)
                 job = acknowledged.job
             return ControllerResult("CANCELED", job)
         marker = next((item for item in job.result_markers if item.operation_id == operation_id), None)

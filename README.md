@@ -38,6 +38,17 @@ Results are written under:
 .k-slide-runs/<run-id>/
 ```
 
+For heavy or long-running execution, KSA-08 provides the platform-neutral
+`PaaSController`/`PaaSWorker` boundary and the separately executable
+`k-slide-worker` command. The repository's `ReferencePaaSJobService` is a
+deterministic local integration adapter that proves durable identity,
+reconnect, cancellation, checkpoint resume, and bounded retry; live company
+PaaS transport and production qualification are not claimed. The worker uses
+the existing execution/checkpoint/engine boundary and requires an exact
+pinned runtime, model, OCR, and termbase identity binding.
+Managed workers may supply an approved `module:factory` engine binding to the
+same entrypoint; the default reference engine is qualification-only.
+
 Use `/k-slide-status` for the current session and `/k-slide-doctor` for diagnostics. Users do not need to remember a run ID for normal operation.
 
 ## Supported source types

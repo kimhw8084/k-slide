@@ -18,6 +18,7 @@ dev = ["pytest>=8,<9", "fonttools>=4,<5"]
 
 [project.scripts]
 k-slide = "k_slide.cli:main"
+k-slide-worker = "k_slide.worker:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
