@@ -18,7 +18,7 @@ from threading import RLock
 from typing import Any, Iterator, Mapping, Protocol
 
 from . import EXECUTION_CONTRACT_VERSION, RUN_STORE_SCHEMA_VERSION
-from .environment import RunEnvironmentIdentity, raise_environment_mismatch
+from .environment import RunEnvironmentIdentity, raise_environment_mismatch, resolve_effective_environment
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import stable_revision
 from .io import atomic_write_json, read_json
@@ -1064,17 +1064,42 @@ def _checkpoint_for_engine(job: ExecutionJob, state: RunState, queue: WorkQueue 
     )
 
 
-def sync_workspace_execution(run_dir: Path) -> ExecutionJob:
+def _workspace_project_root(run_dir: Path) -> Path:
+    run_dir = Path(run_dir).expanduser().resolve()
+    return run_dir.parent.parent if run_dir.parent.name == ".k-slide-runs" else run_dir.parent
+
+
+def ensure_workspace_environment_compatible(
+    run_dir: Path,
+    *,
+    environment_identity: RunEnvironmentIdentity | None = None,
+) -> tuple[ExecutionJob, RunEnvironmentIdentity]:
+    """Check a workspace binding before any resumable user-path mutation."""
+
+    run_dir = Path(run_dir).expanduser().resolve()
+    store = WorkspaceRunStore(run_dir)
+    state = load_state(run_dir)
+    job = store.load(f"job-{state.run_id}")
+    effective = resolve_effective_environment(_workspace_project_root(run_dir), environment_identity=environment_identity)
+    raise_environment_mismatch(job.environment_identity, effective)
+    return job, effective
+
+
+def sync_workspace_execution(
+    run_dir: Path,
+    *,
+    environment_identity: RunEnvironmentIdentity | None = None,
+) -> ExecutionJob:
     """Reflect current engine state into the one workspace execution record."""
 
     store = WorkspaceRunStore(run_dir)
+    current, _ = ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
     state = load_state(run_dir)
     queue: WorkQueue | None
     try:
         queue = load_queue(run_dir)
     except (KSlideError, OSError):
         queue = None
-    current = store.load(f"job-{state.run_id}")
     desired_checkpoint = _checkpoint_for_engine(current, state, queue)
     same_checkpoint = all(
         (

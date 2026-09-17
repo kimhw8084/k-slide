@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import re
+import subprocess
 from dataclasses import dataclass
 from typing import Any, Mapping
 
@@ -364,3 +366,104 @@ def raise_environment_mismatch(expected: RunEnvironmentIdentity | None, actual: 
             "Run environment is incompatible; resume was refused.",
             {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": list(fields)},
         )
+
+
+def _repository_revision(root: "Path") -> str | None:
+    try:
+        revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return revision if _SHA40.fullmatch(revision) else None
+
+
+def _read_runtime_manifest(path: "Path") -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise _invalid("Approved runtime manifest is unavailable or malformed.") from exc
+    if not isinstance(value, dict):
+        raise _invalid("Approved runtime manifest is not an object.")
+    try:
+        from .runtime_artifact import validate_runtime_manifest
+
+        manifest = validate_runtime_manifest(value)
+    except Exception as exc:
+        raise _invalid("Approved runtime manifest is incomplete or cannot be rederived.") from exc
+    if manifest.get("artifact_status") != "CANDIDATE" or "image_identity" not in manifest:
+        raise _invalid("Approved runtime manifest is not a complete executable runtime subject.")
+    return manifest
+
+
+def _environment_source(root: "Path") -> tuple["Path", "Path"]:
+    candidate_paths = (
+        root / ".k-slide-config" / "resolved-candidate.json",
+        root / ".k-slide-config" / "production-candidate.json",
+        root / "resolved-candidate.json",
+        root / "production-candidate.json",
+        root / "evals" / "production-candidate.yaml",
+    )
+    runtime_paths = (
+        root / ".k-slide-config" / "runtime-manifest.json",
+        root / ".k-slide-config" / "runtime" / "runtime-manifest.json",
+        root / "runtime" / "runtime-manifest.json",
+        root / "runtime-manifest.json",
+    )
+    candidate = next((path for path in candidate_paths if path.is_file() and not path.is_symlink()), None)
+    runtime = next((path for path in runtime_paths if path.is_file() and not path.is_symlink()), None)
+    if candidate is None:
+        raise _invalid("Approved KSA-10 environment identity is unavailable; no candidate subject was found.")
+    if runtime is None:
+        raise _invalid("Approved KSA-10 environment identity is unavailable; no runtime manifest subject was found.")
+    return candidate, runtime
+
+
+def resolve_effective_environment(root: "Path", *, environment_identity: RunEnvironmentIdentity | None = None) -> RunEnvironmentIdentity:
+    """Resolve the current product environment without manufacturing proof.
+
+    An explicit identity is an approved deployment binding.  Otherwise the
+    product path must reopen the immutable candidate and runtime subjects and
+    project them through the existing KSA-07 authorities.
+    """
+
+    if environment_identity is not None:
+        if not isinstance(environment_identity, RunEnvironmentIdentity):
+            raise _invalid("Current KSA-10 environment identity is invalid.")
+        return environment_identity
+
+    root = root.expanduser().resolve()
+    candidate_path, runtime_path = _environment_source(root)
+    try:
+        from .certification import EvidenceValidationError, load_candidate_spec, resolve_candidate_spec
+        from .security import sha256_file
+
+        candidate = load_candidate_spec(candidate_path, root=root, require_identity=True, strict=True)
+        candidate = resolve_candidate_spec(
+            candidate,
+            root=root,
+            subject_git_sha=candidate.get("subject_git_sha"),
+            require_sources=True,
+        )
+        runtime = _read_runtime_manifest(runtime_path)
+        runtime_manifest_sha = sha256_file(runtime_path)
+        declared_manifest_sha = candidate.get("runtime_artifact_manifest_sha256")
+        if declared_manifest_sha not in (None, "", "UNSET") and declared_manifest_sha != runtime_manifest_sha:
+            raise _invalid("Approved candidate and runtime manifest identities disagree.")
+        runtime["runtime_manifest_sha256"] = runtime_manifest_sha
+        source_revision = _repository_revision(root)
+        if source_revision is not None and runtime.get("source_revision") != source_revision:
+            raise _invalid("Approved runtime manifest is not bound to the current K-Slide revision.")
+        identity = RunEnvironmentIdentity.from_candidate_spec(candidate, runtime_manifest=runtime)
+    except KSlideError:
+        raise
+    except EvidenceValidationError as exc:
+        raise _invalid("Approved KSA-10 candidate/runtime identity is incomplete, unresolved, or inconsistent.") from exc
+    except Exception as exc:
+        raise _invalid("Approved KSA-10 candidate/runtime identity cannot be rederived.") from exc
+    return identity

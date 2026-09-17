@@ -9,7 +9,11 @@ from pathlib import Path
 
 from k_slide.environment import RunEnvironmentIdentity
 from k_slide.errors import ErrorCode, KSlideError
-from k_slide.execution import ExecutionController, ExecutionProfile, WorkspaceRunStore, new_execution_job
+from k_slide.cli import _next, _status, _submit
+from k_slide.execution import ExecutionController, ExecutionProfile, WorkspaceRunStore, new_execution_job, sync_workspace_execution
+from k_slide.extraction import extract_run
+from k_slide.ingest import prepare_run
+from k_slide.normalization import normalize_run
 from k_slide.paas import (
     AuthorizedScopeContext,
     PaaSController,
@@ -19,6 +23,10 @@ from k_slide.paas import (
     ReferenceWorkerEngine,
     RuntimeIdentity,
 )
+from k_slide.queue import WorkUnitStatus, load_queue, save_queue
+from k_slide.evidence_ir import EvidenceIR, EvidenceRegion, save_evidence
+from k_slide.state import RunPhase, load_state, save_state
+from k_slide.verify import finalize_run, verify_run
 
 
 def _sha(value: str) -> str:
@@ -232,6 +240,133 @@ class EnvironmentBindingTests(unittest.TestCase):
             self.assertNotIn("AccessKey", persisted)
             self.assertNotIn(str(root), persisted)
             self.assertNotIn("source", persisted.lower())
+
+    def test_workspace_creation_requires_complete_canonical_identity_before_run_directory_creation(self) -> None:
+        candidate_variants = {
+            "missing": None,
+            "incomplete": {"schema_version": "1.0"},
+            "unresolved": {
+                "schema_version": "1.0",
+                "subject_git_sha": "UNSET",
+                "requested_model": "google/gemma-4-31b-it",
+            },
+        }
+        for name, candidate in candidate_variants.items():
+            with self.subTest(identity=name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                source = root / "slide.png"
+                source.write_bytes(b"\x89PNG\r\n\x1a\nfixture")
+                if candidate is not None:
+                    config = root / ".k-slide-config"
+                    config.mkdir()
+                    (config / "production-candidate.json").write_text(json.dumps(candidate), encoding="utf-8")
+                with self.assertRaises(KSlideError) as raised:
+                    prepare_run(root, explicit_paths=[str(source)])
+                self.assertEqual(raised.exception.code, ErrorCode.EXECUTION_INVALID)
+                self.assertFalse((root / ".k-slide-runs").exists())
+
+    def test_explicit_reference_fixture_opt_in_remains_deterministic(self) -> None:
+        environment = RunEnvironmentIdentity.legacy_reference(
+            runtime_ref="runtime-reference",
+            model_identity="model-reference",
+            ocr_identity="ocr-reference",
+            termbase_identity="termbase-reference",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "slide.png"
+            source.write_bytes(b"\x89PNG\r\n\x1a\nfixture")
+            run = prepare_run(root, explicit_paths=[str(source)], environment_identity=environment)
+            self.assertEqual(WorkspaceRunStore(run).load(f"job-{run.name}").environment_identity, environment)
+
+    def test_paas_submission_and_worker_startup_refuse_missing_canonical_identity(self) -> None:
+        runtime = RuntimeIdentity("runtime-reference", "model-reference", "ocr-reference", "termbase-reference")
+        with self.assertRaises(KSlideError) as raised:
+            PaaSJobRequest("run-missing-environment", "scope", "store-missing-environment", runtime)
+        self.assertEqual(raised.exception.code, ErrorCode.EXECUTION_INVALID)
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises(KSlideError) as raised:
+                PaaSWorker(
+                    ReferencePaaSJobService(Path(directory)),
+                    worker_id="worker-missing-environment",
+                    runtime_identity=runtime,
+                    engine=ReferenceWorkerEngine(),
+                )
+            self.assertEqual(raised.exception.code, ErrorCode.EXECUTION_INVALID)
+
+    def _translation_run(self, root: Path, environment: RunEnvironmentIdentity) -> Path:
+        source = root / "slide.png"
+        source.write_bytes(b"\x89PNG\r\n\x1a\nfixture")
+        run = prepare_run(root, explicit_paths=[str(source)], environment_identity=environment)
+        queue = load_queue(run)
+        unit = queue.work_units[0]
+        evidence = EvidenceIR(
+            "doc-001",
+            unit.work_unit_id,
+            {"input_id": unit.source_input_id, "width_px": 100, "height_px": 100},
+            (EvidenceRegion(f"{unit.work_unit_id}-r001", (0, 0, 100, 100), (0, 0, 1, 1), selected_literal_candidate="검토", literal_confidence=1.0),),
+            required_source_ids=(f"{unit.work_unit_id}-r001",),
+        ).with_revision()
+        save_evidence(run, evidence)
+        unit.status = WorkUnitStatus.READY
+        unit.evidence_revision = evidence.evidence_revision
+        save_queue(run, queue)
+        state = load_state(run)
+        state.transition(RunPhase.NORMALIZED)
+        state.transition(RunPhase.EXTRACTED)
+        save_state(run, state)
+        return run
+
+    def test_workspace_mismatch_is_before_every_resumable_mutation_and_identity_a_reconnects(self) -> None:
+        actions = {
+            "next": lambda root, run, wrong: _next(root, run.name, None, wrong),
+            "repair": lambda root, run, wrong: _next(root, run.name, None, wrong),
+            "submit": lambda root, run, wrong: _submit(root, run.name, "{}", None, wrong),
+            "normalize": lambda root, run, wrong: normalize_run(run, environment_identity=wrong),
+            "extract": lambda root, run, wrong: extract_run(run, environment_identity=wrong),
+            "verify": lambda root, run, wrong: verify_run(run, environment_identity=wrong),
+            "finalize": lambda root, run, wrong: finalize_run(run, environment_identity=wrong),
+            "sync": lambda root, run, wrong: sync_workspace_execution(run, environment_identity=wrong),
+        }
+        for name, action in actions.items():
+            with self.subTest(action=name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                expected = _environment("a")
+                wrong = _environment("b")
+                run = self._translation_run(root, expected)
+                if name == "repair":
+                    queue = load_queue(run)
+                    queue.work_units[0].status = WorkUnitStatus.VERIFY_FAILED
+                    save_queue(run, queue)
+                    state = load_state(run)
+                    state.transition(RunPhase.TRANSLATING)
+                    state.transition(RunPhase.FAIL_REPAIRABLE)
+                    save_state(run, state)
+                before = {path: path.read_bytes() for path in root.rglob("*") if path.is_file()}
+                with self.assertRaises(KSlideError) as raised:
+                    action(root, run, wrong)
+                self.assertEqual(raised.exception.code, ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH)
+                self.assertEqual(before, {path: path.read_bytes() for path in root.rglob("*") if path.is_file()})
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            expected = _environment("a")
+            run = self._translation_run(root, expected)
+            result = _next(root, run.name, None, expected)
+            self.assertEqual(result["status"], "READY")
+            self.assertEqual(load_state(run).phase, RunPhase.TRANSLATING)
+
+    def test_status_under_mismatch_is_read_only_and_source_free(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            expected = _environment("a")
+            wrong = _environment("b")
+            run = self._translation_run(root, expected)
+            before = {path: path.read_bytes() for path in root.rglob("*") if path.is_file()}
+            status = _status(root, run.name, None, wrong)
+            self.assertEqual(status["environment_compatibility"], "INCOMPATIBLE")
+            self.assertEqual(status["environment_error"]["details"]["mismatch_code"], "KSLIDE_RUN_ENVIRONMENT_MISMATCH")
+            self.assertEqual(before, {path: path.read_bytes() for path in root.rglob("*") if path.is_file()})
 
 
 if __name__ == "__main__":

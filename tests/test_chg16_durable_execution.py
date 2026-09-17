@@ -31,6 +31,7 @@ from k_slide.execution import (
 )
 from k_slide.evidence_ir import stable_revision
 from k_slide.ingest import prepare_run
+from tests.reference_fixtures import reference_environment
 
 
 class _DeterministicStep:
@@ -546,7 +547,7 @@ class DurableExecutionContractTests(unittest.TestCase):
             root = Path(directory)
             source = root / "slide.png"
             source.write_bytes(b"\x89PNG\r\n\x1a\nstatus-fixture")
-            run = prepare_run(root, explicit_paths=[str(source)])
+            run = prepare_run(root, explicit_paths=[str(source)], environment_identity=reference_environment())
             output = io.StringIO()
             with redirect_stdout(output):
                 self.assertEqual(main(["status", "--root", str(root), "--run", run.name, "--json"]), 0)

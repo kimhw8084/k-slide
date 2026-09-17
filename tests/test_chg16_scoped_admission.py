@@ -29,9 +29,10 @@ from k_slide.paas import (
     ScopedPaaSRunStore,
     RuntimeIdentity,
 )
+from tests.reference_fixtures import reference_runtime
 
 
-RUNTIME = RuntimeIdentity("runtime-pinned", "model-pinned", "ocr-pinned", "termbase-pinned")
+RUNTIME = reference_runtime()
 
 
 class _NeedsReviewEngine:

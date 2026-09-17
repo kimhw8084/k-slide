@@ -211,13 +211,12 @@ class RuntimeIdentity:
             raise _invalid("PaaS runtime environment identity is invalid.")
 
     def environment(self) -> RunEnvironmentIdentity:
-        return self.environment_identity or RunEnvironmentIdentity.legacy_reference(
-            runtime_ref=self.runtime_ref,
-            model_identity=self.model_identity,
-            ocr_identity=self.ocr_identity,
-            termbase_identity=self.termbase_identity,
-            engine_contract_version=self.engine_contract_version,
-        )
+        if self.environment_identity is None:
+            raise KSlideError(
+                ErrorCode.EXECUTION_INVALID,
+                "PaaS runtime must provide a complete canonical KSA-10 environment identity.",
+            )
+        return self.environment_identity
 
     def as_dict(self) -> dict[str, str]:
         return {
@@ -1522,6 +1521,9 @@ class ReferencePaaSJobService(RunStoreResolver):
             return self._scoped_status(resolved, requested.job, record.references)
 
     def claim(self, identity: DurableJobIdentity | str, *, worker_id: str, runtime_identity: RuntimeIdentity, scope_context: AuthorizedScopeContext | None = None) -> WorkerClaim:
+        if not isinstance(runtime_identity, RuntimeIdentity):
+            raise _invalid("Worker runtime identity is invalid.")
+        runtime_identity.environment()
         scope_context = scope_context or self.scope_context
         if scope_context is not None:
             return self._claim_scoped(identity, worker_id=worker_id, runtime_identity=runtime_identity, scope_context=scope_context)
@@ -1546,6 +1548,7 @@ class ReferencePaaSJobService(RunStoreResolver):
         worker_id = _strict_identifier(worker_id, "worker ID")
         if not isinstance(runtime_identity, RuntimeIdentity):
             raise _invalid("Worker runtime identity is invalid.")
+        runtime_identity.environment()
         with self._scope_lock(scope_context):
             # Resolve and compare the immutable binding before normalization
             # can repair queue mirrors or promote an admission entry.
@@ -1612,6 +1615,7 @@ class ReferencePaaSJobService(RunStoreResolver):
         worker_id = _strict_identifier(worker_id, "worker ID")
         if not isinstance(runtime_identity, RuntimeIdentity):
             raise _invalid("Worker runtime identity is invalid.")
+        runtime_identity.environment()
         with self._scope_lock(scope_context):
             raw_state = self._load_scoped_state(scope_context)
             state = self._normalize_scoped_state(raw_state)
@@ -1773,6 +1777,7 @@ class PaaSWorker:
         self.worker_id = _strict_identifier(worker_id, "worker ID")
         if not isinstance(runtime_identity, RuntimeIdentity):
             raise _invalid("Worker runtime identity is invalid.")
+        runtime_identity.environment()
         self.runtime_identity = runtime_identity
         self.engine = engine
         if scope_context is not None and authorization is not None and scope_context != authorization:

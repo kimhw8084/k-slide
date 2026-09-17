@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import shutil
-import subprocess
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,7 +11,7 @@ from typing import Any, Iterable
 
 from . import SCHEMA_VERSION
 from .errors import ErrorCode, KSlideError
-from .environment import RunEnvironmentIdentity
+from .environment import RunEnvironmentIdentity, resolve_effective_environment
 from .execution import ExecutionProfile, WorkspaceRunStore, new_execution_job, sync_workspace_execution
 from .host_adapter import HostInputReference, validate_host_inputs
 from .io import atomic_write_json, atomic_write_text
@@ -108,26 +107,6 @@ def _write_compatibility_artifacts(run_dir: Path, run_id: str, artifacts: list[I
     atomic_write_json(run_dir / "metrics.json", {"slides_processed": 0, "tables_processed": 0, "regions_processed": 0, "numbers_verified": 0, "unresolved_count": 0, "repair_count": 0, "phase": "INPUT_VALIDATED"}, mode=0o600)
 
 
-def _workspace_environment_identity(root: Path) -> RunEnvironmentIdentity:
-    """Create a source-free local binding when no deployment supplies one."""
-
-    try:
-        revision = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(root), capture_output=True, text=True, timeout=5, check=True).stdout.strip()
-    except (OSError, subprocess.SubprocessError):
-        revision = ""
-    if revision and len(revision) == 40 and all(char in "0123456789abcdef" for char in revision):
-        runtime_ref = f"workspace-source-{revision[:16]}"
-    else:
-        runtime_ref = "workspace-unpinned"
-    return RunEnvironmentIdentity.legacy_reference(
-        runtime_ref=runtime_ref,
-        model_identity="workspace-model-unresolved",
-        ocr_identity="workspace-ocr-unresolved",
-        termbase_identity="workspace-termbase-unresolved",
-        source_revision=revision or None,
-    )
-
-
 def prepare_run(
     root: Path,
     *,
@@ -147,6 +126,7 @@ def prepare_run(
     """
 
     root = root.expanduser().resolve()
+    bound_environment = resolve_effective_environment(root, environment_identity=environment_identity)
     root.mkdir(parents=True, exist_ok=True)
     run_root = root / ".k-slide-runs"
     input_dir = root / ".k-slide-input"
@@ -172,7 +152,7 @@ def prepare_run(
             scope_ref="workspace",
             store_ref=f"workspace-{run_id}",
             engine_state_revision=state.revision,
-            environment_identity=environment_identity or _workspace_environment_identity(root),
+            environment_identity=bound_environment,
         )
     )
     _write_recovery(run_dir, run_id)
@@ -185,7 +165,7 @@ def prepare_run(
     except KSlideError as exc:
         state.transition(RunPhase.FAILED_INPUT, next_action="Correct the input and retry /k-slide.", error_code=exc.code.value, error_message=exc.message)
         save_state(run_dir, state)
-        sync_workspace_execution(run_dir)
+        sync_workspace_execution(run_dir, environment_identity=bound_environment)
         atomic_write_json(run_dir / "00_input_inventory.json", {"schema_version": SCHEMA_VERSION, "status": "failed_input", "error": sanitize_operational(exc.as_dict(), roots=(root,))}, mode=0o600)
         atomic_write_text(run_dir / "RUN_FAILED.md", f"# FAILED\n\n{exc.message}\n\nError code: `{exc.code.value}`\n")
         return run_dir
@@ -194,7 +174,7 @@ def prepare_run(
     if not raw_host_refs and not candidates:
         state.transition(RunPhase.FAILED_INPUT, next_action="Add a supported file to .k-slide-input/ or pass an explicit path.", error_code=ErrorCode.INPUT_NOT_FOUND.value, error_message="No supported input files were found.")
         save_state(run_dir, state)
-        sync_workspace_execution(run_dir)
+        sync_workspace_execution(run_dir, environment_identity=bound_environment)
         atomic_write_json(run_dir / "00_input_inventory.json", {"schema_version": SCHEMA_VERSION, "status": "failed_no_input", "input_count": 0, "supported_extensions": sorted(SUPPORTED_EXTENSIONS)}, mode=0o600)
         atomic_write_text(run_dir / "RUN_FAILED.md", "# FAILED\n\nNo supported input files were found. Add a slide image, PDF, or PPTX and run `/k-slide` again.\n")
         return run_dir
@@ -210,7 +190,7 @@ def prepare_run(
     except KSlideError as exc:
         state.transition(RunPhase.FAILED_INPUT, next_action="Correct the input and retry /k-slide.", error_code=exc.code.value, error_message=exc.message)
         save_state(run_dir, state)
-        sync_workspace_execution(run_dir)
+        sync_workspace_execution(run_dir, environment_identity=bound_environment)
         atomic_write_json(run_dir / "00_input_inventory.json", {"schema_version": SCHEMA_VERSION, "status": "failed_input", "error": sanitize_operational(exc.as_dict(), roots=(root,))}, mode=0o600)
         atomic_write_text(run_dir / "RUN_FAILED.md", f"# FAILED\n\n{exc.message}\n\nError code: `{exc.code.value}`\n")
         return run_dir
@@ -222,7 +202,7 @@ def prepare_run(
         if sha256_file(destination) != artifact.sha256:
             state.transition(RunPhase.FAILED_RUNTIME, next_action="Retry after checking local storage.", error_code="KSLIDE_SNAPSHOT_HASH_MISMATCH", error_message="Immutable input copy failed hash verification.")
             save_state(run_dir, state)
-            sync_workspace_execution(run_dir)
+            sync_workspace_execution(run_dir, environment_identity=bound_environment)
             atomic_write_text(run_dir / "RUN_FAILED.md", "# FAILED\n\nImmutable input snapshot hash verification failed.\n")
             return run_dir
 
@@ -242,10 +222,10 @@ def prepare_run(
         from .normalization import normalize_run
 
         try:
-            normalize_run(run_dir)
-            extract_run(run_dir)
+            normalize_run(run_dir, environment_identity=bound_environment)
+            extract_run(run_dir, environment_identity=bound_environment)
         finally:
-            sync_workspace_execution(run_dir)
+            sync_workspace_execution(run_dir, environment_identity=bound_environment)
     else:
-        sync_workspace_execution(run_dir)
+        sync_workspace_execution(run_dir, environment_identity=bound_environment)
     return run_dir

@@ -10,6 +10,7 @@ from typing import Any
 
 from . import VERIFICATION_SCHEMA_VERSION
 from .completion import ensure_completion_artifacts
+from .environment import RunEnvironmentIdentity
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import load_evidence
 from .io import atomic_write_json, atomic_write_text, read_json
@@ -198,7 +199,10 @@ def _persist_verification(run_dir: Path, result: VerificationResult) -> None:
     atomic_write_text(run_dir / "06_verification.md", "\n".join(lines))
 
 
-def verify_run(run_dir: Path) -> VerificationResult:
+def verify_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | None = None) -> VerificationResult:
+    from .execution import ensure_workspace_environment_compatible
+
+    ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
     with run_lock(run_dir):
         state = load_state(run_dir)
         if state.phase == RunPhase.COMPLETE:
@@ -242,7 +246,10 @@ def verify_run(run_dir: Path) -> VerificationResult:
         return result
 
 
-def finalize_run(run_dir: Path) -> VerificationResult:
+def finalize_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | None = None) -> VerificationResult:
+    from .execution import ensure_workspace_environment_compatible
+
+    ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
     with run_lock(run_dir):
         state = load_state(run_dir)
         if state.phase == RunPhase.COMPLETE:

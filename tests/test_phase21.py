@@ -20,6 +20,7 @@ from evals.model_scorers import score_translation_patch
 from evals.opencode_runner import OpenCodeEvalRunner
 from k_slide.queue import WorkQueue, WorkUnit, save_queue
 from k_slide.semantics import CommitmentStatus, SpeechAct, enum_value
+from tests.reference_fixtures import reference_environment
 
 
 class Phase21ContractTests(unittest.TestCase):
@@ -154,8 +155,9 @@ class Phase21ContractTests(unittest.TestCase):
             document.save(pdf_path)
             document.close()
             paths.append(str(pdf_path))
-            run = prepare_run(root, explicit_paths=paths)
-            result = normalize_run(run)
+            environment = reference_environment()
+            run = prepare_run(root, explicit_paths=paths, environment_identity=environment)
+            result = normalize_run(run, environment_identity=environment)
             unit_ids = [unit.work_unit_id for document in result.documents for unit in document.units]
             render_paths = [unit.canonical_render_path for document in result.documents for unit in document.units]
             self.assertEqual(len(unit_ids), len(set(unit_ids)))
@@ -180,13 +182,14 @@ class Phase21ContractTests(unittest.TestCase):
             root = Path(directory)
             source = root / "slide.png"
             Image.new("RGB", (320, 180), "white").save(source)
-            run = prepare_run(root, explicit_paths=[str(source)])
-            normalize_run(run)
-            evidence = extract_run(run, ocr_provider=FakeOCR())[0]
+            environment = reference_environment()
+            run = prepare_run(root, explicit_paths=[str(source)], environment_identity=environment)
+            normalize_run(run, environment_identity=environment)
+            evidence = extract_run(run, ocr_provider=FakeOCR(), environment_identity=environment)[0]
             self.assertGreaterEqual(len(evidence.regions), 2)
             self.assertTrue(any(item.get("kind") == "context_image" for item in evidence.visual_elements))
-            self.assertEqual(_next(root, run.name, None)["status"], "READY")
-            media = _evidence(root, run.name, None)["model_media_plan"]
+            self.assertEqual(_next(root, run.name, None, environment)["status"], "READY")
+            media = _evidence(root, run.name, None, environment)["model_media_plan"]
             self.assertTrue(media["context_image"]["required"])
             self.assertTrue(str(media["context_image"]["path"]).startswith(".k-slide-runs/"))
             self.assertGreaterEqual(len(media["required_crops"]), 1)

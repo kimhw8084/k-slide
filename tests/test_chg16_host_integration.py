@@ -6,6 +6,7 @@ import json
 import tempfile
 import unittest
 import zipfile
+from dataclasses import replace
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -23,11 +24,13 @@ from k_slide.host_adapter import (
     validate_host_inputs,
 )
 from k_slide.ingest import prepare_run
+from k_slide.execution import ExecutionProfile, OperationalLifecycle, TerminalOutcome, WorkspaceRunStore, new_execution_job, sync_workspace_execution
 from k_slide.installer import install, verify_install
 from k_slide.redaction import sanitize_operational
 from k_slide.security import sha256_file
 from k_slide.state import RunPhase, RunState, load_state, save_state
 from k_slide.support import build_support_bundle
+from tests.reference_fixtures import reference_environment
 
 
 PNG = b"\x89PNG\r\n\x1a\nsynthetic-host-fixture"
@@ -36,6 +39,17 @@ PNG = b"\x89PNG\r\n\x1a\nsynthetic-host-fixture"
 class HostIntegrationTests(unittest.TestCase):
     def _reference(self, path: Path, name: str, kind: str = "workspace_file") -> HostInputReference:
         return HostInputReference(kind, name, path.as_uri())
+
+    def _prepare(self, root: Path, **kwargs):
+        return prepare_run(root, environment_identity=reference_environment(), **kwargs)
+
+    def _bind_execution(self, run: Path) -> None:
+        environment = reference_environment()
+        job = new_execution_job(run.name, profile=ExecutionProfile.WORKSPACE_LOCAL, scope_ref="workspace", store_ref=f"workspace-{run.name}", environment_identity=environment)
+        if load_state(run).phase is RunPhase.NEEDS_REVIEW:
+            job = replace(job, lifecycle=OperationalLifecycle.COMPLETED, terminal_outcome=TerminalOutcome.NEEDS_REVIEW)
+        WorkspaceRunStore(run).create(job)
+        sync_workspace_execution(run, environment_identity=environment)
 
     def test_versioned_contract_separates_lifecycle_from_semantic_outcome(self) -> None:
         self.assertEqual(phase_contract(RunPhase.CREATED), (OperationalState.QUEUED.value, SemanticOutcome.PENDING.value))
@@ -86,7 +100,7 @@ class HostIntegrationTests(unittest.TestCase):
             first.write_bytes(PNG + b"-one")
             second.write_bytes(PNG + b"-two")
             refs = (self._reference(first, "first.png"), self._reference(second, "second.png"))
-            run = prepare_run(root, host_input_refs=refs, approved_root=root, session_id="host-session")
+            run = self._prepare(root, host_input_refs=refs, approved_root=root, session_id="host-session")
             self.assertEqual(load_state(run).phase, RunPhase.INPUT_VALIDATED)
             manifest = json.loads((run / "RUN_MANIFEST.json").read_text(encoding="utf-8"))
             inputs = manifest["inputs"]
@@ -108,13 +122,13 @@ class HostIntegrationTests(unittest.TestCase):
             root = Path(directory)
             attachment = Path(outside_directory) / "upload.bin"
             attachment.write_bytes(PNG)
-            accepted = prepare_run(
+            accepted = self._prepare(
                 root,
                 host_input_refs=(self._reference(attachment, "uploaded.png", "attachment"),),
                 approved_root=root,
             )
             self.assertEqual(load_state(accepted).phase, RunPhase.INPUT_VALIDATED)
-            rejected = prepare_run(
+            rejected = self._prepare(
                 root,
                 host_input_refs=(HostInputReference("attachment", "remote.png", "https://example.invalid/remote.png"),),
                 approved_root=root,
@@ -160,7 +174,8 @@ class HostIntegrationTests(unittest.TestCase):
             failed_run = root / ".k-slide-runs" / "k-slide-failed"
             failed_run.mkdir(parents=True)
             save_state(failed_run, RunState("k-slide-failed", "standard", RunPhase.FAILED_SCHEMA, error_code="KSLIDE_SCHEMA_INVALID", error_message="Schema failed."))
-            failed = _next(root, failed_run.name, None)
+            self._bind_execution(failed_run)
+            failed = _next(root, failed_run.name, None, reference_environment())
             self.assertEqual(failed["status"], "PROCESSING_FAILED")
             self.assertEqual(failed["operational_state"], "PROCESSING_FAILED")
             self.assertIsNone(failed["semantic_outcome"])
@@ -169,7 +184,8 @@ class HostIntegrationTests(unittest.TestCase):
             review_run.mkdir(parents=True)
             save_state(review_run, RunState("k-slide-review", "standard", RunPhase.NEEDS_REVIEW))
             (review_run / "WORK_QUEUE.json").write_text(json.dumps({"run_id": review_run.name, "work_units": [], "queue_revision": ""}), encoding="utf-8")
-            review = _next(root, review_run.name, None)
+            self._bind_execution(review_run)
+            review = _next(root, review_run.name, None, reference_environment())
             self.assertEqual(review["status"], "NEEDS_REVIEW")
             self.assertEqual(review["operational_state"], "COMPLETED")
             self.assertEqual(review["semantic_outcome"], "NEEDS_REVIEW")
@@ -187,7 +203,7 @@ class HostIntegrationTests(unittest.TestCase):
             root = Path(directory)
             attachment = Path(outside_directory) / "private.png"
             attachment.write_bytes(PNG + b"SECRET-SOURCE-CONTENT")
-            run = prepare_run(root, host_input_refs=(self._reference(attachment, "private.png", "attachment"),), approved_root=root)
+            run = self._prepare(root, host_input_refs=(self._reference(attachment, "private.png", "attachment"),), approved_root=root)
             status_output = io.StringIO()
             with redirect_stdout(status_output):
                 self.assertEqual(main(["status", "--root", str(root), "--run", run.name, "--json"]), 0)
@@ -206,7 +222,7 @@ class HostIntegrationTests(unittest.TestCase):
             root = Path(directory)
             attachment = Path(outside_directory) / "not-an-image.png"
             attachment.write_bytes(b"not-a-png")
-            run = prepare_run(
+            run = self._prepare(
                 root,
                 host_input_refs=(self._reference(attachment, "not-an-image.png", "attachment"),),
                 approved_root=root,

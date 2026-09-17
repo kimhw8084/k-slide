@@ -9,7 +9,8 @@ from pathlib import Path
 from typing import Any
 
 from .errors import ErrorCode, KSlideError
-from .execution import execution_metadata, sync_workspace_execution
+from .environment import RunEnvironmentIdentity
+from .execution import WorkspaceRunStore, ensure_workspace_environment_compatible, execution_metadata, sync_workspace_execution
 from .evidence_ir import load_evidence
 from .host_adapter import HostInvocation, add_host_contract
 from .ingest import prepare_run
@@ -48,7 +49,8 @@ def _diagnostic_roots(root: Path | None) -> tuple[Path, ...]:
 def _execution_for_run(run: Path) -> dict[str, Any] | None:
     if not (run / "EXECUTION_JOB.json").is_file():
         return None
-    return execution_metadata(sync_workspace_execution(run))
+    state = load_state(run)
+    return execution_metadata(WorkspaceRunStore(run).load(f"job-{state.run_id}"))
 
 
 def _find_run(root: Path, run_id: str | None, session_id: str | None) -> Path:
@@ -75,8 +77,15 @@ def _attach_run_contract(root: Path, value: dict[str, Any], run_id: str | None, 
     return add_host_contract(value, phase=state.phase, queue=queue, input_count=state.input_count, execution=_execution_for_run(run))
 
 
-def _submit(root: Path, run_id: str, payload_json: str, session_id: str | None) -> dict[str, Any]:
+def _submit(
+    root: Path,
+    run_id: str,
+    payload_json: str,
+    session_id: str | None,
+    environment_identity: RunEnvironmentIdentity | None = None,
+) -> dict[str, Any]:
     run_dir = _find_run(root, run_id, session_id)
+    ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
     try:
         value = json.loads(payload_json)
     except json.JSONDecodeError as exc:
@@ -123,13 +132,26 @@ def _submit(root: Path, run_id: str, payload_json: str, session_id: str | None) 
         return {"status": "ACCEPTED", "run_id": state.run_id, "work_unit_id": unit.work_unit_id, "translation_revision": translation_revision, "stored": str((run_dir / "ir" / f"{unit.work_unit_id}.json").relative_to(root.resolve()))}
 
 
-def _status(root: Path, run_id: str | None, session_id: str | None) -> dict[str, Any]:
+def _status(
+    root: Path,
+    run_id: str | None,
+    session_id: str | None,
+    environment_identity: RunEnvironmentIdentity | None = None,
+) -> dict[str, Any]:
     run = resolve_run(_run_root(root), explicit=run_id, session_id=session_id)
     if run is None:
         choices = [path.name for path in incomplete_runs(_run_root(root))]
         if choices:
             return sanitize_operational(add_host_contract({"status": "AMBIGUOUS", "choices": choices, "next": "Pass a run ID or reconnect the original OpenCode session."}, phase=None), roots=_diagnostic_roots(root))
         return sanitize_operational(add_host_contract({"status": "NO_RUN", "next": "/k-slide"}, phase=None), roots=_diagnostic_roots(root))
+    environment_error: dict[str, Any] | None = None
+    if environment_identity is not None and (run / "EXECUTION_JOB.json").is_file():
+        try:
+            ensure_workspace_environment_compatible(run, environment_identity=environment_identity)
+        except KSlideError as exc:
+            if exc.code is not ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH:
+                raise
+            environment_error = exc.as_dict()
     execution = _execution_for_run(run)
     state = load_state(run)
     try:
@@ -143,7 +165,7 @@ def _status(root: Path, run_id: str | None, session_id: str | None) -> dict[str,
     artifacts = {name: (run / name).is_file() for name in ["RUN_STATE.json", "RUN_MANIFEST.json", *COMPLETION_POLICY.required_artifacts, "RUN_FAILED.md"]}
     return sanitize_operational(
         add_host_contract(
-            {"status": state.phase.value, "run_id": state.run_id, "input_count": state.input_count, "current_work_unit": state.current_work_unit, "next_action": state.next_action, "artifacts": artifacts, "work_queue": queue_info},
+            {"status": state.phase.value, "run_id": state.run_id, "input_count": state.input_count, "current_work_unit": state.current_work_unit, "next_action": state.next_action, "artifacts": artifacts, "work_queue": queue_info, **({"environment_compatibility": "INCOMPATIBLE", "environment_error": environment_error} if environment_error is not None else {})},
             phase=state.phase,
             queue=queue if queue_info.get("status") != "INVALID" else None,
             input_count=state.input_count,
@@ -153,9 +175,16 @@ def _status(root: Path, run_id: str | None, session_id: str | None) -> dict[str,
     )
 
 
-def _next(root: Path, run_id: str | None, session_id: str | None) -> dict[str, Any]:
-    value = _next_unsanitized(root, run_id, session_id)
+def _next(
+    root: Path,
+    run_id: str | None,
+    session_id: str | None,
+    environment_identity: RunEnvironmentIdentity | None = None,
+) -> dict[str, Any]:
+    value = _next_unsanitized(root, run_id, session_id, environment_identity)
     run = _find_run(root, run_id, session_id)
+    if (run / "EXECUTION_JOB.json").is_file():
+        sync_workspace_execution(run, environment_identity=environment_identity)
     execution = _execution_for_run(run)
     state = load_state(run)
     try:
@@ -165,7 +194,12 @@ def _next(root: Path, run_id: str | None, session_id: str | None) -> dict[str, A
     return sanitize_operational(add_host_contract(value, phase=state.phase, queue=queue, input_count=state.input_count, execution=execution), roots=_diagnostic_roots(root))
 
 
-def _next_unsanitized(root: Path, run_id: str | None, session_id: str | None) -> dict[str, Any]:
+def _next_unsanitized(
+    root: Path,
+    run_id: str | None,
+    session_id: str | None,
+    environment_identity: RunEnvironmentIdentity | None = None,
+) -> dict[str, Any]:
     run = _find_run(root, run_id, session_id)
     state = load_state(run)
     if state.phase in OPERATIONAL_FAILURE_PHASES:
@@ -183,6 +217,7 @@ def _next_unsanitized(root: Path, run_id: str | None, session_id: str | None) ->
         return {"status": "VERIFIED", "run_id": state.run_id, "next_action": "kslide_finalize"}
     if state.phase == RunPhase.NEEDS_REVIEW:
         return {"status": "NEEDS_REVIEW", "run_id": state.run_id, "next_action": "Human review or explicit repair is required."}
+    ensure_workspace_environment_compatible(run, environment_identity=environment_identity)
     with run_lock(run):
         bind_session(_run_root(root), session_id, run.name)
         state = load_state(run)
@@ -241,7 +276,12 @@ def _next_unsanitized(root: Path, run_id: str | None, session_id: str | None) ->
         }
 
 
-def _evidence(root: Path, run_id: str | None, session_id: str | None) -> dict[str, Any]:
+def _evidence(
+    root: Path,
+    run_id: str | None,
+    session_id: str | None,
+    environment_identity: RunEnvironmentIdentity | None = None,
+) -> dict[str, Any]:
     run = _find_run(root, run_id, session_id)
     state = load_state(run)
     if state.current_work_unit is None:
