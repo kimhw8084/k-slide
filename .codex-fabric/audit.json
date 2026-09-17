@@ -1,0 +1,450 @@
+{
+  "accepted_at": "2026-09-17T14:00:52Z",
+  "changed_files": [
+    {
+      "additions": 38,
+      "deletions": 0,
+      "path": "docs/adr/0042-run-environment-identity.md",
+      "status": "A"
+    },
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": "src/k_slide/__init__.py",
+      "status": "M"
+    },
+    {
+      "additions": 366,
+      "deletions": 0,
+      "path": "src/k_slide/environment.py",
+      "status": "A"
+    },
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 49,
+      "deletions": 6,
+      "path": "src/k_slide/execution.py",
+      "status": "M"
+    },
+    {
+      "additions": 24,
+      "deletions": 0,
+      "path": "src/k_slide/ingest.py",
+      "status": "M"
+    },
+    {
+      "additions": 117,
+      "deletions": 23,
+      "path": "src/k_slide/paas.py",
+      "status": "M"
+    },
+    {
+      "additions": 9,
+      "deletions": 0,
+      "path": "src/k_slide/worker.py",
+      "status": "M"
+    },
+    {
+      "additions": 238,
+      "deletions": 0,
+      "path": "tests/test_chg16_environment_binding.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk find . -maxdepth 4 -type f \\\\( -name '*runtime*manifest*.json' -o -name 'runtime-manifest.json' \\\\) -print | sed -n '1,120p'\nrtk rg -n \\\"runtime_artifact_identity|runtime_artifact_manifest_sha256|runtime_sbom_sha256\\\" . -g '*.py' -g '*.yaml' -g '*.json' | sed -n '1,200p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"execution_metadata|environment|deployment_fingerprint|evidence.*metadata|write_evidence\\\" src/k_slide/verify.py src/k_slide/evidence_ir.py src/k_slide/evidence_adapters.py src/k_slide/completion.py src/k_slide/rendering -g '*.py' | sed -n '1,240p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,210p' src/k_slide/evidence_ir.py\nrtk sed -n '1,140p' src/k_slide/verify.py\nrtk rg -n \\\"save_evidence|EvidenceIR\\\\(\\\" src/k_slide -g '*.py' | sed -n '1,180p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,25p' src/k_slide/execution.py\nrtk sed -n '278,385p' src/k_slide/execution.py\nrtk sed -n '393,535p' src/k_slide/execution.py\nrtk sed -n '910,970p' src/k_slide/execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '385,545p' src/k_slide/execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '730,835p' src/k_slide/paas.py\nrtk sed -n '890,935p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '825,925p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1240,1395p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '930,975p' src/k_slide/paas.py\nrtk sed -n '1615,1665p' src/k_slide/paas.py\nrtk sed -n '1700,1820p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m compileall -q src && rtk pytest -q tests/test_chg16_durable_execution.py tests/test_chg16_paas_worker.py tests/test_chg16_scoped_admission.py tests/test_runtime_artifact.py'",
+      "exit_code": 2,
+      "test_result": {
+        "exit_code": 2,
+        "framework": "pytest",
+        "outcome": "interrupted",
+        "output_bytes": 102,
+        "output_sha256": "b393bfaff744f391bf103aa6028b4d80623c512ea1db66ccd70c4dd75c5ccb9d",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m unittest tests.test_chg16_durable_execution tests.test_chg16_paas_worker tests.test_chg16_scoped_admission tests.test_runtime_artifact'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_durable_execution tests.test_chg16_paas_worker tests.test_chg16_scoped_admission tests.test_runtime_artifact'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"set\\\\(value\\\\) not in \\\\{\\\" src/k_slide | sed -n '1,100p'\nrtk python - <<'PY'\nimport sys, json, hashlib\nsys.path.insert(0,'src')\nfrom k_slide.execution import ExecutionJob, ExecutionProfile\nfrom k_slide.paas import RuntimeIdentity\nr=RuntimeIdentity('runtime-pinned','model-pinned','ocr-pinned','termbase-pinned')\nj=ExecutionJob.new(run_id='x', profile=ExecutionProfile.DURABLE, scope_ref='s', store_ref='st')\nprint(j.as_dict().keys())\nprint(json.dumps(j.as_dict(), indent=2)[:1000])\nprint(str(j.as_dict()).lower())\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_durable_execution tests.test_chg16_paas_worker tests.test_chg16_scoped_admission tests.test_runtime_artifact'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_durable_execution tests.test_chg16_paas_worker tests.test_chg16_scoped_admission tests.test_runtime_artifact'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1530,1605p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1605,1655p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_environment_binding tests.test_chg16_durable_execution tests.test_chg16_paas_worker tests.test_chg16_scoped_admission'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_environment_binding tests.test_chg16_paas_worker tests.test_chg16_scoped_admission'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python - <<'PY'\nfield='kslide_source_revision'\nrun_id=f\\\"run-{field.replace('_', '-') }\\\"\nprint(repr(run_id), len(run_id))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nfrom k_slide.paas import _strict_identifier\nprint(_strict_identifier('run-kslide-source-revision','run ID'))\nPY\nrtk sed -n '140,154p' tests/test_chg16_environment_binding.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_environment_binding tests.test_chg16_paas_worker tests.test_chg16_scoped_admission'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short && rtk git diff --stat && rtk git diff --check && rtk git diff -- src/k_slide/environment.py src/k_slide/execution.py src/k_slide/paas.py src/k_slide/ingest.py src/k_slide/worker.py src/k_slide/errors.py src/k_slide/__init__.py docs/adr/0042-run-environment-identity.md tests/test_chg16_environment_binding.py | sed -n '1,520p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"runtime_identity ==|record\\\\.runtime_identity \"'!=|record'\"\\\\.runtime_identity ==|runtime_identity \"'!=\" src/k_slide/paas.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"runtime_identity ==|record\\\\.runtime_identity \"'!=|record'\"\\\\.runtime_identity ==|runtime_identity \"'!=\" src/k_slide/paas.py || true\nrtk env PYTHONPATH=src python -m unittest tests.test_chg16_environment_binding tests.test_chg16_paas_worker tests.test_chg16_scoped_admission'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,380p' src/k_slide/environment.py\nrtk sed -n '180,280p' src/k_slide/paas.py\nrtk sed -n '1440,1650p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nfrom k_slide.environment import RunEnvironmentIdentity\nfrom k_slide import EVIDENCE_IR_SCHEMA_VERSION, SLIDE_IR_SCHEMA_VERSION\nfrom k_slide.translation_contract import TRANSLATION_PATCH_SCHEMA_VERSION\nfrom k_slide.certification import sha256_bytes, canonical_bytes\ns=lambda x: sha256_bytes(x.encode())\nc={\n 'candidate_spec_version':'1.0','subject_git_sha':'a'*40,'kslide_version':'0.3.5','requested_model':'google/gemma-4-31b-it','effective_model':'google/gemma-4-31b-it','provider':'p','ocr_provider':'paddle','ocr_asset_manifest_sha256':s('ocr'),'ocr_config_identity':s('cfg'),'termbase_hash':s('tb'),'termbase_version':'1.0','schema_versions':{'evidence_ir':'1.0','translation_patch':'1.0','slide_ir':'1.0'},\n 'runtime_artifact_identity':{'kind':'canonical-build-inputs','sha256':s('art')},'runtime_artifact_manifest_sha256':s('man'),'runtime_sbom_sha256':s('sbom'),\n}\nr={'image_identity':{'kind':'registry-digest','value':'sha256:'+s('img')},'build_inputs_sha256':s('build'),'ocr_asset_manifest':{'sha256':s('ocr'),'paddlex_config_sha256':s('cfg')}}\ne=RunEnvironmentIdentity.from_candidate_spec(c,r)\nprint(e.as_dict())\nPY\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nfrom k_slide.environment import RunEnvironmentIdentity\nfrom k_slide.certification import sha256_bytes\ns=lambda x: sha256_bytes(x.encode())\nc={'candidate_spec_version':'1.0','subject_git_sha':'a'*40,'kslide_version':'0.3.5','requested_model':'google/gemma-4-31b-it','effective_model':'google/gemma-4-31b-it','provider':'p','ocr_provider':'paddle','ocr_asset_manifest_sha256':s('ocr'),'ocr_config_identity':s('cfg'),'termbase_hash':s('tb'),'termbase_version':'1.0','schema_versions':{'evidence_ir':'1.0','translation_patch':'1.0','slide_ir':'1.0'},'runtime_artifact_identity':{'kind':'canonical-build-inputs','sha256':s('art')},'runtime_artifact_manifest_sha256':s('man'),'runtime_sbom_sha256':s('sbom')}\nr={'image_identity':{'kind':'registry-digest','value':'sha256:'+s('img')},'build_inputs_sha256':s('build'),'ocr_asset_manifest':{'sha256':s('ocr'),'paddlex_config_sha256':s('cfg')}}\ne=RunEnvironmentIdentity.from_candidate_spec(c,runtime_manifest=r)\nprint(e.identity_sha256)\nprint(e.as_dict()['runtime_image_identity'])\nPY\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nfrom k_slide.environment import RunEnvironmentIdentity\nfrom k_slide.certification import sha256_bytes\ns=lambda x: sha256_bytes(x.encode())\nc={'candidate_spec_version':'1.0','subject_git_sha':'a'*40,'kslide_version':'0.3.5','requested_model':'google/gemma-4-31b-it','effective_model':'google/gemma-4-31b-it','provider':'p','ocr_provider':'paddle','ocr_asset_manifest_sha256':s('ocr'),'termbase_hash':s('tb'),'termbase_version':'1.0','schema_versions':{'evidence_ir':'1.0','translation_patch':'1.0','slide_ir':'1.0'},'runtime_artifact_identity':{'kind':'canonical-build-inputs','sha256':s('art')},'runtime_artifact_manifest_sha256':s('man'),'runtime_sbom_sha256':s('sbom')}\nr={'image_identity':{'kind':'registry-digest','value':'sha256:'+s('img')},'build_inputs_sha256':s('build'),'ocr_asset_manifest':{'sha256':s('ocr'),'paddlex_config_sha256':s('cfg')}}\ne=RunEnvironmentIdentity.from_candidate_spec(c,runtime_manifest=r)\nprint(e.identity_sha256)\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' tests/test_chg16_environment_binding.py && rtk git status --short && rtk git diff --check\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff -- src/k_slide/__init__.py src/k_slide/errors.py src/k_slide/execution.py src/k_slide/ingest.py src/k_slide/paas.py src/k_slide/worker.py && rtk sed -n '1,360p' src/k_slide/environment.py && rtk sed -n '1,260p' docs/adr/0042-run-environment-identity.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,240p' src/k_slide/paas.py && rtk sed -n '240,520p' src/k_slide/paas.py && rtk sed -n '720,1060p' src/k_slide/paas.py && rtk sed -n '1060,1390p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/paas.py | sed -n '690,940p'; rtk nl -ba src/k_slide/paas.py | sed -n '940,1220p'; rtk nl -ba src/k_slide/paas.py | sed -n '1220,1490p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '212,245p' src/k_slide/paas.py; rtk nl -ba src/k_slide/paas.py | sed -n '1490,1810p'; rtk nl -ba src/k_slide/paas.py | sed -n '1810,2040p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/execution.py | sed -n '270,630p'; rtk nl -ba src/k_slide/execution.py | sed -n '680,820p'; rtk nl -ba src/k_slide/execution.py | sed -n '900,1045p'; rtk nl -ba src/k_slide/execution.py | sed -n '1080,1145p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1008,1075p' src/k_slide/paas.py; rtk sed -n '1,190p' src/k_slide/worker.py; rtk sed -n '1,220p' src/k_slide/ingest.py; rtk sed -n '1,150p' src/k_slide/errors.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"candidate_deployment_fingerprint|runtime_artifact|image_identity|build_inputs|ocr_asset_manifest|candidate_spec\" src/k_slide tests | head -240'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '40,125p' src/k_slide/certification.py; rtk sed -n '175,220p' src/k_slide/certification.py; rtk sed -n '1090,1110p' src/k_slide/certification.py; rtk sed -n '300,435p' src/k_slide/runtime_artifact.py; rtk sed -n '250,320p' src/k_slide/runtime_artifact.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"rolling|upgrade|rederive|restart|cross-user|authorization|scope|queue|runtime identity|environment\" tests/test_paas.py tests/test_execution.py tests/test_chg16_environment_binding.py tests | head -260'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"evidence_metadata|execution_metadata|runtime|deployment_fingerprint|subject_git_sha|provenance|Evidence\" src/k_slide/evidence_ir.py src/k_slide | head -260'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '95,165p' tests/test_chg16_environment_binding.py; rtk env PYTHONPATH=src python -m unittest tests.test_chg16_environment_binding\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,420p' src/k_slide/environment.py; rtk sed -n '1,45p' src/k_slide/__init__.py; rtk git diff --check; rtk git status --short\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,120p' tests/test_chg16_scoped_admission.py; rtk sed -n '1,120p' tests/test_chg16_paas_worker.py; rtk rg -n \\\"RuntimeIdentity\\\\(\\\" tests src | head -100\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_environment_binding && rtk env PYTHONPATH=src python -m compileall -q src tests && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rev-parse HEAD && rtk git diff --check && rtk git status --short && rtk git diff --stat && rtk rg -n \"RUN_ENVIRONMENT_IDENTITY_VERSION|EXECUTION_ENVIRONMENT_MISMATCH|class RunEnvironmentIdentity|environment_identity\" src/k_slide docs/adr/0042-run-environment-identity.md tests/test_chg16_environment_binding.py | head -220'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff -- src/k_slide/paas.py src/k_slide/execution.py src/k_slide/ingest.py src/k_slide/worker.py src/k_slide/__init__.py src/k_slide/errors.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 245,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.85,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 20604672,
+      "fresh_input_tokens": 452367,
+      "input_tokens": 21057039,
+      "non_reasoning_output_tokens": 37109,
+      "output_tokens": 73741,
+      "reasoning_output_tokens": 36632,
+      "total_processed_tokens": 21130780
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "486afeffc1668ee53c156c6f20260adbdce5365b",
+      "subject": "fabric: capture completed model changes [CF-ff4062080f5775b66b36e815]"
+    }
+  ],
+  "diff": {
+    "additions": 843,
+    "changed_files": 9,
+    "commit_count": 1,
+    "deletions": 29
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 1,
+    "items": [
+      {
+        "bytes": 2026,
+        "path": "docs/adr/0042-run-environment-identity.md",
+        "sha256": "2e350a1e903ebcd3769c53a6cc1ee5279ad81f0bf02424f431252ea951415952"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": true,
+    "commit_message": "fabric: capture completed model changes [CF-ff4062080f5775b66b36e815]",
+    "commit_sha": "486afeffc1668ee53c156c6f20260adbdce5365b",
+    "paths_before": 9,
+    "status_before": [
+      " M src/k_slide/__init__.py",
+      " M src/k_slide/errors.py",
+      " M src/k_slide/execution.py",
+      " M src/k_slide/ingest.py",
+      " M src/k_slide/paas.py",
+      " M src/k_slide/worker.py",
+      "?? docs/adr/0042-run-environment-identity.md",
+      "?? src/k_slide/environment.py",
+      "?? tests/test_chg16_environment_binding.py"
+    ],
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-17T14:29:14Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "258401198618c2c0541a7fb751849639831cc9df",
+    "branch": "codex/k-slide-chg16-resume-binding-01",
+    "head_sha": "486afeffc1668ee53c156c6f20260adbdce5365b",
+    "remote_exact_head": true,
+    "remote_head_sha": "486afeffc1668ee53c156c6f20260adbdce5365b",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "258401198618c2c0541a7fb751849639831cc9df",
+    "work_branch": "codex/k-slide-chg16-resume-binding-01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-ff4062080f5775b66b36e815",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-resume-binding-01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-resume-binding-01"
+  },
+  "operation": "BUILD",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-resume-binding-01",
+  "schema_version": 1,
+  "started_at": "2026-09-17T14:00:52Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1702,
+    "queue_seconds": 0,
+    "total_seconds": 1702
+  },
+  "transport": {
+    "bytes": 6144,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 5835,
+    "prompt_sha256": "0a460f8cbfbd13756237f33f7f24a255202e85efe63e943b0911d3e26d0c4b50",
+    "sha256": "ff4062080f5775b66b36e81550f5e85ed0730dcd2ac69fba20f94807d90bdd3e"
+  }
+}
