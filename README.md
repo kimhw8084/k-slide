@@ -49,6 +49,16 @@ pinned runtime, model, OCR, and termbase identity binding.
 Managed workers may supply an approved `module:factory` engine binding to the
 same entrypoint; the default reference engine is qualification-only.
 
+KSA-09 adds an explicit deployment-supplied `AuthorizedScopeContext` to this
+same boundary. The local reference adapter persists admission/control state,
+FIFO overflow, KSA-06 run state, and opaque run/result/evidence references in
+separate user/workspace-derived namespaces, allowing one active heavy run per
+scope while independent scopes progress concurrently. Scoped inspect, cancel,
+claim, queue, and resolution operations fail closed without that authorized
+context. These are repository-side semantics and deterministic qualification
+evidence; live company storage/job-service integration and production
+qualification remain external gates. See [ADR 0041](docs/adr/0041-scoped-durable-admission.md).
+
 Use `/k-slide-status` for the current session and `/k-slide-doctor` for diagnostics. Users do not need to remember a run ID for normal operation.
 
 ## Supported source types
