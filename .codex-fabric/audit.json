@@ -1,0 +1,454 @@
+{
+  "accepted_at": "2026-09-17T12:34:44Z",
+  "changed_files": [
+    {
+      "additions": 5,
+      "deletions": 2,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 10,
+      "deletions": 0,
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 0,
+      "path": "deploy/README.md",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 2,
+      "path": "docs/adr/0038-versioned-durable-execution-contract.md",
+      "status": "M"
+    },
+    {
+      "additions": 10,
+      "deletions": 7,
+      "path": "docs/adr/0040-paas-worker-controller-boundary.md",
+      "status": "M"
+    },
+    {
+      "additions": 52,
+      "deletions": 0,
+      "path": "docs/adr/0041-scoped-durable-admission.md",
+      "status": "A"
+    },
+    {
+      "additions": 1041,
+      "deletions": 51,
+      "path": "src/k_slide/paas.py",
+      "status": "M"
+    },
+    {
+      "additions": 12,
+      "deletions": 1,
+      "path": "src/k_slide/run_store.py",
+      "status": "M"
+    },
+    {
+      "additions": 9,
+      "deletions": 0,
+      "path": "src/k_slide/worker.py",
+      "status": "M"
+    },
+    {
+      "additions": 264,
+      "deletions": 0,
+      "path": "tests/test_chg16_scoped_admission.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"pwd && git status --short --branch && git rev-parse HEAD && printf '\\\\n--- RTK.md ---\\\\n' && sed -n '1,240p' /Users/haewonkim/.codex/RTK.md && printf '\\\\n--- law.md ---\\\\n' && sed -n '1,260p' /Users/haewonkim/.codex/law.md && printf '\\\\n--- top-level files ---\\\\n' && rg --files -g '\"'!node_modules'\"' -g '\"'!vendor'\"' | sed -n '1,240p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"git show --stat --oneline --decorate --no-renames 5a42f96abdceabeb1d4b93754557a305a21c3404 && printf '\\\\n--- paas.py ---\\\\n' && sed -n '1,320p' src/k_slide/paas.py && printf '\\\\n--- queue.py ---\\\\n' && sed -n '1,360p' src/k_slide/queue.py && printf '\\\\n--- run_store.py ---\\\\n' && sed -n '1,420p' src/k_slide/run_store.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- paas symbols ---' && rg -n '\"'^class |''^def |''^    def |''^    @classmethod|PAAS|ReferencePaaS|scope|claim_next|resolve|store'\"' src/k_slide/paas.py && printf '%s\\\\n' '--- paas 260-900 ---' && sed -n '260,920p' src/k_slide/paas.py && printf '%s\\\\n' '--- execution symbols ---' && rg -n '\"'^class |''^def |''^    def |scope|RunStore|claim|CAS|idempot|cancel|result|evidence'\"' src/k_slide/execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '390,575p' src/k_slide/paas.py && sed -n '575,760p' src/k_slide/paas.py && sed -n '630,900p' src/k_slide/execution.py && sed -n '900,1095p' src/k_slide/execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- KSA-08 tests ---' && sed -n '1,360p' tests/test_chg16_paas_worker.py && printf '%s\\\\n' '--- KSA-06 tests ---' && sed -n '1,420p' tests/test_chg16_durable_execution.py && printf '%s\\\\n' '--- foundation/host tests symbols ---' && rg -n 'PaaS|Durable|scope|AccessKey|ReferencePaaS|claim_next|store_ref|result|evidence|KSA' tests/test_chg16_foundation.py tests/test_chg16_host_integration.py tests/test_chg16_paas_worker.py tests/test_chg16_durable_execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- KSA-09 refs ---' && rg -n -i 'KSA-09|CHG-16|scoped|admission|FIFO|queue|isolation|workspace|AccessKey|Production Contract|company storage' README.md IMPLEMENTATION_STATUS.md DEVELOPMENT_NOTES.md docs deploy src tests | sed -n '1,360p' && printf '%s\\\\n' '--- execution 1-645 ---' && sed -n '1,645p' src/k_slide/execution.py && printf '%s\\\\n' '--- locking/io/errors ---' && sed -n '1,240p' src/k_slide/locking.py && sed -n '1,200p' src/k_slide/io.py && sed -n '1,280p' src/k_slide/errors.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,330p' IMPLEMENTATION_STATUS.md && printf '\\\\n--- ADR 0040 ---\\\\n' && cat docs/adr/0040-paas-worker-controller-boundary.md && printf '\\\\n--- ADR 0038 ---\\\\n' && cat docs/adr/0038-versioned-durable-execution-contract.md && printf '\\\\n--- paas module full line ranges ---\\\\n' && nl -ba src/k_slide/paas.py | sed -n '1,760p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,220p' pyproject.toml && sed -n '1,180p' src/k_slide/__init__.py && sed -n '1,240p' src/k_slide/worker.py && rg -n 'def _mutation|def create|def commit_job|class _FilesystemRunStore' src/k_slide/execution.py && sed -n '640,760p' src/k_slide/execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m compileall -q src/k_slide && rtk git diff --check && rtk git diff --stat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m unittest tests.test_chg16_paas_worker -q'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_paas_worker -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. python - <<'PY'\nfrom pathlib import Path\nfrom tempfile import TemporaryDirectory\nfrom k_slide.paas import *\nfrom k_slide.execution import *\nR=RuntimeIdentity('runtime-pinned','model-pinned','ocr-pinned','termbase-pinned')\nwith TemporaryDirectory() as d:\n    root=Path(d); ctx=AuthorizedScopeContext('user-a','workspace-a','scope-a')\n    service=ReferencePaaSJobService(root)\n    controller=PaaSController(service, scope_context=ctx)\n    a=controller.submit(PaaSJobRequest('run-a1','scope-a','store-a',R,total_work_units=1))\n    b=controller.submit(PaaSJobRequest('run-a2','scope-a','store-a2',R,total_work_units=1))\n    cctx=AuthorizedScopeContext('user-b','workspace-b','scope-b')\n    c=PaaSController(service,scope_context=cctx).submit(PaaSJobRequest('run-b1','scope-b','store-b',R,total_work_units=1))\n    print(a.as_dict()); print(b.as_dict()); print(controller.queue().as_dict())\n    try: controller.status(c.identity)\n    except KSlideError as e: print('wrong rejected',e.code,e.message,e.details)\n    worker=PaaSWorker(service, worker_id='w', runtime_identity=R, engine=ReferenceWorkerEngine(), scope_context=ctx)\n    print(worker.run_once().status)\n    print(controller.queue().as_dict())\n    print(worker.run_until_terminal(a.identity).status)\n    print(controller.queue().as_dict())\n    print(worker.run_until_terminal(b.identity).status)\n    print(controller.queue().as_dict())\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m compileall -q src/k_slide && rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_paas_worker tests.test_chg16_durable_execution -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_scoped_admission -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,180p' docs/adr/0040-paas-worker-controller-boundary.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'PaaS|durable|worker|execution' README.md | sed -n '1,120p' && rtk sed -n '1,105p' README.md && rtk sed -n '145,175p' README.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n -C 2 'raw_state = self\\\\._load_scoped_state|state = self\\\\._normalize_scoped_state' src/k_slide/paas.py | sed -n '1,240p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n -C 1 'raw_state = self\\\\._load_scoped_state' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --check && rtk git diff --stat && rtk git status --short && rtk rg -n 'def (submit|inspect|request_cancellation|claim|claim_next|open_store|queue|resolve_)|class (Authorized|Scoped|PaaSQueue|ReferencePaaS)' src/k_slide/paas.py && rtk tail -n 75 src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. python - <<'PY'\nfrom pathlib import Path\nfrom tempfile import TemporaryDirectory\nfrom k_slide.paas import *\nwith TemporaryDirectory() as d:\n  root=Path(d); c=AuthorizedScopeContext('u','w','s'); s=ReferencePaaSJobService(root)\n  r=PaaSController(s,scope_context=c).submit(PaaSJobRequest('r','s','st',RuntimeIdentity('r','m','o','t')))\n  q=root/'job-service'/'scopes'/next((root/'job-service'/'scopes').iterdir()).name/'admission'\n  q.joinpath('QUEUE.json').unlink()\n  print(ReferencePaaSJobService(root).queue(scope_context=c).active_job_id, q.joinpath('QUEUE.json').is_file())\nPY\nrtk git diff --check\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '480,575p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '480,570p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --numstat && rtk git diff -- src/k_slide/paas.py | sed -n '1,260p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_scoped_admission tests.test_chg16_paas_worker -q && rtk python -m compileall -q src tests && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short --branch && rtk git diff --name-only && rtk rg -n '0041|KSA-09|AuthorizedScopeContext|ScopedPaaS' README.md IMPLEMENTATION_STATUS.md docs src tests | sed -n '1,220p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. python - <<'PY'\nfrom pathlib import Path\nfrom tempfile import TemporaryDirectory\nimport subprocess,sys,os,json\nfrom k_slide.paas import *\nwith TemporaryDirectory() as d:\n root=Path(d); c=AuthorizedScopeContext('u','w','s'); r=PaaSController(ReferencePaaSJobService(root),scope_context=c).submit(PaaSJobRequest('r','s','st',RuntimeIdentity('r','m','o','t'),total_work_units=1))\n env={**os.environ,'PYTHONPATH':'src:.'}\n p=subprocess.run([sys.executable,'-m','k_slide.worker','--service-root',str(root),'--job-id',r.job_id,'--worker-id','w','--runtime-ref','r','--model-identity','m','--ocr-identity','o','--termbase-identity','t','--user-ref','u','--workspace-ref','w','--scope-ref','s','--until-terminal'],env=env,capture_output=True,text=True)\n print(p.returncode,p.stdout,p.stderr)\n print(ReferencePaaSJobService(root).inspect(r.identity,scope_context=c).terminal_outcome)\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_scoped_admission tests.test_chg16_paas_worker -q && rtk python -m compileall -q src tests && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'run-first' tests/test_chg16_scoped_admission.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'for i in 1 2 3; do rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_scoped_admission -q || exit 1; done'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '520,575p' src/k_slide/paas.py && rtk sed -n '1420,1495p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. python - <<'PY'\nfrom pathlib import Path\nfrom tempfile import TemporaryDirectory\nfrom k_slide.paas import *\nwith TemporaryDirectory() as d:\n c=ScopeContext('u','w','s'); s=ReferencePaaSJobService(Path(d),scope_context=c); r=PaaSController(s).submit(PaaSJobRequest('r','s','st',RuntimeIdentity('r','m','o','t'))); print(s.queue().active_job_id, s.resolve_result(r.identity))\nPY\nrtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_scoped_admission tests.test_chg16_paas_worker -q\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'self\\\\.scope_context =' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1538,1558p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'self\\\\.scope_context =' src/k_slide/paas.py && rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_scoped_admission tests.test_chg16_paas_worker -q\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n '231|222|238|test totals|KSA-09' IMPLEMENTATION_STATUS.md | sed -n '1,120p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,130p' deploy/README.md && rtk rg -n 'tenant|PaaS|storage|queue|scope' deploy/README.md docs/adr/0040-paas-worker-controller-boundary.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,100p' docs/adr/0038-versioned-durable-execution-contract.md && rtk git diff -- docs/adr/0040-paas-worker-controller-boundary.md README.md deploy/README.md IMPLEMENTATION_STATUS.md | sed -n '1,300p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk tail -n 18 docs/adr/0038-versioned-durable-execution-contract.md | od -An -c'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk tail -n 10 docs/adr/0038-versioned-durable-execution-contract.md'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --check && rtk python -m compileall -q src tests && rtk git status --short --branch && rtk git diff --stat && rtk git diff --numstat && rtk git diff -- src/k_slide/run_store.py src/k_slide/worker.py docs/adr/0038-versioned-durable-execution-contract.md docs/adr/0040-paas-worker-controller-boundary.md | sed -n '1,320p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '600,930p' src/k_slide/paas.py && rtk sed -n '930,1225p' src/k_slide/paas.py && rtk sed -n '1225,1515p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/paas.py | sed -n '918,936p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest discover -s tests -q && rtk python -m compileall -q src tests && rtk git diff --check && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 232,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 98.31,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 14921728,
+      "fresh_input_tokens": 256552,
+      "input_tokens": 15178280,
+      "non_reasoning_output_tokens": 43320,
+      "output_tokens": 76720,
+      "reasoning_output_tokens": 33400,
+      "total_processed_tokens": 15255000
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "0fa62b419e848666802444b392f9e04d78acf6de",
+      "subject": "fabric: capture completed model changes [CF-131a1288e3e66c0b3c6df458]"
+    }
+  ],
+  "diff": {
+    "additions": 1413,
+    "changed_files": 10,
+    "commit_count": 1,
+    "deletions": 63
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 6,
+    "items": [
+      {
+        "bytes": 29277,
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "52781ac9d88dd26f538ea760ec2c0d48ca3f3a208fa6d24b17f373bbdcbcfbbe"
+      },
+      {
+        "bytes": 11314,
+        "path": "README.md",
+        "sha256": "f0c879d36d736ff852e854583d359b0507b962936baf1c7375f0db3c85e4ec02"
+      },
+      {
+        "bytes": 3387,
+        "path": "deploy/README.md",
+        "sha256": "69be857cac22885adde75ce4d0c259e38906249528674d594d3f445e9b26f49e"
+      },
+      {
+        "bytes": 2227,
+        "path": "docs/adr/0038-versioned-durable-execution-contract.md",
+        "sha256": "36047cafc82b4e54c39348091817c0a04be198508f6d7dc52d0561db8b339339"
+      },
+      {
+        "bytes": 2238,
+        "path": "docs/adr/0040-paas-worker-controller-boundary.md",
+        "sha256": "cd3bb4734b02279dbaf9afb88a8541b8bf38b78ac61a273c8eddc4183677f0c7"
+      },
+      {
+        "bytes": 2603,
+        "path": "docs/adr/0041-scoped-durable-admission.md",
+        "sha256": "8589ad38b80faa40b2e7fe58fced4fe9144df38c28aa31c0caf62f24979039f8"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": true,
+    "commit_message": "fabric: capture completed model changes [CF-131a1288e3e66c0b3c6df458]",
+    "commit_sha": "0fa62b419e848666802444b392f9e04d78acf6de",
+    "paths_before": 10,
+    "status_before": [
+      " M IMPLEMENTATION_STATUS.md",
+      " M README.md",
+      " M deploy/README.md",
+      " M docs/adr/0038-versioned-durable-execution-contract.md",
+      " M docs/adr/0040-paas-worker-controller-boundary.md",
+      " M src/k_slide/paas.py",
+      " M src/k_slide/run_store.py",
+      " M src/k_slide/worker.py",
+      "?? docs/adr/0041-scoped-durable-admission.md",
+      "?? tests/test_chg16_scoped_admission.py"
+    ],
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-17T13:02:57Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "5a42f96abdceabeb1d4b93754557a305a21c3404",
+    "branch": "codex/k-slide-chg16-durable-persistence-01",
+    "head_sha": "0fa62b419e848666802444b392f9e04d78acf6de",
+    "remote_exact_head": true,
+    "remote_head_sha": "0fa62b419e848666802444b392f9e04d78acf6de",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "5a42f96abdceabeb1d4b93754557a305a21c3404",
+    "work_branch": "codex/k-slide-chg16-durable-persistence-01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-131a1288e3e66c0b3c6df458",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-durable-persistence-01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-durable-persistence-01"
+  },
+  "operation": "BUILD",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-durable-persistence-01",
+  "schema_version": 1,
+  "started_at": "2026-09-17T12:34:44Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1693,
+    "queue_seconds": 0,
+    "total_seconds": 1693
+  },
+  "transport": {
+    "bytes": 4693,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 4374,
+    "prompt_sha256": "9902cea2be97ece55dccc6d7445405a1900ff19676381c21386d3f00533bfc81",
+    "sha256": "131a1288e3e66c0b3c6df458592908343ca7073c5b22d83797034a136040e729"
+  }
+}
