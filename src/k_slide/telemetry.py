@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import hashlib
 import re
-from uuid import UUID
+from uuid import UUID, uuid4
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -24,7 +24,6 @@ _ALLOWED_FIELDS = {
     "retry_attempt",
 }
 _REFERENCE = re.compile(r"^kslide-ref-v1\.(deployment|runtime|model|run|worker|event)\.([0-9a-f]{64})$")
-_INTERNAL_ID = re.compile(r"^(deployment|runtime|model|run|worker|event)-[a-z0-9][a-z0-9_.:-]{0,127}$")
 _NORMALIZED_ALLOWED_FIELDS = {re.sub(r"[^a-z0-9]", "", field.lower()) for field in _ALLOWED_FIELDS}
 
 
@@ -70,7 +69,36 @@ class TelemetryStage(str, Enum):
     RETRYING = "RETRYING"
 
 
+def _reference_kind(value: TelemetryReferenceKind | str) -> TelemetryReferenceKind:
+    try:
+        return value if isinstance(value, TelemetryReferenceKind) else TelemetryReferenceKind(str(value))
+    except ValueError as exc:
+        raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry reference kind is unsupported.") from exc
+
+
 @dataclass(frozen=True)
+class TelemetryMachineId:
+    """A machine-shaped identity for telemetry subjects without a product type."""
+
+    kind: TelemetryReferenceKind
+    value: UUID
+
+    def __post_init__(self) -> None:
+        kind = _reference_kind(self.kind)
+        if not isinstance(self.value, UUID) or self.value.version != 4:
+            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry machine identity must be a version-four UUID.")
+        object.__setattr__(self, "kind", kind)
+
+    @classmethod
+    def new(cls, kind: TelemetryReferenceKind | str) -> "TelemetryMachineId":
+        return cls(_reference_kind(kind), uuid4())
+
+    @property
+    def canonical(self) -> str:
+        return f"{self.kind.value}:{self.value}"
+
+
+@dataclass(frozen=True, init=False)
 class TelemetryReference:
     """Canonical opaque telemetry reference.
 
@@ -83,14 +111,21 @@ class TelemetryReference:
     kind: TelemetryReferenceKind
     digest: str
 
-    def __post_init__(self) -> None:
-        try:
-            kind = self.kind if isinstance(self.kind, TelemetryReferenceKind) else TelemetryReferenceKind(str(self.kind))
-        except ValueError as exc:
-            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry reference kind is unsupported.") from exc
-        if not isinstance(self.digest, str) or not re.fullmatch(r"[0-9a-f]{64}", self.digest):
+    def __init__(self, kind: TelemetryReferenceKind | str, digest: str) -> None:
+        raise KSlideError(
+            ErrorCode.EXECUTION_INVALID,
+            "Telemetry references must be constructed from a typed identity or canonical persisted value.",
+        )
+
+    @classmethod
+    def _from_digest(cls, kind: TelemetryReferenceKind | str, digest: str) -> "TelemetryReference":
+        kind = _reference_kind(kind)
+        if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
             raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry reference digest is not canonical.")
-        object.__setattr__(self, "kind", kind)
+        value = object.__new__(cls)
+        object.__setattr__(value, "kind", kind)
+        object.__setattr__(value, "digest", digest)
+        return value
 
     @property
     def canonical(self) -> str:
@@ -106,45 +141,56 @@ class TelemetryReference:
         match = _REFERENCE.fullmatch(value)
         if match is None:
             raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry reference is not a canonical opaque identity.")
-        reference = cls(TelemetryReferenceKind(match.group(1)), match.group(2))
-        if expected_kind is not None and reference.kind is not (expected_kind if isinstance(expected_kind, TelemetryReferenceKind) else TelemetryReferenceKind(str(expected_kind))):
+        reference = cls._from_digest(TelemetryReferenceKind(match.group(1)), match.group(2))
+        if expected_kind is not None and reference.kind is not _reference_kind(expected_kind):
             raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry reference kind does not match its field.")
         return reference
 
     @classmethod
-    def from_internal(cls, kind: TelemetryReferenceKind | str, identity: str) -> "TelemetryReference":
-        try:
-            kind = kind if isinstance(kind, TelemetryReferenceKind) else TelemetryReferenceKind(str(kind))
-        except ValueError as exc:
-            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry reference kind is unsupported.") from exc
-        if not isinstance(identity, str) or not _INTERNAL_ID.fullmatch(identity) or not identity.startswith(f"{kind.value}-"):
-            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry identity must be a typed machine-generated internal ID.")
-        digest = hashlib.sha256(f"k-slide-telemetry-v1\x00{kind.value}\x00{identity}".encode("utf-8")).hexdigest()
-        return cls(kind, digest)
+    def from_internal(cls, kind: TelemetryReferenceKind | str, identity: TelemetryMachineId) -> "TelemetryReference":
+        """Derive a reference from a K-Slide-issued, machine-shaped identity."""
+
+        kind = _reference_kind(kind)
+        if type(identity) is not TelemetryMachineId or identity.kind is not kind:
+            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry identity must be a typed machine ID of the requested kind.")
+        digest = hashlib.sha256(f"k-slide-telemetry-v1\x00{kind.value}\x00{identity.canonical}".encode("utf-8")).hexdigest()
+        return cls._from_digest(kind, digest)
 
     @classmethod
     def from_identity(cls, kind: TelemetryReferenceKind | str, identity: Any) -> "TelemetryReference":
         """Derive a reference from an existing typed identity object."""
 
-        if isinstance(identity, str):
+        kind = _reference_kind(kind)
+        if type(identity) is TelemetryMachineId:
             return cls.from_internal(kind, identity)
-        if isinstance(identity, UUID):
-            value: Mapping[str, Any] = {"uuid": str(identity)}
-        else:
-            from .environment import RunEnvironmentIdentity
-            from .paas import AuthorizedScopeContext, DurableJobIdentity, RuntimeIdentity
 
-            typed_identities = (AuthorizedScopeContext, DurableJobIdentity, RunEnvironmentIdentity, RuntimeIdentity)
-            if not isinstance(identity, typed_identities):
-                raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry identity must be a supported typed internal identity, not a caller payload.")
-            value = identity.as_dict()
+        from .environment import RunEnvironmentIdentity
+        from .paas import AuthorizedScopeContext, DurableJobIdentity, RuntimeIdentity
+
+        # These relationships are deliberately explicit.  In particular, a
+        # scope context is authorization state, not a telemetry subject;
+        # RuntimeIdentity is a runtime subject, not a run or model subject.
+        identity_relationships = (
+            (AuthorizedScopeContext, frozenset()),
+            (DurableJobIdentity, frozenset({TelemetryReferenceKind.RUN})),
+            (RunEnvironmentIdentity, frozenset({TelemetryReferenceKind.DEPLOYMENT})),
+            (RuntimeIdentity, frozenset({TelemetryReferenceKind.RUNTIME})),
+        )
+        value: Mapping[str, Any] | None = None
+        for identity_type, allowed_kinds in identity_relationships:
+            if type(identity) is identity_type:
+                if kind not in allowed_kinds:
+                    raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry identity type does not match the requested reference kind.")
+                value = identity.as_dict()
+                break
+        if value is None:
+            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry identity must be a supported typed internal identity, not a caller payload.")
         try:
-            kind = kind if isinstance(kind, TelemetryReferenceKind) else TelemetryReferenceKind(str(kind))
             canonical = json.dumps(dict(value), ensure_ascii=True, sort_keys=True, separators=(",", ":"))
         except (TypeError, ValueError) as exc:
             raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry identity representation is invalid.") from exc
         digest = hashlib.sha256(f"k-slide-telemetry-v1\x00{kind.value}\x00{canonical}".encode("utf-8")).hexdigest()
-        return cls(kind, digest)
+        return cls._from_digest(kind, digest)
 
 
 def _reject_content_tree(value: Any, *, key: str | None = None) -> None:
@@ -167,7 +213,7 @@ def _reject_content_tree(value: Any, *, key: str | None = None) -> None:
 
 def _reference(value: Any, label: str, kind: TelemetryReferenceKind) -> str:
     try:
-        reference = value if isinstance(value, TelemetryReference) else TelemetryReference.from_canonical(value, expected_kind=kind)
+        reference = value if type(value) is TelemetryReference else TelemetryReference.from_canonical(value, expected_kind=kind)
         if reference.kind is not kind:
             raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry reference kind does not match its field.")
         return reference.canonical
@@ -335,5 +381,5 @@ TelemetryErrorCode = ErrorCode
 
 __all__ = [
     "TELEMETRY_SCHEMA_VERSION", "TelemetryErrorCode", "TelemetryEvent", "TelemetryEventType", "TelemetryLifecycle",
-    "TelemetryReference", "TelemetryReferenceKind", "TelemetryStage", "TelemetryWriter",
+    "TelemetryMachineId", "TelemetryReference", "TelemetryReferenceKind", "TelemetryStage", "TelemetryWriter",
 ]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import shutil
 import tempfile
@@ -9,8 +10,14 @@ from unittest.mock import patch
 
 from k_slide.errors import ErrorCode, KSlideError
 from k_slide.doctor import diagnose
+from k_slide.evidence_ir import load_evidence
+from k_slide.extraction import extract_run
+from k_slide.ingest import prepare_run
+from k_slide.normalization import normalize_run
+from k_slide.state import load_state
 from k_slide.paas import (
     AuthorizedScopeContext,
+    DurableJobIdentity,
     PaaSController,
     PaaSJobRequest,
     PaaSWorker,
@@ -29,48 +36,125 @@ from k_slide.telemetry import (
     TelemetryEvent,
     TelemetryEventType,
     TelemetryLifecycle,
+    TelemetryMachineId,
     TelemetryReference,
     TelemetryReferenceKind,
     TelemetryStage,
     TelemetryWriter,
 )
-from tests.reference_fixtures import reference_runtime
+from tests.reference_fixtures import reference_environment, reference_runtime
 
 
 class StoragePlaneContractTests(unittest.TestCase):
-    def test_policy_inventory_is_executable_and_excludes_external_surfaces(self) -> None:
+    def test_policy_inventory_matches_independently_managed_objects(self) -> None:
         self.assertEqual(set(STORAGE_POLICY.values()), set(StoragePlane))
         self.assertEqual(len(STORAGE_POLICY), len(StorageArtifact))
         self.assertEqual(len(StoragePlane), 3)
+        self.assertEqual(
+            set(StorageArtifact),
+            {
+                StorageArtifact.SOURCE_SNAPSHOT, StorageArtifact.SOURCE_MANIFEST, StorageArtifact.INPUT_INVENTORY,
+                StorageArtifact.RUN_MANIFEST, StorageArtifact.RECOVERY_GUIDE, StorageArtifact.SESSION_BINDING,
+                StorageArtifact.RUNTIME_METADATA, StorageArtifact.RUN_STATE, StorageArtifact.WORK_QUEUE,
+                StorageArtifact.EXECUTION_JOB, StorageArtifact.ADMISSION_RECORD, StorageArtifact.ADMISSION_QUEUE,
+                StorageArtifact.ADMISSION_CONTROL, StorageArtifact.NORMALIZED_RENDER, StorageArtifact.NATIVE_EXTRACTION,
+                StorageArtifact.NORMALIZATION_MANIFEST, StorageArtifact.NORMALIZATION_ERROR, StorageArtifact.REGION_CROP,
+                StorageArtifact.OCR_METADATA, StorageArtifact.EVIDENCE_IR, StorageArtifact.EXTRACTION_ERROR,
+                StorageArtifact.TRANSLATION_PATCH, StorageArtifact.CANONICAL_IR, StorageArtifact.REPORT,
+                StorageArtifact.VERIFICATION, StorageArtifact.METRICS, StorageArtifact.FAILURE_MARKER,
+                StorageArtifact.COMPLETION_MARKER, StorageArtifact.COORDINATION_LOCK,
+                StorageArtifact.TELEMETRY_COORDINATION_LOCK, StorageArtifact.CONVERSION_STAGING,
+                StorageArtifact.TELEMETRY_EVENT,
+            },
+        )
         self.assertFalse(hasattr(StorageArtifact, "USER_INPUT_INTAKE"))
         self.assertFalse(hasattr(StorageArtifact, "SUPPORT_METADATA"))
+        self.assertFalse(hasattr(StorageArtifact, "DURABLE_CHECKPOINT"))
+        self.assertFalse(hasattr(StorageArtifact, "RESULT_COMMIT_MARKER"))
+        self.assertFalse(hasattr(StorageArtifact, "ENVIRONMENT_BINDING"))
+        self.assertFalse(hasattr(StorageArtifact, "OCR_EVIDENCE"))
+        self.assertFalse(hasattr(StorageArtifact, "TRANSIENT_RENDER_WORK"))
+        self.assertFalse(hasattr(StorageArtifact, "TRANSIENT_OCR_WORKSPACE"))
 
-        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as central_directory:
+    def test_workspace_pipeline_produces_and_resolves_real_artifacts(self) -> None:
+        from PIL import Image
+
+        with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            central_root = Path(central_directory)
+            source = root / "review.png"
+            Image.new("RGB", (1200, 800), "white").save(source)
+            environment = reference_environment()
+            run = prepare_run(root, explicit_paths=[str(source)], environment_identity=environment)
+            normalize_run(run, environment_identity=environment)
+            evidence = extract_run(run, environment_identity=environment)[0]
+            layout = StorageLayout.for_workspace(run)
+
+            produced = {
+                StorageArtifact.SOURCE_SNAPSHOT: "inputs/source-001.png",
+                StorageArtifact.SOURCE_MANIFEST: "00_run_manifest.md",
+                StorageArtifact.INPUT_INVENTORY: "00_input_inventory.json",
+                StorageArtifact.RUN_MANIFEST: "RUN_MANIFEST.json",
+                StorageArtifact.RECOVERY_GUIDE: "RUN_RECOVERY_GUIDE.md",
+                StorageArtifact.RUNTIME_METADATA: "RUNTIME_METADATA.json",
+                StorageArtifact.RUN_STATE: "RUN_STATE.json",
+                StorageArtifact.WORK_QUEUE: "WORK_QUEUE.json",
+                StorageArtifact.NORMALIZED_RENDER: "normalized/doc-001-image-0001.png",
+                StorageArtifact.NATIVE_EXTRACTION: "native/doc-001-image-0001.json",
+                StorageArtifact.NORMALIZATION_MANIFEST: "normalized/DOCUMENT_MANIFEST.json",
+                StorageArtifact.REGION_CROP: evidence.regions[0].crop_original_path,
+                StorageArtifact.OCR_METADATA: "OCR_METADATA.json",
+                StorageArtifact.EVIDENCE_IR: "evidence/doc-001-image-0001.json",
+                StorageArtifact.METRICS: "metrics.json",
+            }
+            for artifact, relative_path in produced.items():
+                path = layout.path(artifact, relative_path)
+                reference = layout.reference(artifact, relative_path)
+                self.assertEqual(layout.resolve(reference, expected_plane=StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA), path)
+                self.assertTrue(path.is_file(), f"missing producer output for {artifact.value}: {path}")
+            self.assertEqual(layout.reference(StorageArtifact.CONVERSION_STAGING, "office/doc-001").plane, StoragePlane.EPHEMERAL_PROCESSING_SCRATCH)
+
+    def test_conditional_failure_marker_is_produced_by_failed_input_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = prepare_run(root, environment_identity=reference_environment())
+            layout = StorageLayout.for_workspace(run)
+            failure = layout.path(StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md")
+            self.assertTrue(failure.is_file())
+            self.assertEqual(load_state(run).phase.value, "FAILED_INPUT")
+
+    @unittest.skipUnless(importlib.util.find_spec("fitz"), "PyMuPDF is optional in the base development environment")
+    def test_pptx_conversion_uses_the_real_conversion_staging_class(self) -> None:
+        import fitz
+
+        from k_slide.normalization import _render_pptx
+
+        class FakeProcess:
+            returncode = 0
+
+            def __init__(self, command, **_kwargs):
+                self.command = command
+
+            def communicate(self, timeout=None):
+                del timeout
+                output = Path(self.command[self.command.index("--outdir") + 1])
+                output.mkdir(parents=True, exist_ok=True)
+                pdf = output / "review.pdf"
+                document = fitz.open()
+                document.new_page(width=400, height=300)
+                document.save(pdf)
+                document.close()
+                return "", ""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
             run = root / ".k-slide-runs" / "run-1"
             run.mkdir(parents=True)
-            workspace = StorageLayout.for_workspace(run)
-            central = StorageLayout.for_service(central_root)
-            central_writer = TelemetryWriter(central_root, layout=central)
-            central_writer.write(TelemetryEvent(
-                TelemetryEventType.LIFECYCLE,
-                TelemetryReference.from_internal(TelemetryReferenceKind.EVENT, "event-inventory"),
-                "2026-01-01T00:00:00Z",
-                run_ref=TelemetryReference.from_internal(TelemetryReferenceKind.RUN, "run-inventory"),
-                lifecycle=TelemetryLifecycle.RUNNING,
-            ))
-            for index, (artifact, plane) in enumerate(STORAGE_POLICY.items(), start=1):
-                layout = central if plane is StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY else workspace
-                relative = f"inventory/{index:03d}-{artifact.value}.bin"
-                path = layout.path(artifact, relative, create_parent=True)
-                reference = layout.reference(artifact, relative)
-                self.assertEqual(layout.resolve(reference, expected_plane=plane), path)
-                if plane is not StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY:
-                    self.assertEqual(layout.write_text(artifact, relative, artifact.value), path)
-                    self.assertEqual(path.read_text(encoding="utf-8"), artifact.value)
-            self.assertTrue(central_writer.event_path.is_file())
-            self.assertTrue(central.path(StorageArtifact.TELEMETRY_COORDINATION_LOCK, ".events.lock").is_file())
+            with patch("k_slide.normalization.shutil.which", return_value="soffice"), patch("k_slide.normalization.subprocess.Popen", FakeProcess):
+                renders = _render_pptx(root / "review.pptx", run, "doc-001")
+            self.assertEqual(len(renders), 1)
+            staging = StorageLayout.for_workspace(run).path(StorageArtifact.CONVERSION_STAGING, "office/doc-001")
+            self.assertTrue(staging.is_dir())
+            self.assertTrue(renders[0].is_file())
 
     def test_doctor_probes_durable_run_root_when_scratch_is_writable(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -126,7 +210,7 @@ class StoragePlaneContractTests(unittest.TestCase):
             self.addCleanup(lambda: shutil.rmtree(central_root, ignore_errors=True))
             central = StorageLayout.for_service(central_root)
             writer = TelemetryWriter(central_root, layout=central)
-            writer.write(TelemetryEvent(TelemetryEventType.LIFECYCLE, TelemetryReference.from_internal(TelemetryReferenceKind.EVENT, "event-cleanup"), "2026-01-01T00:00:00Z", run_ref=TelemetryReference.from_internal(TelemetryReferenceKind.RUN, "run-1"), lifecycle=TelemetryLifecycle.RUNNING))
+            writer.write(TelemetryEvent(TelemetryEventType.LIFECYCLE, TelemetryReference.from_internal(TelemetryReferenceKind.EVENT, TelemetryMachineId.new(TelemetryReferenceKind.EVENT)), "2026-01-01T00:00:00Z", run_ref=TelemetryReference.from_internal(TelemetryReferenceKind.RUN, TelemetryMachineId.new(TelemetryReferenceKind.RUN)), lifecycle=TelemetryLifecycle.RUNNING))
             layout.write_text(StorageArtifact.CONVERSION_STAGING, "nested/a.tmp", "scratch")
             copied_workspace = root.parent / f"copy-{root.name}"
             self.addCleanup(lambda: shutil.rmtree(copied_workspace, ignore_errors=True))
@@ -138,7 +222,7 @@ class StoragePlaneContractTests(unittest.TestCase):
             self.assertTrue((run / "RUN_STATE.json").is_file())
             self.assertEqual(len(writer.records()), 1)
             self.assertTrue(writer.event_path.is_file())
-            layout.write_text(StorageArtifact.TRANSIENT_RENDER_WORK, "recreated/b.tmp", "new scratch")
+            layout.write_text(StorageArtifact.CONVERSION_STAGING, "recreated/b.tmp", "new scratch")
             self.assertTrue(layout.scratch_root.is_dir())
             shutil.rmtree(root / ".k-slide-runs")
             shutil.rmtree(root / ".k-slide-scratch")
@@ -154,6 +238,15 @@ class StoragePlaneContractTests(unittest.TestCase):
             )
             scope_root = service._scope_root(context)
             layout = StorageLayout.for_scoped_reference(service_root=root, durable_root=scope_root, scope_ref="scope-a", run_ref=receipt.job_id)
+            for artifact, relative_path in (
+                (StorageArtifact.ADMISSION_RECORD, f"jobs/{receipt.job_id}.json"),
+                (StorageArtifact.ADMISSION_CONTROL, "admission/CONTROL_STATE.json"),
+                (StorageArtifact.ADMISSION_QUEUE, "admission/QUEUE.json"),
+                (StorageArtifact.EXECUTION_JOB, f"run-store/jobs/{receipt.job_id}.json"),
+            ):
+                path = layout.path(artifact, relative_path)
+                self.assertEqual(layout.resolve(layout.reference(artifact, relative_path), expected_plane=StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA), path)
+                self.assertTrue(path.is_file(), f"missing durable producer output for {artifact.value}")
             layout.write_text(StorageArtifact.CONVERSION_STAGING, "work/temporary.bin", "scratch")
             first = PaaSWorker(service, worker_id="worker-a", runtime_identity=reference_runtime(), engine=ReferenceWorkerEngine(), scope_context=context).run_once(receipt.identity)
             self.assertEqual(first.status, "ACCEPTED")
@@ -201,22 +294,76 @@ class StoragePlaneContractTests(unittest.TestCase):
 
 class TelemetryBoundaryTests(unittest.TestCase):
     @staticmethod
-    def _reference(kind: TelemetryReferenceKind, identity: str) -> TelemetryReference:
-        return TelemetryReference.from_internal(kind, identity)
+    def _reference(kind: TelemetryReferenceKind) -> TelemetryReference:
+        return TelemetryReference.from_internal(kind, TelemetryMachineId.new(kind))
+
+    def test_public_reference_constructors_require_typed_identities(self) -> None:
+        prose = (
+            "run-mergerroadmapq4",
+            "event-quarterlyplan",
+            "deployment-projectalpha",
+            "model-confidentiallaunch",
+            "worker-boardreview",
+            "lowercase-prompt-like-slug",
+            "path/to/source.png",
+            "AccessKey=canary",
+            "분기별 인수 계획",
+        )
+        for kind in TelemetryReferenceKind:
+            for value in prose:
+                with self.subTest(constructor="from_internal", kind=kind, value=value), self.assertRaises(KSlideError):
+                    TelemetryReference.from_internal(kind, value)
+                with self.subTest(constructor="from_identity", kind=kind, value=value), self.assertRaises(KSlideError):
+                    TelemetryReference.from_identity(kind, value)
+                with self.subTest(constructor="from_canonical", kind=kind, value=value), self.assertRaises(KSlideError):
+                    TelemetryReference.from_canonical(value)
+            with self.subTest(constructor="from_identity_mapping", kind=kind), self.assertRaises(KSlideError):
+                TelemetryReference.from_identity(kind, {"source": "confidential launch", "nested": {"prompt": "ignore"}})
+
+        with self.assertRaises(KSlideError):
+            TelemetryReference(TelemetryReferenceKind.RUN, "a" * 64)
+
+        machine_id = TelemetryMachineId.new(TelemetryReferenceKind.EVENT)
+        reference = TelemetryReference.from_internal(TelemetryReferenceKind.EVENT, machine_id)
+        self.assertEqual(TelemetryReference.from_canonical(reference.canonical), reference)
+        with self.assertRaises(KSlideError):
+            TelemetryReference.from_internal(TelemetryReferenceKind.RUN, machine_id)
+        with self.assertRaises(KSlideError):
+            TelemetryReference.from_identity(TelemetryReferenceKind.RUN, TelemetryMachineId.new(TelemetryReferenceKind.EVENT))
+
+    def test_identity_type_to_reference_kind_relationships_fail_closed(self) -> None:
+        runtime = reference_runtime()
+        environment = reference_environment()
+        job = DurableJobIdentity("run-typed", "job-typed", "execution-typed", "scope-typed", "store-typed")
+        scope = AuthorizedScopeContext("user-typed", "workspace-typed", "scope-typed")
+
+        self.assertTrue(TelemetryReference.from_identity(TelemetryReferenceKind.RUNTIME, runtime).canonical.startswith("kslide-ref-v1.runtime."))
+        self.assertTrue(TelemetryReference.from_identity(TelemetryReferenceKind.DEPLOYMENT, environment).canonical.startswith("kslide-ref-v1.deployment."))
+        self.assertTrue(TelemetryReference.from_identity(TelemetryReferenceKind.RUN, job).canonical.startswith("kslide-ref-v1.run."))
+        for kind, identity in (
+            (TelemetryReferenceKind.RUN, runtime),
+            (TelemetryReferenceKind.MODEL, runtime),
+            (TelemetryReferenceKind.MODEL, scope),
+            (TelemetryReferenceKind.DEPLOYMENT, scope),
+            (TelemetryReferenceKind.RUNTIME, job),
+            (TelemetryReferenceKind.EVENT, environment),
+        ):
+            with self.subTest(kind=kind, identity=type(identity).__name__), self.assertRaises(KSlideError):
+                TelemetryReference.from_identity(kind, identity)
 
     def test_allowlisted_non_content_event_classes_are_persisted(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             writer = TelemetryWriter(Path(directory))
-            for index, event_type in enumerate(TelemetryEventType, start=1):
+            for event_type in TelemetryEventType:
                 self.assertTrue(writer.write(TelemetryEvent(
                     event_type,
-                    self._reference(TelemetryReferenceKind.EVENT, f"event-{index}"),
+                    self._reference(TelemetryReferenceKind.EVENT),
                     "2026-01-01T00:00:00Z",
-                    deployment_ref=self._reference(TelemetryReferenceKind.DEPLOYMENT, "deployment-1"),
-                    runtime_ref=self._reference(TelemetryReferenceKind.RUNTIME, "runtime-1"),
-                    model_ref=self._reference(TelemetryReferenceKind.MODEL, "model-1"),
-                    run_ref=self._reference(TelemetryReferenceKind.RUN, "run-1"),
-                    worker_ref=self._reference(TelemetryReferenceKind.WORKER, "worker-1"),
+                    deployment_ref=self._reference(TelemetryReferenceKind.DEPLOYMENT),
+                    runtime_ref=self._reference(TelemetryReferenceKind.RUNTIME),
+                    model_ref=self._reference(TelemetryReferenceKind.MODEL),
+                    run_ref=self._reference(TelemetryReferenceKind.RUN),
+                    worker_ref=self._reference(TelemetryReferenceKind.WORKER),
                     lifecycle=TelemetryLifecycle.RUNNING,
                     error_code=TelemetryErrorCode.INTERNAL if event_type is TelemetryEventType.ERROR else None,
                     stage=TelemetryStage.TRANSLATING,
@@ -231,18 +378,20 @@ class TelemetryBoundaryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             writer = TelemetryWriter(Path(directory))
             runtime_identity_ref = TelemetryReference.from_identity(TelemetryReferenceKind.RUNTIME, reference_runtime())
+            typed_job = DurableJobIdentity("run-mergerroadmapq4", "job-opaque", "execution-opaque", "scope-opaque", "store-opaque")
+            typed_run_ref = TelemetryReference.from_identity(TelemetryReferenceKind.RUN, typed_job)
             self.assertRegex(str(runtime_identity_ref), r"^kslide-ref-v1\.runtime\.[0-9a-f]{64}$")
             with self.assertRaises(KSlideError):
                 TelemetryReference.from_identity(TelemetryReferenceKind.RUNTIME, {"source": "MergerRoadmapQ4"})
             base = {
                 "event_type": TelemetryEventType.ERROR.value,
-                "event_id": str(self._reference(TelemetryReferenceKind.EVENT, "event-adversarial")),
+                "event_id": str(self._reference(TelemetryReferenceKind.EVENT)),
                 "occurred_at": "2026-01-01T00:00:00Z",
-                "deployment_ref": str(self._reference(TelemetryReferenceKind.DEPLOYMENT, "deployment-adversarial")),
+                "deployment_ref": str(self._reference(TelemetryReferenceKind.DEPLOYMENT)),
                 "runtime_ref": str(runtime_identity_ref),
-                "model_ref": str(self._reference(TelemetryReferenceKind.MODEL, "model-adversarial")),
-                "run_ref": str(self._reference(TelemetryReferenceKind.RUN, "run-adversarial")),
-                "worker_ref": str(self._reference(TelemetryReferenceKind.WORKER, "worker-adversarial")),
+                "model_ref": str(self._reference(TelemetryReferenceKind.MODEL)),
+                "run_ref": str(typed_run_ref),
+                "worker_ref": str(self._reference(TelemetryReferenceKind.WORKER)),
                 "lifecycle": TelemetryLifecycle.RUNNING.value,
                 "error_code": TelemetryErrorCode.INTERNAL.value,
                 "stage": TelemetryStage.TRANSLATING.value,
@@ -259,16 +408,16 @@ class TelemetryBoundaryTests(unittest.TestCase):
             record = writer.records()[0].as_dict()
             self.assertTrue(record["event_id"].startswith("kslide-ref-v1.event."))
             self.assertTrue(record["run_ref"].startswith("kslide-ref-v1.run."))
-            self.assertNotIn("adversarial", json.dumps(record))
+            self.assertNotIn("mergerroadmapq4", json.dumps(record))
 
     def test_unknown_nested_content_and_secret_fields_are_rejected_before_persistence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             writer = TelemetryWriter(Path(directory))
             rejected = (
-                {"event_type": "error", "event_id": str(self._reference(TelemetryReferenceKind.EVENT, "event-nested-1")), "occurred_at": "2026-01-01T00:00:00Z", "error": {"source_text": "secret source"}},
-                {"event_type": "error", "event_id": str(self._reference(TelemetryReferenceKind.EVENT, "event-nested-2")), "occurred_at": "2026-01-01T00:00:00Z", "stage": "AccessKey=canary"},
-                {"event_type": "error", "event_id": str(self._reference(TelemetryReferenceKind.EVENT, "event-nested-3")), "occurred_at": "2026-01-01T00:00:00Z", "unknown": "value"},
-                {"event_type": "error", "event_id": str(self._reference(TelemetryReferenceKind.EVENT, "event-nested-4")), "occurred_at": "2026-01-01T00:00:00Z", "count": b"secret"},
+                {"event_type": "error", "event_id": str(self._reference(TelemetryReferenceKind.EVENT)), "occurred_at": "2026-01-01T00:00:00Z", "error": {"source_text": "secret source"}},
+                {"event_type": "error", "event_id": str(self._reference(TelemetryReferenceKind.EVENT)), "occurred_at": "2026-01-01T00:00:00Z", "stage": "AccessKey=canary"},
+                {"event_type": "error", "event_id": str(self._reference(TelemetryReferenceKind.EVENT)), "occurred_at": "2026-01-01T00:00:00Z", "unknown": "value"},
+                {"event_type": "error", "event_id": str(self._reference(TelemetryReferenceKind.EVENT)), "occurred_at": "2026-01-01T00:00:00Z", "count": b"secret"},
             )
             for event in rejected:
                 with self.assertRaises(KSlideError):
@@ -280,7 +429,7 @@ class TelemetryBoundaryTests(unittest.TestCase):
             root = Path(directory)
             layout = StorageLayout.for_service(root)
             writer = TelemetryWriter(root, layout=layout)
-            writer.write(TelemetryEvent(TelemetryEventType.ERROR, self._reference(TelemetryReferenceKind.EVENT, "event-opaque"), "2026-01-01T00:00:00Z", run_ref=self._reference(TelemetryReferenceKind.RUN, "run-opaque"), error_code=TelemetryErrorCode.INTERNAL))
+            writer.write(TelemetryEvent(TelemetryEventType.ERROR, self._reference(TelemetryReferenceKind.EVENT), "2026-01-01T00:00:00Z", run_ref=self._reference(TelemetryReferenceKind.RUN), error_code=TelemetryErrorCode.INTERNAL))
             telemetry_ref = layout.reference(StorageArtifact.TELEMETRY_EVENT, "events.jsonl")
             self.assertEqual(layout.resolve(telemetry_ref, expected_plane=StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY), writer.event_path)
             with self.assertRaises(KSlideError):
@@ -302,7 +451,7 @@ class TelemetryBoundaryTests(unittest.TestCase):
             writer = TelemetryWriter(Path(directory))
             event = TelemetryEvent(
                 TelemetryEventType.LIFECYCLE,
-                self._reference(TelemetryReferenceKind.EVENT, "event-loss"),
+                self._reference(TelemetryReferenceKind.EVENT),
                 "2026-01-01T00:00:00Z",
                 lifecycle=TelemetryLifecycle.RUNNING,
             )

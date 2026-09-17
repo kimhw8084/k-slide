@@ -48,9 +48,6 @@ class StorageArtifact(str, Enum):
     RUN_STATE = "run_state"
     WORK_QUEUE = "work_queue"
     EXECUTION_JOB = "execution_job"
-    DURABLE_CHECKPOINT = "durable_checkpoint"
-    RESULT_COMMIT_MARKER = "result_commit_marker"
-    ENVIRONMENT_BINDING = "environment_binding"
     ADMISSION_RECORD = "admission_record"
     ADMISSION_QUEUE = "admission_queue"
     ADMISSION_CONTROL = "admission_control"
@@ -59,7 +56,6 @@ class StorageArtifact(str, Enum):
     NORMALIZATION_MANIFEST = "normalization_manifest"
     NORMALIZATION_ERROR = "normalization_error"
     REGION_CROP = "region_crop"
-    OCR_EVIDENCE = "ocr_evidence"
     OCR_METADATA = "ocr_metadata"
     EVIDENCE_IR = "evidence_ir"
     EXTRACTION_ERROR = "extraction_error"
@@ -73,8 +69,6 @@ class StorageArtifact(str, Enum):
     COORDINATION_LOCK = "coordination_lock"
     TELEMETRY_COORDINATION_LOCK = "telemetry_coordination_lock"
     CONVERSION_STAGING = "conversion_staging"
-    TRANSIENT_RENDER_WORK = "transient_render_work"
-    TRANSIENT_OCR_WORKSPACE = "transient_ocr_workspace"
     TELEMETRY_EVENT = "telemetry_event"
 
 
@@ -89,9 +83,6 @@ STORAGE_POLICY: Mapping[StorageArtifact, StoragePlane] = {
     StorageArtifact.RUN_STATE: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
     StorageArtifact.WORK_QUEUE: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
     StorageArtifact.EXECUTION_JOB: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
-    StorageArtifact.DURABLE_CHECKPOINT: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
-    StorageArtifact.RESULT_COMMIT_MARKER: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
-    StorageArtifact.ENVIRONMENT_BINDING: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
     StorageArtifact.ADMISSION_RECORD: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
     StorageArtifact.ADMISSION_QUEUE: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
     StorageArtifact.ADMISSION_CONTROL: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
@@ -100,7 +91,6 @@ STORAGE_POLICY: Mapping[StorageArtifact, StoragePlane] = {
     StorageArtifact.NORMALIZATION_MANIFEST: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
     StorageArtifact.NORMALIZATION_ERROR: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
     StorageArtifact.REGION_CROP: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
-    StorageArtifact.OCR_EVIDENCE: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
     StorageArtifact.OCR_METADATA: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
     StorageArtifact.EVIDENCE_IR: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
     StorageArtifact.EXTRACTION_ERROR: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
@@ -114,8 +104,6 @@ STORAGE_POLICY: Mapping[StorageArtifact, StoragePlane] = {
     StorageArtifact.COORDINATION_LOCK: StoragePlane.EPHEMERAL_PROCESSING_SCRATCH,
     StorageArtifact.TELEMETRY_COORDINATION_LOCK: StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY,
     StorageArtifact.CONVERSION_STAGING: StoragePlane.EPHEMERAL_PROCESSING_SCRATCH,
-    StorageArtifact.TRANSIENT_RENDER_WORK: StoragePlane.EPHEMERAL_PROCESSING_SCRATCH,
-    StorageArtifact.TRANSIENT_OCR_WORKSPACE: StoragePlane.EPHEMERAL_PROCESSING_SCRATCH,
     StorageArtifact.TELEMETRY_EVENT: StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY,
 }
 

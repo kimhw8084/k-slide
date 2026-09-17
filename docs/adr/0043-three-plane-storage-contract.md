@@ -7,16 +7,17 @@ Status: Accepted for CHG-16 / KSA-11
 K-Slide uses one host-neutral storage contract, version `1.0`, with exactly
 three semantic planes:
 
-1. `ephemeral_processing_scratch` contains recreateable conversion staging,
-   transient render workspaces, transient OCR workspaces, and coordination
-   locks. It is never an authority for run admission, checkpoints, results,
-   environment binding, evidence identity, or content needed to resume.
+1. `ephemeral_processing_scratch` contains recreateable conversion staging
+   and coordination locks. It is never an authority for run admission,
+   checkpoints, results, environment binding, evidence identity, or content
+   needed to resume.
 2. `durable_user_workspace_run_data` contains authorized user/workspace run
    data: immutable input snapshots and manifests, normalized renders and
-   native extraction, crops/OCR/EvidenceIR, translation patches, canonical
-   IR/reports/verification, run state, `WORK_QUEUE.json`, KSA-06 execution
-   records/checkpoints/result markers, KSA-09 admission state, environment
-   binding, failure/completion markers, metrics, and recovery/session metadata.
+   native extraction, crops/OCR metadata/EvidenceIR, translation patches,
+   canonical IR/reports/verification, run state, `WORK_QUEUE.json`, the KSA-06
+   `EXECUTION_JOB` record (including checkpoints, result markers, and
+   environment binding), KSA-09 admission state, failure/completion markers,
+   metrics, and recovery/session metadata.
 3. `central_non_content_operational_telemetry` contains only the explicit
    allowlisted telemetry event schema: canonical `kslide-ref-v1.<kind>.<sha256>`
    deployment/runtime/model/run/worker/event references, bounded lifecycle and
@@ -29,6 +30,13 @@ write boundary used by workspace-local and reference durable adapters. It
 rejects traversal, symlink/alias escape, wrong-plane resolution, and scope
 mismatch. A durable reference cannot be resolved with only a guessed run ID or
 store reference.
+
+The artifact inventory names only independently managed objects. Checkpoints,
+result markers, and environment binding are subrecords of `EXECUTION_JOB`, and
+OCR evidence is represented by actual crops, OCR metadata, and `EvidenceIR`;
+none is a second physical artifact class. PPTX conversion uses the
+`CONVERSION_STAGING` scratch class for its recreateable Office workspace, while
+normalized renders are durable outputs.
 
 ## Reference deployment proof
 
@@ -66,8 +74,9 @@ failure and cannot affect durable resume. Raw identifier strings, malformed,
 unknown, nested, content-shaped, path-shaped, binary, credential,
 `Authorization`, token, or `AccessKey` telemetry is rejected before
 persistence; it is not sanitized into an admin content channel. Typed
-constructors derive opaque references from known internal identities, while
-the persisted representation is always the canonical prefixed digest.
+constructors derive opaque references only from explicit K-Slide identity types
+or K-Slide-issued UUID machine IDs, while the persisted representation is
+always the canonical prefixed digest.
 
 Retention/deletion policy remains outside this decision. KSA-12 owns content
 versus operational-metadata retention configuration and KSA-13 owns deletion,
