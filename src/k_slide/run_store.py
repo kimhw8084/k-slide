@@ -13,6 +13,7 @@ from .execution import (
     WorkspaceRunStore,
     run_store_for_profile,
 )
+from .paas import PaaSRunStore, ReferencePaaSRunStore
 
 __all__ = [
     "DeterministicDurableRunStore",
@@ -25,5 +26,7 @@ __all__ = [
     "StoreWriteResult",
     "StoreWriteStatus",
     "WorkspaceRunStore",
+    "PaaSRunStore",
+    "ReferencePaaSRunStore",
     "run_store_for_profile",
 ]

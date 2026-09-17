@@ -34,6 +34,7 @@ the generic attestation writer.
 - Evidence revision, work-unit identity, table/cell identity, required-region coverage, and source-field injection checks.
 - Persisted multi-work-unit queue with sequential scheduling, repair states, optimistic revisions, run locking, and resumable `NEEDS_REVIEW`.
 - Versioned source-free execution/job and run-store contract with workspace-local and deterministic durable-profile reference adapters, monotonic checkpoint CAS, durable cancellation, bounded operational retry, restart/replay tests, and host-visible execution metadata. This is the KSA-06 implementation boundary; it is not a production PaaS worker, runtime binding, tenancy system, or production readiness claim.
+- KSA-08 source contract for durable PaaS controller submission, reconnectable source-free inspection/cancellation, independent worker claims, exact pinned runtime identity binding, bounded retry, checkpoint resume, and process-boundary integration. The local `ReferencePaaSJobService`/`ReferencePaaSRunStore` and `k-slide-worker` entrypoint are deterministic qualification adapters; live company-PaaS transport, production persistence/concurrency policy, full engine resume binding, and production certification remain unproven and out of scope.
 - Finalization that re-runs verification against current artifacts before creating `RUN_COMPLETE.md`.
 - Central completion policy in `src/k_slide/policy.py`, used by manifests, verification, and finalization.
 - Typed OpenCode `kslide_submit` payload schema; no model-facing JSON-in-a-string contract.
@@ -107,7 +108,7 @@ the generic attestation writer.
 ## Verification performed locally
 
 ```text
-Base unit/integration suite: PASS (`python -m unittest discover -s tests -q`; latest local execution: 161 tests passed, 2 optional dependency skips)
+Base unit/integration suite: PASS (`python -m unittest discover -s tests -q`; latest local execution: 231 tests passed, 2 optional dependency skips)
 Dependency-backed unit/integration suite: PASS (`/tmp/k-slide-phase32-venv/bin/python -m unittest discover -s tests -q`; latest local execution: 161 tests passed, no optional dependency skips)
 Dependency-backed compile/import checks: PASS
 TranslationPatch JSON schema parse: PASS
@@ -129,6 +130,8 @@ Test totals are not a standing contract; the commands above and CI are authorita
 Runtime snapshot: OpenCode `1.3.9`; configured model `ollama/qwen3:14b`; model compatibility `different_model_warning`.
 
 KSA-07 repository-side verification: `PYTHONPATH=src:. python -m unittest tests.test_runtime_artifact -q` PASS (6 tests); `PYTHONPATH=src:. python -m unittest discover -s tests -q` PASS (222 tests, 2 optional skips); `python -m compileall -q src evals tests` PASS; `git diff --check` PASS before final documentation edits. The canonical builder was exercised with `scripts/build_runtime_artifact.py build --allow-development-ocr-prefetch ...` against the pinned `linux/amd64` image. Docker completed the base and exact Debian package layers but the Fabric host's emulated Paddle installation produced no progress and was stopped after the capability wait window; no image/doctor/networkless pass is claimed from that attempt. A certifying OCR bundle was not available in the public worktree, so no `CANDIDATE` runtime artifact was materialized.
+
+KSA-08 repository-side verification: `PYTHONPATH=src:. python -m unittest tests.test_chg16_paas_worker -q` PASS (9 tests); the tests exercise independent worker subprocess submission/claim, controller reconstruction, cancellation acknowledgement, interruption/restart, duplicate-marker prevention, bounded retry, semantic classification, exact runtime binding, secret/source hygiene, and recreated-store CAS/idempotency. Live company-PaaS transport, production persistence/concurrency policy, and company-runtime qualification remain explicitly unproven.
 
 The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pptx, and verified Korean-font support. LibreOffice, PaddlePaddle, PaddleOCR, and the approved Gemma endpoint were unavailable locally. The OpenCode runner retained timeout diagnostics and did not treat the zero-event timeout as a protocol pass.
 

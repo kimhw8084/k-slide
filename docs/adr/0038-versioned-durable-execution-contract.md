@@ -22,8 +22,9 @@ run lock.  The durable-profile reference adapter uses the same CAS contract
 over an isolated filesystem root; it is a deterministic test adapter, not a
 PaaS backend.
 
-Workspace-local and future durable execution use the same host-neutral engine
-step boundary.  `RunState`, `WorkQueue`, EvidenceIR, TranslationPatch,
+Workspace-local and durable PaaS execution use the same host-neutral engine
+step boundary.  The KSA-08 controller/worker layer binds the durable profile
+without introducing another engine. `RunState`, `WorkQueue`, EvidenceIR, TranslationPatch,
 verification, repair, and finalization remain engine-owned; the execution
 record coordinates when those operations run and where their control state is
 stored.  Operational `CANCELED` and `PROCESSING_FAILED` never become semantic

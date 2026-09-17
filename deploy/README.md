@@ -15,6 +15,13 @@ Use the same image for the product command (`k-slide`) and heavy verification
 dynamic OCR prefetch a candidate artifact; the explicit development prefetch
 mode is marked `DEVELOPMENT_ONLY`.
 
+The source contract also installs the separately executable `k-slide-worker`
+path. A managed deployment must bind that worker to its approved PaaS job
+service and the same pinned runtime; the repository's deterministic reference
+adapter does not qualify live company transport or production persistence.
+The worker accepts an approved `module:factory` engine binding so the managed
+path can invoke the existing K-Slide engine/checkpoint/evidence boundary.
+
 Certification inputs live in the public-safe `evals/production-candidate.yaml`
 or an ignored `.k-slide-config/production-candidate.json`. Certification-quality
 commands accept that object with `--candidate-profile`; its deployment factors
