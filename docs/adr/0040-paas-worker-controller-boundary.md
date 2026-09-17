@@ -23,9 +23,11 @@ engine semantic ownership. Operational `CANCELED` and `PROCESSING_FAILED`
 remain separate from semantic `DONE` and `NEEDS_REVIEW`.
 
 `ReferencePaaSJobService` and `ReferencePaaSRunStore` are deterministic local
-integration adapters. The latter delegates state changes to the existing
-`DurableTestRunStore` and is not a production persistence, queue, tenancy, or
-company transport implementation. `python -m k_slide.worker` (also installed
+integration adapters. KSA-09 adds its explicit scoped reference mode and
+durable admission contract in [ADR 0041](0041-scoped-durable-admission.md).
+The latter delegates state changes to the existing `DurableTestRunStore` and
+neither local mode is production persistence, queue, tenancy, or company
+transport implementation. `python -m k_slide.worker` (also installed
 as `k-slide-worker`) proves the separate worker process path with a
 deterministic reference engine. A managed deployment must supply the
 approved job-service adapter and the same pinned K-Slide runtime/engine
@@ -34,7 +36,8 @@ binding for that deployment; no proprietary company API is assumed here.
 
 ## Out of scope
 
-KSA-09 production persistence/concurrency policy/backend, KSA-10 full
-end-to-end resume binding, KSA-14 company transport, release and company
-runtime qualification, and production certification remain later work. This
-ADR provides only the stable interfaces needed to connect those layers.
+KSA-10 full end-to-end resume binding, KSA-14 company transport, release and
+company runtime qualification, and production certification remain later
+work. KSA-09's live company-storage/job-service qualification remains an
+external deployment gate. This ADR provides only the stable interfaces needed
+to connect those layers.

@@ -13,7 +13,14 @@ from .execution import (
     WorkspaceRunStore,
     run_store_for_profile,
 )
-from .paas import PaaSRunStore, ReferencePaaSRunStore
+from .paas import (
+    AuthorizedScopeContext,
+    PaaSRunStore,
+    ReferencePaaSRunStore,
+    ScopedAdmissionPolicy,
+    ScopedArtifactReferences,
+    ScopedPaaSRunStore,
+)
 
 __all__ = [
     "DeterministicDurableRunStore",
@@ -28,5 +35,9 @@ __all__ = [
     "WorkspaceRunStore",
     "PaaSRunStore",
     "ReferencePaaSRunStore",
+    "AuthorizedScopeContext",
+    "ScopedAdmissionPolicy",
+    "ScopedArtifactReferences",
+    "ScopedPaaSRunStore",
     "run_store_for_profile",
 ]

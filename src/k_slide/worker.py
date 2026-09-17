@@ -14,6 +14,7 @@ from pathlib import Path
 
 from .errors import ErrorCode, KSlideError
 from .paas import (
+    AuthorizedScopeContext,
     PaaSWorker,
     ReferencePaaSJobService,
     ReferenceWorkerEngine,
@@ -30,6 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model-identity", required=True)
     parser.add_argument("--ocr-identity", required=True)
     parser.add_argument("--termbase-identity", required=True)
+    parser.add_argument("--user-ref", help="Deployment-authorized user reference for scoped mode")
+    parser.add_argument("--workspace-ref", help="Deployment-authorized workspace reference for scoped mode")
+    parser.add_argument("--scope-ref", help="Deployment-authorized opaque scope reference")
     parser.add_argument("--engine-factory", help="Approved deployment adapter as module:factory; defaults to the deterministic reference adapter")
     parser.add_argument("--max-steps", type=int, default=None)
     parser.add_argument("--until-terminal", action="store_true", help="Continue through bounded retries until an operational or semantic terminal result")
@@ -61,12 +65,17 @@ def main(argv: list[str] | None = None) -> int:
             ocr_identity=args.ocr_identity,
             termbase_identity=args.termbase_identity,
         )
+        scope_args = (args.user_ref, args.workspace_ref, args.scope_ref)
+        if any(value is not None for value in scope_args) and not all(value is not None for value in scope_args[:2]):
+            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Scoped worker mode requires user and workspace references.")
+        scope_context = AuthorizedScopeContext(args.user_ref, args.workspace_ref, args.scope_ref) if all(value is not None for value in scope_args[:2]) else None
         service = ReferencePaaSJobService(args.service_root)
         worker = PaaSWorker(
             service,
             worker_id=args.worker_id,
             runtime_identity=runtime_identity,
             engine=_load_engine(args.engine_factory),
+            scope_context=scope_context,
         )
         if args.until_terminal:
             result = worker.run_until_terminal(args.job_id, max_steps=100_000 if args.max_steps is None else args.max_steps)

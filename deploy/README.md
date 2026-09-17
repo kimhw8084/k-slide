@@ -39,6 +39,13 @@ offline OCR assets, or missing heavy runtime fails closed.
 Production requires one isolated workspace/container per user or session. Do
 not share a writable `.k-slide-runs/` directory between employees.
 
+For durable heavy jobs, the deployment adapter must supply an authorized
+user/workspace scope to the KSA-09 `ScopedPaaSJobService` boundary. Its
+company persistence must provide the equivalent per-scope control, FIFO
+admission, locking, and run/result/evidence reference isolation. The local
+scoped `ReferencePaaSJobService` is a deterministic qualification backend,
+not live company-storage qualification; job/run IDs are never authorization.
+
 The certified profile must bind `subject_git_sha`,
 `deployment_fingerprint`, `certification_fingerprint`,
 `release_manifest`, and `release_manifest_sha256` to an evidence-derived

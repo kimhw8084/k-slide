@@ -37,5 +37,6 @@ without changing run identity.  Corrupt, incompatible, or hash-inconsistent
 control state fails closed.  Cancellation persists until a safe boundary
 acknowledges it, and retry attempts cannot become an unbounded regeneration
 loop.  Production persistence, queueing, tenancy/isolation, runtime binding,
-and worker/controller infrastructure remain owned by KSA-08 through KSA-10
-and KSA-09/KSA-11 as applicable.
+and worker/controller infrastructure are layered by KSA-08/KSA-09 without
+changing this KSA-06 CAS contract. KSA-09's live company-storage
+qualification and later storage/retention work remain outside this ADR.
