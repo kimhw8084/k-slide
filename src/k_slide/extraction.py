@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .documents import NormalizationResult
+from .environment import RunEnvironmentIdentity
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import EvidenceIR, EvidenceRegion, EvidenceTable, EvidenceTableCell, save_evidence
 from .io import atomic_write_json, atomic_write_text, read_json
@@ -233,9 +234,18 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None, ocr_p
         return evidence_values
 
 
-def extract_run(run_dir: Path, *, ocr_provider: Any | None = None, ocr_policy: OCRProviderPolicy | str | None = None) -> list[EvidenceIR]:
+def extract_run(
+    run_dir: Path,
+    *,
+    ocr_provider: Any | None = None,
+    ocr_policy: OCRProviderPolicy | str | None = None,
+    environment_identity: RunEnvironmentIdentity | None = None,
+) -> list[EvidenceIR]:
     """Run extraction and leave a resumable, fail-closed failure record."""
 
+    from .execution import ensure_workspace_environment_compatible
+
+    ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
     try:
         return _extract_run_locked(run_dir, ocr_provider=ocr_provider, ocr_policy=ocr_policy)
     except Exception as exc:

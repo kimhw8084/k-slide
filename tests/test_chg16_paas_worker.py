@@ -30,10 +30,11 @@ from k_slide.paas import (
     ReferenceWorkerEngine,
     RuntimeIdentity,
 )
+from tests.reference_fixtures import reference_runtime
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME = RuntimeIdentity("runtime-pinned", "model-pinned", "ocr-pinned", "termbase-pinned")
+RUNTIME = reference_runtime()
 
 
 class _FailingEngine:
@@ -96,6 +97,8 @@ def _worker_process(root: Path, job_id: str, *, until_terminal: bool = False) ->
         RUNTIME.ocr_identity,
         "--termbase-identity",
         RUNTIME.termbase_identity,
+        "--environment-identity-json",
+        json.dumps(RUNTIME.environment_identity.as_dict()),
     ]
     if until_terminal:
         command.append("--until-terminal")
@@ -155,7 +158,8 @@ class Interrupting:
     def step(self, checkpoint, operation_id):
         raise KeyboardInterrupt()
 service = ReferencePaaSJobService(__import__('pathlib').Path(__import__('sys').argv[1]))
-runtime = RuntimeIdentity('runtime-pinned', 'model-pinned', 'ocr-pinned', 'termbase-pinned')
+from tests.reference_fixtures import reference_runtime
+runtime = reference_runtime()
 PaaSWorker(service, worker_id='interrupted-worker', runtime_identity=runtime, engine=Interrupting()).run_once(__import__('sys').argv[2])
 """
             environment = {**os.environ, "PYTHONPATH": str(ROOT / "src") + os.pathsep + str(ROOT)}
@@ -232,7 +236,7 @@ PaaSWorker(service, worker_id='interrupted-worker', runtime_identity=runtime, en
             root = Path(directory)
             service = ReferencePaaSJobService(root)
             receipt = _submit(service, run_id="run-binding")
-            mismatched = RuntimeIdentity("runtime-other", RUNTIME.model_identity, RUNTIME.ocr_identity, RUNTIME.termbase_identity)
+            mismatched = RuntimeIdentity("runtime-other", RUNTIME.model_identity, RUNTIME.ocr_identity, RUNTIME.termbase_identity, environment_identity=RUNTIME.environment_identity)
             worker = PaaSWorker(service, worker_id="wrong-runtime", runtime_identity=mismatched, engine=ReferenceWorkerEngine())
             with self.assertRaises(KSlideError) as raised:
                 worker.run_once(receipt.identity)

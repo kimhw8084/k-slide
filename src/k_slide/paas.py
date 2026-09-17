@@ -20,6 +20,7 @@ from typing import Any, Callable, Protocol
 from . import EXECUTION_CONTRACT_VERSION
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import stable_revision
+from .environment import RunEnvironmentIdentity, environment_mismatch_fields, raise_environment_mismatch
 from .execution import (
     DurableTestRunStore,
     EngineStepResult,
@@ -196,6 +197,7 @@ class RuntimeIdentity:
     ocr_identity: str
     termbase_identity: str
     engine_contract_version: str = EXECUTION_CONTRACT_VERSION
+    environment_identity: RunEnvironmentIdentity | None = None
 
     def __post_init__(self) -> None:
         _safe_identity(self.runtime_ref, "runtime identity")
@@ -205,6 +207,16 @@ class RuntimeIdentity:
         _safe_identity(self.engine_contract_version, "engine contract version")
         if self.engine_contract_version != EXECUTION_CONTRACT_VERSION:
             raise _invalid("PaaS runtime is incompatible with the K-Slide execution contract.", code=ErrorCode.EXECUTION_UNSUPPORTED_VERSION)
+        if self.environment_identity is not None and not isinstance(self.environment_identity, RunEnvironmentIdentity):
+            raise _invalid("PaaS runtime environment identity is invalid.")
+
+    def environment(self) -> RunEnvironmentIdentity:
+        if self.environment_identity is None:
+            raise KSlideError(
+                ErrorCode.EXECUTION_INVALID,
+                "PaaS runtime must provide a complete canonical KSA-10 environment identity.",
+            )
+        return self.environment_identity
 
     def as_dict(self) -> dict[str, str]:
         return {
@@ -216,20 +228,24 @@ class RuntimeIdentity:
         }
 
     @classmethod
-    def from_runtime_metadata(cls, runtime_metadata: Any, *, runtime_ref: str, ocr_identity: str, termbase_identity: str) -> "RuntimeIdentity":
+    def from_runtime_metadata(cls, runtime_metadata: Any, *, runtime_ref: str, ocr_identity: str, termbase_identity: str, environment_identity: RunEnvironmentIdentity | None = None) -> "RuntimeIdentity":
         """Project the existing runtime discovery into a safe job binding."""
 
         model_identity = getattr(runtime_metadata, "reported_model_id", None)
         if not isinstance(model_identity, str) or not model_identity:
             raise _invalid("PaaS submission cannot bind an undiscoverable model identity.", code=ErrorCode.MODEL_UNKNOWN)
-        return cls(runtime_ref, model_identity, ocr_identity, termbase_identity)
+        return cls(runtime_ref, model_identity, ocr_identity, termbase_identity, environment_identity=environment_identity)
 
     @classmethod
     def from_dict(cls, value: Any) -> "RuntimeIdentity":
-        if not isinstance(value, dict) or set(value) != {"runtime_ref", "model_identity", "ocr_identity", "termbase_identity", "engine_contract_version"}:
+        fields = {"runtime_ref", "model_identity", "ocr_identity", "termbase_identity", "engine_contract_version"}
+        if not isinstance(value, dict) or set(value) not in (fields, fields | {"environment_identity"}):
             raise _invalid("PaaS runtime identity is incomplete.", code=ErrorCode.STATE_CORRUPT)
         try:
-            return cls(**value)
+            raw = dict(value)
+            if "environment_identity" in raw:
+                raw["environment_identity"] = RunEnvironmentIdentity.from_dict(raw["environment_identity"])
+            return cls(**raw)
         except (TypeError, ValueError) as exc:
             raise _invalid("PaaS runtime identity is invalid.", code=ErrorCode.STATE_CORRUPT) from exc
 
@@ -237,6 +253,12 @@ class RuntimeIdentity:
 # The longer name makes deployment bindings self-documenting while retaining
 # the compact public name for adapter implementations.
 PinnedRuntimeIdentity = RuntimeIdentity
+
+
+def _same_runtime_identity(left: RuntimeIdentity, right: RuntimeIdentity) -> bool:
+    """Compare the legacy worker reference without duplicating the canonical binding."""
+
+    return left.as_dict() == right.as_dict()
 
 
 @dataclass(frozen=True)
@@ -296,12 +318,24 @@ class PaaSJobRequest:
     execution_id: str | None = None
     scope_context: AuthorizedScopeContext | None = None
     authorization: AuthorizedScopeContext | None = None
+    environment_identity: RunEnvironmentIdentity | None = None
 
     def __post_init__(self) -> None:
         _strict_identifier(self.run_id, "run ID")
         RunStoreRef(self.scope_ref, self.store_ref)
         if not isinstance(self.runtime_identity, RuntimeIdentity):
             raise _invalid("PaaS submission runtime identity is invalid.")
+        derived_environment = self.runtime_identity.environment()
+        if self.environment_identity is None:
+            object.__setattr__(self, "environment_identity", derived_environment)
+        elif not isinstance(self.environment_identity, RunEnvironmentIdentity):
+            raise _invalid("PaaS submission environment identity is invalid.")
+        elif self.environment_identity != derived_environment:
+            raise KSlideError(
+                ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
+                "PaaS submission environment identity does not match the runtime binding.",
+                {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": list(environment_mismatch_fields(self.environment_identity, derived_environment))},
+            )
         if not isinstance(self.total_work_units, int) or self.total_work_units < 0 or self.total_work_units > 100_000:
             raise _invalid("PaaS submission work-unit count is outside the bounded range.")
         if not isinstance(self.max_attempts, int) or self.max_attempts < 1 or self.max_attempts > 32:
@@ -340,6 +374,8 @@ class PaaSJobStatus:
     cancellation: dict[str, Any]
     retry: dict[str, Any]
     references: ScopedArtifactReferences | None = None
+    environment_identity: dict[str, str] | None = None
+    environment_identity_sha256: str | None = None
 
     @classmethod
     def from_job(cls, job: ExecutionJob, *, references: ScopedArtifactReferences | None = None) -> "PaaSJobStatus":
@@ -357,6 +393,8 @@ class PaaSJobStatus:
             dict(job.cancellation.as_dict()),
             dict(job.retry.as_dict()),
             references,
+            job.environment_identity.as_dict() if job.environment_identity is not None else None,
+            job.environment_identity.identity_sha256 if job.environment_identity is not None else None,
         )
 
     def as_dict(self) -> dict[str, Any]:
@@ -376,6 +414,9 @@ class PaaSJobStatus:
         }
         if self.references is not None:
             value["references"] = self.references.as_dict()
+        if self.environment_identity is not None:
+            value["environment_identity"] = dict(self.environment_identity)
+            value["environment_identity_sha256"] = self.environment_identity_sha256
         return value
 
 
@@ -740,6 +781,7 @@ def _scoped_control_from_dict(value: Any) -> _ScopedControlState:
 class _ScopedJobRecord:
     identity: DurableJobIdentity
     runtime_identity: RuntimeIdentity
+    environment_identity: RunEnvironmentIdentity
     submitted_at: str
     admission_sequence: int
     scope_context: AuthorizedScopeContext
@@ -752,6 +794,7 @@ class _ScopedJobRecord:
             "schema_version": self.schema_version,
             "identity": self.identity.as_dict(),
             "runtime_identity": self.runtime_identity.as_dict(),
+            "environment_identity": self.environment_identity.as_dict(),
             "submitted_at": self.submitted_at,
             "admission_sequence": self.admission_sequence,
             "scope": self.scope_context.as_dict(),
@@ -764,7 +807,7 @@ class _ScopedJobRecord:
 
 
 def _scoped_record_from_dict(value: Any) -> _ScopedJobRecord:
-    required = {"schema_version", "identity", "runtime_identity", "submitted_at", "admission_sequence", "scope", "references", "record_sha256"}
+    required = {"schema_version", "identity", "runtime_identity", "environment_identity", "submitted_at", "admission_sequence", "scope", "references", "record_sha256"}
     if not isinstance(value, dict) or set(value) not in (required, required | {"submission_fingerprint"}):
         raise _invalid("Scoped PaaS job record is corrupt.", code=ErrorCode.STATE_CORRUPT)
     without_hash = dict(value)
@@ -781,6 +824,7 @@ def _scoped_record_from_dict(value: Any) -> _ScopedJobRecord:
     try:
         identity = DurableJobIdentity.from_dict(value["identity"])
         runtime_identity = RuntimeIdentity.from_dict(value["runtime_identity"])
+        environment_identity = RunEnvironmentIdentity.from_dict(value["environment_identity"])
         context = AuthorizedScopeContext.from_dict(value["scope"])
         references = ScopedArtifactReferences.from_dict(value["references"])
         _validate_scoped_identity(identity)
@@ -789,6 +833,7 @@ def _scoped_record_from_dict(value: Any) -> _ScopedJobRecord:
         record = _ScopedJobRecord(
             identity,
             runtime_identity,
+            environment_identity,
             value["submitted_at"],
             value["admission_sequence"],
             context,
@@ -809,6 +854,7 @@ def _scoped_submission_fingerprint(job: ExecutionJob, runtime_identity: RuntimeI
         {
             "identity": DurableJobIdentity.from_job(job).as_dict(),
             "runtime_identity": runtime_identity.as_dict(),
+            "environment_identity": job.environment_identity.as_dict() if job.environment_identity is not None else runtime_identity.environment().as_dict(),
             "total_work_units": job.checkpoint.progress.total_work_units,
             "max_attempts": job.retry.max_attempts,
             "engine_state_revision": job.checkpoint.engine_state_revision,
@@ -884,6 +930,7 @@ class ScopedPaaSRunStore(PaaSRunStore):
 class _PaaSJobRecord:
     identity: DurableJobIdentity
     runtime_identity: RuntimeIdentity
+    environment_identity: RunEnvironmentIdentity
     submitted_at: str
     schema_version: str = PAAS_CONTRACT_VERSION
 
@@ -892,6 +939,7 @@ class _PaaSJobRecord:
             "schema_version": self.schema_version,
             "identity": self.identity.as_dict(),
             "runtime_identity": self.runtime_identity.as_dict(),
+            "environment_identity": self.environment_identity.as_dict(),
             "submitted_at": self.submitted_at,
         }
         value["record_sha256"] = stable_revision(value)
@@ -899,7 +947,7 @@ class _PaaSJobRecord:
 
 
 def _record_from_dict(value: Any) -> _PaaSJobRecord:
-    required = {"schema_version", "identity", "runtime_identity", "submitted_at", "record_sha256"}
+    required = {"schema_version", "identity", "runtime_identity", "environment_identity", "submitted_at", "record_sha256"}
     if not isinstance(value, dict) or set(value) != required:
         raise _invalid("PaaS job service record is corrupt.", code=ErrorCode.STATE_CORRUPT)
     without_hash = dict(value)
@@ -911,6 +959,7 @@ def _record_from_dict(value: Any) -> _PaaSJobRecord:
     record = _PaaSJobRecord(
         DurableJobIdentity.from_dict(value["identity"]),
         RuntimeIdentity.from_dict(value["runtime_identity"]),
+        RunEnvironmentIdentity.from_dict(value["environment_identity"]),
         value["submitted_at"],
     )
     _timestamp(record.submitted_at, "submission")
@@ -967,6 +1016,10 @@ class ReferencePaaSJobService(RunStoreResolver):
         # record.  It prevents future fields from accidentally carrying source
         # text, prompts, or process-only secret material into this boundary.
         serialized = job.as_dict()
+        # The KSA-10 environment contract deliberately contains the
+        # source-revision *identity*; it is not source content. Validate the
+        # rest of the operational record with the pre-existing denylist.
+        serialized.pop("environment_identity", None)
         if any(word in str(serialized).lower() for word in _FORBIDDEN):
             raise _invalid("Durable PaaS control state contains forbidden material.")
 
@@ -1184,12 +1237,19 @@ class ReferencePaaSJobService(RunStoreResolver):
         self._validate_scoped_job(job)
         if DurableJobIdentity.from_job(job) != identity or record.identity != identity or record.scope_context.scope_ref != identity.scope_ref:
             raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Durable job identity does not match the authorized scope record.")
+        if job.environment_identity != record.environment_identity:
+            raise KSlideError(
+                ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
+                "Durable job environment identity does not match the scope record.",
+                {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": ["run_environment_identity"]},
+            )
 
     @staticmethod
     def _same_scoped_submission(existing: ExecutionJob, candidate: ExecutionJob, existing_record: _ScopedJobRecord, runtime_identity: RuntimeIdentity) -> bool:
         return (
             ReferencePaaSJobService._same_submission(existing, candidate)
-            and existing_record.runtime_identity == runtime_identity
+            and _same_runtime_identity(existing_record.runtime_identity, runtime_identity)
+            and existing_record.environment_identity == runtime_identity.environment()
             and (existing_record.submission_fingerprint is None or existing_record.submission_fingerprint == _scoped_submission_fingerprint(candidate, runtime_identity))
         )
 
@@ -1198,7 +1258,7 @@ class ReferencePaaSJobService(RunStoreResolver):
         # A record-only crash window must be reconciled against the immutable
         # source-free submission fingerprint; a legacy record without one
         # cannot safely be interpreted as a new payload.
-        return record.submission_fingerprint is not None and record.submission_fingerprint == _scoped_submission_fingerprint(candidate, runtime_identity)
+        return record.environment_identity == runtime_identity.environment() and record.submission_fingerprint is not None and record.submission_fingerprint == _scoped_submission_fingerprint(candidate, runtime_identity)
 
     def _scoped_status(self, identity: DurableJobIdentity, job: ExecutionJob, references: ScopedArtifactReferences) -> PaaSJobStatus:
         return PaaSJobStatus.from_job(job, references=references)
@@ -1253,22 +1313,37 @@ class ReferencePaaSJobService(RunStoreResolver):
             and existing.profile is ExecutionProfile.DURABLE
             and existing.checkpoint.progress.total_work_units == candidate.checkpoint.progress.total_work_units
             and existing.retry.max_attempts == candidate.retry.max_attempts
+            and existing.environment_identity == candidate.environment_identity
         )
 
+    @staticmethod
+    def _bind_environment(job: ExecutionJob, runtime_identity: RuntimeIdentity) -> tuple[ExecutionJob, RunEnvironmentIdentity]:
+        if not isinstance(runtime_identity, RuntimeIdentity):
+            raise _invalid("PaaS submission runtime identity is invalid.")
+        environment = runtime_identity.environment()
+        if job.environment_identity is None:
+            return replace(job, environment_identity=environment), environment
+        if job.environment_identity != environment:
+            raise KSlideError(
+                ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
+                "PaaS submission environment identity does not match the runtime binding.",
+                {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": list(environment_mismatch_fields(job.environment_identity, environment))},
+            )
+        return job, environment
+
     def submit(self, job: ExecutionJob, *, runtime_identity: RuntimeIdentity, scope_context: AuthorizedScopeContext | None = None) -> PaaSSubmissionReceipt:
+        job, environment_identity = self._bind_environment(job, runtime_identity)
         scope_context = scope_context or self.scope_context
         if scope_context is not None:
             return self._submit_scoped(job, runtime_identity=runtime_identity, scope_context=scope_context)
         if job.profile is not ExecutionProfile.DURABLE:
             raise _invalid("PaaS service accepts only the durable execution profile.")
-        if not isinstance(runtime_identity, RuntimeIdentity):
-            raise _invalid("PaaS submission runtime identity is invalid.")
         identity = DurableJobIdentity.from_job(job)
         path = self._record_path(identity.job_id)
         with self._record_lock(identity.job_id):
             if path.is_file():
                 record = self._read_record(identity.job_id)
-                if record.identity != identity or record.runtime_identity != runtime_identity:
+                if record.identity != identity or not _same_runtime_identity(record.runtime_identity, runtime_identity) or record.environment_identity != environment_identity:
                     return PaaSSubmissionReceipt(StoreWriteStatus.CONFLICT, record.identity)
                 existing = self._store.load(identity.job_id)
                 if not self._same_submission(existing, job):
@@ -1282,7 +1357,7 @@ class ReferencePaaSJobService(RunStoreResolver):
                     return PaaSSubmissionReceipt(stored.status, identity)
                 if not self._same_submission(existing, job):
                     return PaaSSubmissionReceipt(stored.status, identity)
-            record = _PaaSJobRecord(identity, runtime_identity, now_utc())
+            record = _PaaSJobRecord(identity, runtime_identity, environment_identity, now_utc())
             atomic_write_json(path, record.as_dict(), mode=0o600)
             return PaaSSubmissionReceipt(StoreWriteStatus.IDEMPOTENT if stored.status is StoreWriteStatus.CONFLICT else stored.status, identity)
 
@@ -1290,8 +1365,7 @@ class ReferencePaaSJobService(RunStoreResolver):
         if not isinstance(scope_context, AuthorizedScopeContext):
             raise _invalid("PaaS authorization context is invalid.")
         self._authorized_context(scope_context, job.store_ref.scope_ref)
-        if not isinstance(runtime_identity, RuntimeIdentity):
-            raise _invalid("PaaS submission runtime identity is invalid.")
+        job, environment_identity = self._bind_environment(job, runtime_identity)
         self._validate_scoped_job(job)
         identity = DurableJobIdentity.from_job(job)
         references = self._scoped_references(identity, scope_context)
@@ -1333,6 +1407,7 @@ class ReferencePaaSJobService(RunStoreResolver):
             record = _ScopedJobRecord(
                 identity,
                 runtime_identity,
+                environment_identity,
                 now_utc(),
                 sequence,
                 scope_context,
@@ -1446,16 +1521,25 @@ class ReferencePaaSJobService(RunStoreResolver):
             return self._scoped_status(resolved, requested.job, record.references)
 
     def claim(self, identity: DurableJobIdentity | str, *, worker_id: str, runtime_identity: RuntimeIdentity, scope_context: AuthorizedScopeContext | None = None) -> WorkerClaim:
+        if not isinstance(runtime_identity, RuntimeIdentity):
+            raise _invalid("Worker runtime identity is invalid.")
+        runtime_identity.environment()
         scope_context = scope_context or self.scope_context
         if scope_context is not None:
             return self._claim_scoped(identity, worker_id=worker_id, runtime_identity=runtime_identity, scope_context=scope_context)
         worker_id = _strict_identifier(worker_id, "worker ID")
         resolved = self._identity(identity)
         record = self._read_record(resolved.job_id)
-        if record.runtime_identity != runtime_identity:
+        if record.runtime_identity.environment_identity is None and runtime_identity.environment_identity is None:
+            if not _same_runtime_identity(record.runtime_identity, runtime_identity):
+                raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Worker runtime identity does not match the durable job binding.", {"job_id": resolved.job_id})
+        else:
+            raise_environment_mismatch(record.environment_identity, runtime_identity.environment())
+        if not _same_runtime_identity(record.runtime_identity, runtime_identity):
             raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Worker runtime identity does not match the durable job binding.", {"job_id": resolved.job_id})
         job = self._store.load(resolved.job_id)
         self._check_job_identity(job, resolved)
+        raise_environment_mismatch(job.environment_identity, runtime_identity.environment())
         claim_state = "reattach" if job.lifecycle is OperationalLifecycle.RUNNING else "claim"
         claim_ref = _safe_identity(f"{claim_state}-{worker_id}-{stable_revision(resolved.as_dict())[:16]}", "claim reference")
         return WorkerClaim(resolved, job, claim_ref)
@@ -1464,15 +1548,24 @@ class ReferencePaaSJobService(RunStoreResolver):
         worker_id = _strict_identifier(worker_id, "worker ID")
         if not isinstance(runtime_identity, RuntimeIdentity):
             raise _invalid("Worker runtime identity is invalid.")
+        runtime_identity.environment()
         with self._scope_lock(scope_context):
-            raw_state = self._load_scoped_state(scope_context)
-            state = self._normalize_scoped_state(raw_state)
-            self._persist_scoped_state_if_needed(state, raw_state)
+            # Resolve and compare the immutable binding before normalization
+            # can repair queue mirrors or promote an admission entry.
             resolved, record = self._resolve_scoped_identity(identity, scope_context)
-            if record.runtime_identity != runtime_identity:
+            if record.runtime_identity.environment_identity is None and runtime_identity.environment_identity is None:
+                if not _same_runtime_identity(record.runtime_identity, runtime_identity):
+                    raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Worker runtime identity does not match the durable job binding.", {"job_id": resolved.job_id})
+            else:
+                raise_environment_mismatch(record.environment_identity, runtime_identity.environment())
+            if not _same_runtime_identity(record.runtime_identity, runtime_identity):
                 raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Worker runtime identity does not match the durable job binding.", {"job_id": resolved.job_id})
             job = self._scoped_store(scope_context).load(resolved.job_id)
             self._check_scoped_job(job, resolved, record)
+            raise_environment_mismatch(job.environment_identity, runtime_identity.environment())
+            raw_state = self._load_scoped_state(scope_context)
+            state = self._normalize_scoped_state(raw_state)
+            self._persist_scoped_state_if_needed(state, raw_state)
             if job.lifecycle is OperationalLifecycle.COMPLETED and job.terminal_outcome is TerminalOutcome.NEEDS_REVIEW:
                 if job.resume_eligibility is not ResumeEligibility.ELIGIBLE:
                     raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Durable review job is not eligible for explicit resume.")
@@ -1522,10 +1615,10 @@ class ReferencePaaSJobService(RunStoreResolver):
         worker_id = _strict_identifier(worker_id, "worker ID")
         if not isinstance(runtime_identity, RuntimeIdentity):
             raise _invalid("Worker runtime identity is invalid.")
+        runtime_identity.environment()
         with self._scope_lock(scope_context):
             raw_state = self._load_scoped_state(scope_context)
             state = self._normalize_scoped_state(raw_state)
-            self._persist_scoped_state_if_needed(state, raw_state)
             if state.active_job_id is None:
                 raise KSlideError(ErrorCode.EXECUTION_NOT_FOUND, "No durable PaaS jobs are queued in the authorized scope.")
             record = self._read_scoped_record(scope_context, state.active_job_id)
@@ -1539,14 +1632,17 @@ class ReferencePaaSJobService(RunStoreResolver):
                     if not self._terminal_for_admission(candidate):
                         next_active = entry.identity.job_id
                         break
-                self._persist_scoped_state(replace(state, revision=state.revision + 1, active_job_id=next_active))
+                state = replace(state, revision=state.revision + 1, active_job_id=next_active)
                 if next_active is None:
                     raise KSlideError(ErrorCode.EXECUTION_NOT_FOUND, "No durable PaaS jobs are queued in the authorized scope.")
                 record = self._read_scoped_record(scope_context, next_active)
                 job = self._scoped_store(scope_context).load(next_active)
-            if record.runtime_identity != runtime_identity:
+            raise_environment_mismatch(record.environment_identity, runtime_identity.environment())
+            if not _same_runtime_identity(record.runtime_identity, runtime_identity):
                 raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Worker runtime identity does not match the durable job binding.", {"job_id": record.identity.job_id})
             self._check_scoped_job(job, record.identity, record)
+            raise_environment_mismatch(job.environment_identity, runtime_identity.environment())
+            self._persist_scoped_state_if_needed(state, raw_state)
             claim_state = "reattach" if job.lifecycle is OperationalLifecycle.RUNNING else "claim"
             claim_ref = _safe_identity(f"{claim_state}-{worker_id}-{stable_revision(record.identity.as_dict())[:16]}", "claim reference")
             return WorkerClaim(record.identity, job, claim_ref, record.references)
@@ -1629,6 +1725,7 @@ class PaaSController:
             total_work_units=request.total_work_units,
             max_attempts=request.max_attempts,
             engine_state_revision=request.engine_state_revision,
+            environment_identity=request.environment_identity,
         )
         scope_context = request.scope_context or request.authorization or self.scope_context
         if scope_context is None:
@@ -1680,6 +1777,7 @@ class PaaSWorker:
         self.worker_id = _strict_identifier(worker_id, "worker ID")
         if not isinstance(runtime_identity, RuntimeIdentity):
             raise _invalid("Worker runtime identity is invalid.")
+        runtime_identity.environment()
         self.runtime_identity = runtime_identity
         self.engine = engine
         if scope_context is not None and authorization is not None and scope_context != authorization:
@@ -1776,6 +1874,7 @@ class PaaSWorker:
         else:
             store = self.service.open_store(claim.identity, scope_context=self.scope_context)
         job = store.load(claim.identity.job_id)
+        raise_environment_mismatch(job.environment_identity, self.runtime_identity.environment())
         terminal = self._terminal_status(job)
         if terminal is not None:
             return WorkerResult(terminal, job, references=claim.references)
@@ -1790,7 +1889,7 @@ class PaaSWorker:
                 return WorkerResult(started.status.value, started.job, references=claim.references)
         try:
             operation_id = self._engine_operation_id(store.load(job.job_id))
-            controller = ExecutionController(store)
+            controller = ExecutionController(store, environment_identity=self.runtime_identity.environment())
             result = controller.run_step(job.job_id, operation_id=operation_id, step=self._engine_step)
         except Exception as exc:
             return self._record_failure(store, job, exc, references=claim.references)

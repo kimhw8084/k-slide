@@ -23,7 +23,8 @@ class CliBlackBoxTests(unittest.TestCase):
             result = run_cli("prepare", "--root", directory, "--json", cwd=ROOT)
             self.assertNotEqual(result.returncode, 0)
             self.assertNotIn("Traceback", result.stdout + result.stderr)
-            self.assertEqual(json.loads(result.stdout)["status"], "FAILED_INPUT")
+            self.assertEqual(json.loads(result.stdout)["status"], "FAILED")
+            self.assertEqual(json.loads(result.stdout)["error"]["code"], "KSLIDE_EXECUTION_INVALID")
 
     def test_runtime_and_status_are_json_contracts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

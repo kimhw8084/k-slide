@@ -14,6 +14,7 @@ from k_slide import TRANSLATION_PATCH_SCHEMA_VERSION
 from k_slide.evidence_ir import EvidenceIR, EvidenceRegion, EvidenceTable, EvidenceTableCell
 from k_slide.ocr.policy import OCRProviderPolicy, create_ocr_provider
 from k_slide.translation import parse_translation_patch
+from tests.reference_fixtures import reference_environment
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -101,9 +102,10 @@ class Phase34Tests(unittest.TestCase):
             config = root / ".k-slide-config"
             config.mkdir()
             (config / "ocr.local.json").write_text('{"ocr_provider":"none"}\n', encoding="utf-8")
-            run = prepare_run(root, explicit_paths=[str(source)])
-            normalize_run(run)
-            extract_run(run)
+            environment = reference_environment()
+            run = prepare_run(root, explicit_paths=[str(source)], environment_identity=environment)
+            normalize_run(run, environment_identity=environment)
+            extract_run(run, environment_identity=environment)
             metrics = json.loads((run / "metrics.json").read_text(encoding="utf-8"))
             self.assertEqual(metrics["ocr_policy_requested"], "none")
             self.assertEqual(metrics["ocr_provider_effective"], "none")

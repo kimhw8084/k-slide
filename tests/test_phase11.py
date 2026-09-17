@@ -14,6 +14,7 @@ from k_slide.queue import WorkUnitStatus, load_queue, save_queue
 from k_slide.state import RunPhase, load_state, save_state
 from k_slide.translation import parse_translation_patch
 from k_slide.verify import finalize_run, verify_run
+from tests.reference_fixtures import reference_environment
 
 
 PNG_HEADER = b"\x89PNG\r\n\x1a\nphase-1.1-fixture"
@@ -21,9 +22,10 @@ PNG_HEADER = b"\x89PNG\r\n\x1a\nphase-1.1-fixture"
 
 class Phase11Tests(unittest.TestCase):
     def _prepared(self, root: Path, count: int = 1) -> Path:
+        environment = reference_environment()
         for index in range(1, count + 1):
             (root / f"slide-{index:03d}.png").write_bytes(PNG_HEADER + bytes([index]))
-        run = prepare_run(root, explicit_paths=[str(root / f"slide-{index:03d}.png") for index in range(1, count + 1)])
+        run = prepare_run(root, explicit_paths=[str(root / f"slide-{index:03d}.png") for index in range(1, count + 1)], environment_identity=environment)
         queue = load_queue(run)
         for index, unit in enumerate(queue.work_units, start=1):
             evidence = EvidenceIR(
@@ -67,11 +69,11 @@ class Phase11Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             run = self._prepared(root)
-            result = _next(root, run.name, None)
+            result = _next(root, run.name, None, reference_environment())
             self.assertEqual(result["status"], "READY")
             stale = self._payload(run, load_queue(run).work_units[0].work_unit_id, evidence_revision="b" * 64)
             with self.assertRaises(KSlideError) as raised:
-                _submit(root, run.name, json.dumps(stale), None)
+                _submit(root, run.name, json.dumps(stale), None, reference_environment())
             self.assertEqual(raised.exception.code, ErrorCode.STALE_EVIDENCE)
 
     def test_three_work_units_progress_and_resume_sequentially(self) -> None:
@@ -79,25 +81,25 @@ class Phase11Tests(unittest.TestCase):
             root = Path(directory)
             run = self._prepared(root, count=3)
             for index in range(1, 4):
-                next_value = _next(root, run.name, None)
+                next_value = _next(root, run.name, None, reference_environment())
                 self.assertEqual(next_value["status"], "READY")
                 work_unit_id = str(next_value["work_unit_id"])
-                _submit(root, run.name, json.dumps(self._payload(run, work_unit_id)), None)
+                _submit(root, run.name, json.dumps(self._payload(run, work_unit_id)), None, reference_environment())
                 if index == 2:
                     self.assertEqual(load_state(run).phase, RunPhase.TRANSLATING)
-            self.assertEqual(_next(root, run.name, None)["status"], "ALL_TRANSLATED")
+            self.assertEqual(_next(root, run.name, None, reference_environment())["status"], "ALL_TRANSLATED")
             self.assertEqual([unit.status for unit in load_queue(run).work_units], [WorkUnitStatus.TRANSLATED] * 3)
 
     def test_concurrent_submit_has_one_winner(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             run = self._prepared(root)
-            next_value = _next(root, run.name, None)
+            next_value = _next(root, run.name, None, reference_environment())
             payload = json.dumps(self._payload(run, str(next_value["work_unit_id"])))
 
             def submit() -> str:
                 try:
-                    return str(_submit(root, run.name, payload, None)["status"])
+                    return str(_submit(root, run.name, payload, None, reference_environment())["status"])
                 except KSlideError as exc:
                     return exc.code.value
 
@@ -110,17 +112,17 @@ class Phase11Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             run = self._prepared(root)
-            next_value = _next(root, run.name, None)
-            _submit(root, run.name, json.dumps(self._payload(run, str(next_value["work_unit_id"]))), None)
+            next_value = _next(root, run.name, None, reference_environment())
+            _submit(root, run.name, json.dumps(self._payload(run, str(next_value["work_unit_id"]))), None, reference_environment())
             for name, content in {"05_executive_brief.md": "# brief\n", "05_final_report.md": "# report\n", "07_unresolved_items.md": "No unresolved items.\n"}.items():
                 (run / name).write_text(content)
-            self.assertTrue(verify_run(run).passed)
-            finalize_run(run)
+            self.assertTrue(verify_run(run, environment_identity=reference_environment()).passed)
+            finalize_run(run, environment_identity=reference_environment())
             self.assertTrue((run / "RUN_COMPLETE.md").exists())
             ir_path = run / "ir" / f"{str(next_value['work_unit_id'])}.json"
             ir_path.write_text(ir_path.read_text().replace("Requires review", "Fabricated change"))
             with self.assertRaises(KSlideError) as raised:
-                finalize_run(run)
+                finalize_run(run, environment_identity=reference_environment())
             self.assertEqual(raised.exception.code, ErrorCode.COMPLETION_BLOCKED)
             self.assertFalse((run / "RUN_COMPLETE.md").exists())
 

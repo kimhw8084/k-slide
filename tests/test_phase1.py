@@ -17,12 +17,16 @@ from k_slide.session import resolve_run
 from k_slide.state import RunPhase, load_state, save_state
 from k_slide.verify import finalize_run, verify_run
 from k_slide.cli import _next, _submit
+from tests.reference_fixtures import reference_environment
 
 
 PNG_HEADER = b"\x89PNG\r\n\x1a\nminimal-test-fixture"
 
 
 class Phase1Tests(unittest.TestCase):
+    def _prepare_reference(self, root: Path, **kwargs):
+        return prepare_run(root, environment_identity=reference_environment(), **kwargs)
+
     def test_input_extension_and_magic_must_agree(self) -> None:
         from k_slide.security import validate_input
 
@@ -51,7 +55,7 @@ class Phase1Tests(unittest.TestCase):
             root = Path(directory)
             source = root / "slide.png"
             source.write_bytes(PNG_HEADER)
-            run_dir = prepare_run(root, explicit_paths=[str(source)], session_id="session-1")
+            run_dir = self._prepare_reference(root, explicit_paths=[str(source)], session_id="session-1")
             state = load_state(run_dir)
             self.assertEqual(state.phase, RunPhase.INPUT_VALIDATED)
             snapshot = run_dir / "inputs" / "source-001.png"
@@ -66,7 +70,7 @@ class Phase1Tests(unittest.TestCase):
     def test_no_input_is_a_failed_run_not_a_fake_valid_run(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            run_dir = prepare_run(root)
+            run_dir = self._prepare_reference(root)
             state = load_state(run_dir)
             self.assertEqual(state.phase, RunPhase.FAILED_INPUT)
             self.assertTrue((run_dir / "RUN_FAILED.md").is_file())
@@ -77,7 +81,7 @@ class Phase1Tests(unittest.TestCase):
             root = Path(directory)
             source = root / "slide.png"
             source.write_bytes(PNG_HEADER)
-            run_dir = prepare_run(root, explicit_paths=[str(source)])
+            run_dir = self._prepare_reference(root, explicit_paths=[str(source)])
             state = load_state(run_dir)
             with self.assertRaises(KSlideError) as raised:
                 state.transition(RunPhase.TRANSLATED)
@@ -116,8 +120,8 @@ class Phase1Tests(unittest.TestCase):
             root = Path(directory)
             source = root / "slide.png"
             source.write_bytes(PNG_HEADER)
-            run_dir = prepare_run(root, explicit_paths=[str(source)])
-            blocked = verify_run(run_dir)
+            run_dir = self._prepare_reference(root, explicit_paths=[str(source)])
+            blocked = verify_run(run_dir, environment_identity=reference_environment())
             self.assertFalse(blocked.passed)
             self.assertFalse((run_dir / "RUN_COMPLETE.md").exists())
 
@@ -148,16 +152,16 @@ class Phase1Tests(unittest.TestCase):
                 "visual_interpretations": [],
                 "executive_claims": [],
             }
-            self.assertEqual(_next(root, run_dir.name, None)["status"], "READY")
-            accepted = _submit(root, run_dir.name, json.dumps(payload), None)
+            self.assertEqual(_next(root, run_dir.name, None, reference_environment())["status"], "READY")
+            accepted = _submit(root, run_dir.name, json.dumps(payload), None, reference_environment())
             self.assertEqual(accepted["status"], "ACCEPTED")
             (run_dir / "05_executive_brief.md").write_text("# Executive brief\n")
             (run_dir / "05_final_report.md").write_text("# Source-faithful reconstruction\n")
             (run_dir / "07_unresolved_items.md").write_text("No unresolved items.\n")
-            result = verify_run(run_dir)
+            result = verify_run(run_dir, environment_identity=reference_environment())
             self.assertTrue(result.passed)
             self.assertEqual(load_state(run_dir).phase, RunPhase.VERIFIED)
-            finalize_run(run_dir)
+            finalize_run(run_dir, environment_identity=reference_environment())
             self.assertTrue((run_dir / "RUN_COMPLETE.md").is_file())
             self.assertEqual(load_state(run_dir).phase, RunPhase.COMPLETE)
 
@@ -169,7 +173,7 @@ class Phase1Tests(unittest.TestCase):
             (inputs / "02.png").write_bytes(PNG_HEADER)
             (inputs / "01.jpg").write_bytes(b"\xff\xd8\xffminimal")
             (inputs / "ignore.txt").write_text("not a slide")
-            run_dir = prepare_run(root, explicit_paths=[str(inputs)])
+            run_dir = self._prepare_reference(root, explicit_paths=[str(inputs)])
             state = load_state(run_dir)
             self.assertEqual(state.phase, RunPhase.INPUT_VALIDATED)
             self.assertEqual(state.input_count, 2)
@@ -181,7 +185,7 @@ class Phase1Tests(unittest.TestCase):
             source.write_bytes(PNG_HEADER)
             alias = root / "alias.png"
             alias.symlink_to(source)
-            run_dir = prepare_run(root, explicit_paths=[str(alias)])
+            run_dir = self._prepare_reference(root, explicit_paths=[str(alias)])
             self.assertEqual(load_state(run_dir).phase, RunPhase.FAILED_INPUT)
             self.assertIn("symbolic link", (run_dir / "RUN_FAILED.md").read_text())
 
@@ -190,8 +194,8 @@ class Phase1Tests(unittest.TestCase):
             root = Path(directory)
             source = root / "slide.png"
             source.write_bytes(PNG_HEADER)
-            run_dir = prepare_run(root, explicit_paths=[str(source)], session_id="session-1")
-            result = _next(root, run_dir.name, "session-1")
+            run_dir = self._prepare_reference(root, explicit_paths=[str(source)], session_id="session-1")
+            result = _next(root, run_dir.name, "session-1", reference_environment())
             self.assertEqual(result["status"], "NOT_READY")
             self.assertEqual(load_state(run_dir).phase, RunPhase.INPUT_VALIDATED)
 

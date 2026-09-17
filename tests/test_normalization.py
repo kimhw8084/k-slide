@@ -13,6 +13,7 @@ from k_slide.normalization import normalize_run
 from k_slide.normalization import _pptx_native
 from k_slide.queue import WorkUnitStatus, load_queue
 from k_slide.state import RunPhase, load_state
+from tests.reference_fixtures import reference_environment
 
 
 @unittest.skipUnless(importlib.util.find_spec("PIL"), "Pillow is optional in the base development environment")
@@ -26,11 +27,12 @@ class ImageNormalizationTests(unittest.TestCase):
             image = Image.new("RGB", (1200, 800), "white")
             ImageDraw.Draw(image).rectangle((100, 100, 1100, 700), outline="black", width=4)
             image.save(image_path)
-            run = prepare_run(root, explicit_paths=[str(image_path)])
-            result = normalize_run(run)
+            environment = reference_environment()
+            run = prepare_run(root, explicit_paths=[str(image_path)], environment_identity=environment)
+            result = normalize_run(run, environment_identity=environment)
             self.assertEqual(len(result.documents), 1)
             self.assertEqual(load_state(run).phase, RunPhase.NORMALIZED)
-            evidence_values = extract_run(run)
+            evidence_values = extract_run(run, environment_identity=environment)
             self.assertEqual(load_state(run).phase, RunPhase.EXTRACTED)
             self.assertEqual(len(evidence_values), 1)
             evidence = load_evidence(run, "doc-001-image-0001")
@@ -54,8 +56,9 @@ class PDFNormalizationTests(unittest.TestCase):
                 page.insert_text((40, 60), f"Synthetic page {index + 1}")
             document.save(pdf_path)
             document.close()
-            run = prepare_run(root, explicit_paths=[str(pdf_path)])
-            result = normalize_run(run)
+            environment = reference_environment()
+            run = prepare_run(root, explicit_paths=[str(pdf_path)], environment_identity=environment)
+            result = normalize_run(run, environment_identity=environment)
             self.assertEqual(len(result.documents[0].units), 3)
             self.assertEqual([unit.work_unit_id for unit in result.documents[0].units], ["doc-001-page-0001", "doc-001-page-0002", "doc-001-page-0003"])
 

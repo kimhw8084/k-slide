@@ -11,6 +11,7 @@ from typing import Any, Iterable
 
 from . import SCHEMA_VERSION
 from .errors import ErrorCode, KSlideError
+from .environment import RunEnvironmentIdentity, resolve_effective_environment
 from .execution import ExecutionProfile, WorkspaceRunStore, new_execution_job, sync_workspace_execution
 from .host_adapter import HostInputReference, validate_host_inputs
 from .io import atomic_write_json, atomic_write_text
@@ -115,6 +116,7 @@ def prepare_run(
     perform_processing: bool = False,
     host_input_refs: Iterable[HostInputReference | dict[str, Any]] = (),
     approved_root: Path | None = None,
+    environment_identity: RunEnvironmentIdentity | None = None,
 ) -> Path:
     """Create an immutable run, returning its directory even for failed input.
 
@@ -124,6 +126,7 @@ def prepare_run(
     """
 
     root = root.expanduser().resolve()
+    bound_environment = resolve_effective_environment(root, environment_identity=environment_identity)
     root.mkdir(parents=True, exist_ok=True)
     run_root = root / ".k-slide-runs"
     input_dir = root / ".k-slide-input"
@@ -149,6 +152,7 @@ def prepare_run(
             scope_ref="workspace",
             store_ref=f"workspace-{run_id}",
             engine_state_revision=state.revision,
+            environment_identity=bound_environment,
         )
     )
     _write_recovery(run_dir, run_id)
@@ -161,7 +165,7 @@ def prepare_run(
     except KSlideError as exc:
         state.transition(RunPhase.FAILED_INPUT, next_action="Correct the input and retry /k-slide.", error_code=exc.code.value, error_message=exc.message)
         save_state(run_dir, state)
-        sync_workspace_execution(run_dir)
+        sync_workspace_execution(run_dir, environment_identity=bound_environment)
         atomic_write_json(run_dir / "00_input_inventory.json", {"schema_version": SCHEMA_VERSION, "status": "failed_input", "error": sanitize_operational(exc.as_dict(), roots=(root,))}, mode=0o600)
         atomic_write_text(run_dir / "RUN_FAILED.md", f"# FAILED\n\n{exc.message}\n\nError code: `{exc.code.value}`\n")
         return run_dir
@@ -170,7 +174,7 @@ def prepare_run(
     if not raw_host_refs and not candidates:
         state.transition(RunPhase.FAILED_INPUT, next_action="Add a supported file to .k-slide-input/ or pass an explicit path.", error_code=ErrorCode.INPUT_NOT_FOUND.value, error_message="No supported input files were found.")
         save_state(run_dir, state)
-        sync_workspace_execution(run_dir)
+        sync_workspace_execution(run_dir, environment_identity=bound_environment)
         atomic_write_json(run_dir / "00_input_inventory.json", {"schema_version": SCHEMA_VERSION, "status": "failed_no_input", "input_count": 0, "supported_extensions": sorted(SUPPORTED_EXTENSIONS)}, mode=0o600)
         atomic_write_text(run_dir / "RUN_FAILED.md", "# FAILED\n\nNo supported input files were found. Add a slide image, PDF, or PPTX and run `/k-slide` again.\n")
         return run_dir
@@ -186,7 +190,7 @@ def prepare_run(
     except KSlideError as exc:
         state.transition(RunPhase.FAILED_INPUT, next_action="Correct the input and retry /k-slide.", error_code=exc.code.value, error_message=exc.message)
         save_state(run_dir, state)
-        sync_workspace_execution(run_dir)
+        sync_workspace_execution(run_dir, environment_identity=bound_environment)
         atomic_write_json(run_dir / "00_input_inventory.json", {"schema_version": SCHEMA_VERSION, "status": "failed_input", "error": sanitize_operational(exc.as_dict(), roots=(root,))}, mode=0o600)
         atomic_write_text(run_dir / "RUN_FAILED.md", f"# FAILED\n\n{exc.message}\n\nError code: `{exc.code.value}`\n")
         return run_dir
@@ -198,7 +202,7 @@ def prepare_run(
         if sha256_file(destination) != artifact.sha256:
             state.transition(RunPhase.FAILED_RUNTIME, next_action="Retry after checking local storage.", error_code="KSLIDE_SNAPSHOT_HASH_MISMATCH", error_message="Immutable input copy failed hash verification.")
             save_state(run_dir, state)
-            sync_workspace_execution(run_dir)
+            sync_workspace_execution(run_dir, environment_identity=bound_environment)
             atomic_write_text(run_dir / "RUN_FAILED.md", "# FAILED\n\nImmutable input snapshot hash verification failed.\n")
             return run_dir
 
@@ -218,10 +222,10 @@ def prepare_run(
         from .normalization import normalize_run
 
         try:
-            normalize_run(run_dir)
-            extract_run(run_dir)
+            normalize_run(run_dir, environment_identity=bound_environment)
+            extract_run(run_dir, environment_identity=bound_environment)
         finally:
-            sync_workspace_execution(run_dir)
+            sync_workspace_execution(run_dir, environment_identity=bound_environment)
     else:
-        sync_workspace_execution(run_dir)
+        sync_workspace_execution(run_dir, environment_identity=bound_environment)
     return run_dir

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from .documents import DocumentUnit, NormalizationResult, NormalizedDocument
+from .environment import RunEnvironmentIdentity
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import stable_revision
 from .io import atomic_write_json, atomic_write_text, read_json
@@ -287,9 +288,12 @@ def _render_pptx(source: Path, run_dir: Path, document_id: str) -> list[Path]:
             document.close()
 
 
-def normalize_run(run_dir: Path) -> NormalizationResult:
+def normalize_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | None = None) -> NormalizationResult:
     """Normalize immutable run inputs and replace the initial queue with document units."""
 
+    from .execution import ensure_workspace_environment_compatible
+
+    ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
     with run_lock(run_dir):
         state = load_state(run_dir)
         if state.phase not in {RunPhase.INPUT_VALIDATED, RunPhase.FAILED_NORMALIZATION}:
