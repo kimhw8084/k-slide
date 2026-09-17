@@ -18,6 +18,7 @@ from threading import RLock
 from typing import Any, Iterator, Mapping, Protocol
 
 from . import EXECUTION_CONTRACT_VERSION, RUN_STORE_SCHEMA_VERSION
+from .environment import RunEnvironmentIdentity, raise_environment_mismatch
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import stable_revision
 from .io import atomic_write_json, read_json
@@ -290,6 +291,7 @@ class RunCheckpoint:
     metadata: Mapping[str, str] = field(default_factory=dict)
     checkpoint_sha256: str = ""
     schema_version: str = RUN_STORE_SCHEMA_VERSION
+    environment_identity_sha256: str = ""
 
     def __post_init__(self) -> None:
         _identifier(self.run_id, "run ID")
@@ -312,6 +314,8 @@ class RunCheckpoint:
         object.__setattr__(self, "metadata", _metadata(self.metadata or {}, "checkpoint"))
         if self.checkpoint_sha256 and self.checkpoint_sha256 != self.computed_sha256():
             raise _invalid("Execution checkpoint hash does not match its contents.", code=ErrorCode.STATE_CORRUPT)
+        if self.environment_identity_sha256 and not _SHA256.fullmatch(self.environment_identity_sha256):
+            raise _invalid("Execution checkpoint environment identity is invalid.", code=ErrorCode.STATE_CORRUPT)
         if self.schema_version != RUN_STORE_SCHEMA_VERSION:
             raise _invalid("Unsupported execution checkpoint schema version.", code=ErrorCode.EXECUTION_UNSUPPORTED_VERSION)
 
@@ -344,6 +348,7 @@ class RunCheckpoint:
             "queue_revision": self.queue_revision,
             "resume_eligibility": self.resume_eligibility.value,
             "metadata": dict(sorted(self.metadata.items())),
+            **({"environment_identity_sha256": self.environment_identity_sha256} if self.environment_identity_sha256 else {}),
         }
 
     def computed_sha256(self) -> str:
@@ -364,7 +369,7 @@ def _checkpoint_from_dict(value: Any) -> RunCheckpoint:
         "schema_version", "run_id", "job_id", "execution_id", "revision", "engine_phase", "progress",
         "engine_state_revision", "queue_revision", "resume_eligibility", "metadata", "checkpoint_sha256",
     }
-    if set(value) != allowed:
+    if set(value) not in (allowed, allowed | {"environment_identity_sha256"}):
         raise _invalid("Execution checkpoint fields are unsupported or incomplete.", code=ErrorCode.STATE_CORRUPT)
     progress_value = value["progress"]
     if not isinstance(progress_value, dict) or set(progress_value) != {"engine_stage", "completed_work_units", "total_work_units", "current_work_unit"}:
@@ -384,6 +389,7 @@ def _checkpoint_from_dict(value: Any) -> RunCheckpoint:
             metadata=value.get("metadata", {}),
             checkpoint_sha256=value["checkpoint_sha256"],
             schema_version=value["schema_version"],
+            environment_identity_sha256=value.get("environment_identity_sha256", ""),
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise _invalid("Execution checkpoint has an invalid shape.", code=ErrorCode.STATE_CORRUPT) from exc
@@ -407,6 +413,7 @@ class ExecutionJob:
     updated_at: str = ""
     schema_version: str = EXECUTION_CONTRACT_VERSION
     result_markers: tuple[ResultCommitMarker, ...] = ()
+    environment_identity: RunEnvironmentIdentity | None = None
 
     def __post_init__(self) -> None:
         for value, label in ((self.run_id, "run ID"), (self.job_id, "job ID"), (self.execution_id, "execution ID")):
@@ -427,6 +434,14 @@ class ExecutionJob:
             raise _invalid("Execution job control fields are invalid.", code=ErrorCode.STATE_CORRUPT)
         if not isinstance(self.checkpoint, RunCheckpoint) or (self.checkpoint.run_id, self.checkpoint.job_id, self.checkpoint.execution_id) != (self.run_id, self.job_id, self.execution_id):
             raise _invalid("Execution job and checkpoint identities do not match.", code=ErrorCode.STATE_CORRUPT)
+        if self.environment_identity is not None and not isinstance(self.environment_identity, RunEnvironmentIdentity):
+            raise _invalid("Execution job environment identity is invalid.", code=ErrorCode.STATE_CORRUPT)
+        if self.environment_identity is not None:
+            expected_environment_sha = self.environment_identity.identity_sha256
+            if self.checkpoint.environment_identity_sha256 not in {"", expected_environment_sha}:
+                raise _invalid("Execution job and checkpoint environment identities do not match.", code=ErrorCode.STATE_CORRUPT)
+            if not self.checkpoint.environment_identity_sha256:
+                object.__setattr__(self, "checkpoint", replace(self.checkpoint, environment_identity_sha256=expected_environment_sha))
         if not isinstance(self.resume_eligibility, ResumeEligibility):
             try:
                 object.__setattr__(self, "resume_eligibility", ResumeEligibility(str(self.resume_eligibility)))
@@ -472,6 +487,7 @@ class ExecutionJob:
         total_work_units: int = 0,
         max_attempts: int = 3,
         engine_state_revision: int = 0,
+        environment_identity: RunEnvironmentIdentity | None = None,
     ) -> "ExecutionJob":
         job_id = job_id or f"job-{run_id}"
         execution_id = execution_id or f"execution-{run_id}"
@@ -489,6 +505,7 @@ class ExecutionJob:
             retry=RetryState(max_attempts=max_attempts),
             created_at=timestamp,
             updated_at=timestamp,
+            environment_identity=environment_identity,
         )
 
     @classmethod
@@ -496,7 +513,7 @@ class ExecutionJob:
         return _job_from_dict(value)
 
     def without_record_hash(self) -> dict[str, Any]:
-        return {
+        value = {
             "schema_version": self.schema_version,
             "run_id": self.run_id,
             "job_id": self.job_id,
@@ -514,6 +531,9 @@ class ExecutionJob:
             "updated_at": self.updated_at,
             "result_markers": [marker.as_dict() for marker in self.result_markers],
         }
+        if self.environment_identity is not None:
+            value["environment_identity"] = self.environment_identity.as_dict()
+        return value
 
     def as_dict(self) -> dict[str, Any]:
         value = self.without_record_hash()
@@ -531,7 +551,7 @@ def _job_from_dict(value: Any) -> ExecutionJob:
         "checkpoint", "cancellation", "retry", "resume_eligibility", "terminal_outcome", "created_at", "updated_at",
         "result_markers", "record_sha256",
     }
-    if set(value) != required:
+    if set(value) not in (required, required | {"environment_identity"}):
         raise _invalid("Execution job fields are unsupported or incomplete.", code=ErrorCode.STATE_CORRUPT)
     without_hash = dict(value)
     record_hash = without_hash.pop("record_sha256")
@@ -558,6 +578,7 @@ def _job_from_dict(value: Any) -> ExecutionJob:
         except (TypeError, ValueError) as exc:
             raise _invalid("Execution result marker has an invalid shape.", code=ErrorCode.STATE_CORRUPT) from exc
     try:
+        environment_value = value.get("environment_identity")
         return ExecutionJob(
             run_id=value["run_id"],
             job_id=value["job_id"],
@@ -575,6 +596,7 @@ def _job_from_dict(value: Any) -> ExecutionJob:
             updated_at=value["updated_at"],
             schema_version=value["schema_version"],
             result_markers=tuple(markers),
+            environment_identity=None if environment_value is None else RunEnvironmentIdentity.from_dict(environment_value),
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise _invalid("Execution job has an invalid shape.", code=ErrorCode.STATE_CORRUPT) from exc
@@ -715,11 +737,24 @@ class _FilesystemRunStore:
                 return StoreWriteResult(StoreWriteStatus.CONFLICT, current)
             if job.profile is not self.profile:
                 return StoreWriteResult(StoreWriteStatus.CONFLICT, current)
+            if job.environment_identity != current.environment_identity:
+                return StoreWriteResult(StoreWriteStatus.CONFLICT, current)
             self._write(job)
         return StoreWriteResult(StoreWriteStatus.ACCEPTED, job)
 
+    @staticmethod
+    def _validate_checkpoint_environment(current: ExecutionJob, checkpoint: RunCheckpoint) -> None:
+        expected = current.environment_identity.identity_sha256 if current.environment_identity is not None else ""
+        if checkpoint.environment_identity_sha256 != expected:
+            raise KSlideError(
+                ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
+                "Run checkpoint environment identity is incompatible; commit was refused.",
+                {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": ["checkpoint_environment_identity"]},
+            )
+
     def commit_checkpoint(self, checkpoint: RunCheckpoint, *, expected_revision: int) -> StoreWriteResult:
         current = self.load(checkpoint.job_id)
+        self._validate_checkpoint_environment(current, checkpoint)
         if checkpoint.as_dict() == current.checkpoint.as_dict():
             return StoreWriteResult(StoreWriteStatus.IDEMPOTENT, current)
         if expected_revision != current.revision:
@@ -732,6 +767,7 @@ class _FilesystemRunStore:
 
     def commit_step(self, checkpoint: RunCheckpoint, marker: ResultCommitMarker, *, expected_revision: int) -> StoreWriteResult:
         current = self.load(checkpoint.job_id)
+        self._validate_checkpoint_environment(current, checkpoint)
         existing = next((item for item in current.result_markers if item.operation_id == marker.operation_id), None)
         if existing is not None:
             if existing.as_dict() == marker.as_dict() and current.checkpoint.as_dict() == checkpoint.as_dict():
@@ -916,12 +952,14 @@ class ControllerResult:
 class ExecutionController:
     """One host-neutral execution boundary for both store profiles."""
 
-    def __init__(self, store: RunStore) -> None:
+    def __init__(self, store: RunStore, *, environment_identity: RunEnvironmentIdentity | None = None) -> None:
         self.store = store
+        self.environment_identity = environment_identity
 
-    def run_step(self, job_id: str, *, operation_id: str, step: EngineStep) -> ControllerResult:
+    def run_step(self, job_id: str, *, operation_id: str, step: EngineStep, environment_identity: RunEnvironmentIdentity | None = None) -> ControllerResult:
         _identifier(operation_id, "operation ID")
         job = self.store.load(job_id)
+        raise_environment_mismatch(job.environment_identity, environment_identity or self.environment_identity)
         if job.cancellation.requested:
             if not job.cancellation.acknowledged:
                 acknowledged = self.store.acknowledge_cancellation(job_id, expected_revision=job.revision, safe_boundary=True)
@@ -978,6 +1016,7 @@ def new_execution_job(
     total_work_units: int = 0,
     max_attempts: int = 3,
     engine_state_revision: int = 0,
+    environment_identity: RunEnvironmentIdentity | None = None,
 ) -> ExecutionJob:
     return ExecutionJob.new(
         run_id=run_id,
@@ -987,6 +1026,7 @@ def new_execution_job(
         total_work_units=total_work_units,
         max_attempts=max_attempts,
         engine_state_revision=engine_state_revision,
+        environment_identity=environment_identity,
     )
 
 
@@ -1062,7 +1102,7 @@ def sync_workspace_execution(run_dir: Path) -> ExecutionJob:
 def execution_metadata(job: ExecutionJob) -> dict[str, Any]:
     """Return the source-free record used by employee/host status surfaces."""
 
-    return {
+    value = {
         "contract_version": job.schema_version,
         "run_id": job.run_id,
         "job_id": job.job_id,
@@ -1080,3 +1120,6 @@ def execution_metadata(job: ExecutionJob) -> dict[str, Any]:
         "retry": job.retry.as_dict(),
         "committed_result_count": len(job.result_markers),
     }
+    value["environment_identity"] = job.environment_identity.as_dict() if job.environment_identity is not None else None
+    value["environment_identity_sha256"] = job.environment_identity.identity_sha256 if job.environment_identity is not None else None
+    return value

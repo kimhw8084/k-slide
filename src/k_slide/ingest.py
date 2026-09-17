@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,6 +12,7 @@ from typing import Any, Iterable
 
 from . import SCHEMA_VERSION
 from .errors import ErrorCode, KSlideError
+from .environment import RunEnvironmentIdentity
 from .execution import ExecutionProfile, WorkspaceRunStore, new_execution_job, sync_workspace_execution
 from .host_adapter import HostInputReference, validate_host_inputs
 from .io import atomic_write_json, atomic_write_text
@@ -106,6 +108,26 @@ def _write_compatibility_artifacts(run_dir: Path, run_id: str, artifacts: list[I
     atomic_write_json(run_dir / "metrics.json", {"slides_processed": 0, "tables_processed": 0, "regions_processed": 0, "numbers_verified": 0, "unresolved_count": 0, "repair_count": 0, "phase": "INPUT_VALIDATED"}, mode=0o600)
 
 
+def _workspace_environment_identity(root: Path) -> RunEnvironmentIdentity:
+    """Create a source-free local binding when no deployment supplies one."""
+
+    try:
+        revision = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(root), capture_output=True, text=True, timeout=5, check=True).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        revision = ""
+    if revision and len(revision) == 40 and all(char in "0123456789abcdef" for char in revision):
+        runtime_ref = f"workspace-source-{revision[:16]}"
+    else:
+        runtime_ref = "workspace-unpinned"
+    return RunEnvironmentIdentity.legacy_reference(
+        runtime_ref=runtime_ref,
+        model_identity="workspace-model-unresolved",
+        ocr_identity="workspace-ocr-unresolved",
+        termbase_identity="workspace-termbase-unresolved",
+        source_revision=revision or None,
+    )
+
+
 def prepare_run(
     root: Path,
     *,
@@ -115,6 +137,7 @@ def prepare_run(
     perform_processing: bool = False,
     host_input_refs: Iterable[HostInputReference | dict[str, Any]] = (),
     approved_root: Path | None = None,
+    environment_identity: RunEnvironmentIdentity | None = None,
 ) -> Path:
     """Create an immutable run, returning its directory even for failed input.
 
@@ -149,6 +172,7 @@ def prepare_run(
             scope_ref="workspace",
             store_ref=f"workspace-{run_id}",
             engine_state_revision=state.revision,
+            environment_identity=environment_identity or _workspace_environment_identity(root),
         )
     )
     _write_recovery(run_dir, run_id)
