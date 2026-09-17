@@ -86,6 +86,8 @@ def main(argv: list[str] | None = None) -> int:
         else:
             candidate = {"schema_version": CANDIDATE_SPEC_SCHEMA_VERSION, "subject_git_sha": subject_sha, "kslide_version": __version__, "requested_model": "UNSET", "effective_model": "UNSET", "ocr_provider": args.ocr_provider}
         declared_subject = str(candidate.get("subject_git_sha") or "")
+        if subject_sha == "UNSET" and declared_subject and declared_subject.upper() != "UNSET":
+            subject_sha = declared_subject
         if declared_subject and declared_subject.upper() != "UNSET" and declared_subject != subject_sha:
             raise EvidenceValidationError("candidate subject_git_sha does not match engine subject")
         declared_ocr = str(candidate.get("ocr_provider") or "")

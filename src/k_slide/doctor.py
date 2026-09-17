@@ -35,7 +35,12 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
         opencode_root / "tools" / "kslide.ts",
         engine_root / "src" / "k_slide" / "cli.py",
     ]
-    checks.append(_check("K-Slide source tree", "PASS" if all(path.is_file() for path in required) else "FAIL", "Required command, agent, skill, tools, and core files"))
+    runtime_manifest = engine_root / "runtime" / "runtime-manifest.json"
+    source_available = all(path.is_file() for path in required)
+    source_detail = "Required command, agent, skill, tools, and core files" if source_available else (
+        "Installed runtime artifact is present" if runtime_manifest.is_file() else "Required command, agent, skill, tools, and core files"
+    )
+    checks.append(_check("K-Slide source tree", "PASS" if source_available or runtime_manifest.is_file() else "FAIL", source_detail))
     checks.append(_check("Python runtime", "PASS", os.sys.executable))
     checks.append(_check("OpenCode executable", "PASS" if runtime.opencode_path else "WARN", runtime.opencode_version or "not discovered"))
     checks.append(_check("OpenCode config", "PASS" if runtime.opencode_config_path else "WARN", runtime.opencode_config_path or "not discovered"))

@@ -5,11 +5,15 @@ from __future__ import annotations
 import importlib.util
 import json
 import importlib.metadata
+import os
 import platform
 import shutil
 import subprocess
 import tempfile
+import warnings
 from pathlib import Path
+
+warnings.filterwarnings("ignore", message=r"The `fitz` API is deprecated")
 
 
 def _command_version(command: str) -> str | None:
@@ -42,22 +46,65 @@ def _font_check() -> dict[str, object]:
         return {"status": "FAIL", "reason": str(exc)}
 
 
+def _ocr_asset_identity(*, required: bool = False) -> dict[str, object]:
+    """Verify the selected local PaddleX configuration and its model tree."""
+
+    from k_slide.certification import paddle_runtime_configuration, validate_ocr_asset_manifest
+
+    root = Path(os.environ.get("KSLIDE_OCR_ASSET_ROOT", "/opt/k-slide/ocr")).expanduser()
+    manifest = root / "manifest.json"
+    if not manifest.is_file():
+        return {"status": "FAIL" if required else "BLOCKED", "reason": "local OCR asset manifest is unavailable"}
+    try:
+        identity = validate_ocr_asset_manifest(manifest, asset_root=root, require_model_identity=True)
+        configuration = paddle_runtime_configuration(asset_root=root, manifest_path=manifest, require_local=True)
+        return {
+            "status": "PASS",
+            "manifest_sha256": identity["sha256"],
+            "file_count": identity["file_count"],
+            "paddlex_config": configuration["paddlex_config"],
+            "paddlex_config_sha256": configuration["paddlex_config_sha256"],
+            "detector_model": configuration.get("detector_model"),
+            "recognizer_model": configuration.get("recognizer_model"),
+            "offline_assets_required": configuration["offline_assets_required"],
+        }
+    except Exception as exc:
+        return {"status": "FAIL", "reason": str(exc)}
+
+
 def _libreoffice_roundtrip(*, required: bool = False) -> dict[str, object]:
     if not (_command_version("libreoffice") or _command_version("soffice")):
         return {"status": "FAIL" if required else "BLOCKED", "reason": "LibreOffice/soffice is unavailable."}
     if not all(importlib.util.find_spec(name) for name in ("fitz", "pptx", "PIL")):
         return {"status": "FAIL" if required else "BLOCKED", "reason": "PyMuPDF, python-pptx, and Pillow are required."}
     try:
-        from evals.deck_scenarios import deck_scenarios
-        from evals.generator import generate_deck_pptx
+        from pptx import Presentation
+        from pptx.util import Inches, Pt
         from k_slide.ingest import prepare_run
         from k_slide.normalization import normalize_run
 
         with tempfile.TemporaryDirectory(prefix="k-slide-heavy-pptx-") as directory:
             root = Path(directory)
             source = root / "roundtrip.pptx"
-            if not generate_deck_pptx(deck_scenarios()[0].slides, source):
-                return {"status": "FAIL", "reason": "Synthetic PPTX generation failed."}
+            presentation = Presentation()
+            blank = presentation.slide_layouts[6]
+            for index, (title, body) in enumerate(
+                (
+                    ("AI Platform", "운영 검토 필요"),
+                    ("실적 현황", "3.2조원 / +2.3%p"),
+                    ("추진 계획", "검토 후 추진 예정"),
+                ),
+                start=1,
+            ):
+                slide = presentation.slides.add_slide(blank)
+                title_box = slide.shapes.add_textbox(Inches(0.7), Inches(0.6), Inches(11.0), Inches(0.8))
+                title_frame = title_box.text_frame
+                title_frame.text = title
+                title_frame.paragraphs[0].font.size = Pt(28)
+                body_box = slide.shapes.add_textbox(Inches(0.9), Inches(2.0), Inches(10.0), Inches(1.0))
+                body_box.text_frame.text = f"{index}. {body}"
+                body_box.text_frame.paragraphs[0].font.size = Pt(22)
+            presentation.save(source)
             run = prepare_run(root / "workspace", explicit_paths=[str(source)])
             normalized = normalize_run(run)
             units = [unit for document in normalized.documents for unit in document.units]
@@ -117,6 +164,7 @@ def main(*, required: bool = False, networkless: bool = False) -> int:
         "paddleocr_version": _package_version("paddleocr"),
         "libreoffice_version": _command_version("libreoffice") or _command_version("soffice"),
     }
+    checks["ocr_asset_identity"] = _ocr_asset_identity(required=required)
     # A small real OCR load check is intentionally separate from package import.
     if checks["paddleocr"].get("status") == "PASS" and checks["pillow"].get("status") == "PASS":
         try:
@@ -134,7 +182,7 @@ def main(*, required: bool = False, networkless: bool = False) -> int:
     checks["network"] = {"network_required": not networkless, "networkless_asserted": networkless}
     print(json.dumps(checks, ensure_ascii=False, indent=2))
     if required:
-        required_checks = ("libreoffice", "paddleocr", "paddlepaddle", "korean_font", "paddle_load", "libreoffice_roundtrip", "paddle_ocr_roundtrip")
+        required_checks = ("libreoffice", "paddleocr", "paddlepaddle", "korean_font", "ocr_asset_identity", "paddle_load", "libreoffice_roundtrip", "paddle_ocr_roundtrip")
         return 0 if all(checks.get(name, {}).get("status") == "PASS" for name in required_checks) else 1
     status_values = [value.get("status") for value in checks.values() if isinstance(value, dict) and "status" in value]
     return 0 if all(status in {"PASS", "BLOCKED"} for status in status_values) else 1

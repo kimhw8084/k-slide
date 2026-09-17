@@ -1,5 +1,20 @@
 # Managed production profile
 
+## KSA-07 runtime artifact
+
+The canonical heavy/runtime subject is built only through
+`scripts/build_runtime_artifact.py` and `deploy/runtime/Dockerfile`. It is a
+digest-qualified `linux/amd64` image with an exact Debian snapshot package
+manifest, the committed or approved exact Python lock/inventory, an installed
+K-Slide wheel, and a portable verified OCR asset tree. The build emits a
+source-free runtime manifest and CycloneDX SBOM identity and independently
+records a local Docker image ID or a real registry digest.
+
+Use the same image for the product command (`k-slide`) and heavy verification
+(`python -m evals.heavy.doctor`). The build refuses to call an unverified
+dynamic OCR prefetch a candidate artifact; the explicit development prefetch
+mode is marked `DEVELOPMENT_ONLY`.
+
 Certification inputs live in the public-safe `evals/production-candidate.yaml`
 or an ignored `.k-slide-config/production-candidate.json`. Certification-quality
 commands accept that object with `--candidate-profile`; its deployment factors

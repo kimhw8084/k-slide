@@ -70,7 +70,7 @@ the generic attestation writer.
 - Model result collection loads every persisted work-unit TranslationPatch/EvidenceIR/SlideIR triple, aggregates unit/deck metrics, and computes repeated-run critical frequency, review rate, and category/format summaries.
 - Source-local table-header, chart-trend, process-edge, modality, terminology, Hangul-retention, unresolved-usefulness, and executive-claim semantic gates are covered by automated tests.
 - Semantic TranslationPatch scorers, private gold-set protocol, and zero-Korean comprehension-study protocol.
-- Reproducible heavyweight Docker definition/self-test for LibreOffice, PaddleOCR 3.x, PyMuPDF, python-pptx, Pillow, and Korean fonts.
+- Canonical KSA-07 runtime artifact contract with a digest-qualified Python base, Debian snapshot package manifest, exact production dependency lock/inventory, non-root product entrypoint, source-free runtime manifest, OS-inclusive CycloneDX SBOM, OCR asset identity, and an independent build/verify script. The image is explicitly `CANDIDATE` only with a verified certifying OCR bundle; development-prefetched OCR remains `DEVELOPMENT_ONLY`.
 - Black-box CLI, installer regression, trust-model, queue/resume, concurrency, stale-evidence, stale-finalization, and normalization fixture tests.
 - GitHub Actions workflow for Python 3.11/3.12, unit tests, compile checks, CLI/installer checks, and doctor.
 - Explicit production permission denials for interactive/headless-dangerous operations, including question, external-directory, and doom-loop controls.
@@ -128,6 +128,8 @@ Test totals are not a standing contract; the commands above and CI are authorita
 
 Runtime snapshot: OpenCode `1.3.9`; configured model `ollama/qwen3:14b`; model compatibility `different_model_warning`.
 
+KSA-07 repository-side verification: `PYTHONPATH=src:. python -m unittest tests.test_runtime_artifact -q` PASS (6 tests); `PYTHONPATH=src:. python -m unittest discover -s tests -q` PASS (222 tests, 2 optional skips); `python -m compileall -q src evals tests` PASS; `git diff --check` PASS before final documentation edits. The canonical builder was exercised with `scripts/build_runtime_artifact.py build --allow-development-ocr-prefetch ...` against the pinned `linux/amd64` image. Docker completed the base and exact Debian package layers but the Fabric host's emulated Paddle installation produced no progress and was stopped after the capability wait window; no image/doctor/networkless pass is claimed from that attempt. A certifying OCR bundle was not available in the public worktree, so no `CANDIDATE` runtime artifact was materialized.
+
 The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pptx, and verified Korean-font support. LibreOffice, PaddlePaddle, PaddleOCR, and the approved Gemma endpoint were unavailable locally. The OpenCode runner retained timeout diagnostics and did not treat the zero-event timeout as a protocol pass.
 
 ## Certification capability matrix
@@ -137,8 +139,8 @@ The dependency-backed temporary environment exercised Pillow, PyMuPDF, python-pp
 | Unit/integration tests | PASS | Full unittest command passes; optional document/OCR tests are dependency-gated in the base interpreter |
 | Artifact generation | PASS | 500/500 generated across five formats |
 | Lightweight engine | PASS with capability-separated findings | 500 cases executed; 320 raster/PDF cases completed, 80 raster/PDF financial OCR cases and 100 PPTX cases capability-blocked |
-| LibreOffice real roundtrip | BLOCKED | `soffice` unavailable; Docker daemon unavailable |
-| PaddleOCR real Korean roundtrip | BLOCKED | PaddlePaddle/PaddleOCR unavailable |
+| LibreOffice real roundtrip | VERIFY/BLOCKED | The canonical image contract includes exact LibreOffice `4:25.2.3-2+deb13u6`; the clean cross-architecture build reached the package layer, but did not complete the emulated Python/Paddle layer in the available wait window |
+| PaddleOCR real Korean roundtrip | VERIFY/BLOCKED | Runtime lock/inventory and offline OCR verification are implemented; no certifying OCR bundle was available and the development-prefetch build did not complete |
 | OpenCode protocol | BLOCKED | OpenCode 1.3.9 pure and normal clean Qwen smoke both timed out before events |
 | Gemma development | BLOCKED | `google/gemma-4-31b-it` unavailable in effective runtime |
 | Gemma validation | NOT RUN | Target endpoint unavailable |
@@ -178,9 +180,9 @@ materialized by these tests.
 | OCR production routing | PASS | `none` and explicit unavailable `paddle` paths exercised; metadata records requested/effective provider |
 | OCR malformed-config handling | PASS | Malformed JSON/YAML and unknown providers return `KSLIDE_CONFIG_INVALID`; auto fallback retains cause |
 | Raster/PDF engine with pinned `none` OCR | PASS | Dependency-backed one-case engine run completed |
-| PPTX heavy roundtrip | BLOCKED | LibreOffice unavailable locally; Docker daemon unavailable |
-| Paddle real Korean OCR | BLOCKED | PaddlePaddle/PaddleOCR unavailable locally |
-| Heavy engine subset with `paddle` | BLOCKED | Correctly classified as `CAPABILITY_BLOCK` locally |
+| PPTX heavy roundtrip | VERIFY/BLOCKED | Canonical runtime pins LibreOffice; the clean cross-architecture build reached the system package layer but the emulated Python/Paddle layer did not complete in the wait window |
+| Paddle real Korean OCR | VERIFY/BLOCKED | Runtime lock/inventory and offline OCR checks are implemented; no certifying OCR overlay was available and no completed image was produced |
+| Heavy engine subset with `paddle` | VERIFY/BLOCKED | The same-image workflow is wired; actual image execution remains unverified in this host |
 | Timeout process cleanup | PASS | Process-group helper tests SIGTERM/SIGKILL fallback and reaping |
 | Host-persisted heavy output | PASS (workflow) | Runner-temp mount and `if: always()` artifact upload are tested statically |
 | OpenCode Level 0 provider | BLOCKED | Ollama executable unavailable |
@@ -199,7 +201,7 @@ materialized by these tests.
 
 - Full target Gemma translation, repair quality, and zero-Korean comprehension evaluation are not yet measured.
 - The base local interpreter does not have all optional document/OCR runtimes; doctor reports proven capabilities rather than pretending they pass.
-- LibreOffice-rendered PPTX and PaddleOCR 3 integration are not exercised in this workspace; `evals/heavy/Dockerfile` is reproducible but its build could not start because the local Docker daemon is unavailable. Use it and `python -m evals.heavy.doctor` in an approved environment.
+- LibreOffice-rendered PPTX and PaddleOCR 3 integration are not completed in this workspace. Use the canonical `deploy/runtime/Dockerfile` and `python -m evals.heavy.doctor` in an approved environment; `evals/heavy` is a verification wrapper, not a second image authority.
 - The model-facing OpenCode flow is contract-ready, but the isolated clean-workspace Qwen protocol smoke timed out before emitting structured events. Levels 3/4 were intentionally not run after that provider-level failure. No Gemma accuracy or comprehension result is reported; this remains a provider/runtime blocker to resolve in an environment where the configured model responds.
 - Numeric/modality/terminology verifiers are deterministic foundations, not a substitute for bilingual gold review.
 - Current-message attachment materialization is implemented at the trusted OpenCode host boundary for the installed 1.3.9 FilePart contract: supported local/data inputs are reduced to private transient local references before the host-neutral adapter, while the full provider/model protocol remains separately blocked above.

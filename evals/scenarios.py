@@ -8,12 +8,24 @@ because its label says ``financial_table`` or ``chart``.
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from .certification import CORPUS_GENERATOR_VERSION
-from .certification import corpus_fingerprint as _corpus_fingerprint
-from .certification import held_out_fingerprint as _held_out_fingerprint
+CORPUS_GENERATOR_VERSION = "visual-corpus-v1"
+
+
+def _corpus_fingerprint(scenarios: list[Any], *, generator_version: str = CORPUS_GENERATOR_VERSION) -> str:
+    payload = {
+        "generator_version": generator_version,
+        "generator_config": {},
+        "scenarios": [scenario.as_dict() if hasattr(scenario, "as_dict") else scenario for scenario in scenarios],
+    }
+    return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def _held_out_fingerprint(scenarios: list[Any]) -> str:
+    return _corpus_fingerprint([scenario for scenario in scenarios if getattr(scenario, "split", None) == "held_out"])
 
 
 @dataclass(frozen=True)

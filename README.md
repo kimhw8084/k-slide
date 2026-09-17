@@ -2,7 +2,7 @@
 
 K-Slide turns Korean or mixed Korean-English business artifacts into evidence-backed English comprehension for readers who do not know Korean. It is designed for slides, screenshots, PDFs, PPTX files, tables, charts, diagrams, and dense business-review visuals.
 
-The current implementation is K-Slide `0.3.5`, a Phase 3.5 execution-isolation and heavy-runtime-proof build. It provides immutable engine-owned source evidence, a narrow structured TranslationPatch, globally unique multi-document work units, deterministic reports, source-local semantic scorers, stratified frozen splits with fingerprints, per-attempt OpenCode media assertions, isolated OpenCode diagnostics, fail-closed OCR configuration, and a host-persisted LibreOffice/PaddleOCR evaluation workflow. Full Gemma translation certification is not claimed until the target model and evaluation gates are exercised.
+The current implementation is K-Slide `0.3.5`, a Phase 3.5 execution-isolation and heavy-runtime-proof build. It provides immutable engine-owned source evidence, a narrow structured TranslationPatch, globally unique multi-document work units, deterministic reports, source-local semantic scorers, stratified frozen splits with fingerprints, per-attempt OpenCode media assertions, isolated OpenCode diagnostics, fail-closed OCR configuration, and a canonical pinned runtime-artifact contract for LibreOffice/PaddleOCR execution. Full Gemma translation certification is not claimed until the target model and evaluation gates are exercised.
 
 ## Quick start
 
@@ -97,13 +97,20 @@ DEVELOPMENT template. Accordingly, the public security workflow publishes
 scanner reports but marks its result `NOT_CERTIFYING` until a complete private
 candidate is supplied.
 
-The approved deployment environment must first persist one exact package
-subject: `.k-slide-config/production-requirements.lock` and its canonical
-`.k-slide-config/production-dependency-inventory.json`. The shared
-`evals.freeze_production_dependencies` command derives both from the active
-production interpreter and, for a private certifying run, verifies them
-against an already-approved lock. The public repository never stores the
-private bundle as its own Actions artifact. Hosted certification requires
+The canonical runtime artifact is built with
+`PYTHONPATH=src:. python scripts/build_runtime_artifact.py build`. It consumes
+the committed `deploy/runtime/production-requirements.lock` and
+`production-dependency-inventory.json` (or approved exact private replacements),
+the digest-qualified base and dated Debian package manifest, and a portable OCR
+asset bundle. It emits source-free `runtime-manifest.json`, CycloneDX
+`runtime-sbom.json`, and `artifact-identity.json`; product `k-slide` and
+`python -m evals.heavy.doctor` are run from the same image. The explicit
+development OCR-prefetch mode is marked `DEVELOPMENT_ONLY` and is not runtime
+candidate evidence. The existing `evals.freeze_production_dependencies`
+command remains the certification subject verifier for private preparation.
+
+The public repository never stores the private bundle as its own Actions
+artifact. Hosted certification requires
 protected environment configuration (`KSLIDE_PRIVATE_CERTIFICATION_REPOSITORY`,
 approved preparation workflow ID and path, and
 `KSLIDE_PRIVATE_CERTIFICATION_TOKEN`) plus a run ID, artifact name, and

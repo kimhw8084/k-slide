@@ -74,7 +74,14 @@ class PaddleOCRProvider:
                 kwargs["text_detection_model_dir"] = configured_det
             if configured_rec:
                 kwargs["text_recognition_model_dir"] = configured_rec
-        self.asset_config = {"ocr_version": self.ocr_version, "language": self.lang, "detector_model": self.det_model_name, "recognizer_model": self.rec_model_name, "paddlex_config": runtime_configuration["paddlex_config"], "paddlex_config_sha256": runtime_configuration["paddlex_config_sha256"], "asset_manifest_sha256": runtime_configuration["asset_manifest_sha256"], "detector_model_dir": configured_det, "recognizer_model_dir": configured_rec, "offline_assets_required": runtime_configuration["offline_assets_required"]}
+        self.det_model_name = str(runtime_configuration.get("detector_model") or self.det_model_name)
+        self.rec_model_name = str(runtime_configuration.get("recognizer_model") or self.rec_model_name)
+        if configured_config:
+            # PaddleOCR 3.7.0 otherwise re-infers its default detector while
+            # loading the exported config and rejects the selected local dir.
+            kwargs["text_detection_model_name"] = self.det_model_name
+            kwargs["text_recognition_model_name"] = self.rec_model_name
+        self.asset_config = {"ocr_version": self.ocr_version, "language": self.lang, "detector_model": self.det_model_name, "recognizer_model": self.rec_model_name, "paddlex_config": runtime_configuration["paddlex_config"], "paddlex_config_sha256": runtime_configuration["paddlex_config_sha256"], "asset_manifest_sha256": runtime_configuration["asset_manifest_sha256"], "detector_model_dir": runtime_configuration.get("detector_model_dir") or configured_det, "recognizer_model_dir": runtime_configuration.get("recognizer_model_dir") or configured_rec, "offline_assets_required": runtime_configuration["offline_assets_required"]}
         self.version = f"paddleocr={self.paddleocr_version};paddle={self.paddle_version};ocr={self.ocr_version};rec={self.rec_model_name}"
         try:
             self._engine = paddleocr.PaddleOCR(**kwargs)
