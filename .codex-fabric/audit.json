@@ -1,0 +1,397 @@
+{
+  "accepted_at": "2026-09-17T13:14:43Z",
+  "changed_files": [
+    {
+      "additions": 5,
+      "deletions": 2,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 10,
+      "deletions": 0,
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 0,
+      "path": "deploy/README.md",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 2,
+      "path": "docs/adr/0038-versioned-durable-execution-contract.md",
+      "status": "M"
+    },
+    {
+      "additions": 10,
+      "deletions": 7,
+      "path": "docs/adr/0040-paas-worker-controller-boundary.md",
+      "status": "M"
+    },
+    {
+      "additions": 58,
+      "deletions": 0,
+      "path": "docs/adr/0041-scoped-durable-admission.md",
+      "status": "A"
+    },
+    {
+      "additions": 1175,
+      "deletions": 51,
+      "path": "src/k_slide/paas.py",
+      "status": "M"
+    },
+    {
+      "additions": 12,
+      "deletions": 1,
+      "path": "src/k_slide/run_store.py",
+      "status": "M"
+    },
+    {
+      "additions": 9,
+      "deletions": 0,
+      "path": "src/k_slide/worker.py",
+      "status": "M"
+    },
+    {
+      "additions": 372,
+      "deletions": 0,
+      "path": "tests/test_chg16_scoped_admission.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"pwd && git status --short --branch && git log --oneline --decorate -8 && sed -n '1,240p' /Users/haewonkim/.codex/RTK.md && sed -n '1,240p' /Users/haewonkim/.codex/law.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git cat-file -t 0fa62b419e848666802444b392f9e04d78acf6de && rtk git cat-file -p 0fa62b419e848666802444b392f9e04d78acf6de | sed -n '1,12p' && rtk git merge-base --is-ancestor 5a42f96abdceabeb1d4b93754557a305a21c3404 0fa62b419e848666802444b392f9e04d78acf6de; printf 'base_to_candidate=%s\\\\n' \\\"\"'$?\" && rtk git rev-parse HEAD && rtk git rev-list --ancestry-path --oneline 5a42f96abdceabeb1d4b93754557a305a21c3404..0fa62b419e848666802444b392f9e04d78acf6de'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git merge --ff-only 0fa62b419e848666802444b392f9e04d78acf6de && rtk git status --short --branch && rtk git merge-base --is-ancestor 5a42f96abdceabeb1d4b93754557a305a21c3404 0fa62b419e848666802444b392f9e04d78acf6de; printf 'base_is_ancestor_of_candidate=%s\\\\n' \\\"\"'$?\" && rtk git merge-base --is-ancestor 0fa62b419e848666802444b392f9e04d78acf6de HEAD; printf '\"'candidate_is_ancestor_of_head=%s\\\\n' \\\"\"'$?\" && rtk git log --graph --oneline --decorate -4'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"sequence|next_sequence|terminal_outcome|NEEDS_REVIEW|claim_next|scoped|admission|normalize|successor|COMPLETED|F09\" src tests docs README.md IMPLEMENTATION_STATUS.md'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"class (ReferencePaaSJobService|Scoped|PaaS)|def (submit|claim_next|normalize|_load_scoped_state|_terminal_for_admission|_resolve_scoped|_persist_scoped|_admit|_promote|cancel|complete)|QueueAdmissionState|PaaSQueueEntry|Admission\" src/k_slide/paas.py tests/test_chg16_scoped_admission.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,590p' src/k_slide/paas.py && rtk sed -n '760,1490p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '575,930p' src/k_slide/paas.py && rtk sed -n '930,1215p' src/k_slide/paas.py && rtk sed -n '1215,1415p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/paas.py | sed -n '1010,1205p' && rtk nl -ba src/k_slide/paas.py | sed -n '1205,1385p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/paas.py | sed -n '930,1030p' && rtk nl -ba tests/test_chg16_scoped_admission.py | sed -n '1,320p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/paas.py | sed -n '1540,1685p' && rtk nl -ba src/k_slide/execution.py | sed -n '380,470p' && rtk nl -ba src/k_slide/execution.py | sed -n '620,850p' && rtk nl -ba src/k_slide/execution.py | sed -n '900,1070p' && rtk nl -ba tests/test_chg16_durable_execution.py | sed -n '430,530p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk PYTHONPATH=src:. python -m unittest tests.test_chg16_scoped_admission tests.test_chg16_durable_execution tests.test_chg16_host_integration -q'",
+      "exit_code": 127,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_scoped_admission tests.test_chg16_durable_execution tests.test_chg16_host_integration -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"def atomic_write_json|class DurableTestRunStore|def create\\\\(\\\" src/k_slide/io.py src/k_slide/execution.py && rtk nl -ba src/k_slide/execution.py | sed -n '644,845p' && rtk nl -ba src/k_slide/paas.py | sed -n '1380,1465p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '844,900p' src/k_slide/execution.py && rtk sed -n '30,80p' src/k_slide/io.py && rtk rg -n \\\"class RunStoreRef|def _scope_root|scope.*jobs|job-service/scopes\\\" src/k_slide tests docs/adr/0041-scoped-durable-admission.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/execution.py | sed -n '462,620p' && rtk nl -ba src/k_slide/paas.py | sed -n '1470,1545p' && rtk git show 0fa62b4\"'^:src/k_slide/paas.py | rtk rg -n \"_submit_scoped|_recover_scoped_state|_normalize_scoped_state|_terminal_for_admission\" -C 3'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"orphan|admission_sequence|NEEDS_REVIEW|resume|run_once\\\\(.*identity|run_until_terminal\\\\(.*identity\\\" tests src docs/adr/0041-scoped-durable-admission.md README.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba tests/test_chg16_paas_worker.py | sed -n '1,270p' && rtk nl -ba src/k_slide/paas.py | sed -n '1680,1735p' && rtk cat docs/adr/0041-scoped-durable-admission.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/paas.py | sed -n '980,1165p' && rtk nl -ba src/k_slide/paas.py | sed -n '1220,1305p' && rtk nl -ba src/k_slide/paas.py | sed -n '1400,1495p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_scoped_admission tests.test_chg16_paas_worker -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,220p' tests/test_chg16_scoped_admission.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '220,330p' tests/test_chg16_scoped_admission.py && rtk python -m py_compile src/k_slide/paas.py tests/test_chg16_scoped_admission.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_scoped_admission -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git diff --stat && rtk git diff -- src/k_slide/paas.py tests/test_chg16_scoped_admission.py docs/adr/0041-scoped-durable-admission.md'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_scoped_admission tests.test_chg16_paas_worker tests.test_chg16_durable_execution tests.test_chg16_host_integration -q'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '760,775p' src/k_slide/paas.py && rtk rg -n \\\"set\\\\(value\\\\) not in\\\" src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_scoped_admission tests.test_chg16_paas_worker tests.test_chg16_durable_execution tests.test_chg16_host_integration -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files -g 'Makefile' -g 'pyproject.toml' -g 'setup.cfg' -g 'tox.ini' -g 'pytest.ini' -g 'CI*' -g '*workflow*' -g 'README*' | sort && rtk rg -n \\\"unittest|pytest|test suite|lint|ruff|mypy|native CI|CI\\\" Makefile pyproject.toml setup.cfg tox.ini pytest.ini .github 2>/dev/null\"",
+      "exit_code": 2,
+      "test_result": {
+        "exit_code": 2,
+        "framework": "pytest",
+        "outcome": "interrupted",
+        "output_bytes": 483,
+        "output_sha256": "b06f7498bd0ce43fe100d0d7206b21b48b9f8d571615a7c904bccd7ac5cd3a24",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,140p' pyproject.toml && rtk git diff --check && rtk git status --short --branch && rtk git log --oneline --decorate -4\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba IMPLEMENTATION_STATUS.md | sed -n '128,142p' && rtk rg -n \\\"8 tests|terminal \"'`DONE`|scoped durable admission|NEEDS_REVIEW\" IMPLEMENTATION_STATUS.md README.md docs/adr/0040-paas-worker-controller-boundary.md docs/adr/0041-scoped-durable-admission.md'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m compileall -q src evals tests && rtk git diff --check && rtk git diff --name-only && rtk git status --short'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add IMPLEMENTATION_STATUS.md docs/adr/0041-scoped-durable-admission.md src/k_slide/paas.py tests/test_chg16_scoped_admission.py && rtk git commit -m \"fix: close KSA-09 scoped admission crash windows\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short --branch && rtk git merge-base --is-ancestor 5a42f96abdceabeb1d4b93754557a305a21c3404 HEAD; printf 'base_is_ancestor_of_head=%s\\\\n' \\\"\"'$?\" && rtk git merge-base --is-ancestor 0fa62b419e848666802444b392f9e04d78acf6de HEAD; printf '\"'predecessor_is_ancestor_of_head=%s\\\\n' \\\"\"'$?\" && rtk git log --graph --oneline --decorate -5 && rtk git show --stat --oneline --summary HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,45p' src/k_slide/io.py && rtk rg -n \\\"_ScopedJobRecord\\\\(\\\" src tests && rtk rg -n \\\"SCOPED_PAAS_CONTRACT_VERSION|record_sha256|admission_sequence\\\" tests | head -80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/paas.py | sed -n '735,850p' && rtk nl -ba src/k_slide/paas.py | sed -n '1210,1375p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 109,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 96.88,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 5870592,
+      "fresh_input_tokens": 188977,
+      "input_tokens": 6059569,
+      "non_reasoning_output_tokens": 16736,
+      "output_tokens": 39004,
+      "reasoning_output_tokens": 22268,
+      "total_processed_tokens": 6098573
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "e3aa46d68164ba83591e7edcb96cbd0d2c905a83",
+      "subject": "fix: close KSA-09 scoped admission crash windows"
+    },
+    {
+      "sha": "0fa62b419e848666802444b392f9e04d78acf6de",
+      "subject": "fabric: capture completed model changes [CF-131a1288e3e66c0b3c6df458]"
+    }
+  ],
+  "diff": {
+    "additions": 1661,
+    "changed_files": 10,
+    "commit_count": 2,
+    "deletions": 63
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 6,
+    "items": [
+      {
+        "bytes": 29357,
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "6cb6713cc2c02c6ec05c9e8ac88f1d0de3b71172987abb59b42fce4eeef46c1a"
+      },
+      {
+        "bytes": 11314,
+        "path": "README.md",
+        "sha256": "f0c879d36d736ff852e854583d359b0507b962936baf1c7375f0db3c85e4ec02"
+      },
+      {
+        "bytes": 3387,
+        "path": "deploy/README.md",
+        "sha256": "69be857cac22885adde75ce4d0c259e38906249528674d594d3f445e9b26f49e"
+      },
+      {
+        "bytes": 2227,
+        "path": "docs/adr/0038-versioned-durable-execution-contract.md",
+        "sha256": "36047cafc82b4e54c39348091817c0a04be198508f6d7dc52d0561db8b339339"
+      },
+      {
+        "bytes": 2238,
+        "path": "docs/adr/0040-paas-worker-controller-boundary.md",
+        "sha256": "cd3bb4734b02279dbaf9afb88a8541b8bf38b78ac61a273c8eddc4183677f0c7"
+      },
+      {
+        "bytes": 3026,
+        "path": "docs/adr/0041-scoped-durable-admission.md",
+        "sha256": "8b8e6611bec02bd0a0e528693d9f0410d7d10c79cb307e1e9ca62cf00c0d7b37"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-17T13:34:38Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "5a42f96abdceabeb1d4b93754557a305a21c3404",
+    "branch": "codex/k-slide-chg16-durable-persistence-01-fix01",
+    "head_sha": "e3aa46d68164ba83591e7edcb96cbd0d2c905a83",
+    "remote_exact_head": true,
+    "remote_head_sha": "e3aa46d68164ba83591e7edcb96cbd0d2c905a83",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "5a42f96abdceabeb1d4b93754557a305a21c3404",
+    "work_branch": "codex/k-slide-chg16-durable-persistence-01-fix01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-bb288ffcb8189c9e059dfc41",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-durable-persistence-01-fix01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-durable-persistence-01-fix01"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-durable-persistence-01-fix01",
+  "schema_version": 1,
+  "started_at": "2026-09-17T13:14:43Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1195,
+    "queue_seconds": 0,
+    "total_seconds": 1195
+  },
+  "transport": {
+    "bytes": 5124,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 4795,
+    "prompt_sha256": "ba091cd297739880be78a627276266d817ac6429c33e589d5a2e46b66f59d0a9",
+    "sha256": "bb288ffcb8189c9e059dfc41875b392c34f8b4beeff1b7a942b86c2a0e688cc3"
+  }
+}
