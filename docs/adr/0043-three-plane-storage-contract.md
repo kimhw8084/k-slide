@@ -18,10 +18,10 @@ three semantic planes:
    records/checkpoints/result markers, KSA-09 admission state, environment
    binding, failure/completion markers, metrics, and recovery/session metadata.
 3. `central_non_content_operational_telemetry` contains only the explicit
-   allowlisted telemetry event schema: opaque deployment/runtime/model/run or
-   worker references, lifecycle and error codes, stage timings, bounded
-   counts/resource use, and retry information. It is not a content or resume
-   authority.
+   allowlisted telemetry event schema: canonical `kslide-ref-v1.<kind>.<sha256>`
+   deployment/runtime/model/run/worker/event references, bounded lifecycle and
+   error codes, bounded stages, timings, counts/resource use, and retry
+   information. It is not a content or resume authority.
 
 `StorageReference` carries the version, plane, artifact class, relative path,
 and the existing scope/run context. `StorageLayout` is the shared resolver and
@@ -37,8 +37,22 @@ paths while making the roots unambiguous:
 
 | Adapter | Durable | Scratch | Central telemetry |
 | --- | --- | --- | --- |
-| Workspace | `.k-slide-runs/<run-id>/` | `.k-slide-scratch/<run-id>/` | `.k-slide-telemetry/` |
+| Workspace | `.k-slide-runs/<run-id>/` | `.k-slide-scratch/<run-id>/` | unavailable unless an explicitly configured external central root is supplied |
 | Scoped reference PaaS | `job-service/scopes/<scope-key>/` | `scratch/<scope-key>/<job-id>/` | `telemetry/` |
+
+Workspace layouts never infer a telemetry destination from the workspace.
+`TelemetryWriter` accepts only an unscoped service/reference layout whose
+central root is outside the user/workspace namespace. A workspace-scoped
+layout is rejected even when an external root is attached; the workspace
+adapter must construct or receive a separate central service layout. The
+reference tests use separate filesystem roots and verify that workspace
+durable/scratch cleanup or copying cannot remove or include central telemetry.
+
+The pre-snapshot `.k-slide-input/` compatibility folder is an external intake
+surface. An explicit user-exported support ZIP is also external and caller
+directed. Neither is a K-Slide-managed `StorageArtifact`; managed inventory
+begins at the immutable run snapshot and ends at the typed durable/scratch or
+central telemetry boundaries.
 
 The legacy unscoped reference PaaS paths contain only the existing source-free
 KSA-08/KSA-06 control compatibility records; scoped user/workspace persistence
@@ -48,10 +62,12 @@ defined here.
 Scratch cleanup removes only the run's scratch root. Recreating the layout and
 adapter resolves the durable run/control/evidence state and allows processing
 intermediates to be regenerated. Telemetry write loss returns a non-fatal
-failure and cannot affect durable resume. Malformed, unknown, nested,
-content-shaped, path-shaped, binary, credential, `Authorization`, token, or
-`AccessKey` telemetry is rejected before persistence; it is not sanitized into
-an admin content channel.
+failure and cannot affect durable resume. Raw identifier strings, malformed,
+unknown, nested, content-shaped, path-shaped, binary, credential,
+`Authorization`, token, or `AccessKey` telemetry is rejected before
+persistence; it is not sanitized into an admin content channel. Typed
+constructors derive opaque references from known internal identities, while
+the persisted representation is always the canonical prefixed digest.
 
 Retention/deletion policy remains outside this decision. KSA-12 owns content
 versus operational-metadata retention configuration and KSA-13 owns deletion,

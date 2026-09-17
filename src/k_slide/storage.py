@@ -38,7 +38,6 @@ class StorageArtifact(str, Enum):
     semantic on purpose: callers cannot select a plane by guessing a path.
     """
 
-    USER_INPUT_INTAKE = "user_input_intake"
     SOURCE_SNAPSHOT = "source_snapshot"
     SOURCE_MANIFEST = "source_manifest"
     INPUT_INVENTORY = "input_inventory"
@@ -71,7 +70,6 @@ class StorageArtifact(str, Enum):
     METRICS = "metrics"
     FAILURE_MARKER = "failure_marker"
     COMPLETION_MARKER = "completion_marker"
-    SUPPORT_METADATA = "support_metadata"
     COORDINATION_LOCK = "coordination_lock"
     TELEMETRY_COORDINATION_LOCK = "telemetry_coordination_lock"
     CONVERSION_STAGING = "conversion_staging"
@@ -81,7 +79,6 @@ class StorageArtifact(str, Enum):
 
 
 STORAGE_POLICY: Mapping[StorageArtifact, StoragePlane] = {
-    StorageArtifact.USER_INPUT_INTAKE: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
     StorageArtifact.SOURCE_SNAPSHOT: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
     StorageArtifact.SOURCE_MANIFEST: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
     StorageArtifact.INPUT_INVENTORY: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
@@ -114,7 +111,6 @@ STORAGE_POLICY: Mapping[StorageArtifact, StoragePlane] = {
     StorageArtifact.METRICS: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
     StorageArtifact.FAILURE_MARKER: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
     StorageArtifact.COMPLETION_MARKER: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
-    StorageArtifact.SUPPORT_METADATA: StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY,
     StorageArtifact.COORDINATION_LOCK: StoragePlane.EPHEMERAL_PROCESSING_SCRATCH,
     StorageArtifact.TELEMETRY_COORDINATION_LOCK: StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY,
     StorageArtifact.CONVERSION_STAGING: StoragePlane.EPHEMERAL_PROCESSING_SCRATCH,
@@ -194,6 +190,17 @@ def _is_nested(left: Path, right: Path) -> bool:
         return False
 
 
+def _external_root(root: Path | None, namespace: Path) -> Path | None:
+    """Validate an explicitly configured root outside a workspace namespace."""
+
+    if root is None:
+        return None
+    resolved = _assert_root(root)
+    if resolved == namespace or _is_nested(resolved, namespace) or _is_nested(namespace, resolved):
+        raise _error("Central telemetry root must be outside the workspace content namespace.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
+    return resolved
+
+
 @dataclass(frozen=True)
 class StorageReference:
     """A typed, plane-bearing opaque reference to one filesystem object."""
@@ -260,7 +267,7 @@ class StorageLayout:
 
     durable_root: Path
     scratch_root: Path
-    telemetry_root: Path
+    telemetry_root: Path | None = None
     scope_ref: str | None = None
     run_ref: str | None = None
     contract_version: str = STORAGE_PLANE_CONTRACT_VERSION
@@ -270,8 +277,9 @@ class StorageLayout:
             raise _error("Unsupported storage-plane contract version.", code=ErrorCode.EXECUTION_UNSUPPORTED_VERSION)
         durable = _assert_root(self.durable_root)
         scratch = _assert_root(self.scratch_root)
-        telemetry = _assert_root(self.telemetry_root)
-        if any(left == right or _is_nested(left, right) or _is_nested(right, left) for index, left in enumerate((durable, scratch, telemetry)) for right in (durable, scratch, telemetry)[index + 1 :]):
+        telemetry = _assert_root(self.telemetry_root) if self.telemetry_root is not None else None
+        roots = tuple(root for root in (durable, scratch, telemetry) if root is not None)
+        if any(left == right or _is_nested(left, right) or _is_nested(right, left) for index, left in enumerate(roots) for right in roots[index + 1 :]):
             raise _error("Storage plane roots must be physically and logically non-overlapping.")
         if self.scope_ref is not None:
             _identifier(self.scope_ref, "scope reference")
@@ -282,7 +290,7 @@ class StorageLayout:
         object.__setattr__(self, "telemetry_root", telemetry)
 
     @classmethod
-    def for_workspace(cls, run_dir: Path) -> "StorageLayout":
+    def for_workspace(cls, run_dir: Path, *, central_telemetry_root: Path | None = None) -> "StorageLayout":
         run_dir = Path(run_dir).expanduser()
         if run_dir.exists() and run_dir.is_symlink():
             raise _error("Workspace run directory may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
@@ -291,18 +299,18 @@ class StorageLayout:
         return cls(
             durable_root=run_dir,
             scratch_root=workspace_root / ".k-slide-scratch" / run_dir.name,
-            telemetry_root=workspace_root / ".k-slide-telemetry",
+            telemetry_root=_external_root(central_telemetry_root, workspace_root),
             scope_ref="workspace",
             run_ref=run_dir.name,
         )
 
     @classmethod
-    def for_workspace_root(cls, workspace_root: Path) -> "StorageLayout":
+    def for_workspace_root(cls, workspace_root: Path, *, central_telemetry_root: Path | None = None) -> "StorageLayout":
         workspace_root = _assert_root(Path(workspace_root).expanduser())
         return cls(
             durable_root=workspace_root / ".k-slide-runs",
             scratch_root=workspace_root / ".k-slide-scratch" / "_workspace",
-            telemetry_root=workspace_root / ".k-slide-telemetry",
+            telemetry_root=_external_root(central_telemetry_root, workspace_root),
             scope_ref="workspace",
             run_ref="workspace",
         )
@@ -331,15 +339,20 @@ class StorageLayout:
 
     @property
     def roots(self) -> dict[StoragePlane, Path]:
-        return {
+        roots = {
             StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA: self.durable_root,
             StoragePlane.EPHEMERAL_PROCESSING_SCRATCH: self.scratch_root,
-            StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY: self.telemetry_root,
         }
+        if self.telemetry_root is not None:
+            roots[StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY] = self.telemetry_root
+        return roots
 
     def root_for(self, plane: StoragePlane | str) -> Path:
+        plane = _plane(plane)
+        if plane is StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY and self.telemetry_root is None:
+            raise _error("Central telemetry is unavailable because no central service root was configured.")
         try:
-            return self.roots[_plane(plane)]
+            return self.roots[plane]
         except KeyError as exc:
             raise _error("Storage plane is unsupported.") from exc
 
@@ -375,6 +388,7 @@ class StorageLayout:
         artifact = _artifact(artifact)
         plane = STORAGE_POLICY[artifact]
         if plane is StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY:
+            self.root_for(plane)
             return StorageReference(plane, artifact, _safe_relative_path(relative_path))
         return StorageReference(plane, artifact, _safe_relative_path(relative_path), self.scope_ref, self.run_ref)
 
@@ -426,7 +440,7 @@ class StorageLayout:
             raise _error("Scratch root may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
         if not root.exists():
             return
-        if _is_nested(root, self.durable_root) or _is_nested(root, self.telemetry_root):
+        if _is_nested(root, self.durable_root) or (self.telemetry_root is not None and _is_nested(root, self.telemetry_root)):
             raise _error("Scratch root overlaps an authoritative storage plane.")
         shutil.rmtree(root)
 

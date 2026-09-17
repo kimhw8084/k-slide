@@ -25,6 +25,7 @@ def _check(label: str, status: str, detail: str) -> dict[str, str]:
 def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path | None = None, production: bool = False) -> dict[str, Any]:
     root = root.resolve()
     storage = StorageLayout.for_workspace_root(root)
+    durable_root = storage.ensure_root(StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA)
     scratch_root = storage.ensure_root(StoragePlane.EPHEMERAL_PROCESSING_SCRATCH)
     default_engine = root / ".k-slide-engine" if (root / ".k-slide-engine").is_dir() else root
     engine_root = (engine_root or default_engine).resolve()
@@ -89,10 +90,22 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
     except Exception as exc:
         checks.append(_check("OCR policy", "FAIL", str(exc)))
     try:
-        root.joinpath(".k-slide-runs").mkdir(parents=True, exist_ok=True, mode=0o700)
-        with tempfile.NamedTemporaryFile(prefix=".doctor-", dir=scratch_root, delete=True) as handle:
-            handle.write(b"k-slide")
-            handle.flush()
+        # A scratch probe cannot establish whether normal run creation can
+        # write the durable authority. Probe the actual durable root and
+        # remove the file before reporting success.
+        if durable_root.stat().st_mode & 0o222 == 0:
+            raise PermissionError("durable run root has no write permission")
+        probe_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(prefix=".doctor-", dir=durable_root, delete=False) as handle:
+                probe_path = Path(handle.name)
+                handle.write(b"k-slide")
+                handle.flush()
+        finally:
+            if probe_path is not None:
+                probe_path.unlink(missing_ok=True)
+        if probe_path is None or probe_path.exists():
+            raise OSError("durable run writability probe was not removed")
         checks.append(_check("Writable run directory", "PASS", str(root / ".k-slide-runs")))
     except OSError as exc:
         checks.append(_check("Writable run directory", "FAIL", str(exc)))

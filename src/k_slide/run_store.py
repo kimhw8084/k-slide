@@ -30,7 +30,17 @@ from .storage import (
     StorageReference,
     StorageResolver,
 )
-from .telemetry import TELEMETRY_SCHEMA_VERSION, TelemetryEvent, TelemetryEventType, TelemetryWriter
+from .telemetry import (
+    TELEMETRY_SCHEMA_VERSION,
+    TelemetryErrorCode,
+    TelemetryEvent,
+    TelemetryEventType,
+    TelemetryLifecycle,
+    TelemetryReference,
+    TelemetryReferenceKind,
+    TelemetryStage,
+    TelemetryWriter,
+)
 
 __all__ = [
     "DeterministicDurableRunStore",
@@ -58,7 +68,12 @@ __all__ = [
     "StorageReference",
     "StorageResolver",
     "TELEMETRY_SCHEMA_VERSION",
+    "TelemetryErrorCode",
     "TelemetryEvent",
     "TelemetryEventType",
+    "TelemetryLifecycle",
+    "TelemetryReference",
+    "TelemetryReferenceKind",
+    "TelemetryStage",
     "TelemetryWriter",
 ]

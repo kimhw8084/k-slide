@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import re
+from uuid import UUID
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -15,22 +17,15 @@ from .storage import StorageArtifact, StorageLayout, StoragePlane
 
 
 TELEMETRY_SCHEMA_VERSION = "1.0"
-_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
-_CODE = re.compile(r"^[A-Z][A-Z0-9_.:-]{0,63}$")
 _TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
-_FORBIDDEN = (
-    "accesskey", "access_key", "access-key", "authorization", "bearer", "secret", "token", "password",
-    "credential", "source", "content", "prompt", "ocr", "translation", "report", "evidence", "screenshot",
-    "image", "binary", "bytes", "filename", "filepath", "filesystem", "path", "exception", "traceback",
-    "payload", "metadata", "text", "document", "slide", "workspace", "user",
-)
-_FORBIDDEN_CODE = ("accesskey", "access_key", "access-key", "authorization", "bearer", "secret", "token", "password", "credential", "source", "content", "prompt", "ocr", "translation", "report", "evidence", "screenshot", "image", "binary", "bytes", "filename", "filepath", "filesystem", "path", "exception", "traceback", "payload", "metadata", "text")
 _ALLOWED_FIELDS = {
     "schema_version", "event_type", "event_id", "occurred_at", "deployment_ref", "runtime_ref", "model_ref",
     "run_ref", "worker_ref", "lifecycle", "error_code", "stage", "duration_ms", "count", "resource_units",
     "retry_attempt",
 }
-_PATH_LIKE = re.compile(r"(?:^[/\\~]|^[A-Za-z]:|://|\.(?:pptx|ppt|pdf|png|jpg|jpeg|webp|json|md|txt|csv|zip)$)", re.IGNORECASE)
+_REFERENCE = re.compile(r"^kslide-ref-v1\.(deployment|runtime|model|run|worker|event)\.([0-9a-f]{64})$")
+_INTERNAL_ID = re.compile(r"^(deployment|runtime|model|run|worker|event)-[a-z0-9][a-z0-9_.:-]{0,127}$")
+_NORMALIZED_ALLOWED_FIELDS = {re.sub(r"[^a-z0-9]", "", field.lower()) for field in _ALLOWED_FIELDS}
 
 
 class TelemetryEventType(str, Enum):
@@ -42,12 +37,122 @@ class TelemetryEventType(str, Enum):
     RUNTIME_BINDING = "runtime_binding"
 
 
+class TelemetryReferenceKind(str, Enum):
+    DEPLOYMENT = "deployment"
+    RUNTIME = "runtime"
+    MODEL = "model"
+    RUN = "run"
+    WORKER = "worker"
+    EVENT = "event"
+
+
+class TelemetryLifecycle(str, Enum):
+    QUEUED = "QUEUED"
+    RUNNING = "RUNNING"
+    RETRYING = "RETRYING"
+    COMPLETED = "COMPLETED"
+    CANCELED = "CANCELED"
+    PROCESSING_FAILED = "PROCESSING_FAILED"
+    STARTED = "STARTED"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    RESUMED = "RESUMED"
+
+
+class TelemetryStage(str, Enum):
+    ADMISSION = "ADMISSION"
+    NORMALIZING = "NORMALIZING"
+    EXTRACTING = "EXTRACTING"
+    TRANSLATING = "TRANSLATING"
+    VERIFYING = "VERIFYING"
+    FINALIZING = "FINALIZING"
+    RUNTIME_BINDING = "RUNTIME_BINDING"
+    RETRYING = "RETRYING"
+
+
+@dataclass(frozen=True)
+class TelemetryReference:
+    """Canonical opaque telemetry reference.
+
+    ``from_internal`` accepts only a typed, machine-shaped product identity;
+    it does not accept arbitrary mappings or content and the input identity is
+    never persisted. ``from_identity`` is for existing typed product identity
+    objects that expose their canonical ``as_dict`` representation.
+    """
+
+    kind: TelemetryReferenceKind
+    digest: str
+
+    def __post_init__(self) -> None:
+        try:
+            kind = self.kind if isinstance(self.kind, TelemetryReferenceKind) else TelemetryReferenceKind(str(self.kind))
+        except ValueError as exc:
+            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry reference kind is unsupported.") from exc
+        if not isinstance(self.digest, str) or not re.fullmatch(r"[0-9a-f]{64}", self.digest):
+            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry reference digest is not canonical.")
+        object.__setattr__(self, "kind", kind)
+
+    @property
+    def canonical(self) -> str:
+        return f"kslide-ref-v1.{self.kind.value}.{self.digest}"
+
+    def __str__(self) -> str:
+        return self.canonical
+
+    @classmethod
+    def from_canonical(cls, value: Any, *, expected_kind: TelemetryReferenceKind | str | None = None) -> "TelemetryReference":
+        if not isinstance(value, str):
+            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry references must be canonical opaque strings.")
+        match = _REFERENCE.fullmatch(value)
+        if match is None:
+            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry reference is not a canonical opaque identity.")
+        reference = cls(TelemetryReferenceKind(match.group(1)), match.group(2))
+        if expected_kind is not None and reference.kind is not (expected_kind if isinstance(expected_kind, TelemetryReferenceKind) else TelemetryReferenceKind(str(expected_kind))):
+            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry reference kind does not match its field.")
+        return reference
+
+    @classmethod
+    def from_internal(cls, kind: TelemetryReferenceKind | str, identity: str) -> "TelemetryReference":
+        try:
+            kind = kind if isinstance(kind, TelemetryReferenceKind) else TelemetryReferenceKind(str(kind))
+        except ValueError as exc:
+            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry reference kind is unsupported.") from exc
+        if not isinstance(identity, str) or not _INTERNAL_ID.fullmatch(identity) or not identity.startswith(f"{kind.value}-"):
+            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry identity must be a typed machine-generated internal ID.")
+        digest = hashlib.sha256(f"k-slide-telemetry-v1\x00{kind.value}\x00{identity}".encode("utf-8")).hexdigest()
+        return cls(kind, digest)
+
+    @classmethod
+    def from_identity(cls, kind: TelemetryReferenceKind | str, identity: Any) -> "TelemetryReference":
+        """Derive a reference from an existing typed identity object."""
+
+        if isinstance(identity, str):
+            return cls.from_internal(kind, identity)
+        if isinstance(identity, UUID):
+            value: Mapping[str, Any] = {"uuid": str(identity)}
+        else:
+            from .environment import RunEnvironmentIdentity
+            from .paas import AuthorizedScopeContext, DurableJobIdentity, RuntimeIdentity
+
+            typed_identities = (AuthorizedScopeContext, DurableJobIdentity, RunEnvironmentIdentity, RuntimeIdentity)
+            if not isinstance(identity, typed_identities):
+                raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry identity must be a supported typed internal identity, not a caller payload.")
+            value = identity.as_dict()
+        try:
+            kind = kind if isinstance(kind, TelemetryReferenceKind) else TelemetryReferenceKind(str(kind))
+            canonical = json.dumps(dict(value), ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+        except (TypeError, ValueError) as exc:
+            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry identity representation is invalid.") from exc
+        digest = hashlib.sha256(f"k-slide-telemetry-v1\x00{kind.value}\x00{canonical}".encode("utf-8")).hexdigest()
+        return cls(kind, digest)
+
+
 def _reject_content_tree(value: Any, *, key: str | None = None) -> None:
     """Reject content-shaped values before any serialization or redaction."""
 
     if key is not None:
         normalized = re.sub(r"[^a-z0-9]", "", key.lower())
-        if normalized in {re.sub(r"[^a-z0-9]", "", item) for item in _FORBIDDEN} or normalized not in {re.sub(r"[^a-z0-9]", "", item) for item in _ALLOWED_FIELDS}:
+        if normalized not in _NORMALIZED_ALLOWED_FIELDS:
             raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry contains an unknown or content-shaped field.")
     if isinstance(value, Mapping):
         for child_key, child_value in value.items():
@@ -60,12 +165,31 @@ def _reject_content_tree(value: Any, *, key: str | None = None) -> None:
         raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry does not accept binary values.")
 
 
-def _safe_string(value: Any, label: str, *, code: bool = False) -> str:
-    pattern = _CODE if code else _IDENTIFIER
-    forbidden = _FORBIDDEN_CODE if code else _FORBIDDEN
-    if not isinstance(value, str) or not pattern.fullmatch(value) or _PATH_LIKE.search(value) or any(word in value.lower().replace("_", "") for word in forbidden):
-        raise KSlideError(ErrorCode.EXECUTION_INVALID, f"Telemetry {label} is invalid or content-shaped.")
-    return value
+def _reference(value: Any, label: str, kind: TelemetryReferenceKind) -> str:
+    try:
+        reference = value if isinstance(value, TelemetryReference) else TelemetryReference.from_canonical(value, expected_kind=kind)
+        if reference.kind is not kind:
+            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry reference kind does not match its field.")
+        return reference.canonical
+    except KSlideError:
+        raise KSlideError(ErrorCode.EXECUTION_INVALID, f"Telemetry {label} must be a canonical opaque identity.")
+
+
+def _enum_value(value: Any, label: str, enum_type: type[Enum]) -> str:
+    try:
+        selected = value if isinstance(value, enum_type) else enum_type(str(value))
+    except ValueError as exc:
+        raise KSlideError(ErrorCode.EXECUTION_INVALID, f"Telemetry {label} is not an allowed bounded code.") from exc
+    return str(selected.value)
+
+
+def _error_code(value: Any) -> str:
+    if isinstance(value, ErrorCode):
+        return value.value
+    try:
+        return ErrorCode(str(value)).value
+    except ValueError as exc:
+        raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry error code is not an allowed K-Slide error code.") from exc
 
 
 def _bounded_int(value: Any, label: str, *, maximum: int = 100_000_000_000) -> int:
@@ -77,16 +201,16 @@ def _bounded_int(value: Any, label: str, *, maximum: int = 100_000_000_000) -> i
 @dataclass(frozen=True)
 class TelemetryEvent:
     event_type: TelemetryEventType
-    event_id: str
+    event_id: TelemetryReference | str
     occurred_at: str
-    deployment_ref: str | None = None
-    runtime_ref: str | None = None
-    model_ref: str | None = None
-    run_ref: str | None = None
-    worker_ref: str | None = None
-    lifecycle: str | None = None
-    error_code: str | None = None
-    stage: str | None = None
+    deployment_ref: TelemetryReference | str | None = None
+    runtime_ref: TelemetryReference | str | None = None
+    model_ref: TelemetryReference | str | None = None
+    run_ref: TelemetryReference | str | None = None
+    worker_ref: TelemetryReference | str | None = None
+    lifecycle: TelemetryLifecycle | str | None = None
+    error_code: ErrorCode | str | None = None
+    stage: TelemetryStage | str | None = None
     duration_ms: int | None = None
     count: int | None = None
     resource_units: int | None = None
@@ -101,18 +225,24 @@ class TelemetryEvent:
         except ValueError as exc:
             raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry event type is unsupported.") from exc
         object.__setattr__(self, "event_type", event_type)
-        _safe_string(self.event_id, "event ID")
+        object.__setattr__(self, "event_id", _reference(self.event_id, "event ID", TelemetryReferenceKind.EVENT))
         if not isinstance(self.occurred_at, str) or not _TIMESTAMP.fullmatch(self.occurred_at):
             raise KSlideError(ErrorCode.EXECUTION_INVALID, "Telemetry timestamp is invalid.")
-        for value, label in (
-            (self.deployment_ref, "deployment reference"), (self.runtime_ref, "runtime reference"),
-            (self.model_ref, "model reference"), (self.run_ref, "run reference"), (self.worker_ref, "worker reference"),
-            (self.lifecycle, "lifecycle"), (self.stage, "stage"),
+        for field_name, value, label, kind in (
+            ("deployment_ref", self.deployment_ref, "deployment reference", TelemetryReferenceKind.DEPLOYMENT),
+            ("runtime_ref", self.runtime_ref, "runtime reference", TelemetryReferenceKind.RUNTIME),
+            ("model_ref", self.model_ref, "model reference", TelemetryReferenceKind.MODEL),
+            ("run_ref", self.run_ref, "run reference", TelemetryReferenceKind.RUN),
+            ("worker_ref", self.worker_ref, "worker reference", TelemetryReferenceKind.WORKER),
         ):
             if value is not None:
-                _safe_string(value, label)
+                object.__setattr__(self, field_name, _reference(value, label, kind))
+        if self.lifecycle is not None:
+            object.__setattr__(self, "lifecycle", _enum_value(self.lifecycle, "lifecycle", TelemetryLifecycle))
+        if self.stage is not None:
+            object.__setattr__(self, "stage", _enum_value(self.stage, "stage", TelemetryStage))
         if self.error_code is not None:
-            _safe_string(self.error_code, "error code", code=True)
+            object.__setattr__(self, "error_code", _error_code(self.error_code))
         for value, label in (
             (self.duration_ms, "duration"), (self.count, "count"), (self.resource_units, "resource use"),
             (self.retry_attempt, "retry attempt"),
@@ -157,8 +287,10 @@ class TelemetryWriter:
 
     def __init__(self, service_root: Path, *, layout: StorageLayout | None = None) -> None:
         self.layout = layout or StorageLayout.for_service(service_root)
-        if self.layout.scope_ref not in {None, "workspace"}:
+        if self.layout.scope_ref is not None:
             raise KSlideError(ErrorCode.EXECUTION_INVALID, "Central telemetry writer may not be scoped to a user/workspace namespace.")
+        if self.layout.telemetry_root is None:
+            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Central telemetry writer requires an explicitly configured central service root.")
 
     @property
     def event_path(self) -> Path:
@@ -198,4 +330,10 @@ class TelemetryWriter:
         return tuple(values)
 
 
-__all__ = ["TELEMETRY_SCHEMA_VERSION", "TelemetryEvent", "TelemetryEventType", "TelemetryWriter"]
+TelemetryErrorCode = ErrorCode
+
+
+__all__ = [
+    "TELEMETRY_SCHEMA_VERSION", "TelemetryErrorCode", "TelemetryEvent", "TelemetryEventType", "TelemetryLifecycle",
+    "TelemetryReference", "TelemetryReferenceKind", "TelemetryStage", "TelemetryWriter",
+]
