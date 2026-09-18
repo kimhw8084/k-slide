@@ -1,0 +1,68 @@
+{
+  "accepted_at": "2026-09-18T13:05:26Z",
+  "changed_files": [],
+  "checks": [],
+  "codex": {
+    "cli_version": null,
+    "configured_model": "gpt-5.6-luna",
+    "event_count": null,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": null,
+    "usage": {},
+    "warnings": []
+  },
+  "commits": [],
+  "diff": null,
+  "error_code": "CODEX_VERSION_UNAVAILABLE",
+  "evidence_manifest": {
+    "count": 0,
+    "items": [],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": null,
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": "CONTROL_PLANE",
+  "finished_at": "2026-09-18T13:05:26Z",
+  "git": {},
+  "instructions": null,
+  "job_id": "CF-b47473feeb466fb76eb681e5",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-deletion-lifecycle-01-fix01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-deletion-lifecycle-01-fix01"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": false
+  },
+  "request": "chg16-deletion-lifecycle-01-fix01",
+  "schema_version": 1,
+  "started_at": "2026-09-18T13:05:26Z",
+  "status": "FAILED_INFRA",
+  "timing": {
+    "execution_seconds": 0,
+    "queue_seconds": 0,
+    "total_seconds": 0
+  },
+  "transport": {
+    "bytes": 9572,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 9245,
+    "prompt_sha256": "7056c91b9d0268778cbdbc2cf0c79e7f602ce7af101a56f591415ab61359206e",
+    "sha256": "b47473feeb466fb76eb681e5aa04f15918a0b89b5643b96bcedb4156a1464e1b"
+  }
+}
