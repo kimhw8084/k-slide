@@ -1,0 +1,311 @@
+{
+  "accepted_at": "2026-09-18T19:50:15Z",
+  "changed_files": [
+    {
+      "additions": 3,
+      "deletions": 0,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 169,
+      "deletions": 6,
+      "path": "src/k_slide/authentication.py",
+      "status": "M"
+    },
+    {
+      "additions": 10,
+      "deletions": 0,
+      "path": "src/k_slide/host_adapter.py",
+      "status": "M"
+    },
+    {
+      "additions": 14,
+      "deletions": 0,
+      "path": "src/k_slide/paas.py",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 1,
+      "path": "src/k_slide/production.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "tests/test_certification_closure.py",
+      "status": "M"
+    },
+    {
+      "additions": 288,
+      "deletions": 0,
+      "path": "tests/test_chg16_authentication_transport.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"pwd && printf '%s\\\\n' '--- git status ---' && git status --short --branch && printf '%s\\\\n' '--- recent history ---' && git log --oneline --decorate -8 && printf '%s\\\\n' '--- instructions ---' && sed -n '1,240p' /Users/haewonkim/.codex/RTK.md && printf '%s\\\\n' '--- law ---' && sed -n '1,260p' /Users/haewonkim/.codex/law.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git cat-file -t dc7a750d193296c516dafc5f85c02839b53940a && rtk git merge-base --is-ancestor 43adf3610db9bb8e95f407ebba410bd852e173c1 dc7a750d193296c516dafc5f85c02839b53940a3 && rtk git show -s --format='%H%n%P%n%s' dc7a750d193296c516dafc5f85c02839b53940a3 && rtk git merge --ff-only dc7a750d193296c516dafc5f85c02839b53940a3 && rtk git status --short --branch && rtk git show -s --format='%H%n%P%n%s' HEAD && rtk git merge-base --is-ancestor 43adf3610db9bb8e95f407ebba410bd852e173c1 HEAD\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- files ---' && rtk rg --files | sed -n '1,220p' && printf '%s\\\\n' '--- changed predecessor summary ---' && rtk git diff --stat 43adf3610db9bb8e95f407ebba410bd852e173c1 HEAD && printf '%s\\\\n' '--- auth.py ---' && rtk sed -n '1,320p' src/k_slide/authentication.py && printf '%s\\\\n' '--- host_adapter.py ---' && rtk sed -n '1,240p' src/k_slide/host_adapter.py && printf '%s\\\\n' '--- paas.py ---' && rtk sed -n '1,240p' src/k_slide/paas.py && printf '%s\\\\n' '--- production.py ---' && rtk sed -n '1,220p' src/k_slide/production.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- relevant symbols ---' && rtk rg -n \\\"_contains_secret|_normalize_request_value|_request_key_is_unsafe|CompanyServiceRequest|authenticated_company_service_call|AccessKey|Phase 3\\\\.5|phase35|unittest|semgrep|secret\\\" src tests .github scripts pyproject.toml README.md IMPLEMENTATION_STATUS.md 2>/dev/null | sed -n '1,420p' && printf '%s\\\\n' '--- auth tests ---' && rtk sed -n '1,380p' tests/test_chg16_authentication_transport.py && printf '%s\\\\n' '--- host/paas auth call sites ---' && rtk rg -n -C 4 \\\"authenticated_(host|paas)_service_call|CompanyServiceRequest\\\" src/k_slide/host_adapter.py src/k_slide/paas.py tests/test_chg16_host_integration.py tests/test_chg16_paas_worker.py tests/test_chg16_authentication_transport.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,280p' tests/test_chg16_authentication_transport.py && printf '%s\\\\n' '--- baseline targeted test ---' && rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_authentication_transport -v\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- project config ---' && rtk sed -n '1,260p' pyproject.toml && printf '%s\\\\n' '--- workflow ---' && rtk sed -n '1,180p' .github/workflows/k-slide-phase32.yml && printf '%s\\\\n' '--- status relevant ---' && rtk sed -n '1,225p' IMPLEMENTATION_STATUS.md && printf '%s\\\\n' '--- exact auth diff from predecessor ---' && rtk git diff 43adf3610db9bb8e95f407ebba410bd852e173c1 HEAD -- src/k_slide/authentication.py tests/test_chg16_authentication_transport.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,310p' src/k_slide/authentication.py && rtk sed -n '35,285p' tests/test_chg16_authentication_transport.py && rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_authentication_transport -v\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_authentication_transport -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_authentication_transport -v && rtk git diff --check && rtk git status --short'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest discover -s tests -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3.11 --version; rtk python3.12 --version; rtk command -v semgrep || true; rtk command -v gitleaks || true; rtk command -v pip-audit || true; rtk command -v python3.11 || true; rtk command -v python3.12 || true'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3.12 -m unittest discover -s tests -q'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3.11 -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3.12 -m venv /tmp/k-slide-ci-py312 && rtk /tmp/k-slide-ci-py312/bin/python -m pip install --disable-pip-version-check --no-input -e '.[dev,pdf,pptx]'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ci-py312/bin/python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3.11 -m json.tool schemas/translation-patch.schema.json >/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3.11 -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ci-py312/bin/python -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3.11 -m evals.generate_corpus --output /tmp/k-slide-corpus-ci-311 --formats png --limit 1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ci-py312/bin/python -m evals.generate_corpus --output /tmp/k-slide-corpus-ci-312 --formats png --limit 1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sh -c 'set -e; target=\"'$(mktemp -d /tmp/k-slide-install.XXXXXX); ./scripts/install_project.sh \"$target\"; ./scripts/verify_install.sh \"$target\"'\"'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3.11 -m k_slide.cli doctor --root . --json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- status ---' && rtk git status --short --branch && printf '%s\\\\n' '--- diff stat ---' && rtk git diff --stat && printf '%s\\\\n' '--- diff check ---' && rtk git diff --check && printf '%s\\\\n' '--- forbidden matcher/path scan ---' && rtk rg -n \\\"_contains_secret|request_separation|response_separation|_URL_VALUE|_REQUEST_KEY_MARKERS|KSLIDE_ACCESS_KEY|--access-key|LDAP_BIND|refresh_token\\\" src tests || true && printf '%s\\\\n' '--- changed diff ---' && rtk git diff -- src/k_slide/authentication.py tests/test_chg16_authentication_transport.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk find src/k_slide.egg-info -maxdepth 2 -type f -print && rtk rm -rf -- /Users/haewonkim/.codex-fabric/worktrees/CF-26abf879d3839b52463b463b/src/k_slide.egg-info && rtk git status --short'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_authentication_transport -q && rtk git diff --check && rtk git status --short'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add IMPLEMENTATION_STATUS.md src/k_slide/authentication.py tests/test_chg16_authentication_transport.py && rtk git commit -m \"fix: remove KSA-14 credential and destination heuristics\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short --branch && rtk git show -s --format='%H%n%P%n%s' HEAD && rtk git merge-base --is-ancestor 43adf3610db9bb8e95f407ebba410bd852e173c1 HEAD && rtk git merge-base --is-ancestor dc7a750d193296c516dafc5f85c02839b53940a3 HEAD && rtk git diff --check HEAD\"'^ HEAD && printf '\"'%s\\\\n' '--- HEAD ancestry ---' && rtk git log --oneline --decorate -4\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"_RESERVED_REQUEST_FIELDS|def _request_key_is_reserved|class CompanyServiceRequest|def authenticated_company_service_call|test_opaque_nonempty_values|test_ordinary_url_values|test_payload_values|test_exact_reserved\" src/k_slide/authentication.py tests/test_chg16_authentication_transport.py IMPLEMENTATION_STATUS.md'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 80,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 95.88,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 2872576,
+      "fresh_input_tokens": 123309,
+      "input_tokens": 2995885,
+      "non_reasoning_output_tokens": 9285,
+      "output_tokens": 20930,
+      "reasoning_output_tokens": 11645,
+      "total_processed_tokens": 3016815
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "77e1e00ccdca21b810815adde38c55cd6c86b387",
+      "subject": "fix: remove KSA-14 credential and destination heuristics"
+    },
+    {
+      "sha": "dc7a750d193296c516dafc5f85c02839b53940a3",
+      "subject": "fabric: capture completed model changes [CF-f6e805a9e2fd265fd75acba6]"
+    }
+  ],
+  "diff": {
+    "additions": 489,
+    "changed_files": 7,
+    "commit_count": 2,
+    "deletions": 8
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 1,
+    "items": [
+      {
+        "bytes": 30614,
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "d37397077dcd9beb7d660884bc7eddc4db112b1a286a23a9bb94beec0e3c3e31"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-18T19:59:43Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "43adf3610db9bb8e95f407ebba410bd852e173c1",
+    "branch": "codex/k-slide-chg16-accesskey-auth-transport-01-fix01",
+    "head_sha": "77e1e00ccdca21b810815adde38c55cd6c86b387",
+    "remote_exact_head": true,
+    "remote_head_sha": "77e1e00ccdca21b810815adde38c55cd6c86b387",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "43adf3610db9bb8e95f407ebba410bd852e173c1",
+    "work_branch": "codex/k-slide-chg16-accesskey-auth-transport-01-fix01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-26abf879d3839b52463b463b",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-accesskey-auth-transport-01-fix01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-accesskey-auth-transport-01-fix01"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-accesskey-auth-transport-01-fix01",
+  "schema_version": 1,
+  "started_at": "2026-09-18T19:50:15Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 568,
+    "queue_seconds": 0,
+    "total_seconds": 568
+  },
+  "transport": {
+    "bytes": 7372,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 7033,
+    "prompt_sha256": "abe8dbe34e0312d9c0859bbd3c0fdd7e1552f7899a8fca6ea0b4855aaaca178b",
+    "sha256": "26abf879d3839b52463b463b8358040e21d523419bc2bb31dd71053ca5d94d73"
+  }
+}
