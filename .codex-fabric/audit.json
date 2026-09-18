@@ -1,0 +1,487 @@
+{
+  "accepted_at": "2026-09-18T14:50:03Z",
+  "changed_files": [
+    {
+      "additions": 9,
+      "deletions": 20,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 1323,
+      "deletions": 0,
+      "path": "src/k_slide/deletion.py",
+      "status": "A"
+    },
+    {
+      "additions": 7,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "src/k_slide/evidence_ir.py",
+      "status": "M"
+    },
+    {
+      "additions": 14,
+      "deletions": 1,
+      "path": "src/k_slide/execution.py",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 1,
+      "path": "src/k_slide/locking.py",
+      "status": "M"
+    },
+    {
+      "additions": 108,
+      "deletions": 2,
+      "path": "src/k_slide/paas.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "src/k_slide/queue.py",
+      "status": "M"
+    },
+    {
+      "additions": 75,
+      "deletions": 16,
+      "path": "src/k_slide/retention.py",
+      "status": "M"
+    },
+    {
+      "additions": 42,
+      "deletions": 0,
+      "path": "src/k_slide/run_store.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "src/k_slide/session.py",
+      "status": "M"
+    },
+    {
+      "additions": 8,
+      "deletions": 1,
+      "path": "src/k_slide/state.py",
+      "status": "M"
+    },
+    {
+      "additions": 69,
+      "deletions": 7,
+      "path": "src/k_slide/storage.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 1,
+      "path": "src/k_slide/verify.py",
+      "status": "M"
+    },
+    {
+      "additions": 229,
+      "deletions": 0,
+      "path": "tests/test_chg16_deletion.py",
+      "status": "A"
+    },
+    {
+      "additions": 15,
+      "deletions": 2,
+      "path": "tests/test_chg16_retention_policy.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "tests/test_chg16_storage_planes.py",
+      "status": "M"
+    },
+    {
+      "additions": 16,
+      "deletions": 2,
+      "path": "tests/test_phase35.py",
+      "status": "M"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"_target_ref|enumerate_targets\\\\(|DELETION_AUDIT|cleanup_operational_metadata\\\\(|cleanup_expired_runs\\\\(\\\" src tests | sort\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --stat && rtk git diff -- src/k_slide/deletion.py | sed -n '1,280p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m compileall -q src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m unittest tests.test_chg16_deletion tests.test_chg16_storage_planes -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_deletion tests.test_chg16_storage_planes -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nimport json, tempfile\nfrom pathlib import Path\nfrom k_slide.deletion import delete_workspace_run, ReferenceLegalHoldProvider, LegalHoldStatus, DeletionState\nfrom k_slide.paas import AuthorizedScopeContext\nfrom k_slide.storage import StorageLayout, StorageArtifact\nfrom k_slide.errors import KSlideError\n\nwith tempfile.TemporaryDirectory() as d:\n    root=Path(d); central=root.parent/(root.name+'-central'); central.mkdir()\n    run=root/'.k-slide-runs'/'run-1'; run.mkdir(parents=True)\n    (run/'RUN_STATE.json').write_text(json.dumps({'run_id':'run-1','phase':'COMPLETE'}))\n    (run/'inputs').mkdir(); (run/'inputs'/'a.txt').write_text('Korean AccessKey')\n    p=ReferenceLegalHoldProvider(); p.set_release(scope_ref='workspace',run_ref='run-1')\n    c=AuthorizedScopeContext('u','w','workspace')\n    n=[0]\n    def fail(x): n[0]+=1; return n[0]==1\n    x=delete_workspace_run(root,run_ref='run-1',deletion_id='del-1',scope_context=c,hold_provider=p,operational_root=central,failure_injector=fail)\n    print('partial',x.state, 'fence', (root/'.k-slide-runs'/'_deletion-fences'/'run-1.json').exists())\n    try: StorageLayout.for_workspace(run).write_text(StorageArtifact.REPORT,'x.txt','blocked')\n    except KSlideError as e: print('guard',e.code)\n    y=delete_workspace_run(root,run_ref='run-1',deletion_id='del-1',scope_context=c,hold_provider=p,operational_root=central)\n    print('complete',y.state,'run',run.exists(),'fence',(root/'.k-slide-runs'/'_deletion-fences'/'run-1.json').exists())\n    print('audits', list((central/'_deletions').rglob('*.json')))\nPY\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/locking.py | sed -n '1,130p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nimport json, tempfile\nfrom pathlib import Path\nfrom k_slide.deletion import delete_workspace_run, ReferenceLegalHoldProvider\nfrom k_slide.paas import AuthorizedScopeContext\nfrom k_slide.storage import StorageLayout, StorageArtifact\nfrom k_slide.errors import KSlideError\nwith tempfile.TemporaryDirectory() as d:\n root=Path(d); central=root.parent/(root.name+'-central'); central.mkdir(); run=root/'.k-slide-runs'/'run-1'; run.mkdir(parents=True); (run/'RUN_STATE.json').write_text(json.dumps({'run_id':'run-1','phase':'COMPLETE'})); (run/'inputs').mkdir(); (run/'inputs'/'a.txt').write_text('Korean AccessKey'); p=ReferenceLegalHoldProvider(); p.set_release(scope_ref='workspace',run_ref='run-1'); c=AuthorizedScopeContext('u','w','workspace'); n=[0]\n def fail(x):\n  n[0]+=1; return n[0]==1\n x=delete_workspace_run(root,run_ref='run-1',deletion_id='del-1',scope_context=c,hold_provider=p,operational_root=central,failure_injector=fail); print('partial',x.state,(root/'.k-slide-runs'/'_deletion-fences'/'run-1.json').exists())\n try: StorageLayout.for_workspace(run).write_text(StorageArtifact.REPORT,'x.txt','blocked')\n except KSlideError as e: print('guard',e.code)\n y=delete_workspace_run(root,run_ref='run-1',deletion_id='del-1',scope_context=c,hold_provider=p,operational_root=central); print('complete',y.state,run.exists(),(root/'.k-slide-runs'/'_deletion-fences'/'run-1.json').exists()); print('audits',list((central/'_deletions').rglob('*.json')))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nimport tempfile,json\nfrom pathlib import Path\nfrom datetime import datetime,timezone,timedelta\nfrom k_slide.deletion import *\nfrom k_slide.paas import AuthorizedScopeContext\nfrom k_slide.retention import cleanup_expired_runs\nfrom k_slide.retention_policy import RetentionPolicy\nfrom k_slide.telemetry import *\nwith tempfile.TemporaryDirectory() as d:\n root=Path(d); central=root.parent/(root.name+'-central'); central.mkdir(); run=root/'.k-slide-runs'/'r1';run.mkdir(parents=True);(run/'RUN_STATE.json').write_text(json.dumps({'run_id':'r1','phase':'COMPLETE','updated_at':'2020-01-01T00:00:00Z'}));(run/'foo').write_text('x')\n p=ReferenceLegalHoldProvider();p.set_release(scope_ref='workspace',run_ref='r1'); ctx=AuthorizedScopeContext('u','w','workspace')\n res=cleanup_expired_runs(root,RetentionPolicy('1.0',1,1),now=datetime(2026,1,2,tzinfo=timezone.utc),hold_provider=p,scope_context=ctx,operational_root=central)\n print(res['removed'],res['planned'],res['operational_metadata']); print(list((central/'_deletions').rglob('*')))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nimport tempfile\nfrom pathlib import Path\nfrom k_slide.paas import *\nfrom k_slide.deletion import ReferenceLegalHoldProvider, DeletionOutcome\nfrom tests.reference_fixtures import reference_runtime\nwith tempfile.TemporaryDirectory() as d:\n root=Path(d); ctx=AuthorizedScopeContext('u','w','scope-a'); s=ReferencePaaSJobService(root); rec=PaaSController(s,scope_context=ctx).submit(PaaSJobRequest('run1','scope-a','store1',reference_runtime(),total_work_units=1)); PaaSWorker(s,worker_id='w1',runtime_identity=reference_runtime(),engine=ReferenceWorkerEngine(),scope_context=ctx).run_until_terminal(rec.identity); s.content_layout(rec.identity,scope_context=ctx).write_text('source_snapshot','inputs/x','x'); p=ReferenceLegalHoldProvider();p.set_release(scope_ref='scope-a',run_ref='run1'); r=s.delete_run(rec.identity,deletion_id='del',scope_context=ctx,hold_provider=p); print(r.outcome, list((root/'telemetry'/'_deletions').rglob('*.json')), s.queue(scope_context=ctx).active_job_id)\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"\\\\.unlink\\\\(|\\\\.mkdir\\\\(|\\\\.write_text\\\\(|\\\\.write_bytes\\\\(|\\\\.replace\\\\(|\\\\.save\\\\(\\\" src/k_slide | sort\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/ingest.py | sed -n '120,155p'; rtk nl -ba src/k_slide/normalization.py | sed -n '230,305p'; rtk nl -ba src/k_slide/verify.py | sed -n '195,225p;245,280p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,35p' src/k_slide/verify.py; rtk sed -n '1,35p' src/k_slide/rendering/reports.py; rtk sed -n '1,40p' src/k_slide/ingest.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba tests/test_phase35.py | sed -n '190,245p'; rtk nl -ba tests/test_chg16_retention_policy.py | sed -n '140,245p'; rtk rg -n \\\"cleanup_expired_runs\\\\(\\\" tests | sort\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_deletion tests.test_chg16_storage_planes tests.test_chg16_retention_policy tests.test_phase35 -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_deletion -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"ReferenceLegalHoldProvider\\\\(|cleanup_expired_runs\\\\(|cleanup_operational_metadata\\\\(|delete_workspace_run\\\\(\\\" src tests | sort\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"atomic_write|\\\\.unlink\\\\(|ensure_root\\\\(|ensure_directory\\\\(|write_text\\\\(|write_json\\\\(\\\" src/k_slide | sort\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"is_symlink\\\\(\\\\)\\\" src/k_slide/storage.py src/k_slide/deletion.py src/k_slide/retention.py | head -80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nimport tempfile\nfrom pathlib import Path\nfrom k_slide.paas import *\nfrom k_slide.deletion import *\nfrom k_slide.errors import KSlideError\nfrom tests.reference_fixtures import reference_runtime\nwith tempfile.TemporaryDirectory() as d:\n root=Path(d); ctx=AuthorizedScopeContext('u','w','s'); s=ReferencePaaSJobService(root); rec=PaaSController(s,scope_context=ctx).submit(PaaSJobRequest('run','s','store',reference_runtime(),total_work_units=1)); p=ReferenceLegalHoldProvider();p.set_release(scope_ref='s',run_ref='run')\n r=s.delete_run(rec.identity,deletion_id='d',scope_context=ctx,hold_provider=p,failure_injector=lambda _: True); print(r.state)\n for label, f in [('layout', lambda: s.content_layout(rec.identity,scope_context=ctx).write_text('source_snapshot','x','x')),('store',lambda:s.open_store(rec.identity,scope_context=ctx).request_cancellation(rec.job_id))]:\n  try:f();print(label,'BAD')\n  except KSlideError as e:print(label,e.code)\nPY\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nimport tempfile\nfrom pathlib import Path\nfrom k_slide.paas import *\nfrom k_slide.deletion import *\nfrom k_slide.errors import KSlideError\nfrom tests.reference_fixtures import reference_runtime\nwith tempfile.TemporaryDirectory() as d:\n root=Path(d); ctx=AuthorizedScopeContext('u','w','s'); s=ReferencePaaSJobService(root); rec=PaaSController(s,scope_context=ctx).submit(PaaSJobRequest('run','s','store',reference_runtime(),total_work_units=1)); p=ReferenceLegalHoldProvider();p.set_release(scope_ref='s',run_ref='run')\n r=delete_scoped_run(s,identity=rec.identity,scope_context=ctx,deletion_id='d',hold_provider=p,failure_injector=lambda _: True); print(r.state)\n for label, f in [('layout', lambda: s.content_layout(rec.identity,scope_context=ctx).write_text('source_snapshot','x','x')),('store',lambda:s.open_store(rec.identity,scope_context=ctx).request_cancellation(rec.job_id))]:\n  try:f();print(label,'BAD')\n  except KSlideError as e:print(label,e.code)\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nimport tempfile\nfrom pathlib import Path\nfrom k_slide.paas import *\nfrom k_slide.deletion import *\nfrom k_slide.errors import KSlideError\nfrom tests.reference_fixtures import reference_runtime\nwith tempfile.TemporaryDirectory() as d:\n root=Path(d); ctx=AuthorizedScopeContext('u','w','s'); s=ReferencePaaSJobService(root); rec=PaaSController(s,scope_context=ctx).submit(PaaSJobRequest('run','s','store',reference_runtime(),total_work_units=1)); PaaSWorker(s,worker_id='w',runtime_identity=reference_runtime(),engine=ReferenceWorkerEngine(),scope_context=ctx).run_until_terminal(rec.identity); p=ReferenceLegalHoldProvider();p.set_release(scope_ref='s',run_ref='run')\n r=delete_scoped_run(s,identity=rec.identity,scope_context=ctx,deletion_id='d',hold_provider=p,failure_injector=lambda _: True); print(r.state)\n for label, f in [('layout', lambda: s.content_layout(rec.identity,scope_context=ctx).write_text('source_snapshot','x','x')),('store',lambda:s.open_store(rec.identity,scope_context=ctx).request_cancellation(rec.job_id))]:\n  try:f();print(label,'BAD')\n  except KSlideError as e:print(label,e.code)\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk tail -40 src/k_slide/cli.py && rtk env PYTHONPATH=src python -m k_slide.cli delete --root /tmp --run run-x --deletion-id del-x --json; rtk env PYTHONPATH=src python -m k_slide.cli retention-cleanup --root /tmp --json'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"cleanup_expired_runs|delete_workspace_run|_load_cleanup_retention_policy\" src/k_slide/cli.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '15,75p' src/k_slide/cli.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '190,245p;320,360p;398,530p' src/k_slide/storage.py; rtk sed -n '1080,1245p' src/k_slide/deletion.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/paas.py | sed -n '1425,1525p;1555,1685p;1685,1735p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n -C 3 \\\"_deletion_fenced\\\\(scope_context\\\" src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/paas.py | sed -n '1275,1318p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/deletion.py | sed -n '1155,1235p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"hashlib|_file_digest|logical|digest=\" src/k_slide/deletion.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"ReferenceLegalHoldProvider\\\\(\\\\)|AuthorizedScopeContext\\\\(\\\\\\\"local-admin|retention-admin|_deletions\\\" src/k_slide | sort\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk python -m compileall -q src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git diff --stat && rtk git merge-base --is-ancestor 57daa029b544ce8f87836810667f1dcef8edcd76 HEAD && rtk git rev-parse HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_deletion tests.test_chg16_storage_planes tests.test_chg16_retention_policy -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff -- src/k_slide/retention.py src/k_slide/paas.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff -- src/k_slide/deletion.py | sed -n '1,520p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff -- src/k_slide/cli.py src/k_slide/storage.py src/k_slide/state.py src/k_slide/queue.py src/k_slide/evidence_ir.py src/k_slide/session.py src/k_slide/execution.py src/k_slide/locking.py src/k_slide/verify.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short --branch && rtk git diff --check && rtk env PYTHONPATH=src python -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --stat && rtk git diff --name-only && rtk git log --oneline --decorate -3'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add src/k_slide/cli.py src/k_slide/deletion.py src/k_slide/evidence_ir.py src/k_slide/execution.py src/k_slide/locking.py src/k_slide/paas.py src/k_slide/queue.py src/k_slide/retention.py src/k_slide/session.py src/k_slide/state.py src/k_slide/storage.py src/k_slide/verify.py tests/test_chg16_deletion.py tests/test_chg16_retention_policy.py tests/test_chg16_storage_planes.py tests/test_phase35.py && rtk git commit -m \"fix: close KSA-13 deletion lifecycle defects\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short --branch && rtk git show -s --format='%H%n%P%n%s' HEAD && rtk git merge-base --is-ancestor 57daa029b544ce8f87836810667f1dcef8edcd76 HEAD && rtk git merge-base --is-ancestor 8c6901897e83884ae4af4ac527213f1840c6565d HEAD && rtk git diff --check HEAD\"'^ HEAD && rtk git diff --stat 8c6901897e83884ae4af4ac527213f1840c6565d..HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk command -v python3.12 || true; rtk python --version; rtk git status --porcelain=v1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python3.12 -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3.12 -m unittest tests.test_chg16_deletion tests.test_chg16_retention_policy tests.test_chg16_storage_planes.StoragePlaneContractTests.test_storage_policy_inventory_is_executable -v && rtk git status --short --branch'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"def test_.*inventory|class StoragePlane\" tests/test_chg16_storage_planes.py && rtk env PYTHONPATH=src python3.12 -m unittest tests.test_chg16_storage_planes -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 279,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.95,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 15401472,
+      "fresh_input_tokens": 323114,
+      "input_tokens": 15724586,
+      "non_reasoning_output_tokens": 36236,
+      "output_tokens": 72823,
+      "reasoning_output_tokens": 36587,
+      "total_processed_tokens": 15797409
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "255211ab80b3263462d5744bb83936dece68769e",
+      "subject": "fix: close KSA-13 deletion lifecycle defects"
+    },
+    {
+      "sha": "8c6901897e83884ae4af4ac527213f1840c6565d",
+      "subject": "fabric: capture completed model changes [CF-ae3cc302e860a83a0887e3c3]"
+    }
+  ],
+  "diff": {
+    "additions": 1929,
+    "changed_files": 18,
+    "commit_count": 2,
+    "deletions": 57
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 1,
+    "items": [
+      {
+        "bytes": 13127,
+        "path": "src/k_slide/evidence_ir.py",
+        "sha256": "9611d671309fa7055132a8f02dbc50535e249d9a5bd7dfbdcb6e13a9578c8f64"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-18T15:20:39Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "57daa029b544ce8f87836810667f1dcef8edcd76",
+    "branch": "codex/k-slide-chg16-deletion-lifecycle-01-fix02",
+    "head_sha": "255211ab80b3263462d5744bb83936dece68769e",
+    "remote_exact_head": true,
+    "remote_head_sha": "255211ab80b3263462d5744bb83936dece68769e",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "57daa029b544ce8f87836810667f1dcef8edcd76",
+    "work_branch": "codex/k-slide-chg16-deletion-lifecycle-01-fix02",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-5b915bafe94b48d959d85d97",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-deletion-lifecycle-01-fix02",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-deletion-lifecycle-01-fix02"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-deletion-lifecycle-01-fix02",
+  "schema_version": 1,
+  "started_at": "2026-09-18T14:50:03Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1836,
+    "queue_seconds": 0,
+    "total_seconds": 1836
+  },
+  "transport": {
+    "bytes": 9963,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 9636,
+    "prompt_sha256": "9be31a7f259b6cd0518712e6594a5c5f5697aad3088a23403e82f45152a09d24",
+    "sha256": "5b915bafe94b48d959d85d97ed60bb9f390bb06dfb206d991bd28f5f91a6b358"
+  }
+}
