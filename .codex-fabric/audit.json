@@ -1,0 +1,495 @@
+{
+  "accepted_at": "2026-09-18T16:19:06Z",
+  "changed_files": [
+    {
+      "additions": 9,
+      "deletions": 20,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 1506,
+      "deletions": 0,
+      "path": "src/k_slide/deletion.py",
+      "status": "A"
+    },
+    {
+      "additions": 7,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "src/k_slide/evidence_ir.py",
+      "status": "M"
+    },
+    {
+      "additions": 14,
+      "deletions": 1,
+      "path": "src/k_slide/execution.py",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 1,
+      "path": "src/k_slide/locking.py",
+      "status": "M"
+    },
+    {
+      "additions": 108,
+      "deletions": 2,
+      "path": "src/k_slide/paas.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "src/k_slide/queue.py",
+      "status": "M"
+    },
+    {
+      "additions": 75,
+      "deletions": 16,
+      "path": "src/k_slide/retention.py",
+      "status": "M"
+    },
+    {
+      "additions": 42,
+      "deletions": 0,
+      "path": "src/k_slide/run_store.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "src/k_slide/session.py",
+      "status": "M"
+    },
+    {
+      "additions": 8,
+      "deletions": 1,
+      "path": "src/k_slide/state.py",
+      "status": "M"
+    },
+    {
+      "additions": 69,
+      "deletions": 7,
+      "path": "src/k_slide/storage.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 1,
+      "path": "src/k_slide/verify.py",
+      "status": "M"
+    },
+    {
+      "additions": 461,
+      "deletions": 0,
+      "path": "tests/test_chg16_deletion.py",
+      "status": "A"
+    },
+    {
+      "additions": 15,
+      "deletions": 2,
+      "path": "tests/test_chg16_retention_policy.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "tests/test_chg16_storage_planes.py",
+      "status": "M"
+    },
+    {
+      "additions": 16,
+      "deletions": 2,
+      "path": "tests/test_phase35.py",
+      "status": "M"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git diff --stat && rtk git diff -- src/k_slide/deletion.py tests/test_chg16_deletion.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk find . -maxdepth 3 -type f | sort | rtk rg \"phase|fast|check\" -n -'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,120p' .github/workflows/k-slide.yml && rtk sed -n '1,150p' .github/workflows/k-slide-phase32.yml\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"Phase 3\\\\.5|phase35|3\\\\.5|fast\\\" README.md DEVELOPMENT_NOTES.md IMPLEMENTATION_STATUS.md .github scripts tests evals -g '*.md' -g '*.py' -g '*.yml' -g '*.yaml' | head -240\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3.11 -m unittest discover -s tests -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3.12 -m unittest discover -s tests -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3.12 -m pip install -e '.[pdf,pptx,dev]'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk test ! -e /tmp/k-slide-py312-fix04 && rtk python3.12 -m venv /tmp/k-slide-py312-fix04'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk ls -ld /tmp/k-slide-py312-fix04'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk /tmp/k-slide-py312-fix04/bin/python -m pip install -e '.[pdf,pptx,dev]'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py312-fix04/bin/python -m unittest discover -s tests -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mktemp -d /tmp/k-slide-phase35-fast-312.XXXXXX'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mktemp -d /tmp/k-slide-phase35-fast-311.XXXXXX'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3.11 -m json.tool schemas/translation-patch.schema.json >/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py312-fix04/bin/python -m json.tool schemas/translation-patch.schema.json >/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3.11 -m compileall -q src tests evals'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py312-fix04/bin/python -m compileall -q src tests evals'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3.11 -m evals.generate_corpus --output /tmp/k-slide-phase35-fast-311.W3wMYH/corpus --formats png --limit 1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py312-fix04/bin/python -m evals.generate_corpus --output /tmp/k-slide-phase35-fast-312.1SSYrv/corpus --formats png --limit 1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py312-fix04/bin/python -m k_slide.cli doctor --root . --json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3.11 -m k_slide.cli doctor --root . --json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3.11 -m evals.run_engine_eval --output /tmp/k-slide-phase35-fast-311.W3wMYH/eval --split development --limit 2 --formats png pdf --candidate-profile evals/production-candidate.yaml'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py312-fix04/bin/python -m evals.run_engine_eval --output /tmp/k-slide-phase35-fast-312.1SSYrv/eval --split development --limit 2 --formats png pdf --candidate-profile evals/production-candidate.yaml'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3.11 -m venv /tmp/k-slide-py311-fix04'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk /tmp/k-slide-py311-fix04/bin/python -m pip install -e '.[pdf,pptx,dev]'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py311-fix04/bin/python -m unittest discover -s tests -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mktemp -d /tmp/k-slide-phase35-install-311.XXXXXX'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mktemp -d /tmp/k-slide-phase35-install-312.XXXXXX'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py311-fix04/bin/python -m json.tool schemas/translation-patch.schema.json >/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py311-fix04/bin/python -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py312-fix04/bin/python -m json.tool schemas/translation-patch.schema.json >/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py312-fix04/bin/python -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py312-fix04/bin/python -m evals.generate_corpus --output /tmp/k-slide-phase35-fast-312.1SSYrv/corpus-venv --formats png --limit 1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py311-fix04/bin/python -m evals.generate_corpus --output /tmp/k-slide-phase35-fast-311.W3wMYH/corpus-venv --formats png --limit 1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk ./scripts/install_project.sh /tmp/k-slide-phase35-install-312.45EMkc'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk ./scripts/install_project.sh /tmp/k-slide-phase35-install-311.DAsnhq'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py311-fix04/bin/python -m k_slide.cli doctor --root . --json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py312-fix04/bin/python -m k_slide.cli doctor --root . --json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py311-fix04/bin/python -m evals.run_engine_eval --output /tmp/k-slide-phase35-fast-311.W3wMYH/eval-venv --split development --limit 2 --formats png pdf --candidate-profile evals/production-candidate.yaml'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-py312-fix04/bin/python -m evals.run_engine_eval --output /tmp/k-slide-phase35-fast-312.1SSYrv/eval-venv --split development --limit 2 --formats png pdf --candidate-profile evals/production-candidate.yaml'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk ./scripts/verify_install.sh /tmp/k-slide-phase35-install-312.45EMkc'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk ./scripts/verify_install.sh /tmp/k-slide-phase35-install-311.DAsnhq'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"TARGET_IDENTITY_MISMATCH|test_completed_.*replay|test_scoped_complete_replay\" src/k_slide/deletion.py tests/test_chg16_deletion.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git merge-base --is-ancestor 57daa029b544ce8f87836810667f1dcef8edcd76 HEAD; printf 'base_ancestor=%s\\\\n' \\\"\"'$?\"; rtk git merge-base --is-ancestor be314b53ed0fa4cdd44818a385db762c37c607b1 HEAD; printf '\"'candidate_ancestor=%s\\\\n' \\\"\"'$?\"; rtk git rev-parse HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git diff --check && rtk git diff --stat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rm -rf /Users/haewonkim/.codex-fabric/worktrees/CF-aa350e1e66708c25666167e7/src/k_slide.egg-info'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add src/k_slide/deletion.py tests/test_chg16_deletion.py && rtk git commit -m \"fix: validate completed deletion replay generation\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git merge-base --is-ancestor 57daa029b544ce8f87836810667f1dcef8edcd76 HEAD; printf 'base_ancestor=%s\\\\n' \\\"\"'$?\"; rtk git merge-base --is-ancestor be314b53ed0fa4cdd44818a385db762c37c607b1 HEAD; printf '\"'candidate_ancestor=%s\\\\n' \\\"\"'$?\"; rtk git rev-parse HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git show --stat --oneline --decorate HEAD && rtk git diff HEAD''^ HEAD --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git log --oneline --decorate -4'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 194,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.03,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 6575616,
+      "fresh_input_tokens": 200949,
+      "input_tokens": 6776565,
+      "non_reasoning_output_tokens": 12517,
+      "output_tokens": 23531,
+      "reasoning_output_tokens": 11014,
+      "total_processed_tokens": 6800096
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "7b4419259c772a936da516cc4f538bb43309abe5",
+      "subject": "fix: validate completed deletion replay generation"
+    },
+    {
+      "sha": "be314b53ed0fa4cdd44818a385db762c37c607b1",
+      "subject": "fix: make deletion retries identity-stable"
+    },
+    {
+      "sha": "255211ab80b3263462d5744bb83936dece68769e",
+      "subject": "fix: close KSA-13 deletion lifecycle defects"
+    },
+    {
+      "sha": "8c6901897e83884ae4af4ac527213f1840c6565d",
+      "subject": "fabric: capture completed model changes [CF-ae3cc302e860a83a0887e3c3]"
+    }
+  ],
+  "diff": {
+    "additions": 2344,
+    "changed_files": 18,
+    "commit_count": 4,
+    "deletions": 57
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 1,
+    "items": [
+      {
+        "bytes": 13127,
+        "path": "src/k_slide/evidence_ir.py",
+        "sha256": "9611d671309fa7055132a8f02dbc50535e249d9a5bd7dfbdcb6e13a9578c8f64"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-18T16:29:05Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "57daa029b544ce8f87836810667f1dcef8edcd76",
+    "branch": "codex/k-slide-chg16-deletion-lifecycle-01-fix04",
+    "head_sha": "7b4419259c772a936da516cc4f538bb43309abe5",
+    "remote_exact_head": true,
+    "remote_head_sha": "7b4419259c772a936da516cc4f538bb43309abe5",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "57daa029b544ce8f87836810667f1dcef8edcd76",
+    "work_branch": "codex/k-slide-chg16-deletion-lifecycle-01-fix04",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-aa350e1e66708c25666167e7",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-deletion-lifecycle-01-fix04",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-deletion-lifecycle-01-fix04"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-deletion-lifecycle-01-fix04",
+  "schema_version": 1,
+  "started_at": "2026-09-18T16:19:07Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 598,
+    "queue_seconds": 1,
+    "total_seconds": 599
+  },
+  "transport": {
+    "bytes": 7084,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 6757,
+    "prompt_sha256": "5dc398582c787ce91177e3816af3fedf314c047e2e5208ba0b298b1dc74d7033",
+    "sha256": "aa350e1e66708c25666167e76d5000bda4d1c0742e5d19424efa458b2c239cd8"
+  }
+}
