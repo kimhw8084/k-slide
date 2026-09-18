@@ -1,0 +1,373 @@
+{
+  "accepted_at": "2026-09-18T18:32:21Z",
+  "changed_files": [
+    {
+      "additions": 3,
+      "deletions": 0,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 188,
+      "deletions": 6,
+      "path": "src/k_slide/authentication.py",
+      "status": "M"
+    },
+    {
+      "additions": 10,
+      "deletions": 0,
+      "path": "src/k_slide/host_adapter.py",
+      "status": "M"
+    },
+    {
+      "additions": 14,
+      "deletions": 0,
+      "path": "src/k_slide/paas.py",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 1,
+      "path": "src/k_slide/production.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "tests/test_certification_closure.py",
+      "status": "M"
+    },
+    {
+      "additions": 245,
+      "deletions": 0,
+      "path": "tests/test_chg16_authentication_transport.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"pwd && git status --short --branch && git rev-parse HEAD && sed -n '1,240p' /Users/haewonkim/.codex/RTK.md && sed -n '1,260p' /Users/haewonkim/.codex/law.md && rg --files -g 'AGENTS.md' -g '\"'!node_modules'\"' -g '\"'!vendor'\"' .\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk cat AGENTS.md && rtk rg --files -g '\"'!node_modules'\"' -g '\"'!vendor'\"' | sed -n '1,240p' && rtk rg -n \\\"authentication|require_access_key|AccessKey|AUTHENTICATION_FAILED|transport|company|provider\\\" src tests 2>/dev/null | sed -n '1,320p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,220p' src/k_slide/authentication.py && rtk sed -n '1,180p' src/k_slide/errors.py && rtk sed -n '1,280p' src/k_slide/host_adapter.py && rtk sed -n '1,340p' src/k_slide/paas.py && rtk sed -n '1,240p' src/k_slide/production.py && rtk sed -n '1,180p' src/k_slide/doctor.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"class .*Adapter|Protocol|Reference.*Service|call\\\\(|invoke\\\\(|request|ExecutionProfile|HostInvocation|PaaS|doctor|production_checks|require_access_key|authentication_readiness\\\" src tests -g '*.py' | sed -n '1,420p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,280p' src/k_slide/execution.py && rtk sed -n '280,700p' src/k_slide/execution.py && rtk sed -n '180,620p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"class PaaSController|class PaaSWorker|def submit|def run_once|def run_until_terminal|ReferenceWorkerEngine|def new_execution_job|def classify_operational_failure|def execution_metadata\\\" src/k_slide/paas.py src/k_slide/execution.py && rtk sed -n '620,1080p' src/k_slide/paas.py && rtk sed -n '680,1180p' src/k_slide/execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1360,1510p' src/k_slide/paas.py && rtk sed -n '1810,2115p' src/k_slide/paas.py && rtk sed -n '640,710p' src/k_slide/execution.py && rtk sed -n '1020,1180p' src/k_slide/execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk cat src/k_slide/__init__.py && rtk sed -n '1,260p' tests/test_chg16_foundation.py && rtk sed -n '1,220p' tests/test_chg16_host_integration.py && rtk sed -n '1,190p' tests/test_chg16_paas_worker.py && rtk sed -n '480,570p' tests/test_chg16_durable_execution.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"Phase 3\\\\.5|phase35|unittest|CI|python3\\\\.11|python3\\\\.12|fast|heavy\\\" README.md DEVELOPMENT_NOTES.md IMPLEMENTATION_STATUS.md .github pyproject.toml scripts tests -g '*' | sed -n '1,360p' && rtk find .github -maxdepth 3 -type f -print 2>/dev/null | sort | xargs -r -n1 sh -c 'echo --- \\\"\"'$0\"; sed -n \"1,240p\" \"$0\"'\"'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,100p' .github/workflows/k-slide-phase32.yml && rtk sed -n '1,120p' .github/workflows/k-slide.yml && rtk sed -n '1,100p' .github/workflows/k-slide-security.yml && rtk sed -n '1,230p' IMPLEMENTATION_STATUS.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '500,650p' src/k_slide/production.py && rtk sed -n '1,260p' src/k_slide/security.py && rtk rg -n \\\"credential|api.?key|access.?key|login|token|password|ldap|Bearer|Authorization|https?://|url\\\" src/k_slide tests .opencode deploy -g '*.py' -g '*.ts' -g '*.md' -g '*.json' | sed -n '1,500p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"production_checks\\\\(|diagnose\\\\(|--production|AccessKey|Production doctor|overall\\\" tests src/k_slide | sed -n '1,280p' && rtk sed -n '1,180p' tests/test_certification_closure.py && rtk rg -n \\\"ProductionProfile|production_checks\\\" tests/test_certification_closure.py tests/test_phase* tests/test_chg16* | sed -n '1,220p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '150,220p' tests/test_phase35.py && rtk sed -n '80,140p' tests/test_chg16_retention_policy.py && rtk sed -n '1670,1770p' tests/test_certification_closure.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n -C 2 'KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS.*1' tests/test_certification_closure.py | sed -n '1,160p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m compileall -q src/k_slide/authentication.py src/k_slide/host_adapter.py src/k_slide/paas.py src/k_slide/production.py && PYTHONPATH=src:. rtk python -m unittest tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_chg16_paas_worker tests.test_phase35 tests.test_certification_closure -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff -- src/k_slide/authentication.py src/k_slide/host_adapter.py src/k_slide/paas.py src/k_slide/production.py tests/test_certification_closure.py | sed -n '1,420p' && rtk git status --short\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,180p' tests/reference_fixtures.py && rtk sed -n '1,120p' src/k_slide/telemetry.py && rtk rg -n \\\"def .*telemetry|Telemetry|emit|record\\\" src/k_slide/telemetry.py | sed -n '1,160p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m compileall -q tests/test_chg16_authentication_transport.py && PYTHONPATH=src:. rtk python -m unittest tests.test_chg16_authentication_transport -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,135p' tests/test_chg16_authentication_transport.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m compileall -q tests/test_chg16_authentication_transport.py && PYTHONPATH=src:. rtk python -m unittest tests.test_chg16_authentication_transport -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '500,535p' src/k_slide/production.py && rtk rg -n \\\"AccessKey readiness\\\" src/k_slide/production.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n -F '.env' src/k_slide --glob '*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest tests.test_chg16_authentication_transport -q'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest tests.test_chg16_authentication_transport -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest tests.test_chg16_authentication_transport tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_chg16_paas_worker tests.test_phase35 tests.test_chg16_retention_policy -q && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,285p' src/k_slide/authentication.py && rtk sed -n '1,70p' src/k_slide/host_adapter.py && rtk sed -n '1,85p' src/k_slide/paas.py && rtk git diff --stat && rtk git status --short\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk command -v python3.11 || true; rtk command -v python3.12 || true; rtk python --version; rtk git diff --check; rtk python -m compileall -q src evals tests; rtk command -v semgrep || true; rtk command -v gitleaks || true; rtk command -v ruff || true'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python3.12 -m unittest discover -s tests -q'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3.12 -m venv /tmp/k-slide-py312-ksa14 && rtk /tmp/k-slide-py312-ksa14/bin/python -m pip install -e '.[dev,pdf,pptx]'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk /tmp/k-slide-py312-ksa14/bin/python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python3.11 -m unittest tests.test_phase35 -q && PYTHONPATH=src:. rtk /tmp/k-slide-py312-ksa14/bin/python -m unittest tests.test_phase35 -q && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"KSLIDE_ACCESS_KEY|ACCESS_KEY|--access-key|LDAP_BIND|refresh_token|load_dotenv|\\\\.env\\\" src/k_slide tests/test_chg16_authentication_transport.py || true; rtk rg -n \\\"require_access_key\\\\(|ACCESS_KEY_ENV|os\\\\.environ\\\" src/k_slide/authentication.py src/k_slide/redaction.py src/k_slide/host_adapter.py src/k_slide/paas.py src/k_slide/production.py; rtk git status --short --branch; rtk git diff --stat\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk find src/k_slide.egg-info -maxdepth 2 -type f -print | sort && rtk rm -rf src/k_slide.egg-info && rtk git status --short'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"\\\\bMapping\\\\b\\\" src/k_slide/paas.py src/k_slide/host_adapter.py | sed -n '1,120p' && rtk git diff -- src/k_slide/authentication.py src/k_slide/host_adapter.py src/k_slide/paas.py src/k_slide/production.py tests/test_certification_closure.py IMPLEMENTATION_STATUS.md | sed -n '1,620p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest tests.test_chg16_authentication_transport -q && rtk python -m compileall -q src evals tests && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python3.11 -m unittest discover -s tests -q && PYTHONPATH=src:. rtk /tmp/k-slide-py312-ksa14/bin/python -m unittest discover -s tests -q && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --check && rtk git status --short --branch && rtk git diff --stat && rtk git diff --numstat && rtk rg -n \\\"def authenticated_|class ApprovedCompany|class CompanyService|AccessKey readiness|KSA-14\\\" src/k_slide tests/test_chg16_authentication_transport.py IMPLEMENTATION_STATUS.md | sed -n '1,220p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 123,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.06,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 8316160,
+      "fresh_input_tokens": 251539,
+      "input_tokens": 8567699,
+      "non_reasoning_output_tokens": 17843,
+      "output_tokens": 46172,
+      "reasoning_output_tokens": 28329,
+      "total_processed_tokens": 8613871
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "dc7a750d193296c516dafc5f85c02839b53940a3",
+      "subject": "fabric: capture completed model changes [CF-f6e805a9e2fd265fd75acba6]"
+    }
+  ],
+  "diff": {
+    "additions": 465,
+    "changed_files": 7,
+    "commit_count": 1,
+    "deletions": 8
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 1,
+    "items": [
+      {
+        "bytes": 30498,
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "e58b2d316f719fc85f71d65bb3015b676d53c22ba47dbd3f71d6ad392d9a7ff2"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": true,
+    "commit_message": "fabric: capture completed model changes [CF-f6e805a9e2fd265fd75acba6]",
+    "commit_sha": "dc7a750d193296c516dafc5f85c02839b53940a3",
+    "paths_before": 7,
+    "status_before": [
+      " M IMPLEMENTATION_STATUS.md",
+      " M src/k_slide/authentication.py",
+      " M src/k_slide/host_adapter.py",
+      " M src/k_slide/paas.py",
+      " M src/k_slide/production.py",
+      " M tests/test_certification_closure.py",
+      "?? tests/test_chg16_authentication_transport.py"
+    ],
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-18T18:51:42Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "43adf3610db9bb8e95f407ebba410bd852e173c1",
+    "branch": "codex/k-slide-chg16-accesskey-auth-transport-01",
+    "head_sha": "dc7a750d193296c516dafc5f85c02839b53940a3",
+    "remote_exact_head": true,
+    "remote_head_sha": "dc7a750d193296c516dafc5f85c02839b53940a3",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "43adf3610db9bb8e95f407ebba410bd852e173c1",
+    "work_branch": "codex/k-slide-chg16-accesskey-auth-transport-01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-f6e805a9e2fd265fd75acba6",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-accesskey-auth-transport-01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-accesskey-auth-transport-01"
+  },
+  "operation": "BUILD",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-accesskey-auth-transport-01",
+  "schema_version": 1,
+  "started_at": "2026-09-18T18:32:21Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1161,
+    "queue_seconds": 0,
+    "total_seconds": 1161
+  },
+  "transport": {
+    "bytes": 8792,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 8463,
+    "prompt_sha256": "6c400faaea6080a9465ff8ba2a0938efdc0b1a9bcbea59d482ccc6b99e401bf5",
+    "sha256": "f6e805a9e2fd265fd75acba6c58a0bb4bc9a6111e2e3d1d1422d8611aa784492"
+  }
+}
