@@ -1,0 +1,494 @@
+{
+  "accepted_at": "2026-09-18T02:49:23Z",
+  "changed_files": [
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 2,
+      "path": "deploy/README.md",
+      "status": "M"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "path": "deploy/production-profile.example.json",
+      "status": "M"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "path": "evals/production-candidate.example.yaml",
+      "status": "M"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "path": "evals/production-candidate.yaml",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/release.py",
+      "status": "M"
+    },
+    {
+      "additions": 59,
+      "deletions": 10,
+      "path": "src/k_slide/certification.py",
+      "status": "M"
+    },
+    {
+      "additions": 20,
+      "deletions": 2,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 59,
+      "deletions": 15,
+      "path": "src/k_slide/production.py",
+      "status": "M"
+    },
+    {
+      "additions": 16,
+      "deletions": 7,
+      "path": "src/k_slide/retention.py",
+      "status": "M"
+    },
+    {
+      "additions": 92,
+      "deletions": 0,
+      "path": "src/k_slide/retention_policy.py",
+      "status": "A"
+    },
+    {
+      "additions": 6,
+      "deletions": 5,
+      "path": "tests/test_certification_closure.py",
+      "status": "M"
+    },
+    {
+      "additions": 130,
+      "deletions": 0,
+      "path": "tests/test_chg16_retention_policy.py",
+      "status": "A"
+    },
+    {
+      "additions": 3,
+      "deletions": 2,
+      "path": "tests/test_phase35.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "tests/test_runtime_artifact.py",
+      "status": "M"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"pwd && git status --short --branch && git rev-parse HEAD && sed -n '1,240p' /Users/haewonkim/.codex/RTK.md && sed -n '1,260p' /Users/haewonkim/.codex/law.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n --hidden --glob '\"'!'\"\\\\.git/**' \\\"retention_days|Retention policy|RETENTION|retention-cleanup|ProductionProfile|CANDIDATE_INPUT_FIELDS|PRODUCTION_COMPLETENESS_FIELDS|DEPLOYMENT_PROFILE_FIELDS|canonical_candidate_factors|candidate_deployment_fingerprint|cleanup_expired_runs|production-candidate\\\" .\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '280,550p' src/k_slide/production.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '520,760p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1000,1135p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,190p' src/k_slide/production.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,150p' src/k_slide/retention.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '390,490p' src/k_slide/cli.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '480,555p' evals/release.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,230p' src/k_slide/production.py && rtk sed -n '230,380p' src/k_slide/production.py && rtk sed -n '500,550p' src/k_slide/production.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"def diagnose|Retention policy|def _runtime_identity_checks|def _manifest_and_fingerprint_status\\\" src/k_slide/production.py && rtk sed -n '440,555p' src/k_slide/production.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"CANDIDATE_SPEC_SCHEMA_VERSION|candidate_spec_version|schema_version.*1\\\\.0|retention_days|retention-cleanup|ProductionProfile\\\\(\\\" src evals deploy tests README.md docs .github --glob '\"'!*.png'\"'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1540,1605p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1015,1110p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '130,235p' tests/test_certification_closure.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '680,880p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '200,280p' tests/test_chg16_environment_binding.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '190,250p' tests/test_phase35.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1595,1655p' src/k_slide/certification.py && rtk sed -n '410,455p' evals/release.py && rtk sed -n '1,90p' evals/release.py && rtk sed -n '1,90p' evals/production-candidate.yaml && rtk sed -n '1,80p' evals/production-candidate.example.yaml && rtk sed -n '1,60p' deploy/production-profile.example.json && rtk sed -n '1,90p' README.md && rtk sed -n '145,175p' README.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n -C 2 \\\"retention_days|ProductionProfile.from_mapping|cleanup_expired_runs|retention-cleanup\\\" tests evals src deploy README.md docs --glob '\"'!*.png'\"'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '25,150p' src/k_slide/production.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,55p' src/k_slide/cli.py && rtk sed -n '1,35p' src/k_slide/errors.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n '\\\"schema_version\\\"' evals/release.py && rtk sed -n '430,445p' evals/release.py && rtk sed -n '518,530p' evals/release.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"retention_days|Retention policy|schema_version.*1\\\\.0|candidate_spec_version.*1\\\\.0\\\" src evals deploy README.md tests --glob '\"'!*.png'\"'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m py_compile src/k_slide/retention_policy.py src/k_slide/certification.py src/k_slide/production.py src/k_slide/retention.py src/k_slide/cli.py evals/release.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest tests.test_phase35 tests.test_runtime_artifact -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"candidate_spec_version.*1\\\\.0|retention_days|cleanup_expired_runs\\\\([\"'^'\"\\\\n]*,[[:space:]]*[0-9]\\\" tests src evals deploy README.md --glob '\"'!*.png'\"'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest tests.test_phase35 tests.test_runtime_artifact -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,90p' tests/test_phase35.py && rtk sed -n '1,75p' tests/test_certification_closure.py && rtk sed -n '1,120p' tests/test_chg16_environment_binding.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest tests.test_chg16_retention_policy -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest tests.test_chg16_retention_policy tests.test_certification_closure -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,90p' deploy/README.md && rtk git diff --stat && rtk git diff -- src/k_slide/certification.py src/k_slide/production.py src/k_slide/retention.py src/k_slide/cli.py src/k_slide/retention_policy.py evals/release.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest discover -s tests -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short && rtk git diff --check && rtk rg -n \\\"retention_days|Retention policy|--retention-days|schema_version.*1\\\\.0|candidate_spec_version.*1\\\\.0\\\" src evals deploy README.md docs tests --glob '\"'!*.png'\"' --glob '\"'!deploy/runtime/**'\"' --glob '\"'!tests/fixtures/**'\"'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"production profile|candidate profile|retention_policy|DEPLOYMENT_PROFILE_FIELDS|CANDIDATE_INPUT_FIELDS\\\" schemas scripts .opencode docs deploy evals src --glob '\"'!*.png'\"'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '38,165p' src/k_slide/production.py && rtk sed -n '675,805p' src/k_slide/certification.py && rtk sed -n '1045,1155p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest tests.test_chg16_retention_policy tests.test_phase35 -q && rtk env PYTHONPATH=src python3 -m k_slide.cli retention-cleanup --help'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,65p' evals/production-candidate.yaml && rtk sed -n '1,65p' evals/production-candidate.example.yaml && rtk sed -n '1,40p' deploy/production-profile.example.json && rtk git diff --check && rtk git status --short\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,45p' src/k_slide/doctor.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m py_compile src/k_slide/retention_policy.py src/k_slide/certification.py src/k_slide/production.py src/k_slide/retention.py src/k_slide/cli.py evals/release.py && rtk env PYTHONPATH=src python3 -m unittest tests.test_chg16_retention_policy tests.test_phase35 -q && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1640,1700p' tests/test_certification_closure.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest discover -s tests -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --check && rtk git status --short && rtk rg -n \\\"RETENTION_POLICY_SCHEMA_VERSION|class RetentionPolicy|CANDIDATE_SPEC_SCHEMA_VERSION|RETENTION_POLICY_FIELD|PRODUCTION_PROFILE_SCHEMA_VERSION|def cleanup_expired_runs|retention-cleanup|Content retention policy|Operational-metadata retention policy|def _certified_profile_mapping\\\" src evals tests README.md deploy --glob '\"'!*.png'\"'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '330,365p' src/k_slide/production.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest tests.test_chg16_retention_policy tests.test_certification_closure -q && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short && rtk git diff --stat && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"load_production_profile\\\\(|ProductionProfile\\\\.from_mapping\\\\(\\\" src evals tests --glob '\"'!*.png'\"'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m py_compile src/k_slide/retention.py && rtk env PYTHONPATH=src python3 -m unittest tests.test_chg16_retention_policy -q && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 162,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.54,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 8189440,
+      "fresh_input_tokens": 206930,
+      "input_tokens": 8396370,
+      "non_reasoning_output_tokens": 19978,
+      "output_tokens": 39962,
+      "reasoning_output_tokens": 19984,
+      "total_processed_tokens": 8436332
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "b944136178f2d06f7b6f3fbc3fb6a3594084154a",
+      "subject": "fabric: capture completed model changes [CF-1c60b622f246077b073b47fb]"
+    }
+  ],
+  "diff": {
+    "additions": 410,
+    "changed_files": 15,
+    "commit_count": 1,
+    "deletions": 52
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 4,
+    "items": [
+      {
+        "bytes": 11666,
+        "path": "README.md",
+        "sha256": "2e264d539203dd12eb1183955dd328461b2e1f059b4f6ca20488228bfb7affe6"
+      },
+      {
+        "bytes": 3541,
+        "path": "deploy/README.md",
+        "sha256": "7b40ba1b56f71f379163ad90866a7e4f9cdef293a3721bcfe278a663352d3a3d"
+      },
+      {
+        "bytes": 912,
+        "path": "deploy/production-profile.example.json",
+        "sha256": "ca588e3bf5ff7ae5d5a16149900cff0c3397ed92dd49931cc47b35fdac6195b9"
+      },
+      {
+        "bytes": 6646,
+        "path": "tests/test_runtime_artifact.py",
+        "sha256": "4e10d6e97506ae7aa9febbd75034d7182ebaf39533740b39ba0edfa6d2ba77be"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": true,
+    "commit_message": "fabric: capture completed model changes [CF-1c60b622f246077b073b47fb]",
+    "commit_sha": "b944136178f2d06f7b6f3fbc3fb6a3594084154a",
+    "paths_before": 15,
+    "status_before": [
+      " M README.md",
+      " M deploy/README.md",
+      " M deploy/production-profile.example.json",
+      " M evals/production-candidate.example.yaml",
+      " M evals/production-candidate.yaml",
+      " M evals/release.py",
+      " M src/k_slide/certification.py",
+      " M src/k_slide/cli.py",
+      " M src/k_slide/production.py",
+      " M src/k_slide/retention.py",
+      " M tests/test_certification_closure.py",
+      " M tests/test_phase35.py",
+      " M tests/test_runtime_artifact.py",
+      "?? src/k_slide/retention_policy.py",
+      "?? tests/test_chg16_retention_policy.py"
+    ],
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-18T03:05:17Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "2d145a33f0e77591f4d85d55a50ad6e219efe949",
+    "branch": "codex/k-slide-chg16-retention-policy-01",
+    "head_sha": "b944136178f2d06f7b6f3fbc3fb6a3594084154a",
+    "remote_exact_head": true,
+    "remote_head_sha": "b944136178f2d06f7b6f3fbc3fb6a3594084154a",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "2d145a33f0e77591f4d85d55a50ad6e219efe949",
+    "work_branch": "codex/k-slide-chg16-retention-policy-01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-1c60b622f246077b073b47fb",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-retention-policy-01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-retention-policy-01"
+  },
+  "operation": "BUILD",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-retention-policy-01",
+  "schema_version": 1,
+  "started_at": "2026-09-18T02:49:23Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 954,
+    "queue_seconds": 0,
+    "total_seconds": 954
+  },
+  "transport": {
+    "bytes": 8492,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 8179,
+    "prompt_sha256": "8979dc1a9d52b295671f52494a6e36677f169acffbabc30984d610f39504056a",
+    "sha256": "1c60b622f246077b073b47fbbd77c02d884e2d2ec776e19ab767c41b96b26ac0"
+  }
+}
