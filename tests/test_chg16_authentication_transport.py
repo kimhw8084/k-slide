@@ -48,18 +48,22 @@ class _RawRejection(CompanyServiceAuthenticationRejected):
 class _ReferenceTransport:
     """Deterministic adapter with an explicit secret-only capture slot."""
 
-    def __init__(self, *, rejection: Exception | None = None, leak_response: bool = False) -> None:
+    def __init__(self, *, rejection: Exception | None = None, response: object | None = None) -> None:
         self.calls: list[_CapturedCall] = []
         self.rejection = rejection
-        self.leak_response = leak_response
+        self.response = response
 
     def call(self, request: CompanyServiceRequest, *, access_key: str) -> object:
         self.calls.append(_CapturedCall(request, access_key))
         if self.rejection is not None:
             raise self.rejection
-        if self.leak_response:
-            return {"accepted": True, "echo": access_key}
-        return {"accepted": True, "operation": request.operation}
+        if self.response is not None:
+            return self.response
+        return {
+            "accepted": True,
+            "operation": request.operation,
+            "ordinary_data": ["a", "accepted", "request", "/", "   ", "quotes=\"single'"],
+        }
 
 
 class KSA14AuthenticationTransportTests(unittest.TestCase):
@@ -93,11 +97,15 @@ class KSA14AuthenticationTransportTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, ErrorCode.AUTHENTICATION_FAILED)
         self.assertEqual(len(missing_transport.calls), 0)
 
-    def test_opaque_nonempty_values_have_no_local_credential_grammar(self) -> None:
+    def test_opaque_nonempty_values_are_not_matched_against_ordinary_data(self) -> None:
         values = (
+            "a",
+            "accepted",
+            "request",
+            "/",
+            "   ",
             self.CANARY,
             " token with spaces ",
-            "   ",
             "comma,value;semicolon",
             "quotes=\"single'",
             "plus/slash=equals",
@@ -108,6 +116,15 @@ class KSA14AuthenticationTransportTests(unittest.TestCase):
                 transport = _ReferenceTransport()
                 self._call(transport)
                 self.assertEqual(len(transport.calls), 1)
+
+    def test_ordinary_response_text_is_not_a_credential_detection_surface(self) -> None:
+        values = ("a", "accepted", "request", "/", "   ", 'quotes="single\'')
+        for value in values:
+            with self.subTest(value=value), patch.dict(os.environ, {"AccessKey": value}, clear=True):
+                transport = _ReferenceTransport(response={"ordinary_data": value, "accepted": True})
+                response = self._call(transport)
+                self.assertEqual(response, {"ordinary_data": value, "accepted": True})
+                self.assertEqual(transport.calls[0].access_key, value)
 
     def test_missing_empty_and_non_string_values_fail_before_transport(self) -> None:
         for environment in ({}, {"AccessKey": ""}, {"AccessKey": None}):
@@ -193,35 +210,61 @@ class KSA14AuthenticationTransportTests(unittest.TestCase):
         self._assert_absent(self.CANARY[:8], safe_error)
         self._assert_absent(self.CANARY[-8:], safe_error)
         self._assert_absent(hashlib.sha256(self.CANARY.encode()).hexdigest(), safe_error)
+        self.assertEqual(safe_error["message"], "Approved company-service authentication failed.")
+        self.assertEqual(safe_error["details"], {"phase": "authentication", "reason": "rejected"})
 
-    def test_transport_failure_and_response_leak_fail_closed_without_adapter_text(self) -> None:
+    def test_transport_failure_and_nonserializable_response_fail_closed_without_adapter_text(self) -> None:
         class _FailureTransport(_ReferenceTransport):
             def call(self, request: CompanyServiceRequest, *, access_key: str) -> object:
                 self.calls.append(_CapturedCall(request, access_key))
                 raise RuntimeError(f"raw adapter detail {access_key}")
 
-        for transport in (_FailureTransport(), _ReferenceTransport(leak_response=True)):
+        for transport in (_FailureTransport(), _ReferenceTransport(response=object())):
             with patch.dict(os.environ, {"AccessKey": self.CANARY}, clear=True):
                 with self.assertRaises(KSlideError) as raised:
                     self._call(transport)
             self.assertEqual(raised.exception.code, ErrorCode.AUTHENTICATION_FAILED)
             self._assert_absent(self.CANARY, raised.exception.as_dict())
 
-    def test_user_or_source_controlled_destination_fields_cannot_redirect_transport(self) -> None:
+    def test_ordinary_url_values_and_similar_field_names_are_data(self) -> None:
+        payload = {
+            "source_text": "See https://intranet.example/path",
+            "source_url": "https://intranet.example/source",
+            "host_metadata": {"hostname": "ordinary-business-value"},
+            "token_budget": 512,
+            "nested": {"service_endpoint": "https://intranet.example/service", "destination_note": "ordinary"},
+        }
         transport = _ReferenceTransport()
-        payloads = (
-            {"url": "https://attacker.invalid/service"},
-            {"redirect": "//attacker.invalid/service"},
-            {"service_endpoint": "https://attacker.invalid/service"},
-            {"nested": {"destination": "https://attacker.invalid/service"}},
+        with patch.dict(os.environ, {"AccessKey": self.CANARY}, clear=True):
+            response = self._call(transport, CompanyServiceRequest("approved.lookup", payload))
+        self.assertEqual(len(transport.calls), 1)
+        self.assertEqual(transport.calls[0].request.payload, payload)
+        self.assertEqual(response["operation"], "approved.lookup")
+
+    def test_payload_values_cannot_select_or_replace_injected_transport(self) -> None:
+        approved = _ReferenceTransport()
+        unapproved = _ReferenceTransport()
+        with self.assertRaises(KSlideError) as raised:
+            CompanyServiceRequest("approved.lookup", {"endpoint": "https://attacker.invalid/service"})
+        self.assertEqual(raised.exception.code, ErrorCode.SCHEMA_INVALID)
+        self.assertEqual(len(approved.calls), 0)
+        self.assertEqual(len(unapproved.calls), 0)
+
+        ordinary_request = CompanyServiceRequest(
+            "approved.lookup",
+            {"source_url": "https://intranet.example/source", "token_budget": 512},
         )
         with patch.dict(os.environ, {"AccessKey": self.CANARY}, clear=True):
-            for payload in payloads:
-                with self.subTest(field=next(iter(payload))):
-                    with self.assertRaises(KSlideError) as raised:
-                        self._call(transport, CompanyServiceRequest("approved.lookup", payload))
-                    self.assertEqual(raised.exception.code, ErrorCode.SCHEMA_INVALID)
-        self.assertEqual(len(transport.calls), 0)
+            self._call(approved, ordinary_request)
+        self.assertEqual(len(approved.calls), 1)
+        self.assertEqual(len(unapproved.calls), 0)
+
+    def test_exact_reserved_credential_and_transport_fields_remain_absent(self) -> None:
+        for field in ("access_key", "AccessKey", "token", "authorization", "transport", "endpoint", "host"):
+            with self.subTest(field=field):
+                with self.assertRaises(KSlideError) as raised:
+                    CompanyServiceRequest("approved.lookup", {field: "ordinary"})
+                self.assertEqual(raised.exception.code, ErrorCode.SCHEMA_INVALID)
 
     def test_no_cli_or_second_credential_authority_is_added(self) -> None:
         root = Path(__file__).resolve().parents[1]

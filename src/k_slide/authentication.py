@@ -13,7 +13,7 @@ import json
 import os
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass, field, fields, is_dataclass
+from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from .errors import ErrorCode, KSlideError
@@ -22,29 +22,30 @@ from .errors import ErrorCode, KSlideError
 ACCESS_KEY_ENV = "AccessKey"
 _MISSING = object()
 _OPERATION = re.compile(r"^[A-Za-z][A-Za-z0-9_.:/-]{0,127}$")
-_URL_VALUE = re.compile(r"(?i)(?:[a-z][a-z0-9+.-]*://|//)")
-_REQUEST_KEY_MARKERS = (
-    "accesskey",
-    "access_key",
-    "api_key",
-    "authorization",
-    "auth_header",
-    "header",
-    "headers",
-    "secret",
-    "token",
-    "password",
-    "credential",
-    "url",
-    "uri",
-    "endpoint",
-    "destination",
-    "redirect",
-    "base_url",
-    "host",
-    "port",
-    "scheme",
-    "transport",
+_RESERVED_REQUEST_FIELDS = frozenset(
+    {
+        "accesskey",
+        "access_key",
+        "api_key",
+        "authorization",
+        "auth_header",
+        "header",
+        "headers",
+        "secret",
+        "token",
+        "password",
+        "credential",
+        "url",
+        "uri",
+        "endpoint",
+        "destination",
+        "redirect",
+        "base_url",
+        "host",
+        "port",
+        "scheme",
+        "transport",
+    }
 )
 
 
@@ -84,15 +85,13 @@ class CompanyServiceAuthenticationRejected(Exception):
 AuthenticationRejected = CompanyServiceAuthenticationRejected
 
 
-def _request_key_is_unsafe(key: str) -> bool:
+def _request_key_is_reserved(key: str) -> bool:
     normalized = key.casefold().replace("-", "_").replace(" ", "_")
-    return any(marker in normalized for marker in _REQUEST_KEY_MARKERS)
+    return normalized in _RESERVED_REQUEST_FIELDS
 
 
 def _normalize_request_value(value: Any) -> Any:
     if value is None or isinstance(value, (bool, int, str)):
-        if isinstance(value, str) and _URL_VALUE.search(value):
-            raise KSlideError(ErrorCode.SCHEMA_INVALID, "Company-service request contains an unsupported destination value.")
         return value
     if isinstance(value, float):
         if not (-float("inf") < value < float("inf")):
@@ -101,7 +100,7 @@ def _normalize_request_value(value: Any) -> Any:
     if isinstance(value, Mapping):
         normalized: dict[str, Any] = {}
         for key, item in value.items():
-            if not isinstance(key, str) or not key or _request_key_is_unsafe(key):
+            if not isinstance(key, str) or not key or _request_key_is_reserved(key):
                 raise KSlideError(ErrorCode.SCHEMA_INVALID, "Company-service request contains an unsupported field.")
             normalized[key] = _normalize_request_value(item)
         return normalized
@@ -110,33 +109,19 @@ def _normalize_request_value(value: Any) -> Any:
     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Company-service request must contain only serializable values.")
 
 
-def _contains_secret(value: Any, secret: str) -> bool:
-    """Inspect supported response/request containers without invoking repr()."""
-
-    if isinstance(value, str):
-        return secret in value
-    if isinstance(value, Mapping):
-        return any(_contains_secret(key, secret) or _contains_secret(item, secret) for key, item in value.items())
-    if isinstance(value, (list, tuple, set, frozenset)):
-        return any(_contains_secret(item, secret) for item in value)
-    if is_dataclass(value) and not isinstance(value, type):
-        return any(_contains_secret(getattr(value, field.name), secret) for field in fields(value))
-    return False
-
-
 @dataclass(frozen=True)
 class CompanyServiceRequest:
     """Serializable ordinary data for one approved company-service call.
 
-    A request has no destination or credential fields. This prevents a
-    caller-controlled URL or payload value from becoming a transport target.
+    A request has no destination or credential fields. Exact reserved control
+    names are rejected, while ordinary business values remain opaque data.
     """
 
     operation: str
     payload: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if not isinstance(self.operation, str) or not _OPERATION.fullmatch(self.operation) or _URL_VALUE.search(self.operation):
+        if not isinstance(self.operation, str) or not _OPERATION.fullmatch(self.operation):
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "Company-service operation is invalid.")
         if not isinstance(self.payload, Mapping):
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "Company-service request payload must be an object.")
@@ -187,8 +172,6 @@ def authenticated_company_service_call(
 
     access_key = require_access_key()
     try:
-        if _contains_secret(ordinary_request.as_dict(), access_key):
-            raise _authentication_failure("request_separation")
         try:
             response = call(ordinary_request, access_key=access_key)
         except CompanyServiceAuthenticationRejected:
@@ -201,8 +184,6 @@ def authenticated_company_service_call(
             # Do not expose adapter exception text. Transport failures are
             # operational failures and never semantic NEEDS_REVIEW.
             raise _authentication_failure("transport_failed") from None
-        if _contains_secret(response, access_key):
-            raise _authentication_failure("response_separation")
         try:
             json.dumps(response, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
         except (TypeError, ValueError):
