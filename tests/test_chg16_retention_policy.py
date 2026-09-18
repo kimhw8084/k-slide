@@ -8,7 +8,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from k_slide.certification import candidate_completeness, candidate_deployment_fingerprint, load_candidate_spec
+from k_slide.deletion import ReferenceLegalHoldProvider
 from k_slide.errors import ErrorCode, KSlideError
+from k_slide.paas import AuthorizedScopeContext
 from k_slide.production import ProductionProfile, production_checks
 from k_slide.retention import cleanup_expired_runs
 from k_slide.retention_policy import RetentionPolicy
@@ -60,6 +62,14 @@ def _write_expired_terminal_run(root: Path, now: datetime) -> Path:
 
 
 class CHG16RetentionPolicyTests(unittest.TestCase):
+    @staticmethod
+    def _authority(run_refs: tuple[str, ...] = ("terminal",)) -> tuple[AuthorizedScopeContext, ReferenceLegalHoldProvider]:
+        context = AuthorizedScopeContext("retention-admin", "workspace-ref", "workspace")
+        provider = ReferenceLegalHoldProvider()
+        for run_ref in run_refs:
+            provider.set_release(scope_ref="workspace", run_ref=run_ref)
+        return context, provider
+
     def test_policy_is_split_and_survives_profile_serialization(self) -> None:
         policy = RetentionPolicy.from_mapping(_policy(7, 91), require_resolved=True)
         profile = ProductionProfile.from_mapping(_profile(policy.as_dict()))
@@ -187,11 +197,14 @@ class CHG16RetentionPolicyTests(unittest.TestCase):
                         run = run_root / name
                         run.mkdir(mode=0o700)
                         (run / "RUN_STATE.json").write_text(json.dumps({"phase": phase, "updated_at": (now - timedelta(days=10)).isoformat()}), encoding="utf-8")
-                    result = cleanup_expired_runs(root, policy, now=now)
+                    central = root.parent / f"central-{root.name}"
+                    central.mkdir()
+                    context, provider = self._authority()
+                    result = cleanup_expired_runs(root, policy, now=now, scope_context=context, hold_provider=provider, operational_root=central)
                     self.assertEqual({item["run_id"] for item in result["removed"]}, {"terminal"})
                     self.assertTrue((run_root / "active").is_dir())
                     with self.assertRaises(KSlideError) as raised:
-                        cleanup_expired_runs(root, 5)  # type: ignore[arg-type]
+                        cleanup_expired_runs(root, 5, scope_context=context, hold_provider=provider, operational_root=central)  # type: ignore[arg-type]
                     self.assertEqual(raised.exception.code, ErrorCode.RETENTION_INVALID)
 
     def test_tracked_examples_do_not_supply_product_default(self) -> None:

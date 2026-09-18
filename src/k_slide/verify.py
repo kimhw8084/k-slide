@@ -22,7 +22,7 @@ from .queue import WorkQueue, WorkUnitStatus, load_queue, save_queue
 from .rendering import render_run
 from .security import sha256_file
 from .state import RunPhase, load_state, save_state
-from .storage import StorageArtifact, storage_path
+from .storage import StorageArtifact, storage_path, workspace_mutation_guard
 from .terminology import load_effective_termbase
 
 
@@ -207,6 +207,7 @@ def verify_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | 
     with run_lock(run_dir):
         state = load_state(run_dir)
         if state.phase == RunPhase.COMPLETE:
+            workspace_mutation_guard(run_dir)
             sentinel = storage_path(run_dir, StorageArtifact.COMPLETION_MARKER, "RUN_COMPLETE.md")
             sentinel.unlink(missing_ok=True)
             state.transition(RunPhase.VERIFYING, next_action="Re-verifying current artifacts")
@@ -254,6 +255,7 @@ def finalize_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity 
     with run_lock(run_dir):
         state = load_state(run_dir)
         if state.phase == RunPhase.COMPLETE:
+            workspace_mutation_guard(run_dir)
             storage_path(run_dir, StorageArtifact.COMPLETION_MARKER, "RUN_COMPLETE.md").unlink(missing_ok=True)
             state.transition(RunPhase.VERIFYING, next_action="Re-verifying current artifacts")
             save_state(run_dir, state)

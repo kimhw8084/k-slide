@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from k_slide.deletion import (
+    DeletionArtifactClass,
     DeletionOutcome,
     DeletionState,
     LegalHoldStatus,
@@ -14,16 +15,28 @@ from k_slide.deletion import (
     cleanup_operational_metadata,
     delete_workspace_run,
 )
+from k_slide.errors import ErrorCode, KSlideError
 from k_slide.paas import AuthorizedScopeContext, PaaSController, PaaSJobRequest, PaaSWorker, ReferencePaaSJobService, ReferenceWorkerEngine
 from k_slide.retention import cleanup_expired_runs
 from k_slide.retention_policy import RetentionPolicy
-from k_slide.storage import StorageArtifact
+from k_slide.storage import StorageArtifact, StorageLayout
+from k_slide.telemetry import TelemetryEvent, TelemetryEventType, TelemetryLifecycle, TelemetryMachineId, TelemetryReference, TelemetryReferenceKind, TelemetryWriter
 from tests.reference_fixtures import reference_runtime
 
 
 class CHG16DeletionTests(unittest.TestCase):
     def _context(self) -> AuthorizedScopeContext:
         return AuthorizedScopeContext("admin-ref", "workspace-ref", "workspace")
+
+    def _provider(self, run_ref: str) -> ReferenceLegalHoldProvider:
+        provider = ReferenceLegalHoldProvider()
+        provider.set_release(scope_ref="workspace", run_ref=run_ref)
+        return provider
+
+    def _operational_root(self, root: Path) -> Path:
+        operational = root.parent / f"central-{root.name}"
+        operational.mkdir()
+        return operational
 
     def _workspace_run(self, root: Path, run_id: str = "run-delete") -> Path:
         run = root / ".k-slide-runs" / run_id
@@ -46,11 +59,12 @@ class CHG16DeletionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             run = self._workspace_run(root)
-            provider = ReferenceLegalHoldProvider()
-            result = delete_workspace_run(root, run_ref=run.name, deletion_id="delete-1", scope_context=self._context(), hold_provider=provider)
+            provider = self._provider(run.name)
+            operational = self._operational_root(root)
+            result = delete_workspace_run(root, run_ref=run.name, deletion_id="delete-1", scope_context=self._context(), hold_provider=provider, operational_root=operational)
             self.assertEqual(result.outcome, DeletionOutcome.COMPLETE)
             self.assertFalse(run.exists())
-            audit = (root / ".k-slide-runs" / "_deletions" / "delete-1.json").read_text(encoding="utf-8")
+            audit = next(operational.glob("_deletions/workspace/run-delete/delete-1.json")).read_text(encoding="utf-8")
             self.assertNotIn("Korean", audit)
             self.assertNotIn("prompt", audit)
             self.assertNotIn("AccessKey", audit)
@@ -61,20 +75,22 @@ class CHG16DeletionTests(unittest.TestCase):
             root = Path(directory)
             run = self._workspace_run(root)
             provider = ReferenceLegalHoldProvider(default_status=LegalHoldStatus.UNKNOWN)
-            blocked = delete_workspace_run(root, run_ref=run.name, deletion_id="delete-hold", scope_context=self._context(), hold_provider=provider)
+            operational = self._operational_root(root)
+            blocked = delete_workspace_run(root, run_ref=run.name, deletion_id="delete-hold", scope_context=self._context(), hold_provider=provider, operational_root=operational)
             self.assertEqual(blocked.outcome, DeletionOutcome.BLOCKED)
             self.assertTrue(run.exists())
             provider.set_hold(scope_ref="workspace", run_ref=run.name)
-            self.assertEqual(delete_workspace_run(root, run_ref=run.name, deletion_id="delete-hold", scope_context=self._context(), hold_provider=provider).outcome, DeletionOutcome.BLOCKED)
+            self.assertEqual(delete_workspace_run(root, run_ref=run.name, deletion_id="delete-hold", scope_context=self._context(), hold_provider=provider, operational_root=operational).outcome, DeletionOutcome.BLOCKED)
             provider.set_release(scope_ref="workspace", run_ref=run.name)
-            self.assertEqual(delete_workspace_run(root, run_ref=run.name, deletion_id="delete-hold", scope_context=self._context(), hold_provider=provider).outcome, DeletionOutcome.COMPLETE)
+            self.assertEqual(delete_workspace_run(root, run_ref=run.name, deletion_id="delete-hold", scope_context=self._context(), hold_provider=provider, operational_root=operational).outcome, DeletionOutcome.COMPLETE)
 
     def test_partial_retry_and_dry_run_do_not_replay_completed_targets(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             run = self._workspace_run(root, "run-partial")
-            provider = ReferenceLegalHoldProvider()
-            self.assertEqual(delete_workspace_run(root, run_ref=run.name, deletion_id="dry", scope_context=self._context(), hold_provider=provider, dry_run=True).outcome, DeletionOutcome.PLANNED)
+            provider = self._provider(run.name)
+            operational = self._operational_root(root)
+            self.assertEqual(delete_workspace_run(root, run_ref=run.name, deletion_id="dry", scope_context=self._context(), hold_provider=provider, operational_root=operational, dry_run=True).outcome, DeletionOutcome.PLANNED)
             self.assertTrue(run.exists())
             calls = 0
 
@@ -83,23 +99,29 @@ class CHG16DeletionTests(unittest.TestCase):
                 calls += 1
                 return calls == 1
 
-            partial = delete_workspace_run(root, run_ref=run.name, deletion_id="partial", scope_context=self._context(), hold_provider=provider, failure_injector=fail_once)
+            partial = delete_workspace_run(root, run_ref=run.name, deletion_id="partial", scope_context=self._context(), hold_provider=provider, operational_root=operational, failure_injector=fail_once)
             self.assertEqual(partial.state, DeletionState.PARTIAL)
-            complete = delete_workspace_run(root, run_ref=run.name, deletion_id="partial", scope_context=self._context(), hold_provider=provider)
+            with self.assertRaises(KSlideError) as fenced:
+                StorageLayout.for_workspace(run).write_text(StorageArtifact.REPORT, "resurrected.md", "must be fenced")
+            self.assertEqual(fenced.exception.code, ErrorCode.EXECUTION_CONFLICT)
+            self.assertFalse((run / "resurrected.md").exists())
+            complete = delete_workspace_run(root, run_ref=run.name, deletion_id="partial", scope_context=self._context(), hold_provider=provider, operational_root=operational)
             self.assertEqual(complete.outcome, DeletionOutcome.COMPLETE)
             self.assertFalse(run.exists())
-            self.assertEqual(delete_workspace_run(root, run_ref=run.name, deletion_id="partial", scope_context=self._context(), hold_provider=provider).outcome, DeletionOutcome.COMPLETE)
+            self.assertEqual(delete_workspace_run(root, run_ref=run.name, deletion_id="partial", scope_context=self._context(), hold_provider=provider, operational_root=operational).outcome, DeletionOutcome.COMPLETE)
 
     def test_retention_and_operational_metadata_ttls_are_separate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             run = self._workspace_run(root, "run-expired")
-            result = cleanup_expired_runs(root, RetentionPolicy("1.0", 1, 100), now=datetime(2026, 1, 20, tzinfo=timezone.utc))
+            provider = self._provider(run.name)
+            operational = self._operational_root(root)
+            result = cleanup_expired_runs(root, RetentionPolicy("1.0", 1, 100), now=datetime(2026, 1, 20, tzinfo=timezone.utc), scope_context=self._context(), hold_provider=provider, operational_root=operational)
             self.assertEqual({item["run_id"] for item in result["removed"]}, {run.name})
-            audit = root / ".k-slide-runs" / "_deletions"
-            self.assertTrue(list(audit.glob("*.json")))
-            cleanup_operational_metadata(root, RetentionPolicy("1.0", 100, 1), now=datetime.now(timezone.utc) + timedelta(days=2))
-            self.assertFalse(list(audit.glob("*.json")))
+            audit = operational / "_deletions"
+            self.assertTrue(list(audit.rglob("*.json")))
+            cleanup_operational_metadata(root, RetentionPolicy("1.0", 100, 1), scope_context=self._context(), hold_provider=provider, operational_root=operational, now=datetime.now(timezone.utc) + timedelta(days=2))
+            self.assertFalse(list(audit.rglob("*.json")))
 
     def test_scoped_paas_deletion_invalidates_content_and_references(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -110,12 +132,97 @@ class CHG16DeletionTests(unittest.TestCase):
             PaaSWorker(service, worker_id="worker-a", runtime_identity=reference_runtime(), engine=ReferenceWorkerEngine(), scope_context=context).run_until_terminal(receipt.identity)
             content = service.content_layout(receipt.identity, scope_context=context)
             content.write_text(StorageArtifact.SOURCE_SNAPSHOT, "inputs/source.png", "content")
-            result = service.delete_run(receipt.identity, deletion_id="delete-paas", scope_context=context, hold_provider=ReferenceLegalHoldProvider())
+            provider = ReferenceLegalHoldProvider()
+            provider.set_release(scope_ref="scope-a", run_ref="run-paas-delete")
+            result = service.delete_run(receipt.identity, deletion_id="delete-paas", scope_context=context, hold_provider=provider)
             self.assertEqual(result.outcome, DeletionOutcome.COMPLETE)
             self.assertFalse(content.durable_root.exists())
             with self.assertRaises(Exception):
                 service.resolve_references(receipt.identity, scope_context=context)
             self.assertIsNone(service.queue(scope_context=context).active_job_id)
+
+    def test_missing_authority_and_reference_default_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = self._workspace_run(root, "run-authority")
+            operational = self._operational_root(root)
+            with self.assertRaises(KSlideError) as missing_context:
+                delete_workspace_run(root, run_ref=run.name, deletion_id="missing-context", hold_provider=self._provider(run.name), operational_root=operational)
+            self.assertEqual(missing_context.exception.code, ErrorCode.EXECUTION_CONFLICT)
+            with self.assertRaises(KSlideError) as missing_hold:
+                delete_workspace_run(root, run_ref=run.name, deletion_id="missing-hold", scope_context=self._context(), operational_root=operational)
+            self.assertEqual(missing_hold.exception.code, ErrorCode.LEGAL_HOLD_UNKNOWN)
+            blocked = delete_workspace_run(root, run_ref=run.name, deletion_id="default-unknown", scope_context=self._context(), hold_provider=ReferenceLegalHoldProvider(), operational_root=operational)
+            self.assertEqual(blocked.outcome, DeletionOutcome.BLOCKED)
+            self.assertTrue(run.exists())
+
+    def test_target_identity_is_independent_of_business_filenames_and_bytes(self) -> None:
+        def preview(root: Path, relative: str, content: str) -> dict[DeletionArtifactClass, str]:
+            run = root / ".k-slide-runs" / "run-opaque"
+            run.mkdir(parents=True)
+            (run / "RUN_STATE.json").write_text(json.dumps({"run_id": "run-opaque", "phase": "COMPLETE"}), encoding="utf-8")
+            target = run / relative
+            target.parent.mkdir(parents=True)
+            target.write_text(content, encoding="utf-8")
+            operational = root.parent / f"central-{root.name}"
+            operational.mkdir()
+            result = delete_workspace_run(root, run_ref="run-opaque", deletion_id="delete-opaque", scope_context=self._context(), hold_provider=self._provider("run-opaque"), operational_root=operational, dry_run=True)
+            return {item.artifact_class: item.target_ref for item in result.targets}
+
+        with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
+            left = preview(Path(first), "inputs/business-a.txt", "Korean text A")
+            right = preview(Path(second), "inputs/business-b.txt", "different bytes and prompt AccessKey")
+            self.assertEqual(left[DeletionArtifactClass.SOURCE_SNAPSHOT], right[DeletionArtifactClass.SOURCE_SNAPSHOT])
+
+    def test_operational_cleanup_expires_audits_and_central_telemetry_only(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            operational_service = root.parent / f"central-{root.name}"
+            writer = TelemetryWriter(operational_service)
+            run_ref = "metadata-run"
+            provider = self._provider(run_ref)
+            def event(timestamp: str) -> TelemetryEvent:
+                return TelemetryEvent(
+                    TelemetryEventType.LIFECYCLE,
+                    TelemetryReference.from_internal(TelemetryReferenceKind.EVENT, TelemetryMachineId.new(TelemetryReferenceKind.EVENT)),
+                    timestamp,
+                    lifecycle=TelemetryLifecycle.COMPLETED,
+                )
+            writer.write(event("2026-01-01T00:00:00Z"))
+            writer.write(event("2026-01-02T00:00:00Z"))
+            content = root / ".k-slide-runs" / "content" / "source.txt"
+            content.parent.mkdir(parents=True)
+            content.write_text("business content", encoding="utf-8")
+            result = cleanup_operational_metadata(
+                root,
+                RetentionPolicy("1.0", 100, 1),
+                scope_context=self._context(),
+                hold_provider=provider,
+                operational_root=operational_service / "telemetry",
+                now=datetime(2026, 1, 3, tzinfo=timezone.utc),
+            )
+            self.assertEqual(len(result["expired_telemetry"]), 1)
+            self.assertEqual(len(TelemetryWriter(operational_service).records()), 1)
+            self.assertTrue(content.is_file())
+
+    def test_retention_dry_run_reports_planned_separately_from_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = self._workspace_run(root, "run-dry-retention")
+            operational = self._operational_root(root)
+            result = cleanup_expired_runs(
+                root,
+                RetentionPolicy("1.0", 1, 100),
+                now=datetime(2026, 1, 20, tzinfo=timezone.utc),
+                dry_run=True,
+                scope_context=self._context(),
+                hold_provider=self._provider(run.name),
+                operational_root=operational,
+            )
+            self.assertEqual(result["removed"], [])
+            self.assertEqual({item["run_id"] for item in result["planned"]}, {run.name})
+            self.assertTrue(run.exists())
+            self.assertFalse(list(operational.rglob("*.json")))
 
 
 if __name__ == "__main__":

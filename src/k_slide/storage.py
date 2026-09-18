@@ -9,6 +9,7 @@ the durable adapter preserves the historical K-Slide file layout.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -71,11 +72,10 @@ class StorageArtifact(str, Enum):
     TELEMETRY_COORDINATION_LOCK = "telemetry_coordination_lock"
     CONVERSION_STAGING = "conversion_staging"
     TELEMETRY_EVENT = "telemetry_event"
-    # Deletion audits are source-free admission/control metadata.  Keep the
-    # alias on the existing KSA-11 inventory class so the inventory remains
-    # backward compatible while giving the deletion boundary a truthful typed
-    # name for its operational record.
-    DELETION_AUDIT = "admission_control"
+    # Deletion audits are source-free operational metadata.  This is
+    # intentionally a distinct artifact identity rather than an alias for a
+    # durable content-plane class.
+    DELETION_AUDIT = "deletion_audit"
 
 
 STORAGE_POLICY: Mapping[StorageArtifact, StoragePlane] = {
@@ -111,6 +111,7 @@ STORAGE_POLICY: Mapping[StorageArtifact, StoragePlane] = {
     StorageArtifact.TELEMETRY_COORDINATION_LOCK: StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY,
     StorageArtifact.CONVERSION_STAGING: StoragePlane.EPHEMERAL_PROCESSING_SCRATCH,
     StorageArtifact.TELEMETRY_EVENT: StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY,
+    StorageArtifact.DELETION_AUDIT: StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY,
 }
 
 
@@ -168,7 +169,7 @@ def _reject_symlink_components(path: Path, root: Path) -> None:
 
 def _assert_root(root: Path) -> Path:
     root = Path(root).expanduser()
-    if root.exists() and root.is_symlink():
+    if root.is_symlink():
         raise _error("Storage plane root may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
     root = _resolved(root)
     if root.exists() and not root.is_dir():
@@ -193,6 +194,50 @@ def _external_root(root: Path | None, namespace: Path) -> Path | None:
     if resolved == namespace or _is_nested(resolved, namespace) or _is_nested(namespace, resolved):
         raise _error("Central telemetry root must be outside the workspace content namespace.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
     return resolved
+
+
+def workspace_mutation_guard(run_dir: Path) -> None:
+    """Reject product writes after a workspace deletion enters its fence.
+
+    The fence is a small control field in the run state, while the deletion
+    audit itself remains in the explicitly configured central operational
+    plane.  Keeping the check here makes ``StorageLayout`` and direct atomic
+    state/queue/evidence producers share one boundary.
+    """
+
+    run_dir = Path(run_dir).expanduser()
+    if run_dir.is_symlink():
+        raise _error("Workspace run directory may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
+    fence_path = run_dir.parent / "_deletion-fences" / f"{run_dir.name}.json"
+    if fence_path.exists() or fence_path.is_symlink():
+        if fence_path.is_symlink():
+            raise _error("Workspace deletion fence may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
+        try:
+            fence = json.loads(fence_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise _error("Workspace deletion fence could not be read safely.", code=ErrorCode.STATE_CORRUPT) from exc
+        if not isinstance(fence, dict) or fence.get("run_ref") != run_dir.name or fence.get("state") not in {"IN_PROGRESS", "PARTIAL"}:
+            raise _error("Workspace deletion fence is malformed.", code=ErrorCode.STATE_CORRUPT)
+        raise _error("Workspace mutation is fenced by an active deletion lifecycle.", code=ErrorCode.EXECUTION_CONFLICT)
+    state_path = run_dir / "RUN_STATE.json"
+    if not state_path.exists():
+        return
+    if state_path.is_symlink():
+        raise _error("Workspace run state may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
+    try:
+        value = json.loads(state_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        # The run-state authority will reject malformed state when a product
+        # operation actually loads it.  This low-level boundary only treats a
+        # valid deletion fence as a write barrier, preserving scratch/plane
+        # diagnostics for otherwise uninitialized fixtures.
+        return
+    if not isinstance(value, dict):
+        return
+    if value.get("deletion_fence") not in {None, "IN_PROGRESS", "PARTIAL"}:
+        return
+    if value.get("deletion_fence") in {"IN_PROGRESS", "PARTIAL"}:
+        raise _error("Workspace mutation is fenced by an active deletion lifecycle.", code=ErrorCode.EXECUTION_CONFLICT)
 
 
 @dataclass(frozen=True)
@@ -289,7 +334,7 @@ class StorageLayout:
     @classmethod
     def for_workspace(cls, run_dir: Path, *, central_telemetry_root: Path | None = None) -> "StorageLayout":
         run_dir = Path(run_dir).expanduser()
-        if run_dir.exists() and run_dir.is_symlink():
+        if run_dir.is_symlink():
             raise _error("Workspace run directory may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
         run_dir = _resolved(run_dir)
         workspace_root = run_dir.parent.parent if run_dir.parent.name == ".k-slide-runs" else run_dir.parent
@@ -299,6 +344,7 @@ class StorageLayout:
             telemetry_root=_external_root(central_telemetry_root, workspace_root),
             scope_ref="workspace",
             run_ref=run_dir.name,
+            mutation_guard=lambda: workspace_mutation_guard(run_dir),
         )
 
     @classmethod
@@ -355,8 +401,10 @@ class StorageLayout:
             raise _error("Storage plane is unsupported.") from exc
 
     def ensure_root(self, plane: StoragePlane | str) -> Path:
+        if self.mutation_guard is not None:
+            self.mutation_guard()
         root = self.root_for(plane)
-        if root.exists() and root.is_symlink():
+        if root.is_symlink():
             raise _error("Storage plane root may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
         root.mkdir(parents=True, exist_ok=True, mode=0o700)
         if root.is_symlink() or not root.is_dir():
@@ -463,11 +511,13 @@ class StorageLayout:
             raise _error("Storage reference is outside the authorized scope.", code=ErrorCode.EXECUTION_CONFLICT)
         return self.path(reference.artifact, reference.relative_path)
 
-    def cleanup_scratch(self) -> None:
+    def cleanup_scratch(self, *, allow_deletion: bool = False) -> None:
         """Remove only this run's scratch root; durable and telemetry are untouched."""
 
+        if self.mutation_guard is not None and not allow_deletion:
+            self.mutation_guard()
         root = self.scratch_root
-        if root.exists() and root.is_symlink():
+        if root.is_symlink():
             raise _error("Scratch root may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
         if not root.exists():
             return
@@ -507,4 +557,5 @@ __all__ = [
     "StorageReference",
     "StorageResolver",
     "storage_path",
+    "workspace_mutation_guard",
 ]

@@ -80,6 +80,9 @@ def run_lock(run_dir: Path) -> Iterator[None]:
     # The lock is recreateable coordination state, not durable run data.
     from .storage import StorageArtifact, StorageLayout
 
-    lock_path = StorageLayout.for_workspace(run_dir).path(StorageArtifact.COORDINATION_LOCK, ".run.lock", create_parent=True)
+    # Resolving the lock path is read-only; the mutation fence is enforced by
+    # the actual product write boundaries and by WorkspaceRunStore.  The
+    # deletion coordinator must retain this lock to perform its own retry.
+    lock_path = StorageLayout.for_workspace(run_dir).path(StorageArtifact.COORDINATION_LOCK, ".run.lock")
     with filesystem_lock(lock_path):
         yield

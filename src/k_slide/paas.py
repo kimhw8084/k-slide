@@ -1090,15 +1090,25 @@ class ReferencePaaSJobService(RunStoreResolver):
         layout = StorageLayout.for_scoped_reference(service_root=self.root, durable_root=self._scope_root(scope_context), scope_ref=str(scope_context.scope_ref), run_ref="admission")
         return layout.path(StorageArtifact.ADMISSION_QUEUE, "admission/QUEUE.json")
 
+    def _central_operational_root(self) -> Path:
+        return self._storage.root_for(StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY)
+
+    def _scoped_deletion_root(self, scope_context: AuthorizedScopeContext) -> Path:
+        return self._central_operational_root() / "_deletions" / self._scope_key(scope_context)
+
     def _deletion_fenced(self, scope_context: AuthorizedScopeContext, run_ref: str) -> None:
         """Reject new claims/resume/result mutations after KSA-13 starts."""
 
-        audit_root = self._scope_root(scope_context) / "_deletions"
+        audit_root = self._scoped_deletion_root(scope_context)
+        if audit_root.is_symlink():
+            raise KSlideError(ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT, "Scoped deletion audit root is a symbolic link.")
         if not audit_root.is_dir():
             return
         from .deletion import DeletionAudit
 
-        for path in audit_root.glob("*.json"):
+        for path in audit_root.rglob("*.json"):
+            if path.is_symlink():
+                raise KSlideError(ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT, "Scoped deletion audit record is a symbolic link.")
             try:
                 audit = DeletionAudit.from_dict(read_json(path))
             except KSlideError as exc:
@@ -1292,12 +1302,10 @@ class ReferencePaaSJobService(RunStoreResolver):
             record = self._read_scoped_record(scope_context, identity.job_id)
             if record.identity != identity:
                 raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Durable job identity does not match the authorized scope record.")
-            self._deletion_fenced(scope_context, identity.run_id)
             return identity, record
         if not isinstance(identity, str):
             raise _invalid("Durable job identity is invalid.")
         record = self._read_scoped_record(scope_context, identity)
-        self._deletion_fenced(scope_context, record.identity.run_id)
         return record.identity, record
 
     def _check_scoped_job(self, job: ExecutionJob, identity: DurableJobIdentity, record: _ScopedJobRecord) -> None:
@@ -1436,6 +1444,7 @@ class ReferencePaaSJobService(RunStoreResolver):
         self._validate_scoped_job(job)
         identity = DurableJobIdentity.from_job(job)
         references = self._scoped_references(identity, scope_context)
+        self._deletion_fenced(scope_context, identity.run_id)
         with self._scope_lock(scope_context):
             raw_state = self._load_scoped_state(scope_context)
             state = self._normalize_scoped_state(raw_state)
@@ -1559,6 +1568,7 @@ class ReferencePaaSJobService(RunStoreResolver):
     def _request_cancellation_scoped(self, identity: DurableJobIdentity | str, scope_context: AuthorizedScopeContext) -> PaaSJobStatus:
         with self._scope_lock(scope_context):
             resolved, record = self._resolve_scoped_identity(identity, scope_context)
+            self._deletion_fenced(scope_context, resolved.run_id)
             store = self._scoped_store(scope_context)
             current = store.load(resolved.job_id)
             self._check_scoped_job(current, resolved, record)
@@ -1625,6 +1635,7 @@ class ReferencePaaSJobService(RunStoreResolver):
             # Resolve and compare the immutable binding before normalization
             # can repair queue mirrors or promote an admission entry.
             resolved, record = self._resolve_scoped_identity(identity, scope_context)
+            self._deletion_fenced(scope_context, resolved.run_id)
             if record.runtime_identity.environment_identity is None and runtime_identity.environment_identity is None:
                 if not _same_runtime_identity(record.runtime_identity, runtime_identity):
                     raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Worker runtime identity does not match the durable job binding.", {"job_id": resolved.job_id})
@@ -1695,6 +1706,7 @@ class ReferencePaaSJobService(RunStoreResolver):
                 raise KSlideError(ErrorCode.EXECUTION_NOT_FOUND, "No durable PaaS jobs are queued in the authorized scope.")
             record = self._read_scoped_record(scope_context, state.active_job_id)
             job = self._scoped_store(scope_context).load(state.active_job_id)
+            self._deletion_fenced(scope_context, record.identity.run_id)
             if self._terminal_for_admission(job):
                 next_active = None
                 for entry in state.entries:
@@ -1810,13 +1822,13 @@ class ReferencePaaSJobService(RunStoreResolver):
 
     delete_authorized_run = delete_run
 
-    def cleanup_operational_metadata(self, *, scope_context: AuthorizedScopeContext | None = None, retention_policy: Any, now: Any | None = None, dry_run: bool = False) -> dict[str, Any]:
+    def cleanup_operational_metadata(self, *, scope_context: AuthorizedScopeContext | None = None, retention_policy: Any, hold_provider: Any | None = None, now: Any | None = None, dry_run: bool = False) -> dict[str, Any]:
         from .deletion import cleanup_scoped_operational_metadata
 
         scope_context = scope_context or self.scope_context
         if not isinstance(scope_context, AuthorizedScopeContext):
             raise _invalid("Operational-metadata cleanup requires an authorized scope context.")
-        return cleanup_scoped_operational_metadata(self, scope_context=scope_context, retention_policy=retention_policy, now=now, dry_run=dry_run)
+        return cleanup_scoped_operational_metadata(self, scope_context=scope_context, retention_policy=retention_policy, hold_provider=hold_provider, now=now, dry_run=dry_run)
 
 
 class PaaSController:

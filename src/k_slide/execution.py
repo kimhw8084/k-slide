@@ -24,7 +24,7 @@ from .evidence_ir import stable_revision
 from .io import atomic_write_json, read_json
 from .locking import filesystem_lock, run_lock
 from .queue import WorkQueue, load_queue
-from .storage import StorageArtifact, StorageLayout, StoragePlane
+from .storage import StorageArtifact, StorageLayout, StoragePlane, workspace_mutation_guard
 from .state import RunPhase, RunState, load_state, now_utc
 
 
@@ -98,17 +98,12 @@ def _timestamp(value: Any, label: str, *, allow_empty: bool = True) -> None:
 
 def _workspace_deletion_fenced(run_dir: Path) -> bool:
     """Fail closed once KSA-13 has entered its destructive phase."""
-
-    audit_root = Path(run_dir).parent / "_deletions"
-    if not audit_root.is_dir():
-        return False
-    for path in audit_root.glob("*.json"):
-        try:
-            value = read_json(path)
-        except (KSlideError, OSError, TypeError, ValueError) as exc:
-            raise KSlideError(ErrorCode.STATE_CORRUPT, "Deletion control state is corrupt or unreadable.") from exc
-        if isinstance(value, dict) and value.get("run_ref") == Path(run_dir).name and value.get("state") in {"IN_PROGRESS", "PARTIAL"}:
+    try:
+        workspace_mutation_guard(run_dir)
+    except KSlideError as exc:
+        if exc.code is ErrorCode.EXECUTION_CONFLICT:
             return True
+        raise
     return False
 
 
