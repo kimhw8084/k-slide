@@ -295,6 +295,10 @@ class DeletionAudit:
     outcome: DeletionOutcome
     error_code: str
     targets: tuple[DeletionTargetRecord, ...] = ()
+    # Source-free proofs for the immutable control identities that existed
+    # when the deletion was admitted.  These remain usable after the control
+    # artifacts themselves have been removed.
+    generation_anchors: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
         if self.contract_version != DELETION_CONTRACT_VERSION:
@@ -323,6 +327,17 @@ class DeletionAudit:
         refs = [item.target_ref for item in self.targets]
         if len(refs) != len(set(refs)):
             raise _invalid("Deletion audit target identities are not unique.", code=ErrorCode.STATE_CORRUPT)
+        anchors = [item[0] for item in self.generation_anchors]
+        if len(anchors) != len(set(anchors)) or any(
+            not isinstance(item, tuple)
+            or len(item) != 2
+            or not isinstance(item[0], str)
+            or not _STRICT_IDENTIFIER.fullmatch(item[0])
+            or not isinstance(item[1], str)
+            or not _SHA256.fullmatch(item[1])
+            for item in self.generation_anchors
+        ):
+            raise _invalid("Deletion audit generation anchors are invalid.", code=ErrorCode.STATE_CORRUPT)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -341,19 +356,24 @@ class DeletionAudit:
             "outcome": self.outcome.value,
             "error_code": self.error_code,
             "targets": [item.as_dict() for item in self.targets],
+            "generation_anchors": {name: reference for name, reference in self.generation_anchors},
         }
 
     @classmethod
     def from_dict(cls, value: Any) -> "DeletionAudit":
         required = {"contract_version", "deletion_id", "scope_ref", "run_ref", "reason", "target_generation_ref", "authority_ref", "hold_decision_ref", "requested_at", "updated_at", "retry_count", "state", "outcome", "error_code", "targets"}
-        if not isinstance(value, dict) or set(value) != required or not isinstance(value["targets"], list):
+        if not isinstance(value, dict) or set(value) not in (required, required | {"generation_anchors"}) or not isinstance(value["targets"], list):
             raise _invalid("Deletion audit record is incomplete.", code=ErrorCode.STATE_CORRUPT)
         try:
             targets = tuple(DeletionTargetRecord(item["target_ref"], item["artifact_class"], item["status"], item["result_code"]) for item in value["targets"])
+            raw_anchors = value.get("generation_anchors", {})
+            if not isinstance(raw_anchors, dict) or any(not isinstance(name, str) or not isinstance(reference, str) for name, reference in raw_anchors.items()):
+                raise _invalid("Deletion audit generation anchors are invalid.", code=ErrorCode.STATE_CORRUPT)
             return cls(
                 contract_version=value["contract_version"], deletion_id=value["deletion_id"], scope_ref=value["scope_ref"], run_ref=value["run_ref"],
                 reason=value["reason"], target_generation_ref=value["target_generation_ref"], authority_ref=value["authority_ref"], hold_decision_ref=value["hold_decision_ref"],
                 requested_at=value["requested_at"], updated_at=value["updated_at"], retry_count=value["retry_count"], state=value["state"], outcome=value["outcome"], error_code=value["error_code"], targets=targets,
+                generation_anchors=tuple(sorted(raw_anchors.items())),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise _invalid("Deletion audit record is invalid.", code=ErrorCode.STATE_CORRUPT) from exc
@@ -406,6 +426,7 @@ class _BackendState:
     active: bool
     terminal: bool
     canceled: bool = False
+    generation_anchors: tuple[tuple[str, str], ...] = ()
 
 
 class _DeletionBackend(Protocol):
@@ -625,23 +646,46 @@ class WorkspaceDeletionBackend:
         phase = str(raw.get("phase", raw.get("status", "UNKNOWN")))
         job_identity: dict[str, Any] | None = None
         job_lifecycle: OperationalLifecycle | None = None
+        generation_anchors: list[tuple[str, str]] = []
+        state_path = self.run_dir / "RUN_STATE.json"
+        if state_path.is_file() and not state_path.is_symlink():
+            generation_anchors.append(
+                (
+                    DeletionArtifactClass.RUN_STATE.value,
+                    stable_revision(
+                        {
+                            "run_id": raw.get("run_id", self.run_ref),
+                            "created_at": raw.get("created_at", ""),
+                            "updated_at": raw.get("updated_at", ""),
+                            "revision": raw.get("revision", 0),
+                        }
+                    ),
+                )
+            )
         job_path = self.run_dir / "EXECUTION_JOB.json"
-        active = phase not in {item.value for item in (RunPhase.COMPLETE, RunPhase.FAILED_INPUT, RunPhase.FAILED_RUNTIME, RunPhase.FAILED_NORMALIZATION, RunPhase.FAILED_EXTRACTION, RunPhase.FAILED_SCHEMA, RunPhase.FAILED_INTERNAL)}
+        terminal_phases = {item.value for item in (RunPhase.COMPLETE, RunPhase.FAILED_INPUT, RunPhase.FAILED_RUNTIME, RunPhase.FAILED_NORMALIZATION, RunPhase.FAILED_EXTRACTION, RunPhase.FAILED_SCHEMA, RunPhase.FAILED_INTERNAL)}
+        active = state_path.is_file() and phase not in terminal_phases
         if job_path.is_file():
             try:
                 # The coordinator already owns the run lock. Read directly so
                 # a PARTIAL audit fence does not block its own retry path.
                 job = WorkspaceRunStore(self.run_dir)._read(job_path, f"job-{self.run_ref}")
                 job_identity = {"run_ref": job.run_id, "job_ref": job.job_id, "execution_ref": job.execution_id, "store_ref": job.store_ref.store_ref}
+                generation_anchors.append(
+                    (
+                        DeletionArtifactClass.EXECUTION_JOB.value,
+                        stable_revision({"identity": job_identity, "created_at": job.created_at}),
+                    )
+                )
                 job_lifecycle = job.lifecycle
                 active = job.lifecycle in {OperationalLifecycle.QUEUED, OperationalLifecycle.RUNNING, OperationalLifecycle.RETRYING}
             except KSlideError as exc:
                 if exc.code is not ErrorCode.EXECUTION_NOT_FOUND:
                     raise
         generation = stable_revision({"scope_ref": self.scope_ref, "run_ref": self.run_ref, "state": {"run_id": raw.get("run_id", self.run_ref), "created_at": raw.get("created_at", ""), "updated_at": raw.get("updated_at", ""), "revision": raw.get("revision", 0)}, "job": job_identity})
-        phase_terminal = phase in {item.value for item in (RunPhase.COMPLETE, RunPhase.FAILED_INPUT, RunPhase.FAILED_RUNTIME, RunPhase.FAILED_NORMALIZATION, RunPhase.FAILED_EXTRACTION, RunPhase.FAILED_SCHEMA, RunPhase.FAILED_INTERNAL)}
+        phase_terminal = not state_path.exists() or phase in terminal_phases
         canceled = bool(job_identity and job_lifecycle is OperationalLifecycle.CANCELED)
-        return _BackendState(generation, active, phase_terminal or canceled, canceled)
+        return _BackendState(generation, active, phase_terminal or canceled, canceled, tuple(sorted(generation_anchors)))
 
     def request_cancellation(self) -> None:
         path = self.run_dir / "EXECUTION_JOB.json"
@@ -727,24 +771,25 @@ class ScopedReferenceDeletionBackend:
             raise _invalid("Deletion requires an authorized scope context.")
         if not isinstance(identity, (DurableJobIdentity, str)):
             raise _invalid("Deletion requires a durable job identity.")
-        # Deletion retries must be able to reopen their own fenced record;
-        # use the adapter's scope-bound record reader rather than the normal
-        # resolver, whose fail-closed fence is for workers and callers.
+        self.service = service
+        self.scope_context = scope_context
+        self.scope_ref = str(scope_context.scope_ref)
         if isinstance(identity, DurableJobIdentity):
             if identity.scope_ref != scope_context.scope_ref:
                 raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Authorized scope context does not match the deletion identity.")
-            record = service._read_scoped_record(scope_context, identity.job_id)
-            if record.identity != identity:
+            # The admission record is a deletion target.  It is authoritative
+            # when present, but it cannot be a prerequisite for reopening a
+            # central audit after a partial or complete deletion.
+            record_path = service._scope_record_path(scope_context, identity.job_id)
+            record = service._read_scoped_record(scope_context, identity.job_id) if record_path.is_file() else None
+            if record is not None and record.identity != identity:
                 raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Deletion identity does not match the authorized scope record.")
             resolved = identity
         else:
             record = service._read_scoped_record(scope_context, identity)
             resolved = record.identity
-        self.service = service
         self.identity = resolved
         self.record = record
-        self.scope_context = scope_context
-        self.scope_ref = str(scope_context.scope_ref)
         self.run_ref = resolved.run_id
         self.scope_root = service._scope_root(scope_context)
 
@@ -761,18 +806,54 @@ class ScopedReferenceDeletionBackend:
         deletion_id = _opaque(deletion_id, "deletion identity", strict=True)
         layout = StorageLayout.for_scoped_reference(service_root=self.service.root, durable_root=self.scope_root, scope_ref=self.scope_ref, run_ref=self.identity.job_id)
         scope_key = self.service._scope_key(self.scope_context)
-        return layout.path(StorageArtifact.DELETION_AUDIT, f"_deletions/{scope_key}/{self.run_ref}/{deletion_id}.json", create_parent=create_parent)
+        # The job identity is part of the locator.  ``run_ref`` alone is not
+        # sufficient: a new durable job may legitimately reuse an external
+        # run name after the old control record has been deleted.
+        return layout.path(StorageArtifact.DELETION_AUDIT, f"_deletions/{scope_key}/{self.run_ref}/{self.identity.job_id}/{deletion_id}.json", create_parent=create_parent)
 
-    def load_audit(self, deletion_id: str) -> DeletionAudit | None:
-        path = self.audit_path(deletion_id)
-        if not path.is_file():
-            return None
+    def _audit_root(self) -> Path:
+        return self.service._central_operational_root() / "_deletions" / self.service._scope_key(self.scope_context)
+
+    def _read_audit_file(self, path: Path) -> DeletionAudit:
+        if path.is_symlink():
+            raise KSlideError(ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT, "Deletion audit record is a symbolic link.")
         try:
             return DeletionAudit.from_dict(read_json(path))
         except KSlideError:
             raise
         except (OSError, TypeError, ValueError) as exc:
             raise KSlideError(ErrorCode.STATE_CORRUPT, "Deletion audit record is corrupt or unreadable.") from exc
+
+    def load_audit(self, deletion_id: str) -> DeletionAudit | None:
+        path = self.audit_path(deletion_id)
+        audit_root = self._audit_root()
+        if audit_root.is_symlink():
+            raise KSlideError(ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT, "Deletion audit root is a symbolic link.")
+        records: list[tuple[Path, DeletionAudit]] = []
+        if audit_root.is_dir():
+            for candidate in _safe_files(audit_root):
+                if candidate.suffix == ".json":
+                    records.append((candidate, self._read_audit_file(candidate)))
+        expected_identity_dir = path.parent
+        requested: DeletionAudit | None = None
+        for candidate, audit in records:
+            if audit.scope_ref != self.scope_ref:
+                raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Deletion audit is outside the authorized scope.")
+            if candidate == path:
+                if audit.run_ref != self.run_ref:
+                    raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Deletion audit identity does not match the authorized run.")
+                requested = audit
+                continue
+            # A different deletion ID for this exact typed identity is not a
+            # new operation.  It would otherwise allow a caller to replay
+            # after the admission record has been removed.
+            if candidate.parent == expected_identity_dir:
+                raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "A deletion audit already exists for this durable identity.")
+            # Likewise, the same deletion ID bound to another run/job in the
+            # authorized scope must not be adopted by this identity.
+            if audit.deletion_id == deletion_id:
+                raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Deletion identity is bound to a different durable job.")
+        return requested
 
     def save_audit(self, audit: DeletionAudit) -> None:
         atomic_write_json(self.audit_path(audit.deletion_id, create_parent=True), audit.as_dict(), mode=0o600)
@@ -786,14 +867,51 @@ class ScopedReferenceDeletionBackend:
 
     def state(self) -> _BackendState:
         job = self._job_if_present()
+        record_path = self.service._scope_record_path(self.scope_context, self.identity.job_id)
+        current_record = self.service._read_scoped_record(self.scope_context, self.identity.job_id) if record_path.is_file() else None
+        if current_record is not None and current_record.identity != self.identity:
+            raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Durable deletion identity changed.")
+        generation_anchors: list[tuple[str, str]] = []
+        if current_record is not None:
+            generation_anchors.append(
+                (
+                    DeletionArtifactClass.ADMISSION_RECORD.value,
+                    stable_revision(
+                        {
+                            "identity": current_record.identity.as_dict(),
+                            "environment": current_record.environment_identity.as_dict(),
+                            "submitted_at": current_record.submitted_at,
+                            "admission_sequence": current_record.admission_sequence,
+                        }
+                    ),
+                )
+        )
         if job is None:
-            generation = stable_revision(self.record.identity.as_dict())
-            return _BackendState(generation, False, True)
+            generation = stable_revision((current_record.identity if current_record is not None else self.identity).as_dict())
+            return _BackendState(generation, False, True, False, tuple(sorted(generation_anchors)))
         if job.run_id != self.identity.run_id or job.job_id != self.identity.job_id or job.execution_id != self.identity.execution_id:
             raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Durable deletion identity changed.")
-        generation = stable_revision({"identity": self.record.identity.as_dict(), "environment": self.record.environment_identity.as_dict()})
+        generation_anchors.append(
+            (
+                DeletionArtifactClass.EXECUTION_JOB.value,
+                stable_revision(
+                    {
+                        "identity": self.identity.as_dict(),
+                        "environment": job.environment_identity.as_dict() if job.environment_identity is not None else None,
+                        "created_at": job.created_at,
+                    }
+                ),
+            )
+        )
+        generation_record = current_record or self.record
+        generation = stable_revision(
+            {
+                "identity": self.identity.as_dict(),
+                "environment": generation_record.environment_identity.as_dict() if generation_record is not None else (job.environment_identity.as_dict() if job.environment_identity is not None else None),
+            }
+        )
         active = job.lifecycle in {OperationalLifecycle.QUEUED, OperationalLifecycle.RUNNING, OperationalLifecycle.RETRYING}
-        return _BackendState(generation, active, not active, job.lifecycle is OperationalLifecycle.CANCELED)
+        return _BackendState(generation, active, not active, job.lifecycle is OperationalLifecycle.CANCELED, tuple(sorted(generation_anchors)))
 
     def request_cancellation(self) -> None:
         backend = self.service._scoped_store(self.scope_context)._backend
@@ -913,6 +1031,43 @@ def _safe_hold(provider: LegalHoldProvider, *, scope_ref: str, run_ref: str) -> 
         raise KSlideError(ErrorCode.LEGAL_HOLD_UNKNOWN, "Authoritative legal-hold state is unavailable or unverifiable.") from exc
 
 
+def _generation_matches(state: _BackendState, audit: DeletionAudit) -> bool:
+    """Accept only the same immutable generation across deletion retries.
+
+    A missing anchor is safe once the audit proves that the corresponding
+    target was part of this deletion.  A newly present anchor must still
+    match its source-free proof; this is what rejects a recreated run/control
+    record with a reused external name.
+    """
+
+    expected = dict(audit.generation_anchors)
+    current = dict(state.generation_anchors)
+    if expected:
+        if set(current) - set(expected):
+            return False
+        target_status = {item.artifact_class.value: item.status for item in audit.targets}
+        for name, reference in expected.items():
+            if name in current:
+                if current[name] != reference:
+                    return False
+                continue
+            if target_status.get(name) not in {TargetStatus.PLANNED, TargetStatus.DELETED, TargetStatus.ABSENT, TargetStatus.FAILED}:
+                return False
+        return True
+
+    if state.generation_ref == audit.target_generation_ref:
+        return True
+    # Audits written before generation anchors were introduced can still be
+    # resumed after all of their identity-bearing targets were removed.  A
+    # newly recreated anchor remains visible and therefore cannot take this
+    # compatibility path.
+    if state.generation_anchors:
+        return False
+    anchor_classes = {DeletionArtifactClass.RUN_STATE.value, DeletionArtifactClass.EXECUTION_JOB.value, DeletionArtifactClass.ADMISSION_RECORD.value}
+    recorded = [item for item in audit.targets if item.artifact_class.value in anchor_classes]
+    return bool(recorded) and all(item.status in {TargetStatus.PLANNED, TargetStatus.DELETED, TargetStatus.ABSENT, TargetStatus.FAILED} for item in recorded)
+
+
 class DeletionCoordinator:
     """One idempotent deletion state machine for explicit and expiry calls."""
 
@@ -971,7 +1126,7 @@ class DeletionCoordinator:
                 return self._result(request, state=blocked.state, outcome=blocked.outcome, dry_run=False, retry_count=blocked.retry_count, error_code=blocked.error_code, targets=blocked.targets)
             current = self.backend.load_audit(request.deletion_id)
             state = self.backend.state()
-            if current is not None and current.target_generation_ref != state.generation_ref and current.targets:
+            if current is not None and current.targets and not _generation_matches(state, current):
                 blocked = replace(current, updated_at=now_utc(), state=DeletionState.BLOCKED, outcome=DeletionOutcome.BLOCKED, error_code="TARGET_IDENTITY_MISMATCH", retry_count=current.retry_count + 1)
                 if not dry_run:
                     self.backend.save_audit(blocked)
@@ -998,14 +1153,28 @@ class DeletionCoordinator:
             if dry_run:
                 preview = tuple(DeletionTargetRecord(item.target_ref, item.artifact_class, TargetStatus.PLANNED) for item in candidates)
                 return self._result(request, state=DeletionState.PLANNED, outcome=DeletionOutcome.PLANNED, dry_run=True, retry_count=current.retry_count if current else 0, error_code="NONE", targets=preview)
-            audit = current or DeletionAudit(DELETION_CONTRACT_VERSION, request.deletion_id, request.scope_ref, request.run_ref, request.reason, state.generation_ref, hold.authority_ref, hold.decision_ref, request.requested_at, request.requested_at, 0, DeletionState.PLANNED, DeletionOutcome.PLANNED, "NONE", tuple(DeletionTargetRecord(item.target_ref, item.artifact_class, TargetStatus.PLANNED) for item in candidates))
+            audit = current or DeletionAudit(DELETION_CONTRACT_VERSION, request.deletion_id, request.scope_ref, request.run_ref, request.reason, state.generation_ref, hold.authority_ref, hold.decision_ref, request.requested_at, request.requested_at, 0, DeletionState.PLANNED, DeletionOutcome.PLANNED, "NONE", tuple(DeletionTargetRecord(item.target_ref, item.artifact_class, TargetStatus.PLANNED) for item in candidates), state.generation_anchors)
             if not audit.targets:
                 audit = replace(audit, targets=tuple(DeletionTargetRecord(item.target_ref, item.artifact_class, TargetStatus.PLANNED) for item in candidates))
             known = {item.target_ref: item for item in audit.targets}
             added = [item for item in candidates if item.target_ref not in known]
             if added:
                 audit = replace(audit, targets=tuple((*audit.targets, *(DeletionTargetRecord(item.target_ref, item.artifact_class, TargetStatus.FAILED, "TARGET_ADDED") for item in added))))
-            active_audit = replace(audit, authority_ref=hold.authority_ref, hold_decision_ref=hold.decision_ref, target_generation_ref=state.generation_ref, updated_at=now_utc(), retry_count=audit.retry_count + 1, state=DeletionState.IN_PROGRESS, outcome=DeletionOutcome.IN_PROGRESS, error_code="NONE")
+            active_audit = replace(
+                audit,
+                authority_ref=hold.authority_ref,
+                hold_decision_ref=hold.decision_ref,
+                # The first durable plan owns the generation for all retries.
+                # Live state may legitimately lose its anchors during this
+                # same deletion attempt.
+                target_generation_ref=audit.target_generation_ref,
+                generation_anchors=audit.generation_anchors or state.generation_anchors,
+                updated_at=now_utc(),
+                retry_count=audit.retry_count + 1,
+                state=DeletionState.IN_PROGRESS,
+                outcome=DeletionOutcome.IN_PROGRESS,
+                error_code="NONE",
+            )
             self.backend.save_audit(active_audit)
             by_ref = {item.target_ref: item for item in candidates}
             target_records = list(active_audit.targets)

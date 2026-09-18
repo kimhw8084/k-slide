@@ -13,9 +13,13 @@ from k_slide.deletion import (
     LegalHoldStatus,
     ReferenceLegalHoldProvider,
     cleanup_operational_metadata,
+    delete_scoped_run,
     delete_workspace_run,
 )
 from k_slide.errors import ErrorCode, KSlideError
+from k_slide.evidence_ir import stable_revision
+from k_slide.execution import ExecutionJob, ExecutionProfile, OperationalLifecycle, TerminalOutcome, WorkspaceRunStore
+from k_slide.io import atomic_write_json
 from k_slide.paas import AuthorizedScopeContext, PaaSController, PaaSJobRequest, PaaSWorker, ReferencePaaSJobService, ReferenceWorkerEngine
 from k_slide.retention import cleanup_expired_runs
 from k_slide.retention_policy import RetentionPolicy
@@ -140,6 +144,145 @@ class CHG16DeletionTests(unittest.TestCase):
             with self.assertRaises(Exception):
                 service.resolve_references(receipt.identity, scope_context=context)
             self.assertIsNone(service.queue(scope_context=context).active_job_id)
+
+    def test_scoped_complete_replay_uses_typed_identity_after_control_removal(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            context = AuthorizedScopeContext("user-replay", "workspace-replay", "scope-replay")
+            service = ReferencePaaSJobService(root)
+            receipt = PaaSController(service, scope_context=context).submit(PaaSJobRequest("run-replay", "scope-replay", "store-replay", reference_runtime(), total_work_units=1))
+            PaaSWorker(service, worker_id="worker-replay", runtime_identity=reference_runtime(), engine=ReferenceWorkerEngine(), scope_context=context).run_until_terminal(receipt.identity)
+            content = service.content_layout(receipt.identity, scope_context=context)
+            content.write_text(StorageArtifact.SOURCE_SNAPSHOT, "inputs/source.png", "content")
+            provider = ReferenceLegalHoldProvider()
+            provider.set_release(scope_ref="scope-replay", run_ref="run-replay")
+            first = service.delete_run(receipt.identity, deletion_id="delete-replay", scope_context=context, hold_provider=provider)
+            self.assertEqual(first.outcome, DeletionOutcome.COMPLETE)
+            control = service._scope_control_path(context)
+            queue = service._scope_queue_path(context)
+            control_before = control.read_bytes()
+            queue_before = queue.read_bytes()
+            self.assertFalse(service._scope_record_path(context, receipt.job_id).exists())
+            self.assertFalse((service._scope_root(context) / "run-store" / "jobs" / f"{receipt.job_id}.json").exists())
+            self.assertFalse(content.durable_root.exists())
+
+            replay = service.delete_run(receipt.identity, deletion_id="delete-replay", scope_context=context, hold_provider=provider)
+            self.assertEqual(replay.outcome, DeletionOutcome.COMPLETE)
+            self.assertEqual(control_before, control.read_bytes())
+            self.assertEqual(queue_before, queue.read_bytes())
+            with self.assertRaises(KSlideError) as different_id:
+                service.delete_run(receipt.identity, deletion_id="delete-replay-again", scope_context=context, hold_provider=provider)
+            self.assertEqual(different_id.exception.code, ErrorCode.EXECUTION_CONFLICT)
+
+    def test_scoped_late_failure_retries_after_admission_and_job_are_gone(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            context = AuthorizedScopeContext("user-late", "workspace-late", "scope-late")
+            service = ReferencePaaSJobService(root)
+            receipt = PaaSController(service, scope_context=context).submit(PaaSJobRequest("run-late", "scope-late", "store-late", reference_runtime(), total_work_units=1))
+            PaaSWorker(service, worker_id="worker-late", runtime_identity=reference_runtime(), engine=ReferenceWorkerEngine(), scope_context=context).run_until_terminal(receipt.identity)
+            content = service.content_layout(receipt.identity, scope_context=context)
+            content.write_text(StorageArtifact.SOURCE_SNAPSHOT, "inputs/source.png", "content")
+            provider = ReferenceLegalHoldProvider()
+            provider.set_release(scope_ref="scope-late", run_ref="run-late")
+
+            partial = delete_scoped_run(
+                service,
+                identity=receipt.identity,
+                scope_context=context,
+                deletion_id="delete-late",
+                hold_provider=provider,
+                failure_injector=lambda candidate: candidate.artifact_class is DeletionArtifactClass.SOURCE_SNAPSHOT,
+            )
+            self.assertEqual(partial.outcome, DeletionOutcome.PARTIAL)
+            self.assertFalse(service._scope_record_path(context, receipt.job_id).exists())
+            self.assertFalse((service._scope_root(context) / "run-store" / "jobs" / f"{receipt.job_id}.json").exists())
+            self.assertTrue(content.durable_root.exists())
+
+            complete = delete_scoped_run(service, identity=receipt.identity, scope_context=context, deletion_id="delete-late", hold_provider=provider)
+            self.assertEqual(complete.outcome, DeletionOutcome.COMPLETE)
+            self.assertFalse(content.durable_root.exists())
+
+    def test_workspace_late_failure_retries_after_run_state_and_job_are_gone(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = self._workspace_run(root, "run-workspace-late")
+            store = WorkspaceRunStore(run)
+            job = ExecutionJob.new(run_id=run.name, profile=ExecutionProfile.WORKSPACE_LOCAL, scope_ref="workspace", store_ref="store-workspace")
+            created = store.create(job).job
+            running = store.transition_operational(created.job_id, expected_revision=created.revision, lifecycle=OperationalLifecycle.RUNNING).job
+            store.transition_operational(running.job_id, expected_revision=running.revision, lifecycle=OperationalLifecycle.COMPLETED, terminal_outcome=TerminalOutcome.DONE)
+            (run / "WORK_QUEUE.json").write_text("queue", encoding="utf-8")
+            operational = self._operational_root(root)
+            provider = self._provider(run.name)
+
+            partial = delete_workspace_run(
+                root,
+                run_ref=run.name,
+                deletion_id="delete-workspace-late",
+                scope_context=self._context(),
+                hold_provider=provider,
+                operational_root=operational,
+                failure_injector=lambda candidate: candidate.artifact_class is DeletionArtifactClass.WORK_QUEUE,
+            )
+            self.assertEqual(partial.outcome, DeletionOutcome.PARTIAL)
+            self.assertFalse((run / "RUN_STATE.json").exists())
+            self.assertFalse((run / "EXECUTION_JOB.json").exists())
+            self.assertTrue(run.exists())
+
+            complete = delete_workspace_run(root, run_ref=run.name, deletion_id="delete-workspace-late", scope_context=self._context(), hold_provider=provider, operational_root=operational)
+            self.assertEqual(complete.outcome, DeletionOutcome.COMPLETE)
+            self.assertFalse(run.exists())
+
+    def test_stale_scoped_generation_rejects_new_control_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            context = AuthorizedScopeContext("user-generation", "workspace-generation", "scope-generation")
+            service = ReferencePaaSJobService(root)
+            receipt = PaaSController(service, scope_context=context).submit(PaaSJobRequest("run-generation", "scope-generation", "store-generation", reference_runtime("a"), total_work_units=1))
+            PaaSWorker(service, worker_id="worker-generation", runtime_identity=reference_runtime("a"), engine=ReferenceWorkerEngine(), scope_context=context).run_until_terminal(receipt.identity)
+            content = service.content_layout(receipt.identity, scope_context=context)
+            content.write_text(StorageArtifact.SOURCE_SNAPSHOT, "inputs/source.png", "content")
+            provider = ReferenceLegalHoldProvider()
+            provider.set_release(scope_ref="scope-generation", run_ref="run-generation")
+            record_path = service._scope_record_path(context, receipt.job_id)
+            original_record = json.loads(record_path.read_text(encoding="utf-8"))
+            partial = delete_scoped_run(
+                service,
+                identity=receipt.identity,
+                scope_context=context,
+                deletion_id="delete-generation",
+                hold_provider=provider,
+                failure_injector=lambda candidate: candidate.artifact_class is DeletionArtifactClass.SOURCE_SNAPSHOT,
+            )
+            self.assertEqual(partial.outcome, DeletionOutcome.PARTIAL)
+
+            # The public submit boundary remains fenced during PARTIAL.  An
+            # external control-plane resurrection is simulated below only to
+            # prove that the stale deletion does not consume it.
+            replacement_runtime = reference_runtime("b")
+            replacement_job = ExecutionJob.new(
+                run_id=receipt.identity.run_id,
+                profile=ExecutionProfile.DURABLE,
+                scope_ref=receipt.identity.scope_ref,
+                store_ref=receipt.identity.store_ref,
+                job_id=receipt.identity.job_id,
+                execution_id=receipt.identity.execution_id,
+                total_work_units=1,
+                environment_identity=replacement_runtime.environment(),
+            )
+            service._scoped_store(context).create(replacement_job)
+            record = original_record
+            record["runtime_identity"] = replacement_runtime.as_dict()
+            record["environment_identity"] = replacement_runtime.environment().as_dict()
+            unsigned = dict(record)
+            unsigned.pop("record_sha256")
+            record["record_sha256"] = stable_revision(unsigned)
+            atomic_write_json(record_path, record, mode=0o600)
+            stale = delete_scoped_run(service, identity=receipt.identity, scope_context=context, deletion_id="delete-generation", hold_provider=provider)
+            self.assertEqual(stale.outcome, DeletionOutcome.BLOCKED)
+            self.assertEqual(stale.error_code, "TARGET_IDENTITY_MISMATCH")
+            self.assertTrue(content.durable_root.exists())
 
     def test_missing_authority_and_reference_default_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
