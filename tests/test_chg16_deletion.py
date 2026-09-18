@@ -20,7 +20,7 @@ from k_slide.errors import ErrorCode, KSlideError
 from k_slide.evidence_ir import stable_revision
 from k_slide.execution import ExecutionJob, ExecutionProfile, OperationalLifecycle, TerminalOutcome, WorkspaceRunStore
 from k_slide.io import atomic_write_json
-from k_slide.paas import AuthorizedScopeContext, PaaSController, PaaSJobRequest, PaaSWorker, ReferencePaaSJobService, ReferenceWorkerEngine
+from k_slide.paas import AuthorizedScopeContext, DurableJobIdentity, PaaSController, PaaSJobRequest, PaaSWorker, ReferencePaaSJobService, ReferenceWorkerEngine
 from k_slide.retention import cleanup_expired_runs
 from k_slide.retention_policy import RetentionPolicy
 from k_slide.storage import StorageArtifact, StorageLayout
@@ -42,11 +42,11 @@ class CHG16DeletionTests(unittest.TestCase):
         operational.mkdir()
         return operational
 
-    def _workspace_run(self, root: Path, run_id: str = "run-delete") -> Path:
+    def _workspace_run(self, root: Path, run_id: str = "run-delete", created_at: str = "2020-01-01T00:00:00Z") -> Path:
         run = root / ".k-slide-runs" / run_id
         run.mkdir(parents=True, mode=0o700)
         (run / "RUN_STATE.json").write_text(
-            json.dumps({"run_id": run_id, "phase": "COMPLETE", "created_at": "2020-01-01T00:00:00Z", "updated_at": "2020-01-01T00:00:00Z"}),
+            json.dumps({"run_id": run_id, "phase": "COMPLETE", "created_at": created_at, "updated_at": created_at}),
             encoding="utf-8",
         )
         for relative in (
@@ -173,6 +173,95 @@ class CHG16DeletionTests(unittest.TestCase):
             with self.assertRaises(KSlideError) as different_id:
                 service.delete_run(receipt.identity, deletion_id="delete-replay-again", scope_context=context, hold_provider=provider)
             self.assertEqual(different_id.exception.code, ErrorCode.EXECUTION_CONFLICT)
+            mismatching_identity = DurableJobIdentity(
+                "different-run",
+                receipt.identity.job_id,
+                receipt.identity.execution_id,
+                receipt.identity.scope_ref,
+                receipt.identity.store_ref,
+            )
+            with self.assertRaises(KSlideError) as mismatching_typed_identity:
+                service.delete_run(mismatching_identity, deletion_id="delete-replay", scope_context=context, hold_provider=provider)
+            self.assertEqual(mismatching_typed_identity.exception.code, ErrorCode.EXECUTION_CONFLICT)
+
+    def test_completed_scoped_replay_rejects_recreated_generation_without_touching_new_run(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            context = AuthorizedScopeContext("user-reuse", "workspace-reuse", "scope-reuse")
+            service = ReferencePaaSJobService(root)
+            controller = PaaSController(service, scope_context=context)
+            original = controller.submit(PaaSJobRequest("run-reuse", "scope-reuse", "store-reuse", reference_runtime("old"), total_work_units=1))
+            PaaSWorker(service, worker_id="worker-reuse", runtime_identity=reference_runtime("old"), engine=ReferenceWorkerEngine(), scope_context=context).run_until_terminal(original.identity)
+            provider = ReferenceLegalHoldProvider()
+            provider.set_release(scope_ref="scope-reuse", run_ref="run-reuse")
+            first = service.delete_run(original.identity, deletion_id="delete-reuse", scope_context=context, hold_provider=provider)
+            self.assertEqual(first.outcome, DeletionOutcome.COMPLETE)
+
+            recreated = controller.submit(
+                PaaSJobRequest(
+                    "run-reuse",
+                    "scope-reuse",
+                    "store-reuse",
+                    reference_runtime("new"),
+                    total_work_units=1,
+                    job_id=original.identity.job_id,
+                    execution_id=original.identity.execution_id,
+                )
+            )
+            self.assertEqual(recreated.identity, original.identity)
+            content = service.content_layout(recreated.identity, scope_context=context)
+            content.write_text(StorageArtifact.SOURCE_SNAPSHOT, "inputs/recreated.txt", "new generation content")
+            record_path = service._scope_record_path(context, recreated.job_id)
+            job_path = service._scope_root(context) / "run-store" / "jobs" / f"{recreated.job_id}.json"
+            control = service._scope_control_path(context)
+            queue = service._scope_queue_path(context)
+            before = {path: path.read_bytes() for path in (record_path, job_path, control, queue)}
+            content_before = (content.durable_root / "inputs" / "recreated.txt").read_bytes()
+
+            stale = service.delete_run(original.identity, deletion_id="delete-reuse", scope_context=context, hold_provider=provider)
+            self.assertEqual(stale.outcome, DeletionOutcome.BLOCKED)
+            self.assertEqual(stale.error_code, "TARGET_IDENTITY_MISMATCH")
+            self.assertTrue((content.durable_root / "inputs" / "recreated.txt").is_file())
+            self.assertEqual(content_before, (content.durable_root / "inputs" / "recreated.txt").read_bytes())
+            self.assertEqual(before, {path: path.read_bytes() for path in (record_path, job_path, control, queue)})
+
+    def test_completed_workspace_replay_with_no_recreated_generation_stays_complete(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = self._workspace_run(root, "run-workspace-replay")
+            operational = self._operational_root(root)
+            provider = self._provider(run.name)
+            first = delete_workspace_run(root, run_ref=run.name, deletion_id="delete-workspace-replay", scope_context=self._context(), hold_provider=provider, operational_root=operational)
+            self.assertEqual(first.outcome, DeletionOutcome.COMPLETE)
+            audit = operational / "_deletions" / "workspace" / run.name / "delete-workspace-replay.json"
+            audit_before = audit.read_bytes()
+            replay = delete_workspace_run(root, run_ref=run.name, deletion_id="delete-workspace-replay", scope_context=self._context(), hold_provider=provider, operational_root=operational)
+            self.assertEqual(replay.outcome, DeletionOutcome.COMPLETE)
+            self.assertEqual(audit_before, audit.read_bytes())
+
+    def test_completed_workspace_replay_rejects_recreated_generation_without_touching_new_run(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = self._workspace_run(root, "run-workspace-reuse")
+            operational = self._operational_root(root)
+            provider = self._provider(run.name)
+            first = delete_workspace_run(root, run_ref=run.name, deletion_id="delete-workspace-reuse", scope_context=self._context(), hold_provider=provider, operational_root=operational)
+            self.assertEqual(first.outcome, DeletionOutcome.COMPLETE)
+
+            recreated = self._workspace_run(root, run.name, created_at="2021-01-01T00:00:00Z")
+            store = WorkspaceRunStore(recreated)
+            job = ExecutionJob.new(run_id=recreated.name, profile=ExecutionProfile.WORKSPACE_LOCAL, scope_ref="workspace", store_ref="store-workspace-reuse")
+            created = store.create(job).job
+            state_before = (recreated / "RUN_STATE.json").read_bytes()
+            job_before = (recreated / "EXECUTION_JOB.json").read_bytes()
+
+            stale = delete_workspace_run(root, run_ref=run.name, deletion_id="delete-workspace-reuse", scope_context=self._context(), hold_provider=provider, operational_root=operational)
+            self.assertEqual(stale.outcome, DeletionOutcome.BLOCKED)
+            self.assertEqual(stale.error_code, "TARGET_IDENTITY_MISMATCH")
+            self.assertTrue(recreated.exists())
+            self.assertEqual(state_before, (recreated / "RUN_STATE.json").read_bytes())
+            self.assertEqual(job_before, (recreated / "EXECUTION_JOB.json").read_bytes())
+            self.assertEqual(store.load(created.job_id).lifecycle, OperationalLifecycle.QUEUED)
 
     def test_scoped_late_failure_retries_after_admission_and_job_are_gone(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

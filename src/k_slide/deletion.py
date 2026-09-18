@@ -1091,7 +1091,21 @@ class DeletionCoordinator:
             if (existing.scope_ref, existing.run_ref, existing.reason) != (request.scope_ref, request.run_ref, request.reason):
                 raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Deletion identity is already bound to a different scope, run, or reason.")
             if existing.state is DeletionState.COMPLETE:
-                return self._result(request, state=existing.state, outcome=existing.outcome, dry_run=dry_run, retry_count=existing.retry_count, error_code=existing.error_code, targets=existing.targets)
+                # A completed audit is source-free and remains replayable after
+                # its targets are gone, but a reused external identity may have
+                # produced a new generation in the meantime.  Validate that
+                # generation under the backend lock before returning the old
+                # outcome; never validate by replaying destructive targets.
+                with self.backend.lock():
+                    current = self.backend.load_audit(request.deletion_id)
+                    if current is not None:
+                        state = self.backend.state()
+                        if _generation_matches(state, current):
+                            return self._result(request, state=current.state, outcome=current.outcome, dry_run=dry_run, retry_count=current.retry_count, error_code=current.error_code, targets=current.targets)
+                        blocked = replace(current, updated_at=now_utc(), state=DeletionState.BLOCKED, outcome=DeletionOutcome.BLOCKED, error_code="TARGET_IDENTITY_MISMATCH", retry_count=current.retry_count + 1)
+                        if not dry_run:
+                            self.backend.save_audit(blocked)
+                        return self._result(request, state=blocked.state, outcome=blocked.outcome, dry_run=dry_run, retry_count=blocked.retry_count, error_code=blocked.error_code, targets=blocked.targets)
 
         try:
             hold = _safe_hold(self.hold_provider, scope_ref=request.scope_ref, run_ref=request.run_ref)
