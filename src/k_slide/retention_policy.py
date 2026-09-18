@@ -19,6 +19,29 @@ RETENTION_POLICY_FIELDS = (
 RETENTION_UNRESOLVED_MARKERS = frozenset({"UNSET", "NOT_YET_CONFIGURED"})
 
 
+def _is_positive_integer(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+
+def _validate_schema_version(value: Any) -> None:
+    if not isinstance(value, str) or value != RETENTION_POLICY_SCHEMA_VERSION:
+        raise ValueError(f"unsupported retention policy schema: {value}")
+
+
+def _validate_retention_value(field: str, value: Any, *, require_resolved: bool) -> int | str:
+    if isinstance(value, str):
+        marker = value.strip().upper()
+        if marker in RETENTION_UNRESOLVED_MARKERS:
+            if require_resolved:
+                raise ValueError(f"retention_policy.{field} is unresolved; central policy is required")
+            return marker
+    if not _is_positive_integer(value):
+        if require_resolved:
+            raise ValueError(f"retention_policy.{field} must be a positive integer")
+        raise ValueError(f"retention_policy.{field} must be a positive integer or an explicit unresolved marker")
+    return value
+
+
 @dataclass(frozen=True)
 class RetentionPolicy:
     """The centrally supplied retention values used by K-Slide.
@@ -31,6 +54,23 @@ class RetentionPolicy:
     schema_version: str
     content_retention_days: int | str
     operational_metadata_retention_days: int | str
+
+    def __post_init__(self) -> None:
+        _validate_schema_version(self.schema_version)
+        object.__setattr__(
+            self,
+            CONTENT_RETENTION_FIELD,
+            _validate_retention_value(CONTENT_RETENTION_FIELD, self.content_retention_days, require_resolved=False),
+        )
+        object.__setattr__(
+            self,
+            OPERATIONAL_METADATA_RETENTION_FIELD,
+            _validate_retention_value(
+                OPERATIONAL_METADATA_RETENTION_FIELD,
+                self.operational_metadata_retention_days,
+                require_resolved=False,
+            ),
+        )
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any], *, require_resolved: bool = False) -> "RetentionPolicy":
@@ -48,24 +88,10 @@ class RetentionPolicy:
         unexpected = sorted(str(key) for key in value if key not in RETENTION_POLICY_FIELDS)
         if unexpected:
             raise ValueError("retention_policy contains unsupported fields: " + ", ".join(unexpected))
-        schema_version = str(value["schema_version"])
-        if schema_version != RETENTION_POLICY_SCHEMA_VERSION:
-            raise ValueError(f"unsupported retention policy schema: {schema_version}")
-        parsed: dict[str, int | str] = {}
-        for field in (CONTENT_RETENTION_FIELD, OPERATIONAL_METADATA_RETENTION_FIELD):
-            raw = value[field]
-            if isinstance(raw, str) and raw.strip().upper() in RETENTION_UNRESOLVED_MARKERS:
-                if require_resolved:
-                    raise ValueError(f"retention_policy.{field} is unresolved; central policy is required")
-                parsed[field] = raw.strip().upper()
-                continue
-            if isinstance(raw, bool) or not isinstance(raw, int) or raw <= 0:
-                raise ValueError(f"retention_policy.{field} must be a positive integer or an explicit unresolved marker")
-            parsed[field] = raw
         policy = cls(
-            schema_version=schema_version,
-            content_retention_days=parsed[CONTENT_RETENTION_FIELD],
-            operational_metadata_retention_days=parsed[OPERATIONAL_METADATA_RETENTION_FIELD],
+            schema_version=value["schema_version"],
+            content_retention_days=value[CONTENT_RETENTION_FIELD],
+            operational_metadata_retention_days=value[OPERATIONAL_METADATA_RETENTION_FIELD],
         )
         if require_resolved:
             policy.require_resolved()
@@ -73,15 +99,19 @@ class RetentionPolicy:
 
     @property
     def resolved(self) -> bool:
-        return isinstance(self.content_retention_days, int) and isinstance(self.operational_metadata_retention_days, int)
+        return (
+            self.schema_version == RETENTION_POLICY_SCHEMA_VERSION
+            and _is_positive_integer(self.content_retention_days)
+            and _is_positive_integer(self.operational_metadata_retention_days)
+        )
 
     def require_resolved(self) -> "RetentionPolicy":
+        _validate_schema_version(self.schema_version)
         for field, value in (
             (CONTENT_RETENTION_FIELD, self.content_retention_days),
             (OPERATIONAL_METADATA_RETENTION_FIELD, self.operational_metadata_retention_days),
         ):
-            if not isinstance(value, int):
-                raise ValueError(f"retention_policy.{field} is unresolved; central policy is required")
+            _validate_retention_value(field, value, require_resolved=True)
         return self
 
     def as_dict(self) -> dict[str, Any]:
