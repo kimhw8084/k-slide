@@ -184,7 +184,7 @@ def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model
     }
     split = __import__("evals.scenarios", fromlist=["split_manifest"]).split_manifest()
     candidate = {
-        "candidate_spec_version": "1.0",
+        "candidate_spec_version": "1.1",
         "subject_git_sha": subject,
         "kslide_version": "0.3.5",
         "opencode_version": "1.3.9",
@@ -213,7 +213,7 @@ def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model
         "termbase_hash": "UNSET",
         "model_policy": load_model_policy().as_dict(),
         "schema_versions": {"evidence_ir": "1.0", "translation_patch": "1.0", "slide_ir": "1.0"},
-        "retention_days": 30,
+        "retention_policy": {"schema_version": "1.0", "content_retention_days": 30, "operational_metadata_retention_days": 60},
         "tenant_isolation": "workspace_per_session",
         "network_egress": "approved_inference_only",
         "corpus_identity": {"version": "1.0", "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]},
@@ -864,7 +864,7 @@ class CertificationClosureTests(unittest.TestCase):
             subject = "a" * 40
             candidate_path = bundle / "candidate.json"
             lock_path = bundle / "production.lock"
-            candidate = {"candidate_spec_version": "1.0", "subject_git_sha": subject, "requested_model": "google/gemma-4-31b-it"}
+            candidate = {"candidate_spec_version": "1.1", "subject_git_sha": subject, "requested_model": "google/gemma-4-31b-it"}
             _write(candidate_path, candidate)
             inventory = canonical_dependency_inventory([{"name": "Pillow", "version": "1.0"}])
             lock_path.write_text(dependency_lock_text(inventory), encoding="utf-8")
@@ -1106,7 +1106,7 @@ class CertificationClosureTests(unittest.TestCase):
             source.mkdir()
             candidate_path = source / "candidate.json"
             subject = "a" * 40
-            _write(candidate_path, {"candidate_spec_version": "1.0", "subject_git_sha": subject, "requested_model": "google/gemma-4-31b-it", "ocr_provider": "paddle", "ocr_asset_manifest": "ocr/manifest.json"})
+            _write(candidate_path, {"candidate_spec_version": "1.1", "subject_git_sha": subject, "requested_model": "google/gemma-4-31b-it", "ocr_provider": "paddle", "ocr_asset_manifest": "ocr/manifest.json"})
             (source / "production.lock").write_text("Pillow==1.0\n", encoding="utf-8")
             (source / "ocr").mkdir()
             (source / "ocr" / "PaddleOCR.yaml").write_text("pipeline: test\n", encoding="utf-8")
@@ -1688,6 +1688,7 @@ class CertificationClosureTests(unittest.TestCase):
             self.assertNotIn("blocking_reasons", manifest)
             profile = json.loads(profile_path.read_text(encoding="utf-8"))
             self.assertEqual(profile["release_manifest_sha256"], _sha(manifest_path))
+            self.assertEqual(profile["retention_policy"], candidate["retention_policy"])
             self.assertEqual(ProductionProfile.from_mapping(profile).deployment_fingerprint, deployment)
             from k_slide.installer import install
             install(Path.cwd(), root, scope="project")
@@ -1842,7 +1843,7 @@ class CertificationClosureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / ".k-slide-config").mkdir()
-            _write(root / ".k-slide-config" / "production-profile.json", {"schema_version": "1.0", "release_state": "PRODUCTION_CERTIFIED", "opencode_version": "1.3.9", "requested_model": "approved:internal", "effective_model": "approved:internal", "ocr_provider": "paddle", "ocr_asset_manifest": "manifest.json", "python_version": "3.11", "paddle_version": "3.0.0", "paddleocr_version": "3.0.3", "libreoffice_version": "25", "retention_days": 30, "tenant_isolation": "workspace_per_session", "network_egress": "approved_inference_only", "subject_git_sha": "a" * 40, "deployment_fingerprint": "b" * 64, "certification_fingerprint": "c" * 64, "release_manifest": "manifest.json", "release_manifest_sha256": "d" * 64, "model_data_attestation": "attestation-1"})
+            _write(root / ".k-slide-config" / "production-profile.json", {"schema_version": "1.1", "release_state": "PRODUCTION_CERTIFIED", "opencode_version": "1.3.9", "requested_model": "approved:internal", "effective_model": "approved:internal", "ocr_provider": "paddle", "ocr_asset_manifest": "manifest.json", "python_version": "3.11", "paddle_version": "3.0.0", "paddleocr_version": "3.0.3", "libreoffice_version": "25", "retention_policy": {"schema_version": "1.0", "content_retention_days": 30, "operational_metadata_retention_days": 60}, "tenant_isolation": "workspace_per_session", "network_egress": "approved_inference_only", "subject_git_sha": "a" * 40, "deployment_fingerprint": "b" * 64, "certification_fingerprint": "c" * 64, "release_manifest": "manifest.json", "release_manifest_sha256": "d" * 64, "model_data_attestation": "attestation-1"})
             runtime = RuntimeMetadata(kslide_version="0.3.5", opencode_version="1.3.9", opencode_path=None, opencode_config_path=None, provider="internal", reported_model_id="approved:internal", model_family=None, model_size=None, instruction_tuned_status="unknown", vision_support=True, thinking_support=None, provider_backend=None, quantization_or_dtype=None, context_configuration={}, image_preprocessing_settings={}, model_compatibility="production_candidate", discovery_warnings=[])
             policy_check = next(item for item in production_checks(root, runtime) if item["label"] == "Requested/effective model policy")
             self.assertEqual(policy_check["status"], "FAIL")

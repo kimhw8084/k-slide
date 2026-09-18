@@ -520,7 +520,7 @@ def _certified_profile_mapping(root: Path, *, candidate_spec: dict[str, Any], ma
     if candidate.get("ocr_asset_manifest"):
         profile["ocr_asset_manifest"] = candidate["ocr_asset_manifest"]
     profile.update({
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "release_state": ReleaseState.PRODUCTION_CERTIFIED.value,
         "subject_git_sha": manifest.get("subject_git_sha"),
         "deployment_fingerprint": manifest.get("deployment_fingerprint"),

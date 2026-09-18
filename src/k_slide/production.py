@@ -43,6 +43,10 @@ from .errors import ErrorCode, KSlideError
 from .model_policy import load_model_policy
 from .ocr.policy import OCRProviderPolicy, create_ocr_provider
 from .runtime import RuntimeMetadata
+from .retention_policy import RetentionPolicy, RETENTION_POLICY_FIELD, CONTENT_RETENTION_FIELD, OPERATIONAL_METADATA_RETENTION_FIELD
+
+
+PRODUCTION_PROFILE_SCHEMA_VERSION = "1.1"
 
 
 class ReleaseState(str, Enum):
@@ -69,7 +73,7 @@ class ProductionProfile:
     paddle_version: str
     paddleocr_version: str
     libreoffice_version: str
-    retention_days: int
+    retention_policy: RetentionPolicy
     tenant_isolation: str
     network_egress: str
     subject_git_sha: str
@@ -82,18 +86,29 @@ class ProductionProfile:
     candidate_spec: dict[str, Any] | None = None
 
     @classmethod
-    def from_mapping(cls, value: dict[str, Any]) -> "ProductionProfile":
-        required = ("release_state", "opencode_version", "requested_model", "effective_model", "ocr_provider", "ocr_asset_manifest", "python_version", "paddle_version", "paddleocr_version", "libreoffice_version", "retention_days", "tenant_isolation", "network_egress", "subject_git_sha", "deployment_fingerprint", "certification_fingerprint", "release_manifest", "release_manifest_sha256", "model_data_attestation")
+    def from_mapping(cls, value: dict[str, Any], *, require_resolved_retention: bool = True) -> "ProductionProfile":
+        if "retention_days" in value:
+            raise KSlideError(
+                ErrorCode.PRODUCTION_PROFILE_INVALID,
+                "Legacy retention_days-only production profiles are unsupported; explicitly supply "
+                "retention_policy.content_retention_days and "
+                "retention_policy.operational_metadata_retention_days.",
+            )
+        required = ("release_state", "opencode_version", "requested_model", "effective_model", "ocr_provider", "ocr_asset_manifest", "python_version", "paddle_version", "paddleocr_version", "libreoffice_version", RETENTION_POLICY_FIELD, "tenant_isolation", "network_egress", "subject_git_sha", "deployment_fingerprint", "certification_fingerprint", "release_manifest", "release_manifest_sha256", "model_data_attestation")
         missing = [key for key in required if key not in value]
         if missing:
             raise KSlideError(ErrorCode.PRODUCTION_PROFILE_INVALID, "Production profile is missing required fields.", {"fields": missing})
         if "resource_limits" in value:
             raise KSlideError(ErrorCode.PRODUCTION_PROFILE_INVALID, "resource_limits is not a runtime-enforced production field; use production-slo.yaml for measured SLOs.")
-        retention_days = value["retention_days"]
-        if isinstance(retention_days, bool) or not isinstance(retention_days, int) or retention_days <= 0:
-            raise KSlideError(ErrorCode.PRODUCTION_PROFILE_INVALID, "Production profile retention_days must be a positive integer.")
+        schema_version = str(value.get("schema_version", ""))
+        if schema_version != PRODUCTION_PROFILE_SCHEMA_VERSION:
+            raise KSlideError(ErrorCode.PRODUCTION_PROFILE_INVALID, f"Unsupported production profile schema: {schema_version or 'missing'}.")
+        try:
+            retention_policy = RetentionPolicy.from_mapping(value[RETENTION_POLICY_FIELD], require_resolved=require_resolved_retention)
+        except (TypeError, ValueError) as exc:
+            raise KSlideError(ErrorCode.PRODUCTION_PROFILE_INVALID, f"Invalid production retention policy: {exc}") from exc
         return cls(
-            schema_version=str(value.get("schema_version", "1.0")),
+            schema_version=schema_version,
             release_state=str(value["release_state"]),
             opencode_version=str(value["opencode_version"]),
             requested_model=str(value["requested_model"]),
@@ -104,7 +119,7 @@ class ProductionProfile:
             paddle_version=str(value["paddle_version"]),
             paddleocr_version=str(value["paddleocr_version"]),
             libreoffice_version=str(value["libreoffice_version"]),
-            retention_days=retention_days,
+            retention_policy=retention_policy,
             tenant_isolation=str(value["tenant_isolation"]),
             network_egress=str(value["network_egress"]),
             subject_git_sha=str(value["subject_git_sha"]),
@@ -130,7 +145,7 @@ class ProductionProfile:
             "paddle_version": self.paddle_version,
             "paddleocr_version": self.paddleocr_version,
             "libreoffice_version": self.libreoffice_version,
-            "retention_days": self.retention_days,
+            RETENTION_POLICY_FIELD: self.retention_policy.as_dict(),
             "tenant_isolation": self.tenant_isolation,
             "network_egress": self.network_egress,
             "subject_git_sha": self.subject_git_sha,
@@ -144,7 +159,7 @@ class ProductionProfile:
         }
 
 
-def load_production_profile(root: Path) -> ProductionProfile:
+def load_production_profile(root: Path, *, require_resolved_retention: bool = True) -> ProductionProfile:
     path = root.expanduser().resolve() / ".k-slide-config" / "production-profile.json"
     if not path.is_file():
         raise KSlideError(ErrorCode.PRODUCTION_PROFILE_INVALID, "Production profile is missing.", {"path": str(path)})
@@ -154,7 +169,7 @@ def load_production_profile(root: Path) -> ProductionProfile:
         raise KSlideError(ErrorCode.PRODUCTION_PROFILE_INVALID, "Production profile is unreadable or malformed.", {"path": str(path)}) from exc
     if not isinstance(value, dict):
         raise KSlideError(ErrorCode.PRODUCTION_PROFILE_INVALID, "Production profile must be a JSON object.")
-    return ProductionProfile.from_mapping(value)
+    return ProductionProfile.from_mapping(value, require_resolved_retention=require_resolved_retention)
 
 
 def _check(label: str, passed: bool, detail: str) -> dict[str, str]:
@@ -333,6 +348,15 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
             else:
                 for field in CANDIDATE_INPUT_FIELDS:
                     current = source_candidate.get(field)
+                    if field == RETENTION_POLICY_FIELD and isinstance(current, dict) and isinstance(candidate.get(field), dict):
+                        current_policy = RetentionPolicy.from_mapping(current)
+                        target_policy = RetentionPolicy.from_mapping(candidate[field])
+                        merged_policy = current_policy.as_dict()
+                        for policy_field in (CONTENT_RETENTION_FIELD, OPERATIONAL_METADATA_RETENTION_FIELD):
+                            if not isinstance(merged_policy[policy_field], int):
+                                merged_policy[policy_field] = target_policy.as_dict()[policy_field]
+                        source_candidate[field] = RetentionPolicy.from_mapping(merged_policy).as_dict()
+                        continue
                     unresolved = current is None or current == {} or (isinstance(current, str) and current.upper() == "UNSET")
                     if unresolved and field in candidate:
                         source_candidate[field] = candidate[field]
@@ -465,15 +489,35 @@ def _installed_build_status(root: Path, profile: ProductionProfile) -> tuple[boo
     return True, str(value.get("source_git_sha"))
 
 
+def _retention_policy_checks(policy: RetentionPolicy, *, invalid_detail: str | None = None) -> list[dict[str, str]]:
+    if invalid_detail is not None:
+        return [
+            _check("Content retention policy", False, invalid_detail),
+            _check("Operational-metadata retention policy", False, invalid_detail),
+        ]
+    return [
+        _check(
+            "Content retention policy",
+            isinstance(policy.content_retention_days, int),
+            str(policy.content_retention_days),
+        ),
+        _check(
+            "Operational-metadata retention policy",
+            isinstance(policy.operational_metadata_retention_days, int),
+            str(policy.operational_metadata_retention_days),
+        ),
+    ]
+
+
 def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, str]]:
     """Return fail-closed production checks without changing run state."""
 
     checks: list[dict[str, str]] = []
     try:
-        profile = load_production_profile(root)
+        profile = load_production_profile(root, require_resolved_retention=False)
     except KSlideError as exc:
-        return [_check("Production profile", False, exc.message)]
-    checks.append(_check("Production profile schema", profile.schema_version == "1.0", profile.schema_version))
+        return [_check("Production profile", False, exc.message), *_retention_policy_checks(RetentionPolicy("1.0", "UNSET", "UNSET"), invalid_detail=exc.message)]
+    checks.append(_check("Production profile schema", profile.schema_version == PRODUCTION_PROFILE_SCHEMA_VERSION, profile.schema_version))
     checks.append(_check("Release state", profile.release_state == ReleaseState.PRODUCTION_CERTIFIED.value, profile.release_state))
     candidate_missing = candidate_completeness(profile.candidate_spec or {}, ReleaseState.PRODUCTION_CERTIFIED.value)
     checks.append(_check("Candidate completeness", not candidate_missing, "complete" if not candidate_missing else "unresolved=" + ",".join(candidate_missing)))
@@ -525,7 +569,7 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
         checks.append(_check("OCR selected configuration", selected_config_match and selected_manifest_match, f"expected={manifest_identity.get('paddlex_config')}; actual={runtime_ocr.get('paddlex_config') or 'unavailable'}"))
     except (EvidenceValidationError, OSError, UnicodeError, ValueError) as exc:
         checks.append(_check("OCR selected configuration", False, str(exc)))
-    checks.append(_check("Retention policy", profile.retention_days > 0, str(profile.retention_days)))
+    checks.extend(_retention_policy_checks(profile.retention_policy))
     checks.append(_check("Tenant isolation", profile.tenant_isolation == "workspace_per_session", profile.tenant_isolation))
     checks.append(_check("Network egress", profile.network_egress == "approved_inference_only", profile.network_egress))
     checks.append(_check("Model data attestation", bool(profile.model_data_attestation and profile.model_data_attestation != "UNSET"), profile.model_data_attestation or "missing"))

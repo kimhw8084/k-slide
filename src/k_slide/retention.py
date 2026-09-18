@@ -5,11 +5,13 @@ from __future__ import annotations
 import json
 import os
 import shutil
+from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 from .errors import ErrorCode, KSlideError
+from .retention_policy import RetentionPolicy
 from .storage import StorageArtifact, storage_path
 
 
@@ -40,23 +42,30 @@ def _assert_safe_tree(path: Path, root: Path) -> None:
                 raise KSlideError(ErrorCode.RETENTION_REFUSED, "Retention cleanup refuses symbolic links inside a run.", {"path": str(candidate)})
 
 
-def cleanup_expired_runs(root: Path, retention_days: int, *, now: datetime | None = None, dry_run: bool = False) -> dict[str, Any]:
+def cleanup_expired_runs(root: Path, retention_policy: RetentionPolicy | Mapping[str, Any], *, now: datetime | None = None, dry_run: bool = False) -> dict[str, Any]:
     """Delete only old terminal runs below ``root/.k-slide-runs``.
 
     Active/in-progress runs are always retained.  The function validates every
     candidate before deleting any run, so a symlink attack fails closed rather
-    than partially cleaning the directory.
+    than partially cleaning the directory.  Only the canonical content policy
+    controls deletion; operational-metadata retention is carried for identity
+    and readiness but never used here.
     """
 
-    if isinstance(retention_days, bool) or not isinstance(retention_days, int) or retention_days <= 0:
-        raise KSlideError(ErrorCode.RETENTION_INVALID, "retention_days must be a positive integer.", {"retention_days": retention_days})
+    try:
+        policy = retention_policy if isinstance(retention_policy, RetentionPolicy) else RetentionPolicy.from_mapping(retention_policy, require_resolved=True)
+        policy.require_resolved()
+    except (TypeError, ValueError) as exc:
+        raise KSlideError(ErrorCode.RETENTION_INVALID, f"Invalid retention policy for content cleanup: {exc}") from exc
+    content_retention_days = policy.content_retention_days
+    assert isinstance(content_retention_days, int)
     root = root.expanduser().resolve()
     run_root = root / ".k-slide-runs"
     if not run_root.exists() and not run_root.is_symlink():
-        return {"status": "PASS", "dry_run": dry_run, "retention_days": retention_days, "removed": [], "retained": [], "cutoff": None}
+        return {"status": "PASS", "dry_run": dry_run, "retention_policy": policy.as_dict(), "content_retention_days": content_retention_days, "removed": [], "retained": [], "cutoff": None}
     if run_root.is_symlink() or not run_root.is_dir():
         raise KSlideError(ErrorCode.RETENTION_REFUSED, "The K-Slide run root must be a real directory.", {"path": str(run_root)})
-    cutoff = (now or datetime.now(timezone.utc)).astimezone(timezone.utc) - timedelta(days=retention_days)
+    cutoff = (now or datetime.now(timezone.utc)).astimezone(timezone.utc) - timedelta(days=content_retention_days)
     candidates: list[tuple[Path, datetime, str]] = []
     retained: list[dict[str, str]] = []
     for run in sorted(run_root.iterdir(), key=lambda item: item.name):
@@ -89,4 +98,4 @@ def cleanup_expired_runs(root: Path, retention_days: int, *, now: datetime | Non
         if not dry_run:
             shutil.rmtree(run)
         removed.append(record)
-    return {"status": "PASS", "dry_run": dry_run, "retention_days": retention_days, "cutoff": cutoff.isoformat(), "removed": removed, "retained": retained}
+    return {"status": "PASS", "dry_run": dry_run, "retention_policy": policy.as_dict(), "content_retention_days": content_retention_days, "cutoff": cutoff.isoformat(), "removed": removed, "retained": retained}
