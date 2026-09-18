@@ -96,6 +96,22 @@ def _timestamp(value: Any, label: str, *, allow_empty: bool = True) -> None:
         raise _invalid(f"Execution {label} timestamp is invalid.")
 
 
+def _workspace_deletion_fenced(run_dir: Path) -> bool:
+    """Fail closed once KSA-13 has entered its destructive phase."""
+
+    audit_root = Path(run_dir).parent / "_deletions"
+    if not audit_root.is_dir():
+        return False
+    for path in audit_root.glob("*.json"):
+        try:
+            value = read_json(path)
+        except (KSlideError, OSError, TypeError, ValueError) as exc:
+            raise KSlideError(ErrorCode.STATE_CORRUPT, "Deletion control state is corrupt or unreadable.") from exc
+        if isinstance(value, dict) and value.get("run_ref") == Path(run_dir).name and value.get("state") in {"IN_PROGRESS", "PARTIAL"}:
+            return True
+    return False
+
+
 class ExecutionProfile(str, Enum):
     WORKSPACE_LOCAL = "workspace_local"
     DURABLE = "durable"
@@ -896,6 +912,8 @@ class WorkspaceRunStore(_FilesystemRunStore):
     @contextmanager
     def _mutation(self, job_id: str | None = None) -> Iterator[None]:
         with run_lock(self.root):
+            if _workspace_deletion_fenced(self.root):
+                raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Execution mutation is fenced by an active deletion lifecycle.")
             yield
 
 

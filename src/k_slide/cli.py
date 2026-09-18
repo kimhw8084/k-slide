@@ -21,6 +21,8 @@ from .locking import run_lock
 from .normalization import normalize_run
 from .extraction import extract_run
 from .doctor import diagnose
+from .deletion import DeletionReason, ReferenceLegalHoldProvider, delete_workspace_run
+from .paas import AuthorizedScopeContext
 from .policy import COMPLETION_POLICY, MAX_AUTO_REPAIRS_PER_UNIT
 from .production import PRODUCTION_PROFILE_SCHEMA_VERSION
 from .redaction import sanitize_operational
@@ -437,6 +439,12 @@ def build_parser() -> argparse.ArgumentParser:
     retention.add_argument("--production-profile", type=Path)
     retention.add_argument("--dry-run", action="store_true")
     retention.add_argument("--json", action="store_true")
+    delete = sub.add_parser("delete", help="Admin-authorized deletion of one exact run")
+    delete.add_argument("--root", type=Path, default=Path.cwd())
+    delete.add_argument("--run", required=True)
+    delete.add_argument("--deletion-id", required=True)
+    delete.add_argument("--dry-run", action="store_true")
+    delete.add_argument("--json", action="store_true")
     support = sub.add_parser("support-bundle", help="Admin-only sanitized operational support bundle")
     support.add_argument("--root", type=Path, default=Path.cwd())
     support.add_argument("--output", type=Path, required=True)
@@ -491,6 +499,16 @@ def main(argv: list[str] | None = None) -> int:
             value = diagnose(args.root, engine_root=args.engine_root, opencode_root=args.opencode_root, production=args.production)
         elif args.command == "retention-cleanup":
             value = cleanup_expired_runs(args.root, _load_cleanup_retention_policy(args.root, args.production_profile), dry_run=args.dry_run)
+        elif args.command == "delete":
+            value = delete_workspace_run(
+                args.root,
+                run_ref=args.run,
+                deletion_id=args.deletion_id,
+                scope_context=AuthorizedScopeContext("local-admin", "workspace", "workspace"),
+                reason=DeletionReason.EXPLICIT,
+                hold_provider=ReferenceLegalHoldProvider(),
+                dry_run=args.dry_run,
+            ).as_dict()
         elif args.command == "support-bundle":
             value = build_support_bundle(args.root, args.output)
         elif args.command == "install":

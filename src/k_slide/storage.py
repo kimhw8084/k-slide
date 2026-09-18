@@ -15,7 +15,7 @@ import shutil
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path, PurePosixPath
-from typing import Any, Mapping, Protocol
+from typing import Any, Callable, Mapping, Protocol
 
 from .errors import ErrorCode, KSlideError
 
@@ -71,6 +71,11 @@ class StorageArtifact(str, Enum):
     TELEMETRY_COORDINATION_LOCK = "telemetry_coordination_lock"
     CONVERSION_STAGING = "conversion_staging"
     TELEMETRY_EVENT = "telemetry_event"
+    # Deletion audits are source-free admission/control metadata.  Keep the
+    # alias on the existing KSA-11 inventory class so the inventory remains
+    # backward compatible while giving the deletion boundary a truthful typed
+    # name for its operational record.
+    DELETION_AUDIT = "admission_control"
 
 
 STORAGE_POLICY: Mapping[StorageArtifact, StoragePlane] = {
@@ -260,6 +265,7 @@ class StorageLayout:
     scope_ref: str | None = None
     run_ref: str | None = None
     contract_version: str = STORAGE_PLANE_CONTRACT_VERSION
+    mutation_guard: Callable[[], None] | None = None
 
     def __post_init__(self) -> None:
         if self.contract_version != STORAGE_PLANE_CONTRACT_VERSION:
@@ -274,6 +280,8 @@ class StorageLayout:
             _identifier(self.scope_ref, "scope reference")
         if self.run_ref is not None:
             _identifier(self.run_ref, "run reference")
+        if self.mutation_guard is not None and not callable(self.mutation_guard):
+            raise _error("Storage mutation guard is invalid.")
         object.__setattr__(self, "durable_root", durable)
         object.__setattr__(self, "scratch_root", scratch)
         object.__setattr__(self, "telemetry_root", telemetry)
@@ -305,7 +313,7 @@ class StorageLayout:
         )
 
     @classmethod
-    def for_scoped_reference(cls, *, service_root: Path, durable_root: Path, scope_ref: str, run_ref: str) -> "StorageLayout":
+    def for_scoped_reference(cls, *, service_root: Path, durable_root: Path, scope_ref: str, run_ref: str, mutation_guard: Callable[[], None] | None = None) -> "StorageLayout":
         service_root = _assert_root(service_root)
         return cls(
             durable_root=durable_root,
@@ -313,6 +321,7 @@ class StorageLayout:
             telemetry_root=service_root / "telemetry",
             scope_ref=scope_ref,
             run_ref=run_ref,
+            mutation_guard=mutation_guard,
         )
 
     @classmethod
@@ -357,6 +366,8 @@ class StorageLayout:
     def path(self, artifact: StorageArtifact | str, relative_path: str, *, create_parent: bool = False) -> Path:
         artifact = _artifact(artifact)
         plane = STORAGE_POLICY[artifact]
+        if create_parent and self.mutation_guard is not None:
+            self.mutation_guard()
         root = self.ensure_root(plane) if create_parent else self.root_for(plane)
         relative_path = _safe_relative_path(relative_path)
         candidate = root / relative_path

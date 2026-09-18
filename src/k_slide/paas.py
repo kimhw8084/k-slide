@@ -596,6 +596,10 @@ class PaaSJobService(Protocol):
 
     def resolve_evidence(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext) -> str: ...
 
+    def content_layout(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext) -> StorageLayout: ...
+
+    def delete_run(self, identity: DurableJobIdentity | str, *, deletion_id: str, scope_context: AuthorizedScopeContext, hold_provider: Any | None = None, reason: Any = None, dry_run: bool = False) -> Any: ...
+
 
 class ScopedPaaSJobService(Protocol):
     """Production-facing adapter boundary with explicit authorization.
@@ -626,6 +630,10 @@ class ScopedPaaSJobService(Protocol):
     def resolve_result(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext) -> str: ...
 
     def resolve_evidence(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext) -> str: ...
+
+    def content_layout(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext) -> StorageLayout: ...
+
+    def delete_run(self, identity: DurableJobIdentity | str, *, deletion_id: str, scope_context: AuthorizedScopeContext, hold_provider: Any | None = None, reason: Any = None, dry_run: bool = False) -> Any: ...
 
 
 class PaaSRunStore:
@@ -880,10 +888,15 @@ def _scoped_submission_fingerprint(job: ExecutionJob, runtime_identity: RuntimeI
 class ScopedPaaSRunStore(PaaSRunStore):
     """Least-privilege KSA-06 store view bound to one authorized job."""
 
-    def __init__(self, backend: RunStore, identity: DurableJobIdentity, on_terminal: Callable[[ExecutionJob], None] | None = None) -> None:
+    def __init__(self, backend: RunStore, identity: DurableJobIdentity, on_terminal: Callable[[ExecutionJob], None] | None = None, mutation_guard: Callable[[], None] | None = None) -> None:
         super().__init__(backend)
         self._identity = identity
         self._on_terminal = on_terminal
+        self._mutation_guard = mutation_guard
+
+    def _guard(self) -> None:
+        if self._mutation_guard is not None:
+            self._mutation_guard()
 
     def _bound(self, job_id: str) -> None:
         if job_id != self._identity.job_id:
@@ -896,10 +909,12 @@ class ScopedPaaSRunStore(PaaSRunStore):
 
     def create(self, job: ExecutionJob):
         self._bound(job.job_id)
+        self._guard()
         return self._finish(self._backend.create(job))
 
     def load(self, job_id: str) -> ExecutionJob:
         self._bound(job_id)
+        self._guard()
         job = self._backend.load(job_id)
         if DurableJobIdentity.from_job(job) != self._identity:
             raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Run-store identity does not match the authorized job scope.", {"job_id": job_id})
@@ -910,34 +925,42 @@ class ScopedPaaSRunStore(PaaSRunStore):
 
     def commit_job(self, job: ExecutionJob, *, expected_revision: int):
         self._bound(job.job_id)
+        self._guard()
         return self._finish(self._backend.commit_job(job, expected_revision=expected_revision))
 
     def commit_checkpoint(self, checkpoint: RunCheckpoint, *, expected_revision: int):
         self._bound(checkpoint.job_id)
+        self._guard()
         return self._finish(self._backend.commit_checkpoint(checkpoint, expected_revision=expected_revision))
 
     def commit_step(self, checkpoint: RunCheckpoint, marker: Any, *, expected_revision: int):
         self._bound(checkpoint.job_id)
+        self._guard()
         return self._finish(self._backend.commit_step(checkpoint, marker, expected_revision=expected_revision))
 
     def request_cancellation(self, job_id: str, *, expected_revision: int | None = None):
         self._bound(job_id)
+        self._guard()
         return self._finish(self._backend.request_cancellation(job_id, expected_revision=expected_revision))
 
     def acknowledge_cancellation(self, job_id: str, *, expected_revision: int, safe_boundary: bool):
         self._bound(job_id)
+        self._guard()
         return self._finish(self._backend.acknowledge_cancellation(job_id, expected_revision=expected_revision, safe_boundary=safe_boundary))
 
     def transition_operational(self, job_id: str, *, expected_revision: int, lifecycle: OperationalLifecycle, terminal_outcome: TerminalOutcome = TerminalOutcome.NONE, resume_eligibility: ResumeEligibility | None = None):
         self._bound(job_id)
+        self._guard()
         return self._finish(self._backend.transition_operational(job_id, expected_revision=expected_revision, lifecycle=lifecycle, terminal_outcome=terminal_outcome, resume_eligibility=resume_eligibility))
 
     def record_retry(self, job_id: str, *, expected_revision: int, error_code: str):
         self._bound(job_id)
+        self._guard()
         return self._finish(self._backend.record_retry(job_id, expected_revision=expected_revision, error_code=error_code))
 
     def commit_result(self, job_id: str, marker: Any, *, expected_revision: int):
         self._bound(job_id)
+        self._guard()
         return self._finish(self._backend.commit_result(job_id, marker, expected_revision=expected_revision))
 
 
@@ -1066,6 +1089,24 @@ class ReferencePaaSJobService(RunStoreResolver):
     def _scope_queue_path(self, scope_context: AuthorizedScopeContext) -> Path:
         layout = StorageLayout.for_scoped_reference(service_root=self.root, durable_root=self._scope_root(scope_context), scope_ref=str(scope_context.scope_ref), run_ref="admission")
         return layout.path(StorageArtifact.ADMISSION_QUEUE, "admission/QUEUE.json")
+
+    def _deletion_fenced(self, scope_context: AuthorizedScopeContext, run_ref: str) -> None:
+        """Reject new claims/resume/result mutations after KSA-13 starts."""
+
+        audit_root = self._scope_root(scope_context) / "_deletions"
+        if not audit_root.is_dir():
+            return
+        from .deletion import DeletionAudit
+
+        for path in audit_root.glob("*.json"):
+            try:
+                audit = DeletionAudit.from_dict(read_json(path))
+            except KSlideError as exc:
+                raise KSlideError(ErrorCode.STATE_CORRUPT, "Deletion control state is corrupt or unreadable.") from exc
+            except (OSError, TypeError, ValueError) as exc:
+                raise KSlideError(ErrorCode.STATE_CORRUPT, "Deletion control state is corrupt or unreadable.") from exc
+            if audit.scope_ref == scope_context.scope_ref and audit.run_ref == run_ref and audit.state.value in {"IN_PROGRESS", "PARTIAL"}:
+                raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Durable execution is fenced by an active deletion lifecycle.")
 
     def _scoped_store(self, scope_context: AuthorizedScopeContext) -> ReferencePaaSRunStore:
         return ReferencePaaSRunStore(self._scope_root(scope_context) / "run-store", auxiliary_root=self.root)
@@ -1251,10 +1292,12 @@ class ReferencePaaSJobService(RunStoreResolver):
             record = self._read_scoped_record(scope_context, identity.job_id)
             if record.identity != identity:
                 raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Durable job identity does not match the authorized scope record.")
+            self._deletion_fenced(scope_context, identity.run_id)
             return identity, record
         if not isinstance(identity, str):
             raise _invalid("Durable job identity is invalid.")
         record = self._read_scoped_record(scope_context, identity)
+        self._deletion_fenced(scope_context, record.identity.run_id)
         return record.identity, record
 
     def _check_scoped_job(self, job: ExecutionJob, identity: DurableJobIdentity, record: _ScopedJobRecord) -> None:
@@ -1483,7 +1526,12 @@ class ReferencePaaSJobService(RunStoreResolver):
         backend = self._scoped_store(scope_context)
         job = backend.load(resolved.job_id)
         self._check_scoped_job(job, resolved, record)
-        return ScopedPaaSRunStore(backend, resolved, on_terminal=lambda terminal: self._release_scoped_slot(terminal, scope_context))
+        return ScopedPaaSRunStore(
+            backend,
+            resolved,
+            on_terminal=lambda terminal: self._release_scoped_slot(terminal, scope_context),
+            mutation_guard=lambda: self._deletion_fenced(scope_context, resolved.run_id),
+        )
 
     def inspect(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext | None = None) -> PaaSJobStatus:
         scope_context = scope_context or self.scope_context
@@ -1723,6 +1771,52 @@ class ReferencePaaSJobService(RunStoreResolver):
 
     def resolve_evidence(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext | None = None) -> str:
         return self.resolve_references(identity, scope_context=scope_context).evidence_ref
+
+    def content_layout(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext | None = None) -> StorageLayout:
+        """Resolve the exact scoped KSA-11 durable content namespace."""
+
+        scope_context = scope_context or self.scope_context
+        if not isinstance(scope_context, AuthorizedScopeContext):
+            raise _invalid("PaaS content resolution requires an authorized scope context.")
+        resolved, _record = self._resolve_scoped_identity(identity, scope_context)
+        scope_root = self._scope_root(scope_context)
+        return StorageLayout.for_scoped_reference(
+            service_root=self.root,
+            durable_root=scope_root / "runs" / resolved.run_id,
+            scope_ref=str(scope_context.scope_ref),
+            run_ref=resolved.run_id,
+            mutation_guard=lambda: self._deletion_fenced(scope_context, resolved.run_id),
+        )
+
+    resolve_content_layout = content_layout
+
+    def delete_run(self, identity: DurableJobIdentity | str, *, deletion_id: str, scope_context: AuthorizedScopeContext | None = None, hold_provider: Any | None = None, reason: Any = None, dry_run: bool = False) -> Any:
+        """Delete one exact scoped run through the KSA-13 adapter boundary."""
+
+        from .deletion import DeletionReason, delete_scoped_run
+
+        scope_context = scope_context or self.scope_context
+        if not isinstance(scope_context, AuthorizedScopeContext):
+            raise _invalid("PaaS deletion requires an authorized scope context.")
+        return delete_scoped_run(
+            self,
+            identity=identity,
+            scope_context=scope_context,
+            deletion_id=deletion_id,
+            reason=DeletionReason.EXPLICIT if reason is None else reason,
+            hold_provider=hold_provider,
+            dry_run=dry_run,
+        )
+
+    delete_authorized_run = delete_run
+
+    def cleanup_operational_metadata(self, *, scope_context: AuthorizedScopeContext | None = None, retention_policy: Any, now: Any | None = None, dry_run: bool = False) -> dict[str, Any]:
+        from .deletion import cleanup_scoped_operational_metadata
+
+        scope_context = scope_context or self.scope_context
+        if not isinstance(scope_context, AuthorizedScopeContext):
+            raise _invalid("Operational-metadata cleanup requires an authorized scope context.")
+        return cleanup_scoped_operational_metadata(self, scope_context=scope_context, retention_policy=retention_policy, now=now, dry_run=dry_run)
 
 
 class PaaSController:
