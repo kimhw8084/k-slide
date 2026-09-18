@@ -24,7 +24,7 @@ from .evidence_ir import stable_revision
 from .io import atomic_write_json, read_json
 from .locking import filesystem_lock, run_lock
 from .queue import WorkQueue, load_queue
-from .storage import StorageArtifact, StorageLayout, StoragePlane
+from .storage import StorageArtifact, StorageLayout, StoragePlane, workspace_mutation_guard
 from .state import RunPhase, RunState, load_state, now_utc
 
 
@@ -94,6 +94,17 @@ def _timestamp(value: Any, label: str, *, allow_empty: bool = True) -> None:
         return
     if value is not None and (not isinstance(value, str) or not _TIMESTAMP.fullmatch(value)):
         raise _invalid(f"Execution {label} timestamp is invalid.")
+
+
+def _workspace_deletion_fenced(run_dir: Path) -> bool:
+    """Fail closed once KSA-13 has entered its destructive phase."""
+    try:
+        workspace_mutation_guard(run_dir)
+    except KSlideError as exc:
+        if exc.code is ErrorCode.EXECUTION_CONFLICT:
+            return True
+        raise
+    return False
 
 
 class ExecutionProfile(str, Enum):
@@ -896,6 +907,8 @@ class WorkspaceRunStore(_FilesystemRunStore):
     @contextmanager
     def _mutation(self, job_id: str | None = None) -> Iterator[None]:
         with run_lock(self.root):
+            if _workspace_deletion_fenced(self.root):
+                raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Execution mutation is fenced by an active deletion lifecycle.")
             yield
 
 

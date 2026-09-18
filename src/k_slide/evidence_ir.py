@@ -11,7 +11,7 @@ from typing import Any
 from . import EVIDENCE_IR_SCHEMA_VERSION
 from .errors import ErrorCode, KSlideError
 from .io import atomic_write_json, read_json
-from .storage import StorageArtifact, storage_path
+from .storage import StorageArtifact, storage_path, workspace_mutation_guard
 
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
@@ -267,6 +267,7 @@ def evidence_path(run_dir: Any, work_unit_id: str) -> Any:
 
 
 def save_evidence(run_dir: Any, evidence: EvidenceIR) -> None:
+    workspace_mutation_guard(run_dir)
     evidence.validate()
     atomic_write_json(evidence_path(run_dir, evidence.work_unit_id), evidence.as_dict(), mode=0o600)
 

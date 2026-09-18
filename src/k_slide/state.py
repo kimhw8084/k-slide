@@ -11,7 +11,7 @@ from typing import Any
 from . import RUN_STATE_SCHEMA_VERSION
 from .errors import ErrorCode, KSlideError
 from .io import atomic_write_json, read_json
-from .storage import StorageArtifact, storage_path
+from .storage import StorageArtifact, storage_path, workspace_mutation_guard
 
 
 class RunPhase(str, Enum):
@@ -95,6 +95,7 @@ class RunState:
     error_message: str | None = None
     repair_attempts: int = 0
     revision: int = 0
+    deletion_fence: str | None = None
     schema_version: str = RUN_STATE_SCHEMA_VERSION
     created_at: str = field(default_factory=now_utc)
     updated_at: str = field(default_factory=now_utc)
@@ -141,6 +142,7 @@ class RunState:
             "error_message": self.error_message,
             "repair_attempts": self.repair_attempts,
             "revision": self.revision,
+            "deletion_fence": self.deletion_fence,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -151,6 +153,9 @@ class RunState:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "RunState":
         try:
+            deletion_fence = data.get("deletion_fence")
+            if deletion_fence not in {None, "IN_PROGRESS", "PARTIAL"}:
+                raise ValueError("invalid deletion fence")
             return cls(
                 run_id=str(data["run_id"]),
                 mode=str(data["mode"]),
@@ -163,6 +168,7 @@ class RunState:
                 error_message=data.get("error_message"),
                 repair_attempts=int(data.get("repair_attempts", 0)),
                 revision=int(data.get("revision", 0)),
+                deletion_fence=deletion_fence,
                 schema_version=str(data.get("schema_version", RUN_STATE_SCHEMA_VERSION)),
                 created_at=str(data.get("created_at", now_utc())),
                 updated_at=str(data.get("updated_at", now_utc())),
@@ -176,6 +182,7 @@ def state_path(run_dir: Path) -> Path:
 
 
 def save_state(run_dir: Path, state: RunState) -> None:
+    workspace_mutation_guard(run_dir)
     state.revision += 1
     atomic_write_json(state_path(run_dir), state.as_dict(), mode=0o600)
 

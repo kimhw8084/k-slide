@@ -207,6 +207,8 @@ class Phase35Tests(unittest.TestCase):
 
     def test_retention_removes_only_expired_terminal_runs(self):
         from datetime import datetime, timedelta, timezone
+        from k_slide.deletion import ReferenceLegalHoldProvider
+        from k_slide.paas import AuthorizedScopeContext
 
         now = datetime(2026, 9, 9, tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as directory:
@@ -218,19 +220,31 @@ class Phase35Tests(unittest.TestCase):
                 run.mkdir(mode=0o700)
                 (run / "RUN_STATE.json").write_text(json.dumps({"phase": phase, "updated_at": updated.isoformat()}), encoding="utf-8")
             policy = {"schema_version": "1.0", "content_retention_days": 30, "operational_metadata_retention_days": 60}
-            result = cleanup_expired_runs(root, policy, now=now)
+            central = root.parent / f"central-{root.name}"
+            central.mkdir()
+            context = AuthorizedScopeContext("retention-admin", "workspace-ref", "workspace")
+            provider = ReferenceLegalHoldProvider()
+            for run_id in ("expired", "failed"):
+                provider.set_release(scope_ref="workspace", run_ref=run_id)
+            result = cleanup_expired_runs(root, policy, now=now, scope_context=context, hold_provider=provider, operational_root=central)
             self.assertEqual({item["run_id"] for item in result["removed"]}, {"expired", "failed"})
             self.assertTrue((run_root / "active").is_dir())
             self.assertTrue((run_root / "recent").is_dir())
 
     def test_retention_symlink_fails_closed(self):
+        from k_slide.deletion import ReferenceLegalHoldProvider
+        from k_slide.paas import AuthorizedScopeContext
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
             root = Path(directory)
             run_root = root / ".k-slide-runs"
             run_root.mkdir(mode=0o700)
             (run_root / "link").symlink_to(Path(outside), target_is_directory=True)
+            central = root.parent / f"central-{root.name}"
+            central.mkdir()
+            context = AuthorizedScopeContext("retention-admin", "workspace-ref", "workspace")
+            provider = ReferenceLegalHoldProvider()
             with self.assertRaises(KSlideError) as raised:
-                cleanup_expired_runs(root, {"schema_version": "1.0", "content_retention_days": 1, "operational_metadata_retention_days": 2})
+                cleanup_expired_runs(root, {"schema_version": "1.0", "content_retention_days": 1, "operational_metadata_retention_days": 2}, scope_context=context, hold_provider=provider, operational_root=central)
             self.assertEqual(raised.exception.code, ErrorCode.RETENTION_REFUSED)
             self.assertTrue(Path(outside).is_dir())
 

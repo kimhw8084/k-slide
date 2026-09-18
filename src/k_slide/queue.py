@@ -11,7 +11,7 @@ from . import RUN_STATE_SCHEMA_VERSION
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import stable_revision
 from .io import atomic_write_json, read_json
-from .storage import StorageArtifact, storage_path
+from .storage import StorageArtifact, storage_path, workspace_mutation_guard
 
 
 class WorkUnitStatus(str, Enum):
@@ -98,6 +98,7 @@ def queue_path(run_dir: Path) -> Path:
 
 
 def save_queue(run_dir: Path, queue: WorkQueue) -> None:
+    workspace_mutation_guard(run_dir)
     validate_queue(queue)
     queue.refresh_revision()
     atomic_write_json(queue_path(run_dir), queue.as_dict(), mode=0o600)
