@@ -1,0 +1,484 @@
+{
+  "accepted_at": "2026-09-18T10:46:53Z",
+  "changed_files": [
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 2,
+      "path": "deploy/README.md",
+      "status": "M"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "path": "deploy/production-profile.example.json",
+      "status": "M"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "path": "evals/production-candidate.example.yaml",
+      "status": "M"
+    },
+    {
+      "additions": 6,
+      "deletions": 2,
+      "path": "evals/production-candidate.yaml",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/release.py",
+      "status": "M"
+    },
+    {
+      "additions": 59,
+      "deletions": 10,
+      "path": "src/k_slide/certification.py",
+      "status": "M"
+    },
+    {
+      "additions": 20,
+      "deletions": 2,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 59,
+      "deletions": 15,
+      "path": "src/k_slide/production.py",
+      "status": "M"
+    },
+    {
+      "additions": 16,
+      "deletions": 7,
+      "path": "src/k_slide/retention.py",
+      "status": "M"
+    },
+    {
+      "additions": 122,
+      "deletions": 0,
+      "path": "src/k_slide/retention_policy.py",
+      "status": "A"
+    },
+    {
+      "additions": 6,
+      "deletions": 5,
+      "path": "tests/test_certification_closure.py",
+      "status": "M"
+    },
+    {
+      "additions": 206,
+      "deletions": 0,
+      "path": "tests/test_chg16_retention_policy.py",
+      "status": "A"
+    },
+    {
+      "additions": 3,
+      "deletions": 2,
+      "path": "tests/test_phase35.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "tests/test_runtime_artifact.py",
+      "status": "M"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk git merge --ff-only b944136178f2d06f7b6f3fbc3fb6a3594084154a && rtk git status --short --branch && rtk git merge-base --is-ancestor 2d145a33f0e77591f4d85d55a50ad6e219efe949 HEAD; printf 'base_ancestor_exit=%s\\\\n' \\\"\"'$?\" && rtk git merge-base --is-ancestor b944136178f2d06f7b6f3fbc3fb6a3594084154a HEAD; printf '\"'predecessor_ancestor_exit=%s\\\\n' \\\"\"'$?\" && rtk git log --oneline --decorate -4'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' src/k_slide/retention_policy.py && rtk sed -n '1,220p' src/k_slide/retention.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,360p' tests/test_chg16_retention_policy.py && rtk sed -n '180,270p' tests/test_phase35.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"RetentionPolicy|require_resolved|cleanup_expired_runs|UNSET|NOT_YET_CONFIGURED|RETENTION_INVALID|retention_policy\" src tests deploy evals README.md deploy/README.md'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git show --stat --oneline b944136178f2d06f7b6f3fbc3fb6a3594084154a && rtk git diff 2d145a33f0e77591f4d85d55a50ad6e219efe949..HEAD -- src/k_slide/retention_policy.py src/k_slide/retention.py tests/test_chg16_retention_policy.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk find . -maxdepth 3 -type f \\\\( -name 'pyproject.toml' -o -name 'Makefile' -o -name '*.yml' -o -name '*.yaml' -o -name 'README.md' \\\\) -print | sort && rtk rg -n \\\"python.*3\\\\.11|3\\\\.12|unittest|phase35|ci-compatible|heavy\\\" .github evals scripts pyproject.toml Makefile README.md 2>/dev/null\"",
+      "exit_code": 2,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,150p' src/k_slide/errors.py && rtk rg -n \\\"RETENTION_INVALID|resolved\\\" src/k_slide tests | head -120\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,180p' src/k_slide/production.py && rtk sed -n '470,550p' src/k_slide/production.py && rtk sed -n '1,90p' src/k_slide/cli.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"\\\\.resolved\\\\b|require_resolved\\\\(\\\" src tests && rtk sed -n '80,150p' src/k_slide/production.py && rtk sed -n '510,540p' src/k_slide/production.py && rtk sed -n '1,100p' pyproject.toml && rtk sed -n '1,95p' .github/workflows/k-slide.yml && rtk sed -n '1,90p' .github/workflows/k-slide-phase32.yml\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '100,180p' tests/test_chg16_retention_policy.py && rtk sed -n '500,535p' src/k_slide/production.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"schema_version.*(1\\\\.0|None|int|unsupported)|RetentionPolicy\\\\(\\\" tests src | head -160\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git diff -- src/k_slide/retention_policy.py tests/test_chg16_retention_policy.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src rtk python -m unittest discover -s tests -p 'test_chg16_retention_policy.py' -v\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python --version; rtk python3.11 --version 2>/dev/null || true; rtk python3.12 --version 2>/dev/null || true; rtk git status --short --branch; rtk git diff --stat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3.12 -m unittest discover -s tests -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3.11 -m unittest discover -s tests -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3.12 -m pip install -e '.[pdf,pptx,dev]'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3.12 -m venv /tmp/k-slide-ci-py312 && rtk /tmp/k-slide-ci-py312/bin/python -m pip install -e '.[pdf,pptx,dev]'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-ci-py312/bin/python -m unittest discover -s tests -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,220p' scripts/install_project.sh && rtk sed -n '1,180p' scripts/verify_install.sh\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3.11 -m pip show Pillow PyMuPDF python-pptx fonttools 2>/dev/null | rtk rg '\"'^(Name|Version):'\"' || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3.11 -m venv /tmp/k-slide-ci-py311 && rtk /tmp/k-slide-ci-py311/bin/python -m pip install -e '.[pdf,pptx,dev]'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-ci-py311/bin/python -m compileall -q src tests evals && rtk /tmp/k-slide-ci-py312/bin/python -m compileall -q src tests evals'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-ci-py311/bin/python -m unittest discover -s tests -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-ci-py311/bin/python -m json.tool schemas/translation-patch.schema.json >/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-ci-py312/bin/python -m json.tool schemas/translation-patch.schema.json >/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-ci-py311/bin/python -m evals.generate_corpus --output /tmp/k-slide-f12-corpus-311 --formats png --limit 1 >/tmp/k-slide-f12-corpus-311.log'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-ci-py312/bin/python -m evals.generate_corpus --output /tmp/k-slide-f12-corpus-312 --formats png --limit 1 >/tmp/k-slide-f12-corpus-312.log'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PATH=/tmp/k-slide-ci-py311/bin:$PATH PYTHONPATH=src ./scripts/install_project.sh /tmp/k-slide-f12-install-311 >/tmp/k-slide-f12-install-311.log'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PATH=/tmp/k-slide-ci-py312/bin:$PATH PYTHONPATH=src ./scripts/install_project.sh /tmp/k-slide-f12-install-312 >/tmp/k-slide-f12-install-312.log'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PATH=/tmp/k-slide-ci-py311/bin:$PATH PYTHONPATH=src ./scripts/verify_install.sh /tmp/k-slide-f12-install-311 >/tmp/k-slide-f12-verify-311.log'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PATH=/tmp/k-slide-ci-py312/bin:$PATH PYTHONPATH=src ./scripts/verify_install.sh /tmp/k-slide-f12-install-312 >/tmp/k-slide-f12-verify-312.log'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-ci-py311/bin/python -m k_slide.cli doctor --root . --json >/tmp/k-slide-f12-doctor-311.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-ci-py312/bin/python -m k_slide.cli doctor --root . --json >/tmp/k-slide-f12-doctor-312.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-ci-py311/bin/python -m evals.run_engine_eval --output /tmp/k-slide-f12-eval-311 --split development --limit 2 --formats png pdf --candidate-profile evals/production-candidate.yaml >/tmp/k-slide-f12-eval-311.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-ci-py312/bin/python -m evals.run_engine_eval --output /tmp/k-slide-f12-eval-312 --split development --limit 2 --formats png pdf --candidate-profile evals/production-candidate.yaml >/tmp/k-slide-f12-eval-312.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git merge-base --is-ancestor 2d145a33f0e77591f4d85d55a50ad6e219efe949 HEAD; printf 'base_ancestor_exit=%s\\\\n' \\\"\"'$?\"; rtk git merge-base --is-ancestor b944136178f2d06f7b6f3fbc3fb6a3594084154a HEAD; printf '\"'predecessor_ancestor_exit=%s\\\\n' \\\"\"'$?\"; rtk git log --oneline --decorate -3'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,4p' /tmp/k-slide-f12-doctor-311.json; rtk sed -n '1,4p' /tmp/k-slide-f12-doctor-312.json; rtk tail -n 2 /tmp/k-slide-f12-corpus-311.log; rtk tail -n 2 /tmp/k-slide-f12-corpus-312.log; rtk tail -n 1 /tmp/k-slide-f12-eval-311.json; rtk tail -n 1 /tmp/k-slide-f12-eval-312.json\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --check && rtk git status --short --branch && rtk git diff --name-only && rtk git ls-files | rtk rg 'heavy.*evidence|RUN_COMPLETE|30-day|retention' || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk ls -la src/k_slide.egg-info && rtk find src/k_slide.egg-info -maxdepth 1 -type f -print'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rm -rf /Users/haewonkim/.codex-fabric/worktrees/CF-d3b851a5018ce0070ceb17e2/src/k_slide.egg-info && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,180p' src/k_slide/retention_policy.py && rtk sed -n '1,215p' src/k_slide/retention.py && rtk git diff --check\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src /tmp/k-slide-ci-py311/bin/python -m unittest discover -s tests -p 'test_chg16_retention_policy.py' -v\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src /tmp/k-slide-ci-py312/bin/python -m unittest discover -s tests -p 'test_chg16_retention_policy.py' -v\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-ci-py311/bin/python -m unittest discover -s tests -v >/tmp/k-slide-f12-unittest-311.log'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src /tmp/k-slide-ci-py312/bin/python -m unittest discover -s tests -v >/tmp/k-slide-f12-unittest-312.log'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add src/k_slide/retention_policy.py tests/test_chg16_retention_policy.py && rtk git commit -m \"fix: enforce retention policy invariants\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"def _is_positive_integer|def __post_init__|def require_resolved|def test_typed_constructor|def test_cleanup_refuses|def test_cleanup_revalidates\" src/k_slide/retention_policy.py tests/test_chg16_retention_policy.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --name-only b944136178f2d06f7b6f3fbc3fb6a3594084154a..HEAD && rtk git show --stat --oneline HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git rev-parse HEAD && rtk git rev-parse HEAD''^ && rtk git show -s --format='\"'%H%n%P%n%s' HEAD && rtk git diff --check HEAD\"'^ HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 128,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 93.76,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 3277568,
+      "fresh_input_tokens": 218157,
+      "input_tokens": 3495725,
+      "non_reasoning_output_tokens": 11079,
+      "output_tokens": 24801,
+      "reasoning_output_tokens": 13722,
+      "total_processed_tokens": 3520526
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "db3af4e097305c1572a570a1cd20fef3252ef622",
+      "subject": "fix: enforce retention policy invariants"
+    },
+    {
+      "sha": "b944136178f2d06f7b6f3fbc3fb6a3594084154a",
+      "subject": "fabric: capture completed model changes [CF-1c60b622f246077b073b47fb]"
+    }
+  ],
+  "diff": {
+    "additions": 516,
+    "changed_files": 15,
+    "commit_count": 2,
+    "deletions": 52
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 4,
+    "items": [
+      {
+        "bytes": 11666,
+        "path": "README.md",
+        "sha256": "2e264d539203dd12eb1183955dd328461b2e1f059b4f6ca20488228bfb7affe6"
+      },
+      {
+        "bytes": 3541,
+        "path": "deploy/README.md",
+        "sha256": "7b40ba1b56f71f379163ad90866a7e4f9cdef293a3721bcfe278a663352d3a3d"
+      },
+      {
+        "bytes": 912,
+        "path": "deploy/production-profile.example.json",
+        "sha256": "ca588e3bf5ff7ae5d5a16149900cff0c3397ed92dd49931cc47b35fdac6195b9"
+      },
+      {
+        "bytes": 6646,
+        "path": "tests/test_runtime_artifact.py",
+        "sha256": "4e10d6e97506ae7aa9febbd75034d7182ebaf39533740b39ba0edfa6d2ba77be"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-18T10:59:15Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "2d145a33f0e77591f4d85d55a50ad6e219efe949",
+    "branch": "codex/k-slide-chg16-retention-policy-01-fix01",
+    "head_sha": "db3af4e097305c1572a570a1cd20fef3252ef622",
+    "remote_exact_head": true,
+    "remote_head_sha": "db3af4e097305c1572a570a1cd20fef3252ef622",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "2d145a33f0e77591f4d85d55a50ad6e219efe949",
+    "work_branch": "codex/k-slide-chg16-retention-policy-01-fix01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-d3b851a5018ce0070ceb17e2",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-retention-policy-01-fix01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-retention-policy-01-fix01"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-retention-policy-01-fix01",
+  "schema_version": 1,
+  "started_at": "2026-09-18T10:46:53Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 742,
+    "queue_seconds": 0,
+    "total_seconds": 742
+  },
+  "transport": {
+    "bytes": 5344,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 5021,
+    "prompt_sha256": "55ba668da3fca301f6ccfea65126d47121374bd53a7e8a2f4fbb64c9dcd837d3",
+    "sha256": "d3b851a5018ce0070ceb17e27e24afe047bfb77ef55305f3fd5fb2cc143915da"
+  }
+}
