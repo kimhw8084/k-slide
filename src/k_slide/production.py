@@ -40,6 +40,7 @@ from .certification import (
     validate_cyclonedx_1_5,
 )
 from .errors import ErrorCode, KSlideError
+from .authentication import authentication_readiness
 from .model_policy import load_model_policy
 from .ocr.policy import OCRProviderPolicy, create_ocr_provider
 from .runtime import RuntimeMetadata
@@ -513,10 +514,12 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
     """Return fail-closed production checks without changing run state."""
 
     checks: list[dict[str, str]] = []
+    access_key = authentication_readiness()
+    checks.append({"label": "AccessKey readiness", "status": "PASS" if access_key.ready else "WARN", "detail": access_key.reason})
     try:
         profile = load_production_profile(root, require_resolved_retention=False)
     except KSlideError as exc:
-        return [_check("Production profile", False, exc.message), *_retention_policy_checks(RetentionPolicy("1.0", "UNSET", "UNSET"), invalid_detail=exc.message)]
+        return [*checks, _check("Production profile", False, exc.message), *_retention_policy_checks(RetentionPolicy("1.0", "UNSET", "UNSET"), invalid_detail=exc.message)]
     checks.append(_check("Production profile schema", profile.schema_version == PRODUCTION_PROFILE_SCHEMA_VERSION, profile.schema_version))
     checks.append(_check("Release state", profile.release_state == ReleaseState.PRODUCTION_CERTIFIED.value, profile.release_state))
     candidate_missing = candidate_completeness(profile.candidate_spec or {}, ReleaseState.PRODUCTION_CERTIFIED.value)

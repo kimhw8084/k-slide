@@ -12,12 +12,14 @@ changing the engine or execution record.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
 from . import EXECUTION_CONTRACT_VERSION
+from .authentication import ApprovedCompanyServiceTransport, CompanyServiceRequest, authenticated_company_service_call
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import stable_revision
 from .environment import RunEnvironmentIdentity, environment_mismatch_fields, raise_environment_mismatch
@@ -51,6 +53,15 @@ _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,255}$")
 _STRICT_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 _TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
 _FORBIDDEN = ("access", "secret", "token", "password", "credential", "source", "content", "prompt")
+
+
+def authenticated_paas_service_call(
+    transport: ApprovedCompanyServiceTransport,
+    request: CompanyServiceRequest | Mapping[str, Any],
+) -> object:
+    """Use the common AccessKey boundary for durable/PaaS callers."""
+
+    return authenticated_company_service_call(transport, request)
 
 
 def _invalid(message: str, *, code: ErrorCode = ErrorCode.EXECUTION_INVALID) -> KSlideError:
@@ -2079,6 +2090,9 @@ __all__ = [
     "AuthorizedScope",
     "AuthorizedScopeContext",
     "AuthorizationContext",
+    "authenticated_paas_service_call",
+    "ApprovedCompanyServiceTransport",
+    "CompanyServiceRequest",
     "DurableJobIdentity",
     "PaaSScopeContext",
     "PaaSController",

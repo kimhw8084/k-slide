@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 from urllib.parse import unquote, urlparse
 
+from .authentication import ApprovedCompanyServiceTransport, CompanyServiceRequest, authenticated_company_service_call
 from .errors import ErrorCode, KSlideError
 from .queue import WorkQueue, WorkUnitStatus
 from .redaction import sanitize_operational
@@ -19,6 +20,15 @@ from .state import OPERATIONAL_FAILURE_PHASES, RunPhase
 HOST_ADAPTER_SCHEMA_VERSION = "1.0"
 HOST_ADAPTER_VERSION = "1.0"
 HOST_INPUT_KINDS = frozenset({"attachment", "workspace_file"})
+
+
+def authenticated_host_service_call(
+    transport: ApprovedCompanyServiceTransport,
+    request: CompanyServiceRequest | Mapping[str, Any],
+) -> object:
+    """Use the common AccessKey boundary for host-neutral callers."""
+
+    return authenticated_company_service_call(transport, request)
 
 
 class OperationalState(str, Enum):
