@@ -258,7 +258,7 @@ def _render_pptx(source: Path, run_dir: Path, document_id: str) -> list[Path]:
     if not binary:
         raise KSlideError(ErrorCode.PPTX_RENDER_UNAVAILABLE, "LibreOffice/soffice is required to render PPTX slides.", {"input": source.name})
     scratch = StorageLayout.for_workspace(run_dir)
-    staging_root = scratch.path(StorageArtifact.CONVERSION_STAGING, f"office/{document_id}", create_parent=True)
+    staging_root = scratch.ensure_directory(StorageArtifact.CONVERSION_STAGING, f"office/{document_id}")
     with tempfile.TemporaryDirectory(prefix="k-slide-office-", dir=staging_root) as temporary:
         output = Path(temporary) / "out"
         profile = Path(temporary) / "profile"

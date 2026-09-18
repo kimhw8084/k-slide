@@ -154,7 +154,34 @@ class StoragePlaneContractTests(unittest.TestCase):
             self.assertEqual(len(renders), 1)
             staging = StorageLayout.for_workspace(run).path(StorageArtifact.CONVERSION_STAGING, "office/doc-001")
             self.assertTrue(staging.is_dir())
+            self.assertEqual(staging.stat().st_mode & 0o777, 0o700)
+            self.assertTrue(staging.resolve().is_relative_to(StorageLayout.for_workspace(run).scratch_root.resolve()))
+            self.assertEqual(list(staging.iterdir()), [])
             self.assertTrue(renders[0].is_file())
+
+    def test_typed_directory_creation_is_safe_and_recreatable(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside_directory:
+            root = Path(directory)
+            run = root / ".k-slide-runs" / "run-1"
+            run.mkdir(parents=True)
+            layout = StorageLayout.for_workspace(run)
+            staging = layout.ensure_directory(StorageArtifact.CONVERSION_STAGING, "office/doc-001")
+            self.assertTrue(staging.is_dir())
+            self.assertEqual(staging.stat().st_mode & 0o777, 0o700)
+            (staging / "temporary-child").write_text("scratch", encoding="utf-8")
+            layout.cleanup_scratch()
+            self.assertFalse(layout.scratch_root.exists())
+            recreated = layout.ensure_directory(StorageArtifact.CONVERSION_STAGING, "office/doc-001")
+            self.assertTrue(recreated.is_dir())
+            self.assertEqual(recreated.stat().st_mode & 0o777, 0o700)
+            with self.assertRaises(KSlideError):
+                layout.ensure_directory(StorageArtifact.CONVERSION_STAGING, "../outside")
+            outside = Path(outside_directory) / "alias-target"
+            outside.mkdir()
+            alias = recreated.parent / "alias"
+            alias.symlink_to(outside, target_is_directory=True)
+            with self.assertRaises(KSlideError):
+                layout.ensure_directory(StorageArtifact.CONVERSION_STAGING, "office/alias")
 
     def test_doctor_probes_durable_run_root_when_scratch_is_writable(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

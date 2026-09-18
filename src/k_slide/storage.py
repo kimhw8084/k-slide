@@ -9,6 +9,7 @@ the durable adapter preserves the historical K-Slide file layout.
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import shutil
 from dataclasses import dataclass
@@ -370,6 +371,37 @@ class StorageLayout:
             _reject_symlink_components(parent, root)
             parent.mkdir(parents=True, exist_ok=True)
             _reject_symlink_components(parent, root)
+        return candidate
+
+    def ensure_directory(self, artifact: StorageArtifact | str, relative_path: str) -> Path:
+        """Materialize a private typed directory without changing file-path semantics."""
+
+        artifact = _artifact(artifact)
+        root = self.root_for(STORAGE_POLICY[artifact])
+        candidate = self.path(artifact, relative_path, create_parent=True)
+        if candidate.exists() and candidate.is_symlink():
+            raise _error("Storage directory may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
+        try:
+            candidate.mkdir(mode=0o700, exist_ok=True)
+        except FileExistsError as exc:
+            raise _error("Storage directory is not a directory.") from exc
+        except OSError as exc:
+            raise _error("Storage directory could not be created safely.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT) from exc
+        _reject_symlink_components(candidate, root)
+        if candidate.is_symlink() or not candidate.is_dir():
+            raise _error("Storage directory is unsafe.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
+        resolved = _resolved(candidate)
+        try:
+            resolved.relative_to(root)
+        except ValueError as exc:
+            raise _error("Storage directory escaped its plane root.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT) from exc
+        try:
+            os.chmod(candidate, 0o700, follow_symlinks=False)
+        except OSError as exc:
+            raise _error("Storage directory permissions could not be secured.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT) from exc
+        _reject_symlink_components(candidate, root)
+        if candidate.is_symlink() or not candidate.is_dir() or _resolved(candidate) != resolved:
+            raise _error("Storage directory was replaced unsafely.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
         return candidate
 
     def reference(self, artifact: StorageArtifact | str, relative_path: str) -> StorageReference:
