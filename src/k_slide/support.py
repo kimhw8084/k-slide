@@ -17,6 +17,7 @@ from . import __version__
 from .errors import ErrorCode, KSlideError
 from .redaction import sanitize_operational
 from .runtime import discover_runtime
+from .storage import StorageArtifact, storage_path
 
 
 _STATE_KEYS = {
@@ -102,17 +103,25 @@ def _queue_summary(path: Path) -> dict[str, Any]:
 
 
 def _run_summary(run: Path) -> dict[str, Any]:
-    state = _select(_read_object(run / "RUN_STATE.json"), _STATE_KEYS)
-    manifest = _select(_read_object(run / "RUN_MANIFEST.json"), _MANIFEST_KEYS)
-    runtime = _select(_read_object(run / "RUNTIME_METADATA.json"), _RUNTIME_KEYS)
+    state = _select(_read_object(storage_path(run, StorageArtifact.RUN_STATE, "RUN_STATE.json")), _STATE_KEYS)
+    manifest = _select(_read_object(storage_path(run, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json")), _MANIFEST_KEYS)
+    runtime = _select(_read_object(storage_path(run, StorageArtifact.RUNTIME_METADATA, "RUNTIME_METADATA.json")), _RUNTIME_KEYS)
     return {
         "run_id": run.name,
         "state": state,
         "manifest": manifest,
         "runtime": runtime,
-        "queue": _queue_summary(run / "WORK_QUEUE.json"),
+        "queue": _queue_summary(storage_path(run, StorageArtifact.WORK_QUEUE, "WORK_QUEUE.json")),
         "artifacts": {
-            name: (run / name).is_file()
+            name: storage_path(run, {
+                "RUN_STATE.json": StorageArtifact.RUN_STATE,
+                "EXECUTION_JOB.json": StorageArtifact.EXECUTION_JOB,
+                "RUN_MANIFEST.json": StorageArtifact.RUN_MANIFEST,
+                "RUNTIME_METADATA.json": StorageArtifact.RUNTIME_METADATA,
+                "WORK_QUEUE.json": StorageArtifact.WORK_QUEUE,
+                "RUN_COMPLETE.md": StorageArtifact.COMPLETION_MARKER,
+                "RUN_FAILED.md": StorageArtifact.FAILURE_MARKER,
+            }[name], name).is_file()
             for name in ("RUN_STATE.json", "EXECUTION_JOB.json", "RUN_MANIFEST.json", "RUNTIME_METADATA.json", "WORK_QUEUE.json", "RUN_COMPLETE.md", "RUN_FAILED.md")
         },
     }

@@ -18,6 +18,7 @@ from .fusion import fuse_literal_evidence
 from .ocr.policy import OCRProviderPolicy, OCRProviderSelection, create_ocr_provider, load_ocr_policy
 from .queue import WorkUnitStatus, load_queue, save_queue
 from .runtime import discover_runtime
+from .storage import StorageArtifact, storage_path
 from .state import RunPhase, load_state, save_state
 
 
@@ -30,7 +31,7 @@ def _crop_regions(run_dir: Path, unit: Any, native_items: list[dict[str, Any]]) 
         from PIL import Image
     except ImportError as exc:
         raise KSlideError(ErrorCode.IMAGE_DECODE_FAILED, "Pillow is required for deterministic region crops.") from exc
-    render_path = run_dir / unit.canonical_render_path
+    render_path = storage_path(run_dir, StorageArtifact.NORMALIZED_RENDER, unit.canonical_render_path)
     try:
         image = Image.open(render_path).convert("RGB")
     except Exception as exc:
@@ -52,8 +53,8 @@ def _crop_regions(run_dir: Path, unit: Any, native_items: list[dict[str, Any]]) 
         pad_y = max(1, int((bottom - top) * CROP_PADDING))
         crop_box = (max(0, left - pad_x), max(0, top - pad_y), min(width, right + pad_x), min(height, bottom + pad_y))
         region_id = str(item.get("source_id", f"{unit.work_unit_id}-region-{order:03d}"))
-        original_path = run_dir / "regions" / unit.work_unit_id / f"{region_id}.png"
-        model_path = run_dir / "regions" / unit.work_unit_id / f"{region_id}-model.png"
+        original_path = storage_path(run_dir, StorageArtifact.REGION_CROP, f"regions/{unit.work_unit_id}/{region_id}.png", create_parent=True)
+        model_path = storage_path(run_dir, StorageArtifact.REGION_CROP, f"regions/{unit.work_unit_id}/{region_id}-model.png", create_parent=True)
         original_path.parent.mkdir(parents=True, exist_ok=True)
         crop = image.crop(crop_box)
         crop.save(original_path, format="PNG")
@@ -68,12 +69,13 @@ def _crop_regions(run_dir: Path, unit: Any, native_items: list[dict[str, Any]]) 
         native_source = item.get("evidence_source", "native") == "native"
         native_candidates = ({"text": str(text), "confidence": 1.0, "source": "native"},) if text and native_source else ()
         normalized = (crop_box[0] / width, crop_box[1] / height, crop_box[2] / width, crop_box[3] / height)
-        regions.append(EvidenceRegion(region_id=region_id, bbox_px=crop_box, bbox_normalized=normalized, reading_order=order, region_type=str(item.get("region_type", "TEXT" if text else "IMAGE")), native_text_candidates=native_candidates, selected_literal_candidate=str(text) if text and native_source else None, literal_confidence=1.0 if text and native_source else None, language="ko" if text else None, crop_original_path=str(original_path.relative_to(run_dir)), crop_model_path=str(model_path.relative_to(run_dir)), required_for_translation=True))
+        durable_root = Path(run_dir).resolve()
+        regions.append(EvidenceRegion(region_id=region_id, bbox_px=crop_box, bbox_normalized=normalized, reading_order=order, region_type=str(item.get("region_type", "TEXT" if text else "IMAGE")), native_text_candidates=native_candidates, selected_literal_candidate=str(text) if text and native_source else None, literal_confidence=1.0 if text and native_source else None, language="ko" if text else None, crop_original_path=str(original_path.relative_to(durable_root)), crop_model_path=str(model_path.relative_to(durable_root)), required_for_translation=True))
     return regions
 
 
 def _unit_native(run_dir: Path, unit: Any) -> list[dict[str, Any]]:
-    path = run_dir / unit.native_evidence_path
+    path = storage_path(run_dir, StorageArtifact.NATIVE_EXTRACTION, unit.native_evidence_path)
     if not path.is_file():
         return []
     value = read_json(path)
@@ -150,7 +152,7 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None, ocr_p
                 selection = create_ocr_provider(requested_policy)
             except KSlideError as exc:
                 atomic_write_json(
-                    run_dir / "OCR_METADATA.json",
+                    storage_path(run_dir, StorageArtifact.OCR_METADATA, "OCR_METADATA.json", create_parent=True),
                     {
                         "ocr_policy_requested": str(getattr(requested_policy, "value", requested_policy)),
                         "ocr_provider_effective": None,
@@ -161,14 +163,14 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None, ocr_p
                 )
                 raise
         provider = selection.provider
-        atomic_write_json(run_dir / "OCR_METADATA.json", selection.as_dict(), mode=0o600)
+        atomic_write_json(storage_path(run_dir, StorageArtifact.OCR_METADATA, "OCR_METADATA.json", create_parent=True), selection.as_dict(), mode=0o600)
         evidence_values: list[EvidenceIR] = []
         queue = load_queue(run_dir)
         for document in normalized.documents:
             for unit in document.units:
                 native_items = _unit_native(run_dir, unit)
                 try:
-                    ocr_result = provider.extract(run_dir / unit.canonical_render_path)
+                    ocr_result = provider.extract(storage_path(run_dir, StorageArtifact.NORMALIZED_RENDER, unit.canonical_render_path))
                 except KSlideError:
                     raise
                 except (OSError, ValueError) as exc:
@@ -230,7 +232,7 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None, ocr_p
         state.current_work_unit = None
         state.transition(RunPhase.EXTRACTED, next_action="Schedule the next bounded translation work unit")
         save_state(run_dir, state)
-        atomic_write_json(run_dir / "metrics.json", {"work_unit_count": len(evidence_values), "regions_detected": sum(len(item.regions) for item in evidence_values), "native_regions": sum(sum(1 for region in item.regions if region.native_text_candidates) for item in evidence_values), "numeric_facts": sum(len(item.numeric_facts) for item in evidence_values), "ocr_policy_requested": selection.requested, "ocr_provider": provider.name, "ocr_provider_effective": selection.effective, "ocr_provider_version": selection.version, "ocr_reason": selection.reason}, mode=0o600)
+        atomic_write_json(storage_path(run_dir, StorageArtifact.METRICS, "metrics.json", create_parent=True), {"work_unit_count": len(evidence_values), "regions_detected": sum(len(item.regions) for item in evidence_values), "native_regions": sum(sum(1 for region in item.regions if region.native_text_candidates) for item in evidence_values), "numeric_facts": sum(len(item.numeric_facts) for item in evidence_values), "ocr_policy_requested": selection.requested, "ocr_provider": provider.name, "ocr_provider_effective": selection.effective, "ocr_provider_version": selection.version, "ocr_reason": selection.reason}, mode=0o600)
         return evidence_values
 
 
@@ -258,8 +260,8 @@ def extract_run(
                     state.transition(RunPhase.FAILED_EXTRACTION, next_action="Fix the extraction capability or source file and retry", error_code=code, error_message=message)
                     save_state(run_dir, state)
                     details = exc.as_dict() if isinstance(exc, KSlideError) else {"code": code, "message": message, "details": {"reason": str(exc)}}
-                    atomic_write_json(run_dir / "evidence" / "EXTRACTION_ERROR.json", details, mode=0o600)
-                    atomic_write_text(run_dir / "RUN_FAILED.md", f"# FAILED\n\n{message}\n\nError code: `{code}`\n")
+                    atomic_write_json(storage_path(run_dir, StorageArtifact.EXTRACTION_ERROR, "evidence/EXTRACTION_ERROR.json", create_parent=True), details, mode=0o600)
+                    atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{message}\n\nError code: `{code}`\n")
         except (KSlideError, OSError):
             pass
         raise

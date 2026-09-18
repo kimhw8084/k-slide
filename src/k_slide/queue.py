@@ -11,6 +11,7 @@ from . import RUN_STATE_SCHEMA_VERSION
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import stable_revision
 from .io import atomic_write_json, read_json
+from .storage import StorageArtifact, storage_path
 
 
 class WorkUnitStatus(str, Enum):
@@ -93,7 +94,7 @@ class WorkQueue:
 
 
 def queue_path(run_dir: Path) -> Path:
-    return run_dir / "WORK_QUEUE.json"
+    return storage_path(run_dir, StorageArtifact.WORK_QUEUE, "WORK_QUEUE.json")
 
 
 def save_queue(run_dir: Path, queue: WorkQueue) -> None:

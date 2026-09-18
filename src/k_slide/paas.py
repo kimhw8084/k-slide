@@ -42,6 +42,7 @@ from .execution import (
 from .io import atomic_write_json, read_json
 from .locking import filesystem_lock
 from .state import RunPhase, now_utc
+from .storage import STORAGE_PLANE_CONTRACT_VERSION, StorageArtifact, StorageLayout, StoragePlane
 
 
 PAAS_CONTRACT_VERSION = "1.0"
@@ -150,6 +151,8 @@ class ScopedArtifactReferences:
     run_ref: str
     result_ref: str
     evidence_ref: str
+    plane: StoragePlane = StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA
+    storage_contract_version: str = STORAGE_PLANE_CONTRACT_VERSION
 
     def __post_init__(self) -> None:
         _safe_identity(self.scope_ref, "artifact scope reference")
@@ -160,6 +163,15 @@ class ScopedArtifactReferences:
             (self.evidence_ref, "evidence reference"),
         ):
             _safe_identity(value, label)
+        if not isinstance(self.plane, StoragePlane):
+            try:
+                object.__setattr__(self, "plane", StoragePlane(str(self.plane)))
+            except ValueError as exc:
+                raise _invalid("Artifact reference plane is unsupported.") from exc
+        if self.plane is not StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA:
+            raise _invalid("Durable artifact references must identify the durable user/workspace run-data plane.")
+        if self.storage_contract_version != STORAGE_PLANE_CONTRACT_VERSION:
+            raise _invalid("Unsupported storage-plane contract version.", code=ErrorCode.EXECUTION_UNSUPPORTED_VERSION)
 
     def as_dict(self) -> dict[str, str]:
         return {
@@ -168,14 +180,17 @@ class ScopedArtifactReferences:
             "run_ref": self.run_ref,
             "result_ref": self.result_ref,
             "evidence_ref": self.evidence_ref,
+            "plane": self.plane.value,
+            "storage_contract_version": self.storage_contract_version,
         }
 
     @classmethod
     def from_dict(cls, value: Any) -> "ScopedArtifactReferences":
-        if not isinstance(value, dict) or set(value) != {"scope_ref", "store_ref", "run_ref", "result_ref", "evidence_ref"}:
+        allowed = {"scope_ref", "store_ref", "run_ref", "result_ref", "evidence_ref", "plane", "storage_contract_version"}
+        if not isinstance(value, dict) or set(value) - allowed or not {"scope_ref", "store_ref", "run_ref", "result_ref", "evidence_ref"}.issubset(value):
             raise _invalid("Scoped artifact references are incomplete.", code=ErrorCode.STATE_CORRUPT)
         try:
-            return cls(**value)
+            return cls(**{**value, "plane": value.get("plane", StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA), "storage_contract_version": value.get("storage_contract_version", STORAGE_PLANE_CONTRACT_VERSION)})
         except (TypeError, ValueError) as exc:
             raise _invalid("Scoped artifact references are invalid.", code=ErrorCode.STATE_CORRUPT) from exc
 
@@ -669,8 +684,8 @@ class PaaSRunStore:
 class ReferencePaaSRunStore(PaaSRunStore):
     """Deterministic reference backend for the platform-neutral boundary."""
 
-    def __init__(self, backing_root: Path) -> None:
-        super().__init__(DurableTestRunStore(backing_root))
+    def __init__(self, backing_root: Path, *, auxiliary_root: Path | None = None) -> None:
+        super().__init__(DurableTestRunStore(backing_root, auxiliary_root=auxiliary_root))
 
 
 @dataclass(frozen=True)
@@ -983,19 +998,24 @@ class ReferencePaaSJobService(RunStoreResolver):
             raise _invalid("PaaS service authorization context is invalid.")
         if authorization is not None and not isinstance(authorization, AuthorizedScopeContext):
             raise _invalid("PaaS service authorization context is invalid.")
-        self.root = Path(service_root).expanduser().resolve()
-        self._records_root = self.root / "job-service" / "jobs"
-        self._store = ReferencePaaSRunStore(self.root / "job-service" / "run-store")
-        self._scopes_root = self.root / "job-service" / "scopes"
+        raw_root = Path(service_root).expanduser()
+        if raw_root.exists() and raw_root.is_symlink():
+            raise _invalid("PaaS service root may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
+        self.root = raw_root.resolve()
+        self._storage = StorageLayout.for_service(self.root)
+        self._records_root = self._storage.durable_root / "jobs"
+        self._store = ReferencePaaSRunStore(self._storage.durable_root / "run-store", auxiliary_root=self.root)
+        self._scopes_root = self._storage.durable_root / "scopes"
         self.admission_policy = admission_policy or ScopedAdmissionPolicy()
         self.scope_context = scope_context or authorization
 
     def _record_path(self, job_id: str) -> Path:
         _strict_identifier(job_id, "job ID")
-        return self._records_root / f"{job_id}.json"
+        return self._storage.path(StorageArtifact.ADMISSION_RECORD, f"jobs/{job_id}.json")
 
     def _record_lock(self, job_id: str):
-        return filesystem_lock(self.root / "job-service" / "locks" / f"{job_id}.lock", require_shared=True, reject_symlink=True)
+        lock_path = self._storage.path(StorageArtifact.COORDINATION_LOCK, f"locks/{job_id}.lock", create_parent=True)
+        return filesystem_lock(lock_path, require_shared=True, reject_symlink=True)
 
     @staticmethod
     def _authorized_context(scope_context: AuthorizedScopeContext | None, scope_ref: str) -> AuthorizedScopeContext | None:
@@ -1032,19 +1052,23 @@ class ReferencePaaSJobService(RunStoreResolver):
 
     def _scope_record_path(self, scope_context: AuthorizedScopeContext, job_id: str) -> Path:
         _strict_identifier(job_id, "job ID")
-        return self._scope_root(scope_context) / "jobs" / f"{job_id}.json"
+        layout = StorageLayout.for_scoped_reference(service_root=self.root, durable_root=self._scope_root(scope_context), scope_ref=str(scope_context.scope_ref), run_ref=job_id)
+        return layout.path(StorageArtifact.ADMISSION_RECORD, f"jobs/{job_id}.json")
 
     def _scope_lock(self, scope_context: AuthorizedScopeContext):
-        return filesystem_lock(self._scope_root(scope_context) / "locks" / "scope.lock", require_shared=True, reject_symlink=True)
+        layout = StorageLayout.for_scoped_reference(service_root=self.root, durable_root=self._scope_root(scope_context), scope_ref=str(scope_context.scope_ref), run_ref="scope-lock")
+        return filesystem_lock(layout.path(StorageArtifact.COORDINATION_LOCK, "scope.lock", create_parent=True), require_shared=True, reject_symlink=True)
 
     def _scope_control_path(self, scope_context: AuthorizedScopeContext) -> Path:
-        return self._scope_root(scope_context) / "admission" / "CONTROL_STATE.json"
+        layout = StorageLayout.for_scoped_reference(service_root=self.root, durable_root=self._scope_root(scope_context), scope_ref=str(scope_context.scope_ref), run_ref="admission")
+        return layout.path(StorageArtifact.ADMISSION_CONTROL, "admission/CONTROL_STATE.json")
 
     def _scope_queue_path(self, scope_context: AuthorizedScopeContext) -> Path:
-        return self._scope_root(scope_context) / "admission" / "QUEUE.json"
+        layout = StorageLayout.for_scoped_reference(service_root=self.root, durable_root=self._scope_root(scope_context), scope_ref=str(scope_context.scope_ref), run_ref="admission")
+        return layout.path(StorageArtifact.ADMISSION_QUEUE, "admission/QUEUE.json")
 
     def _scoped_store(self, scope_context: AuthorizedScopeContext) -> ReferencePaaSRunStore:
-        return ReferencePaaSRunStore(self._scope_root(scope_context) / "run-store")
+        return ReferencePaaSRunStore(self._scope_root(scope_context) / "run-store", auxiliary_root=self.root)
 
     def _scoped_references(self, identity: DurableJobIdentity, scope_context: AuthorizedScopeContext) -> ScopedArtifactReferences:
         scope_key = self._scope_key(scope_context)

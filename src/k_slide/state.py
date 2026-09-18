@@ -11,6 +11,7 @@ from typing import Any
 from . import RUN_STATE_SCHEMA_VERSION
 from .errors import ErrorCode, KSlideError
 from .io import atomic_write_json, read_json
+from .storage import StorageArtifact, storage_path
 
 
 class RunPhase(str, Enum):
@@ -171,7 +172,7 @@ class RunState:
 
 
 def state_path(run_dir: Path) -> Path:
-    return run_dir / "RUN_STATE.json"
+    return storage_path(run_dir, StorageArtifact.RUN_STATE, "RUN_STATE.json")
 
 
 def save_state(run_dir: Path, state: RunState) -> None:

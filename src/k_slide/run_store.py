@@ -21,6 +21,27 @@ from .paas import (
     ScopedArtifactReferences,
     ScopedPaaSRunStore,
 )
+from .storage import (
+    STORAGE_PLANE_CONTRACT_VERSION,
+    STORAGE_POLICY,
+    StorageArtifact,
+    StorageLayout,
+    StoragePlane,
+    StorageReference,
+    StorageResolver,
+)
+from .telemetry import (
+    TELEMETRY_SCHEMA_VERSION,
+    TelemetryErrorCode,
+    TelemetryEvent,
+    TelemetryEventType,
+    TelemetryLifecycle,
+    TelemetryMachineId,
+    TelemetryReference,
+    TelemetryReferenceKind,
+    TelemetryStage,
+    TelemetryWriter,
+)
 
 __all__ = [
     "DeterministicDurableRunStore",
@@ -40,4 +61,21 @@ __all__ = [
     "ScopedArtifactReferences",
     "ScopedPaaSRunStore",
     "run_store_for_profile",
+    "STORAGE_PLANE_CONTRACT_VERSION",
+    "STORAGE_POLICY",
+    "StorageArtifact",
+    "StorageLayout",
+    "StoragePlane",
+    "StorageReference",
+    "StorageResolver",
+    "TELEMETRY_SCHEMA_VERSION",
+    "TelemetryErrorCode",
+    "TelemetryEvent",
+    "TelemetryEventType",
+    "TelemetryLifecycle",
+    "TelemetryMachineId",
+    "TelemetryReference",
+    "TelemetryReferenceKind",
+    "TelemetryStage",
+    "TelemetryWriter",
 ]

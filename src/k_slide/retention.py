@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .errors import ErrorCode, KSlideError
+from .storage import StorageArtifact, storage_path
 
 
 _TERMINAL_PHASES = {"COMPLETE", "FAILED_INPUT", "FAILED_RUNTIME", "FAILED_NORMALIZATION", "FAILED_EXTRACTION", "FAILED_SCHEMA", "FAILED_INTERNAL"}
@@ -65,7 +66,7 @@ def cleanup_expired_runs(root: Path, retention_days: int, *, now: datetime | Non
             retained.append({"run_id": run.name, "reason": "not_a_directory"})
             continue
         _assert_safe_tree(run, run_root)
-        state_path = run / "RUN_STATE.json"
+        state_path = storage_path(run, StorageArtifact.RUN_STATE, "RUN_STATE.json")
         state: dict[str, Any] = {}
         if state_path.is_file():
             try:

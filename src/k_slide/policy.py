@@ -38,7 +38,16 @@ class CompletionPolicy:
 
     def missing(self, run_dir: Path, *, include_sentinel: bool = True) -> list[str]:
         names = self.required_artifacts if include_sentinel else self.precompletion_artifacts
-        return [name for name in names if not (run_dir / name).is_file()]
+        from .storage import StorageArtifact, storage_path
+
+        def artifact_for(name: str) -> StorageArtifact:
+            if name.startswith("05_") or name.startswith("07_"):
+                return StorageArtifact.REPORT
+            if name.startswith("06_"):
+                return StorageArtifact.VERIFICATION
+            return StorageArtifact.COMPLETION_MARKER
+
+        return [name for name in names if not storage_path(run_dir, artifact_for(name), name).is_file()]
 
 
 COMPLETION_POLICY = CompletionPolicy()

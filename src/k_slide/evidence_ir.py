@@ -11,6 +11,7 @@ from typing import Any
 from . import EVIDENCE_IR_SCHEMA_VERSION
 from .errors import ErrorCode, KSlideError
 from .io import atomic_write_json, read_json
+from .storage import StorageArtifact, storage_path
 
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
@@ -262,7 +263,7 @@ class EvidenceIR:
 
 
 def evidence_path(run_dir: Any, work_unit_id: str) -> Any:
-    return run_dir / "evidence" / f"{work_unit_id}.json"
+    return storage_path(run_dir, StorageArtifact.EVIDENCE_IR, f"evidence/{work_unit_id}.json")
 
 
 def save_evidence(run_dir: Any, evidence: EvidenceIR) -> None:
