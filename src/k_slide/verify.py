@@ -22,7 +22,7 @@ from .queue import WorkQueue, WorkUnitStatus, load_queue, save_queue
 from .rendering import render_run
 from .security import sha256_file
 from .state import RunPhase, load_state, save_state
-from .storage import StorageArtifact, storage_path
+from .storage import StorageArtifact, ensure_workspace_mutation_allowed, storage_path
 from .terminology import load_effective_termbase
 
 
@@ -203,6 +203,7 @@ def _persist_verification(run_dir: Path, result: VerificationResult) -> None:
 def verify_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | None = None) -> VerificationResult:
     from .execution import ensure_workspace_environment_compatible
 
+    ensure_workspace_mutation_allowed(run_dir)
     ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
     with run_lock(run_dir):
         state = load_state(run_dir)
@@ -250,6 +251,7 @@ def verify_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | 
 def finalize_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | None = None) -> VerificationResult:
     from .execution import ensure_workspace_environment_compatible
 
+    ensure_workspace_mutation_allowed(run_dir)
     ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
     with run_lock(run_dir):
         state = load_state(run_dir)

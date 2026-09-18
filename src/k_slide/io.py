@@ -14,6 +14,9 @@ from .errors import ErrorCode, KSlideError
 def atomic_write_bytes(path: Path, data: bytes, *, mode: int | None = None) -> None:
     """Write a file beside its final path and replace it atomically."""
 
+    from .storage import ensure_path_mutation_allowed
+
+    ensure_path_mutation_allowed(Path(path))
     path = path.resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)

@@ -35,6 +35,16 @@ class CliBlackBoxTests(unittest.TestCase):
             self.assertEqual(status.returncode, 0)
             self.assertEqual(json.loads(status.stdout)["status"], "NO_RUN")
 
+    def test_standalone_destructive_cli_surfaces_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            delete = run_cli("delete", "--root", directory, "--run", "run-1", "--deletion-id", "delete-1", "--json", cwd=ROOT)
+            retention = run_cli("retention-cleanup", "--root", directory, "--dry-run", "--json", cwd=ROOT)
+            self.assertNotEqual(delete.returncode, 0)
+            self.assertNotEqual(retention.returncode, 0)
+            self.assertEqual(json.loads(delete.stdout)["error"]["code"], "KSLIDE_AUTHENTICATION_FAILED")
+            self.assertEqual(json.loads(retention.stdout)["error"]["code"], "KSLIDE_AUTHENTICATION_FAILED")
+            self.assertNotIn("Traceback", delete.stdout + delete.stderr + retention.stdout + retention.stderr)
+
     def test_install_and_verify_install_text_contracts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "target"

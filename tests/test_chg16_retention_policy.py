@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -9,6 +10,8 @@ from types import SimpleNamespace
 
 from k_slide.certification import candidate_completeness, candidate_deployment_fingerprint, load_candidate_spec
 from k_slide.errors import ErrorCode, KSlideError
+from k_slide.deletion import ReferenceLegalHoldProvider
+from k_slide.paas import AuthorizedScopeContext
 from k_slide.production import ProductionProfile, production_checks
 from k_slide.retention import cleanup_expired_runs
 from k_slide.retention_policy import RetentionPolicy
@@ -60,6 +63,15 @@ def _write_expired_terminal_run(root: Path, now: datetime) -> Path:
 
 
 class CHG16RetentionPolicyTests(unittest.TestCase):
+    def _authorized_cleanup(self, root: Path, run_ids: tuple[str, ...] = ("terminal",)) -> tuple[ReferenceLegalHoldProvider, AuthorizedScopeContext, Path]:
+        provider = ReferenceLegalHoldProvider()
+        for run_id in run_ids:
+            provider.set_release(scope_ref="workspace", run_ref=run_id)
+        context = AuthorizedScopeContext("retention-admin", "workspace-ref", "workspace")
+        central = Path(tempfile.mkdtemp(prefix=f"central-{root.name}-", dir=root.parent))
+        self.addCleanup(shutil.rmtree, central, ignore_errors=True)
+        return provider, context, central
+
     def test_policy_is_split_and_survives_profile_serialization(self) -> None:
         policy = RetentionPolicy.from_mapping(_policy(7, 91), require_resolved=True)
         profile = ProductionProfile.from_mapping(_profile(policy.as_dict()))
@@ -187,12 +199,25 @@ class CHG16RetentionPolicyTests(unittest.TestCase):
                         run = run_root / name
                         run.mkdir(mode=0o700)
                         (run / "RUN_STATE.json").write_text(json.dumps({"phase": phase, "updated_at": (now - timedelta(days=10)).isoformat()}), encoding="utf-8")
-                    result = cleanup_expired_runs(root, policy, now=now)
+                    provider, context, central = self._authorized_cleanup(root)
+                    result = cleanup_expired_runs(root, policy, now=now, hold_provider=provider, scope_context=context, operational_metadata_root=central)
                     self.assertEqual({item["run_id"] for item in result["removed"]}, {"terminal"})
                     self.assertTrue((run_root / "active").is_dir())
                     with self.assertRaises(KSlideError) as raised:
-                        cleanup_expired_runs(root, 5)  # type: ignore[arg-type]
+                        cleanup_expired_runs(root, 5, hold_provider=provider, scope_context=context, operational_metadata_root=central)  # type: ignore[arg-type]
                     self.assertEqual(raised.exception.code, ErrorCode.RETENTION_INVALID)
+
+    def test_dry_run_reports_planned_without_removed_or_complete_audit(self) -> None:
+        now = datetime(2026, 9, 17, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            terminal = _write_expired_terminal_run(root, now)
+            provider, context, central = self._authorized_cleanup(root)
+            result = cleanup_expired_runs(root, _policy(5, 45), now=now, dry_run=True, hold_provider=provider, scope_context=context, operational_metadata_root=central)
+            self.assertEqual(result["removed"], [])
+            self.assertEqual({item["run_id"] for item in result["planned"]}, {terminal.name})
+            self.assertTrue(terminal.is_dir())
+            self.assertFalse((central / "telemetry" / "deletions").exists())
 
     def test_tracked_examples_do_not_supply_product_default(self) -> None:
         root = Path(__file__).resolve().parents[1]

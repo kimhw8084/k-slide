@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -18,6 +19,8 @@ from evals.release import build_release_manifest, build_sbom
 from evals.run_deck_eval import deck_completion_contract
 from evals.heavy.doctor import _libreoffice_roundtrip, main as heavy_doctor_main
 from k_slide.errors import ErrorCode, KSlideError
+from k_slide.deletion import ReferenceLegalHoldProvider
+from k_slide.paas import AuthorizedScopeContext
 from k_slide.ocr.policy import OCRProviderPolicy, create_ocr_provider, load_ocr_policy
 from k_slide.doctor import diagnose
 from k_slide.production import production_checks
@@ -218,7 +221,13 @@ class Phase35Tests(unittest.TestCase):
                 run.mkdir(mode=0o700)
                 (run / "RUN_STATE.json").write_text(json.dumps({"phase": phase, "updated_at": updated.isoformat()}), encoding="utf-8")
             policy = {"schema_version": "1.0", "content_retention_days": 30, "operational_metadata_retention_days": 60}
-            result = cleanup_expired_runs(root, policy, now=now)
+            provider = ReferenceLegalHoldProvider()
+            provider.set_release(scope_ref="workspace", run_ref="expired")
+            provider.set_release(scope_ref="workspace", run_ref="failed")
+            context = AuthorizedScopeContext("retention-admin", "workspace-ref", "workspace")
+            central = Path(tempfile.mkdtemp(prefix=f"central-{root.name}-", dir=root.parent))
+            self.addCleanup(shutil.rmtree, central, ignore_errors=True)
+            result = cleanup_expired_runs(root, policy, now=now, hold_provider=provider, scope_context=context, operational_metadata_root=central)
             self.assertEqual({item["run_id"] for item in result["removed"]}, {"expired", "failed"})
             self.assertTrue((run_root / "active").is_dir())
             self.assertTrue((run_root / "recent").is_dir())
@@ -229,8 +238,12 @@ class Phase35Tests(unittest.TestCase):
             run_root = root / ".k-slide-runs"
             run_root.mkdir(mode=0o700)
             (run_root / "link").symlink_to(Path(outside), target_is_directory=True)
+            provider = ReferenceLegalHoldProvider()
+            context = AuthorizedScopeContext("retention-admin", "workspace-ref", "workspace")
+            central = Path(tempfile.mkdtemp(prefix=f"central-{root.name}-", dir=root.parent))
+            self.addCleanup(shutil.rmtree, central, ignore_errors=True)
             with self.assertRaises(KSlideError) as raised:
-                cleanup_expired_runs(root, {"schema_version": "1.0", "content_retention_days": 1, "operational_metadata_retention_days": 2})
+                cleanup_expired_runs(root, {"schema_version": "1.0", "content_retention_days": 1, "operational_metadata_retention_days": 2}, hold_provider=provider, scope_context=context, operational_metadata_root=central)
             self.assertEqual(raised.exception.code, ErrorCode.RETENTION_REFUSED)
             self.assertTrue(Path(outside).is_dir())
 

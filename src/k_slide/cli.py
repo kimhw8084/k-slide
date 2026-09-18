@@ -21,12 +21,9 @@ from .locking import run_lock
 from .normalization import normalize_run
 from .extraction import extract_run
 from .doctor import diagnose
-from .deletion import DeletionReason, ReferenceLegalHoldProvider, delete_workspace_run
-from .paas import AuthorizedScopeContext
 from .policy import COMPLETION_POLICY, MAX_AUTO_REPAIRS_PER_UNIT
 from .production import PRODUCTION_PROFILE_SCHEMA_VERSION
 from .redaction import sanitize_operational
-from .retention import cleanup_expired_runs
 from .retention_policy import RetentionPolicy
 from .support import build_support_bundle
 from .queue import WorkUnitStatus, load_queue, save_queue
@@ -498,17 +495,9 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "doctor":
             value = diagnose(args.root, engine_root=args.engine_root, opencode_root=args.opencode_root, production=args.production)
         elif args.command == "retention-cleanup":
-            value = cleanup_expired_runs(args.root, _load_cleanup_retention_policy(args.root, args.production_profile), dry_run=args.dry_run)
+            raise KSlideError(ErrorCode.AUTHENTICATION_FAILED, "Standalone retention cleanup is unavailable without injected company authorization and records-control providers.")
         elif args.command == "delete":
-            value = delete_workspace_run(
-                args.root,
-                run_ref=args.run,
-                deletion_id=args.deletion_id,
-                scope_context=AuthorizedScopeContext("local-admin", "workspace", "workspace"),
-                reason=DeletionReason.EXPLICIT,
-                hold_provider=ReferenceLegalHoldProvider(),
-                dry_run=args.dry_run,
-            ).as_dict()
+            raise KSlideError(ErrorCode.AUTHENTICATION_FAILED, "Standalone deletion is unavailable without injected company authorization and records-control providers.")
         elif args.command == "support-bundle":
             value = build_support_bundle(args.root, args.output)
         elif args.command == "install":

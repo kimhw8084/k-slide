@@ -74,12 +74,12 @@ def filesystem_lock(
 
 
 @contextmanager
-def run_lock(run_dir: Path) -> Iterator[None]:
+def run_lock(run_dir: Path, *, bypass_deletion_fence: bool = False) -> Iterator[None]:
     """Serialize one run's mutable operations without holding a Python global lock."""
 
     # The lock is recreateable coordination state, not durable run data.
     from .storage import StorageArtifact, StorageLayout
 
-    lock_path = StorageLayout.for_workspace(run_dir).path(StorageArtifact.COORDINATION_LOCK, ".run.lock", create_parent=True)
+    lock_path = StorageLayout.for_workspace(run_dir, bypass_deletion_fence=bypass_deletion_fence).path(StorageArtifact.COORDINATION_LOCK, ".run.lock", create_parent=True)
     with filesystem_lock(lock_path):
         yield

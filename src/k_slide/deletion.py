@@ -16,6 +16,7 @@ import re
 from collections.abc import Callable, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Iterator, Protocol
@@ -23,11 +24,11 @@ from typing import Any, Iterator, Protocol
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import stable_revision
 from .execution import CancellationState, OperationalLifecycle, WorkspaceRunStore
-from .io import atomic_write_json, read_json
+from .io import atomic_write_json, atomic_write_text, read_json
 from .locking import filesystem_lock, run_lock
 from .retention_policy import RetentionPolicy
 from .state import RunPhase, now_utc
-from .storage import StorageArtifact, StorageLayout
+from .storage import StorageArtifact, StorageLayout, StoragePlane, register_workspace_operational_root
 
 
 DELETION_CONTRACT_VERSION = "1.0"
@@ -191,7 +192,7 @@ class LegalHoldProvider(Protocol):
 class ReferenceLegalHoldProvider:
     """Deterministic test/control adapter; it reads no run-local input."""
 
-    def __init__(self, *, default_status: LegalHoldStatus = LegalHoldStatus.RELEASE, authority_ref: str = "reference-records-control") -> None:
+    def __init__(self, *, default_status: LegalHoldStatus = LegalHoldStatus.UNKNOWN, authority_ref: str = "reference-records-control") -> None:
         self._default_status = LegalHoldStatus(default_status)
         self._authority_ref = _opaque(authority_ref, "hold authority reference", strict=True)
         self._decisions: dict[tuple[str, str], LegalHoldDecision] = {}
@@ -397,6 +398,7 @@ class _Candidate:
     artifact_class: DeletionArtifactClass
     target_ref: str
     path: Path | None = None
+    paths: tuple[Path, ...] = ()
     control: bool = False
 
 
@@ -425,28 +427,17 @@ class _DeletionBackend(Protocol):
 
     def request_cancellation(self) -> None: ...
 
-    def enumerate_targets(self) -> tuple[_Candidate, ...]: ...
+    def enumerate_targets(self, deletion_id: str) -> tuple[_Candidate, ...]: ...
 
     def delete_target(self, candidate: _Candidate) -> None: ...
 
     def cleanup_after_targets(self) -> None: ...
 
 
-def _target_ref(scope_ref: str, run_ref: str, artifact: DeletionArtifactClass, logical: str, *, digest: str | None = None) -> str:
-    # Only this digest is retained.  The logical location and any content
-    # digest never cross the audit boundary.
-    return f"target-{_sha((scope_ref, run_ref, artifact.value, logical, digest))[:40]}"
+def _target_ref(scope_ref: str, run_ref: str, deletion_id: str, artifact: DeletionArtifactClass) -> str:
+    """Return an opaque class-level identity with no path/content preimage."""
 
-
-def _file_digest(path: Path) -> str:
-    digest = hashlib.sha256()
-    try:
-        with path.open("rb") as stream:
-            for block in iter(lambda: stream.read(1024 * 1024), b""):
-                digest.update(block)
-    except OSError as exc:
-        raise _invalid("Deletion target could not be fingerprinted.", code=ErrorCode.DELETION_TARGET_FAILED) from exc
-    return digest.hexdigest()
+    return f"target-{_sha((scope_ref, run_ref, deletion_id, artifact.value))[:40]}"
 
 
 def _safe_files(root: Path) -> tuple[Path, ...]:
@@ -556,21 +547,32 @@ def _class_for_relative(relative: str) -> DeletionArtifactClass:
 class WorkspaceDeletionBackend:
     """Reference workspace backend using the existing run lock and layout."""
 
-    def __init__(self, root: Path, run_ref: str) -> None:
+    def __init__(self, root: Path, run_ref: str, *, operational_metadata_root: Path | None) -> None:
+        if operational_metadata_root is None:
+            raise KSlideError(ErrorCode.DELETION_INVALID, "Workspace deletion requires an explicit central operational metadata root.")
         self.root = Path(root).expanduser().resolve()
         self.run_ref = _opaque(run_ref, "run reference", strict=True)
         self.run_dir = self.root / ".k-slide-runs" / self.run_ref
         self.scope_ref = "workspace"
+        self.operational_layout = StorageLayout.for_service(Path(operational_metadata_root).expanduser())
+        self.audit_root = self.operational_layout.root_for(StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY)
+        register_workspace_operational_root(self.root, self.audit_root)
 
     @contextmanager
     def lock(self) -> Iterator[None]:
-        with run_lock(self.run_dir):
+        with run_lock(self.run_dir, bypass_deletion_fence=True):
             yield
 
     def audit_path(self, deletion_id: str, *, create_parent: bool = False) -> Path:
         deletion_id = _opaque(deletion_id, "deletion identity", strict=True)
-        layout = StorageLayout.for_workspace_root(self.root)
-        return layout.path(StorageArtifact.DELETION_AUDIT, f"_deletions/{deletion_id}.json", create_parent=create_parent)
+        return self.operational_layout.path(StorageArtifact.DELETION_AUDIT, f"deletions/{deletion_id}.json", create_parent=create_parent)
+
+    def _set_fence(self) -> None:
+        from .io import atomic_write_text
+
+        layout = StorageLayout.for_workspace(self.run_dir, bypass_deletion_fence=True)
+        layout.scratch_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        atomic_write_text(layout.scratch_root / ".deletion-fence", "active\n", mode=0o600)
 
     def load_audit(self, deletion_id: str) -> DeletionAudit | None:
         path = self.audit_path(deletion_id)
@@ -625,22 +627,22 @@ class WorkspaceDeletionBackend:
         path = self.run_dir / "EXECUTION_JOB.json"
         if not path.is_file():
             return
-        store = WorkspaceRunStore(self.run_dir)
+        store = WorkspaceRunStore(self.run_dir, allow_deletion_mutation=True)
         job = store._read(path, f"job-{self.run_ref}")
         if job.cancellation.requested or job.lifecycle in {OperationalLifecycle.COMPLETED, OperationalLifecycle.CANCELED, OperationalLifecycle.PROCESSING_FAILED}:
             return
         candidate = replace(job, cancellation=CancellationState(True, False, f"cancel-{job.job_id}", now_utc(), None), revision=job.revision + 1, updated_at=now_utc())
         store._write(candidate)
 
-    def enumerate_targets(self) -> tuple[_Candidate, ...]:
+    def enumerate_targets(self, deletion_id: str) -> tuple[_Candidate, ...]:
         if not self.run_dir.exists():
             return ()
         files = _safe_files(self.run_dir)
-        candidates: list[_Candidate] = []
+        grouped: dict[DeletionArtifactClass, list[Path]] = {}
         for path in files:
             relative = path.relative_to(self.run_dir).as_posix()
             artifact = _class_for_relative(relative)
-            candidates.append(_Candidate(artifact, _target_ref(self.scope_ref, self.run_ref, artifact, relative, digest=_file_digest(path)), path))
+            grouped.setdefault(artifact, []).append(path)
         sessions = self.root / ".k-slide-runs" / "_sessions"
         if sessions.is_dir():
             for path in _safe_files(sessions):
@@ -649,20 +651,21 @@ class WorkspaceDeletionBackend:
                 except (KSlideError, OSError, TypeError, ValueError):
                     continue
                 if isinstance(value, dict) and value.get("run_id") == self.run_ref:
-                    relative = path.relative_to(sessions).as_posix()
                     artifact = DeletionArtifactClass.SESSION_BINDING
-                    candidates.append(_Candidate(artifact, _target_ref(self.scope_ref, self.run_ref, artifact, relative, digest=_file_digest(path)), path))
-        return tuple(sorted(candidates, key=lambda item: (item.artifact_class.value, item.target_ref)))
+                    grouped.setdefault(artifact, []).append(path)
+        return tuple(
+            _Candidate(artifact, _target_ref(self.scope_ref, self.run_ref, deletion_id, artifact), paths[0], tuple(paths))
+            for artifact, paths in sorted(grouped.items(), key=lambda item: item[0].value)
+        )
 
     def delete_target(self, candidate: _Candidate) -> None:
-        if candidate.path is None:
-            return
-        path = candidate.path
-        target_root = self.run_dir if path.is_relative_to(self.run_dir) else self.root / ".k-slide-runs" / "_sessions"
-        _safe_target(path, target_root)
-        if not path.exists():
-            return
-        path.unlink()
+        paths = candidate.paths or (() if candidate.path is None else (candidate.path,))
+        sessions_root = self.root / ".k-slide-runs" / "_sessions"
+        for path in paths:
+            target_root = self.run_dir if path.is_relative_to(self.run_dir) else sessions_root
+            _safe_target(path, target_root)
+            if path.exists():
+                path.unlink()
 
     def cleanup_after_targets(self) -> None:
         if self.run_dir.exists():
@@ -732,7 +735,7 @@ class ScopedReferenceDeletionBackend:
     def audit_path(self, deletion_id: str, *, create_parent: bool = False) -> Path:
         deletion_id = _opaque(deletion_id, "deletion identity", strict=True)
         layout = StorageLayout.for_scoped_reference(service_root=self.service.root, durable_root=self.scope_root, scope_ref=self.scope_ref, run_ref=self.identity.job_id)
-        return layout.path(StorageArtifact.DELETION_AUDIT, f"_deletions/{deletion_id}.json", create_parent=create_parent)
+        return layout.path(StorageArtifact.DELETION_AUDIT, f"deletions/{deletion_id}.json", create_parent=create_parent)
 
     def load_audit(self, deletion_id: str) -> DeletionAudit | None:
         path = self.audit_path(deletion_id)
@@ -780,26 +783,35 @@ class ScopedReferenceDeletionBackend:
     def _content_root(self) -> Path:
         return self.scope_root / "runs" / self.run_ref
 
-    def enumerate_targets(self) -> tuple[_Candidate, ...]:
-        candidates: list[_Candidate] = []
+    def enumerate_targets(self, deletion_id: str) -> tuple[_Candidate, ...]:
+        grouped: dict[DeletionArtifactClass, list[Path]] = {}
         content_root = self._content_root()
         for path in _safe_files(content_root):
             relative = path.relative_to(content_root).as_posix()
             artifact = _class_for_relative(relative)
-            candidates.append(_Candidate(artifact, _target_ref(self.scope_ref, self.run_ref, artifact, f"content/{relative}", digest=_file_digest(path)), path))
+            grouped.setdefault(artifact, []).append(path)
         record_path = self.service._scope_record_path(self.scope_context, self.identity.job_id)
         exec_path = self.scope_root / "run-store" / "jobs" / f"{self.identity.job_id}.json"
         for artifact, path in ((DeletionArtifactClass.ADMISSION_RECORD, record_path), (DeletionArtifactClass.EXECUTION_JOB, exec_path)):
             if path.is_file():
-                candidates.append(_Candidate(artifact, _target_ref(self.scope_ref, self.run_ref, artifact, path.name, digest=_file_digest(path)), path))
+                grouped.setdefault(artifact, []).append(path)
             elif path.is_symlink():
                 raise KSlideError(ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT, "Deletion refuses a symbolic-link control target.")
         for artifact, path in ((DeletionArtifactClass.ADMISSION_CONTROL, self.service._scope_control_path(self.scope_context)), (DeletionArtifactClass.ADMISSION_QUEUE, self.service._scope_queue_path(self.scope_context))):
             if path.is_file():
-                candidates.append(_Candidate(artifact, _target_ref(self.scope_ref, self.run_ref, artifact, artifact.value), path, control=True))
+                grouped.setdefault(artifact, []).append(path)
             elif path.is_symlink():
                 raise KSlideError(ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT, "Deletion refuses a symbolic-link admission target.")
-        return tuple(sorted(candidates, key=lambda item: (0 if item.control else 1, item.artifact_class.value, item.target_ref)))
+        return tuple(
+            _Candidate(
+                artifact,
+                _target_ref(self.scope_ref, self.run_ref, deletion_id, artifact),
+                paths[0],
+                tuple(paths),
+                artifact in {DeletionArtifactClass.ADMISSION_CONTROL, DeletionArtifactClass.ADMISSION_QUEUE},
+            )
+            for artifact, paths in sorted(grouped.items(), key=lambda item: (0 if item[0] in {DeletionArtifactClass.ADMISSION_CONTROL, DeletionArtifactClass.ADMISSION_QUEUE} else 1, item[0].value))
+        )
 
     def _invalidate_control(self) -> None:
         raw = self.service._load_scoped_state(self.scope_context)
@@ -825,12 +837,13 @@ class ScopedReferenceDeletionBackend:
         if candidate.control:
             self._invalidate_control()
             return
-        if candidate.path is None:
-            return
-        target_root = self._content_root() if candidate.path.is_relative_to(self._content_root()) else self.scope_root
-        _safe_target(candidate.path, target_root)
-        if candidate.path.exists():
-            candidate.path.unlink()
+        paths = candidate.paths or (() if candidate.path is None else (candidate.path,))
+        content_root = self._content_root()
+        for path in paths:
+            target_root = content_root if path.is_relative_to(content_root) else self.scope_root
+            _safe_target(path, target_root)
+            if path.exists():
+                path.unlink()
 
     def cleanup_after_targets(self) -> None:
         content_root = self._content_root()
@@ -884,6 +897,8 @@ class DeletionCoordinator:
             if (existing.scope_ref, existing.run_ref, existing.reason) != (request.scope_ref, request.run_ref, request.reason):
                 raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Deletion identity is already bound to a different scope, run, or reason.")
             if existing.state is DeletionState.COMPLETE:
+                if dry_run:
+                    return self._result(request, state=DeletionState.PLANNED, outcome=DeletionOutcome.PLANNED, dry_run=True, retry_count=existing.retry_count, error_code="NONE", targets=tuple(replace(item, status=TargetStatus.PLANNED, result_code="NONE") for item in existing.targets))
                 return self._result(request, state=existing.state, outcome=existing.outcome, dry_run=dry_run, retry_count=existing.retry_count, error_code=existing.error_code, targets=existing.targets)
 
         try:
@@ -942,7 +957,7 @@ class DeletionCoordinator:
                 blocked = replace(current, target_generation_ref=state.generation_ref, authority_ref=hold.authority_ref, hold_decision_ref=hold.decision_ref, updated_at=now_utc(), state=DeletionState.BLOCKED, outcome=DeletionOutcome.BLOCKED, error_code=code, retry_count=(current.retry_count + 1 if current else 1)) if current else DeletionAudit(DELETION_CONTRACT_VERSION, request.deletion_id, request.scope_ref, request.run_ref, request.reason, state.generation_ref, hold.authority_ref, hold.decision_ref, request.requested_at, now_utc(), 1, DeletionState.BLOCKED, DeletionOutcome.BLOCKED, code)
                 self.backend.save_audit(blocked)
                 return self._result(request, state=blocked.state, outcome=blocked.outcome, dry_run=False, retry_count=blocked.retry_count, error_code=blocked.error_code, targets=blocked.targets)
-            candidates = self.backend.enumerate_targets()
+            candidates = self.backend.enumerate_targets(request.deletion_id)
             if dry_run:
                 preview = tuple(DeletionTargetRecord(item.target_ref, item.artifact_class, TargetStatus.PLANNED) for item in candidates)
                 return self._result(request, state=DeletionState.PLANNED, outcome=DeletionOutcome.PLANNED, dry_run=True, retry_count=current.retry_count if current else 0, error_code="NONE", targets=preview)
@@ -954,6 +969,8 @@ class DeletionCoordinator:
             if added:
                 audit = replace(audit, targets=tuple((*audit.targets, *(DeletionTargetRecord(item.target_ref, item.artifact_class, TargetStatus.FAILED, "TARGET_ADDED") for item in added))))
             active_audit = replace(audit, authority_ref=hold.authority_ref, hold_decision_ref=hold.decision_ref, target_generation_ref=state.generation_ref, updated_at=now_utc(), retry_count=audit.retry_count + 1, state=DeletionState.IN_PROGRESS, outcome=DeletionOutcome.IN_PROGRESS, error_code="NONE")
+            if isinstance(self.backend, WorkspaceDeletionBackend):
+                self.backend._set_fence()
             self.backend.save_audit(active_audit)
             by_ref = {item.target_ref: item for item in candidates}
             target_records = list(active_audit.targets)
@@ -998,12 +1015,12 @@ class DeletionCoordinator:
             return self._result(request, state=final.state, outcome=final.outcome, dry_run=False, retry_count=final.retry_count, error_code=final.error_code, targets=final.targets)
 
 
-def delete_workspace_run(root: Path, *, run_ref: str, deletion_id: str, scope_context: Any | None = None, reason: DeletionReason = DeletionReason.EXPLICIT, hold_provider: LegalHoldProvider | None = None, dry_run: bool = False, failure_injector: Callable[[_Candidate], bool] | None = None) -> DeletionResult:
+def delete_workspace_run(root: Path, *, run_ref: str, deletion_id: str, scope_context: Any | None = None, reason: DeletionReason = DeletionReason.EXPLICIT, hold_provider: LegalHoldProvider | None = None, operational_metadata_root: Path | None = None, dry_run: bool = False, failure_injector: Callable[[_Candidate], bool] | None = None) -> DeletionResult:
     from .paas import AuthorizedScopeContext
 
     if not isinstance(scope_context, AuthorizedScopeContext) or scope_context.scope_ref != "workspace":
         raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Workspace deletion requires an authorized workspace scope context.")
-    backend = WorkspaceDeletionBackend(root, run_ref)
+    backend = WorkspaceDeletionBackend(root, run_ref, operational_metadata_root=operational_metadata_root)
     return DeletionCoordinator(backend, hold_provider=hold_provider, failure_injector=failure_injector).run(deletion_id, reason=reason, dry_run=dry_run)
 
 
@@ -1012,35 +1029,101 @@ def delete_scoped_run(service: Any, *, identity: Any, scope_context: Any, deleti
     return DeletionCoordinator(backend, hold_provider=hold_provider, failure_injector=failure_injector).run(deletion_id, reason=reason, dry_run=dry_run)
 
 
-def cleanup_operational_metadata(root: Path, retention_policy: RetentionPolicy | Mapping[str, Any], *, now: Any | None = None, dry_run: bool = False) -> dict[str, Any]:
-    """Expire only source-free KSA-13 audit metadata using the metadata TTL."""
+def _cleanup_telemetry_records(telemetry_root: Path, cutoff: datetime, *, dry_run: bool) -> list[str]:
+    telemetry_path = telemetry_root / "events.jsonl"
+    if telemetry_path.is_symlink():
+        raise KSlideError(ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT, "Central telemetry event record is a symbolic link.")
+    if telemetry_path.exists() and not telemetry_path.is_file():
+        raise KSlideError(ErrorCode.RETENTION_REFUSED, "Central telemetry event record is not a regular file.")
+    if not telemetry_path.is_file():
+        return []
+    try:
+        lines = telemetry_path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError) as exc:
+        raise KSlideError(ErrorCode.RETENTION_REFUSED, "Central telemetry event record is unreadable.") from exc
+    from .telemetry import TelemetryEvent
+
+    expired: list[str] = []
+    retained_lines: list[str] = []
+    for line in lines:
+        if not line:
+            continue
+        try:
+            event = TelemetryEvent.from_mapping(json.loads(line))
+            occurred = datetime.fromisoformat(event.occurred_at.replace("Z", "+00:00")).astimezone(timezone.utc)
+        except (KSlideError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise KSlideError(ErrorCode.RETENTION_REFUSED, "Central telemetry contains an invalid typed record.") from exc
+        if occurred < cutoff:
+            expired.append(str(event.event_id))
+        else:
+            retained_lines.append(line)
+    if expired and not dry_run:
+        if retained_lines:
+            atomic_write_text(telemetry_path, "\n".join(retained_lines) + "\n", mode=0o600)
+        else:
+            telemetry_path.unlink()
+    return expired
+
+
+def cleanup_operational_metadata(
+    root: Path,
+    retention_policy: RetentionPolicy | Mapping[str, Any],
+    *,
+    operational_metadata_root: Path | None = None,
+    now: Any | None = None,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Expire central KSA-13 audits and KSA-11 telemetry using one metadata TTL."""
 
     try:
         policy = retention_policy if isinstance(retention_policy, RetentionPolicy) else RetentionPolicy.from_mapping(retention_policy, require_resolved=True)
         policy.require_resolved()
     except (TypeError, ValueError) as exc:
         raise KSlideError(ErrorCode.RETENTION_INVALID, f"Invalid retention policy for operational-metadata cleanup: {exc}") from exc
-    from datetime import datetime, timedelta, timezone
-
     current = now or datetime.now(timezone.utc)
     if not hasattr(current, "astimezone"):
         raise KSlideError(ErrorCode.RETENTION_INVALID, "Operational-metadata cleanup time is invalid.")
+    if operational_metadata_root is None:
+        raise KSlideError(ErrorCode.DELETION_INVALID, "An explicit central operational metadata root is required.")
     cutoff = current.astimezone(timezone.utc) - timedelta(days=int(policy.operational_metadata_retention_days))
-    audit_root = Path(root).expanduser().resolve() / ".k-slide-runs" / "_deletions"
+    central = StorageLayout.for_service(Path(operational_metadata_root).expanduser())
+    telemetry_root = central.root_for(StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY)
+    audit_root = telemetry_root / "deletions"
     expired: list[str] = []
     retained: list[str] = []
+    expired_paths: list[Path] = []
     if audit_root.is_symlink():
         raise KSlideError(ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT, "Deletion audit root is a symbolic link.")
     for path in sorted(audit_root.glob("*.json")) if audit_root.is_dir() else ():
-        audit = DeletionAudit.from_dict(read_json(path))
-        updated = datetime.fromisoformat(audit.updated_at.replace("Z", "+00:00")).astimezone(timezone.utc)
-        if updated < cutoff:
+        if path.is_symlink():
+            raise KSlideError(ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT, "Deletion audit record is a symbolic link.")
+        try:
+            path.resolve().relative_to(audit_root.resolve())
+            audit = DeletionAudit.from_dict(read_json(path))
+            updated = datetime.fromisoformat(audit.updated_at.replace("Z", "+00:00")).astimezone(timezone.utc)
+        except (OSError, ValueError, TypeError) as exc:
+            raise KSlideError(ErrorCode.RETENTION_REFUSED, "Deletion audit record is invalid or outside the central operational root.") from exc
+        if audit.state in {DeletionState.IN_PROGRESS, DeletionState.PARTIAL}:
+            retained.append(audit.deletion_id)
+        elif updated < cutoff:
             expired.append(audit.deletion_id)
-            if not dry_run:
-                path.unlink()
+            expired_paths.append(path)
         else:
             retained.append(audit.deletion_id)
-    return {"status": "PASS", "dry_run": dry_run, "retention_policy": policy.as_dict(), "expired": expired, "retained": retained, "cutoff": cutoff.isoformat()}
+    telemetry_expired = _cleanup_telemetry_records(telemetry_root, cutoff, dry_run=True)
+    if not dry_run:
+        telemetry_expired = _cleanup_telemetry_records(telemetry_root, cutoff, dry_run=False)
+        for path in expired_paths:
+            path.unlink()
+    return {
+        "status": "PASS",
+        "dry_run": dry_run,
+        "retention_policy": policy.as_dict(),
+        "expired": expired,
+        "retained": retained,
+        "telemetry_expired": telemetry_expired,
+        "cutoff": cutoff.isoformat(),
+    }
 
 
 def cleanup_scoped_operational_metadata(service: Any, *, scope_context: Any, retention_policy: RetentionPolicy | Mapping[str, Any], now: Any | None = None, dry_run: bool = False) -> dict[str, Any]:
@@ -1051,27 +1134,35 @@ def cleanup_scoped_operational_metadata(service: Any, *, scope_context: Any, ret
         policy.require_resolved()
     except (TypeError, ValueError) as exc:
         raise KSlideError(ErrorCode.RETENTION_INVALID, f"Invalid retention policy for operational-metadata cleanup: {exc}") from exc
-    from datetime import datetime, timedelta, timezone
-
     current = now or datetime.now(timezone.utc)
     cutoff = current.astimezone(timezone.utc) - timedelta(days=int(policy.operational_metadata_retention_days))
-    audit_root = service._scope_root(scope_context) / "_deletions"
+    audit_root = service._storage.root_for(StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY) / "deletions"
     expired: list[str] = []
     retained: list[str] = []
+    expired_paths: list[Path] = []
     if audit_root.is_symlink():
         raise KSlideError(ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT, "Scoped deletion audit root is a symbolic link.")
     for path in sorted(audit_root.glob("*.json")) if audit_root.is_dir() else ():
+        if path.is_symlink():
+            raise KSlideError(ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT, "Scoped deletion audit record is a symbolic link.")
         audit = DeletionAudit.from_dict(read_json(path))
         if audit.scope_ref != scope_context.scope_ref:
             raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Scoped deletion audit is outside the authorized scope.")
         updated = datetime.fromisoformat(audit.updated_at.replace("Z", "+00:00")).astimezone(timezone.utc)
-        if updated < cutoff:
+        if audit.state in {DeletionState.IN_PROGRESS, DeletionState.PARTIAL}:
+            retained.append(audit.deletion_id)
+        elif updated < cutoff:
             expired.append(audit.deletion_id)
-            if not dry_run:
-                path.unlink()
+            expired_paths.append(path)
         else:
             retained.append(audit.deletion_id)
-    return {"status": "PASS", "dry_run": dry_run, "retention_policy": policy.as_dict(), "expired": expired, "retained": retained, "cutoff": cutoff.isoformat()}
+    telemetry_root = service._storage.root_for(StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY)
+    telemetry_expired = _cleanup_telemetry_records(telemetry_root, cutoff, dry_run=True)
+    if not dry_run:
+        telemetry_expired = _cleanup_telemetry_records(telemetry_root, cutoff, dry_run=False)
+        for path in expired_paths:
+            path.unlink()
+    return {"status": "PASS", "dry_run": dry_run, "retention_policy": policy.as_dict(), "expired": expired, "retained": retained, "telemetry_expired": telemetry_expired, "cutoff": cutoff.isoformat()}
 
 
 __all__ = [

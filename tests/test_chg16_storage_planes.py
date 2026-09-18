@@ -64,7 +64,7 @@ class StoragePlaneContractTests(unittest.TestCase):
                 StorageArtifact.VERIFICATION, StorageArtifact.METRICS, StorageArtifact.FAILURE_MARKER,
                 StorageArtifact.COMPLETION_MARKER, StorageArtifact.COORDINATION_LOCK,
                 StorageArtifact.TELEMETRY_COORDINATION_LOCK, StorageArtifact.CONVERSION_STAGING,
-                StorageArtifact.TELEMETRY_EVENT,
+                StorageArtifact.TELEMETRY_EVENT, StorageArtifact.DELETION_AUDIT,
             },
         )
         self.assertFalse(hasattr(StorageArtifact, "USER_INPUT_INTAKE"))
@@ -224,6 +224,16 @@ class StoragePlaneContractTests(unittest.TestCase):
             self.assertEqual(layout.resolve(durable_ref, authorized_scope_ref="workspace"), durable)
             with self.assertRaises(KSlideError):
                 layout.resolve(durable_ref, expected_plane=StoragePlane.EPHEMERAL_PROCESSING_SCRATCH)
+
+    def test_deletion_audit_is_distinct_central_non_content_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            layout = StorageLayout.for_service(root)
+            self.assertNotEqual(StorageArtifact.DELETION_AUDIT, StorageArtifact.ADMISSION_CONTROL)
+            reference = layout.reference(StorageArtifact.DELETION_AUDIT, "deletions/delete-1.json")
+            self.assertEqual(reference.plane, StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY)
+            self.assertEqual(layout.resolve(reference), (root / "telemetry" / "deletions" / "delete-1.json").resolve())
+            self.assertFalse((root / "job-service" / "_deletions").exists())
 
     def test_scratch_cleanup_is_complete_and_does_not_touch_authoritative_planes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

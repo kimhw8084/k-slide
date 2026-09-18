@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from .deletion import DeletionOutcome, DeletionReason, ReferenceLegalHoldProvider, cleanup_operational_metadata, delete_workspace_run
+from .deletion import DeletionOutcome, DeletionReason, LegalHoldProvider, cleanup_operational_metadata, delete_workspace_run
 from .errors import ErrorCode, KSlideError
 from .paas import AuthorizedScopeContext
 from .retention_policy import RetentionPolicy
@@ -50,12 +50,13 @@ def cleanup_expired_runs(
     *,
     now: datetime | None = None,
     dry_run: bool = False,
-    hold_provider: Any | None = None,
+    hold_provider: LegalHoldProvider | None = None,
+    scope_context: AuthorizedScopeContext | None = None,
+    operational_metadata_root: Path | None = None,
 ) -> dict[str, Any]:
     """Orchestrate KSA-12 content expiry through the KSA-13 lifecycle.
 
-    The reference hold provider is deterministic qualification control only.
-    A managed deployment must supply its authoritative records-control adapter.
+    A managed deployment must supply its authoritative scope and records-control adapter.
     ``operational_metadata_retention_days`` is applied separately, after the
     content pass, and never used as a content-deletion cutoff.
     """
@@ -67,11 +68,17 @@ def cleanup_expired_runs(
         raise KSlideError(ErrorCode.RETENTION_INVALID, f"Invalid retention policy for content cleanup: {exc}") from exc
     content_retention_days = policy.content_retention_days
     assert isinstance(content_retention_days, int)
+    if hold_provider is None:
+        raise KSlideError(ErrorCode.LEGAL_HOLD_UNKNOWN, "Retention expiry requires an injected authoritative legal-hold provider.")
+    if not isinstance(scope_context, AuthorizedScopeContext) or scope_context.scope_ref != "workspace":
+        raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Retention expiry requires an authorized workspace scope context.")
+    if operational_metadata_root is None:
+        raise KSlideError(ErrorCode.DELETION_INVALID, "Retention expiry requires an explicit central operational metadata root.")
     root = root.expanduser().resolve()
-    hold_provider = hold_provider or ReferenceLegalHoldProvider()
     run_root = root / ".k-slide-runs"
     if not run_root.exists() and not run_root.is_symlink():
-        return {"status": "PASS", "dry_run": dry_run, "retention_policy": policy.as_dict(), "content_retention_days": content_retention_days, "removed": [], "retained": [], "cutoff": None}
+        operational = cleanup_operational_metadata(root, policy, operational_metadata_root=operational_metadata_root, now=now, dry_run=dry_run)
+        return {"status": "PASS", "dry_run": dry_run, "retention_policy": policy.as_dict(), "content_retention_days": content_retention_days, "removed": [], "planned": [], "retained": [], "cutoff": None, "operational_metadata": operational}
     if run_root.is_symlink() or not run_root.is_dir():
         raise KSlideError(ErrorCode.RETENTION_REFUSED, "The K-Slide run root must be a real directory.", {"path": str(run_root)})
     cutoff = (now or datetime.now(timezone.utc)).astimezone(timezone.utc) - timedelta(days=content_retention_days)
@@ -102,6 +109,7 @@ def cleanup_expired_runs(
         else:
             candidates.append((run, updated, phase))
     removed: list[dict[str, str]] = []
+    planned: list[dict[str, str]] = []
     deletion_results: list[dict[str, Any]] = []
     for run, updated, phase in candidates:
         record = {"run_id": run.name, "phase": phase, "updated_at": updated.isoformat()}
@@ -110,17 +118,20 @@ def cleanup_expired_runs(
             root,
             run_ref=run.name,
             deletion_id=deletion_id,
-            scope_context=AuthorizedScopeContext("retention-admin", "workspace", "workspace"),
+            scope_context=scope_context,
             reason=DeletionReason.RETENTION_EXPIRY,
             hold_provider=hold_provider,
+            operational_metadata_root=operational_metadata_root,
             dry_run=dry_run,
         )
         deletion_results.append(result.as_dict())
-        if result.outcome in {DeletionOutcome.COMPLETE, DeletionOutcome.PLANNED}:
+        if result.outcome is DeletionOutcome.COMPLETE:
             removed.append(record)
+        elif result.outcome is DeletionOutcome.PLANNED:
+            planned.append(record)
         else:
             retained.append({"run_id": run.name, "reason": f"deletion:{result.outcome.value.lower()}"})
-    operational = cleanup_operational_metadata(root, policy, now=now, dry_run=dry_run)
+    operational = cleanup_operational_metadata(root, policy, operational_metadata_root=operational_metadata_root, now=now, dry_run=dry_run)
     return {
         "status": "PASS",
         "dry_run": dry_run,
@@ -128,6 +139,7 @@ def cleanup_expired_runs(
         "content_retention_days": content_retention_days,
         "cutoff": cutoff.isoformat(),
         "removed": removed,
+        "planned": planned,
         "retained": retained,
         "deletions": deletion_results,
         "operational_metadata": operational,

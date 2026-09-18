@@ -24,7 +24,7 @@ from .evidence_ir import stable_revision
 from .io import atomic_write_json, read_json
 from .locking import filesystem_lock, run_lock
 from .queue import WorkQueue, load_queue
-from .storage import StorageArtifact, StorageLayout, StoragePlane
+from .storage import StorageArtifact, StorageLayout, StoragePlane, allow_workspace_deletion_mutation
 from .state import RunPhase, RunState, load_state, now_utc
 
 
@@ -99,17 +99,9 @@ def _timestamp(value: Any, label: str, *, allow_empty: bool = True) -> None:
 def _workspace_deletion_fenced(run_dir: Path) -> bool:
     """Fail closed once KSA-13 has entered its destructive phase."""
 
-    audit_root = Path(run_dir).parent / "_deletions"
-    if not audit_root.is_dir():
-        return False
-    for path in audit_root.glob("*.json"):
-        try:
-            value = read_json(path)
-        except (KSlideError, OSError, TypeError, ValueError) as exc:
-            raise KSlideError(ErrorCode.STATE_CORRUPT, "Deletion control state is corrupt or unreadable.") from exc
-        if isinstance(value, dict) and value.get("run_ref") == Path(run_dir).name and value.get("state") in {"IN_PROGRESS", "PARTIAL"}:
-            return True
-    return False
+    from .storage import _active_deletion_fence
+
+    return _active_deletion_fence(Path(run_dir))
 
 
 class ExecutionProfile(str, Enum):
@@ -704,6 +696,11 @@ class _FilesystemRunStore:
         with self._mutex:
             yield
 
+    @contextmanager
+    def _read_lock(self, job_id: str | None = None) -> Iterator[None]:
+        with self._mutex:
+            yield
+
     def _path_for(self, job_id: str) -> Path:
         _identifier(job_id, "job ID")
         return self._layout.path(StorageArtifact.EXECUTION_JOB, "EXECUTION_JOB.json")
@@ -721,7 +718,7 @@ class _FilesystemRunStore:
 
     def load(self, job_id: str) -> ExecutionJob:
         path = self._path_for(job_id)
-        with self._mutation(job_id):
+        with self._read_lock(job_id):
             if not path.is_file():
                 raise KSlideError(ErrorCode.EXECUTION_NOT_FOUND, "Execution job does not exist.", {"job_id": job_id})
             job = self._read(path, job_id)
@@ -906,15 +903,20 @@ class _FilesystemRunStore:
 class WorkspaceRunStore(_FilesystemRunStore):
     """Workspace-local adapter using atomic replacement and the existing run lock."""
 
-    def __init__(self, run_dir: Path) -> None:
+    def __init__(self, run_dir: Path, *, allow_deletion_mutation: bool = False) -> None:
         super().__init__(run_dir, profile=ExecutionProfile.WORKSPACE_LOCAL)
+        self._allow_deletion_mutation = allow_deletion_mutation
 
     @contextmanager
     def _mutation(self, job_id: str | None = None) -> Iterator[None]:
-        with run_lock(self.root):
-            if _workspace_deletion_fenced(self.root):
+        with run_lock(self.root, bypass_deletion_fence=self._allow_deletion_mutation):
+            if not self._allow_deletion_mutation and _workspace_deletion_fenced(self.root):
                 raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Execution mutation is fenced by an active deletion lifecycle.")
-            yield
+            if self._allow_deletion_mutation:
+                with allow_workspace_deletion_mutation():
+                    yield
+            else:
+                yield
 
 
 class DurableTestRunStore(_FilesystemRunStore):

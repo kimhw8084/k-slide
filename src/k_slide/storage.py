@@ -9,9 +9,12 @@ the durable adapter preserves the historical K-Slide file layout.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import shutil
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path, PurePosixPath
@@ -22,6 +25,8 @@ from .errors import ErrorCode, KSlideError
 
 STORAGE_PLANE_CONTRACT_VERSION = "1.0"
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
+_WORKSPACE_OPERATIONAL_ROOTS: dict[Path, Path] = {}
+_ALLOW_WORKSPACE_DELETION_MUTATION: ContextVar[bool] = ContextVar("allow_workspace_deletion_mutation", default=False)
 
 
 class StoragePlane(str, Enum):
@@ -71,11 +76,10 @@ class StorageArtifact(str, Enum):
     TELEMETRY_COORDINATION_LOCK = "telemetry_coordination_lock"
     CONVERSION_STAGING = "conversion_staging"
     TELEMETRY_EVENT = "telemetry_event"
-    # Deletion audits are source-free admission/control metadata.  Keep the
-    # alias on the existing KSA-11 inventory class so the inventory remains
-    # backward compatible while giving the deletion boundary a truthful typed
-    # name for its operational record.
-    DELETION_AUDIT = "admission_control"
+    # Deletion audits are source-free operational metadata.  They have their
+    # own truthful class even though they share the central non-content plane
+    # with KSA-11 telemetry.
+    DELETION_AUDIT = "deletion_audit"
 
 
 STORAGE_POLICY: Mapping[StorageArtifact, StoragePlane] = {
@@ -111,6 +115,7 @@ STORAGE_POLICY: Mapping[StorageArtifact, StoragePlane] = {
     StorageArtifact.TELEMETRY_COORDINATION_LOCK: StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY,
     StorageArtifact.CONVERSION_STAGING: StoragePlane.EPHEMERAL_PROCESSING_SCRATCH,
     StorageArtifact.TELEMETRY_EVENT: StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY,
+    StorageArtifact.DELETION_AUDIT: StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY,
 }
 
 
@@ -193,6 +198,90 @@ def _external_root(root: Path | None, namespace: Path) -> Path | None:
     if resolved == namespace or _is_nested(resolved, namespace) or _is_nested(namespace, resolved):
         raise _error("Central telemetry root must be outside the workspace content namespace.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
     return resolved
+
+
+def _workspace_root(run_dir: Path) -> Path:
+    run_dir = Path(run_dir).expanduser().resolve()
+    return run_dir.parent.parent if run_dir.parent.name == ".k-slide-runs" else run_dir.parent
+
+
+def register_workspace_operational_root(workspace_root: Path, operational_root: Path) -> Path:
+    """Bind an explicit central operational root for workspace mutation fencing."""
+
+    workspace = _assert_root(Path(workspace_root).expanduser())
+    operational = _assert_root(Path(operational_root).expanduser())
+    if _is_nested(operational, workspace) or _is_nested(workspace, operational):
+        raise _error("Central operational metadata root must be outside the workspace content namespace.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
+    _WORKSPACE_OPERATIONAL_ROOTS[workspace] = operational
+    return operational
+
+
+def _active_deletion_fence(run_dir: Path, operational_root: Path | None = None) -> bool:
+    workspace = _workspace_root(run_dir)
+    scratch_root = workspace / ".k-slide-scratch"
+    if scratch_root.exists() and scratch_root.is_symlink():
+        raise _error("Workspace scratch root may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
+    scratch_run = scratch_root / Path(run_dir).name
+    if scratch_run.exists() and scratch_run.is_symlink():
+        raise _error("Workspace deletion fence directory may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
+    fence = scratch_run / ".deletion-fence"
+    if fence.is_symlink():
+        raise _error("Workspace deletion fence marker may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
+    if fence.is_file():
+        return True
+    central = operational_root or _WORKSPACE_OPERATIONAL_ROOTS.get(workspace)
+    if central is None:
+        return False
+    central = _assert_root(central)
+    audit_root = central / "deletions"
+    if audit_root.exists() and audit_root.is_symlink():
+        raise _error("Central deletion audit root may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
+    if not audit_root.is_dir():
+        return False
+    run_ref = Path(run_dir).name
+    for path in sorted(audit_root.glob("*.json")):
+        if path.is_symlink():
+            raise _error("Central deletion audit record may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise _error("Central deletion audit record is corrupt or unreadable.", code=ErrorCode.STATE_CORRUPT) from exc
+        if isinstance(value, dict) and value.get("run_ref") == run_ref and value.get("state") in {"IN_PROGRESS", "PARTIAL"}:
+            return True
+    return False
+
+
+def ensure_workspace_mutation_allowed(run_dir: Path, *, operational_root: Path | None = None) -> None:
+    """Reject ordinary workspace writes while a deletion audit is active."""
+
+    if _ALLOW_WORKSPACE_DELETION_MUTATION.get():
+        return
+    candidate = Path(run_dir).expanduser().resolve()
+    parts = candidate.parts
+    if ".k-slide-runs" in parts:
+        marker = len(parts) - 1 - parts[::-1].index(".k-slide-runs")
+        if marker + 1 >= len(parts) or parts[marker + 1] in {"_deletions", "_sessions"}:
+            return
+        candidate = Path(*parts[: marker + 2])
+    if _active_deletion_fence(candidate, operational_root):
+        raise _error("Workspace mutation is fenced by an active deletion lifecycle.", code=ErrorCode.EXECUTION_CONFLICT)
+
+
+def ensure_path_mutation_allowed(path: Path) -> None:
+    """Apply the workspace fence to atomic writes that only carry a file path."""
+
+    ensure_workspace_mutation_allowed(Path(path).parent)
+
+
+@contextmanager
+def allow_workspace_deletion_mutation() -> Any:
+    """Temporarily permit only the deletion coordinator's own retry writes."""
+
+    token = _ALLOW_WORKSPACE_DELETION_MUTATION.set(True)
+    try:
+        yield
+    finally:
+        _ALLOW_WORKSPACE_DELETION_MUTATION.reset(token)
 
 
 @dataclass(frozen=True)
@@ -287,27 +376,34 @@ class StorageLayout:
         object.__setattr__(self, "telemetry_root", telemetry)
 
     @classmethod
-    def for_workspace(cls, run_dir: Path, *, central_telemetry_root: Path | None = None) -> "StorageLayout":
+    def for_workspace(cls, run_dir: Path, *, central_telemetry_root: Path | None = None, bypass_deletion_fence: bool = False) -> "StorageLayout":
         run_dir = Path(run_dir).expanduser()
         if run_dir.exists() and run_dir.is_symlink():
             raise _error("Workspace run directory may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
         run_dir = _resolved(run_dir)
         workspace_root = run_dir.parent.parent if run_dir.parent.name == ".k-slide-runs" else run_dir.parent
+        telemetry_root = _external_root(central_telemetry_root, workspace_root)
+        if telemetry_root is not None:
+            register_workspace_operational_root(workspace_root, telemetry_root)
         return cls(
             durable_root=run_dir,
             scratch_root=workspace_root / ".k-slide-scratch" / run_dir.name,
-            telemetry_root=_external_root(central_telemetry_root, workspace_root),
+            telemetry_root=telemetry_root,
             scope_ref="workspace",
             run_ref=run_dir.name,
+            mutation_guard=None if bypass_deletion_fence else lambda: ensure_workspace_mutation_allowed(run_dir),
         )
 
     @classmethod
     def for_workspace_root(cls, workspace_root: Path, *, central_telemetry_root: Path | None = None) -> "StorageLayout":
         workspace_root = _assert_root(Path(workspace_root).expanduser())
+        telemetry_root = _external_root(central_telemetry_root, workspace_root)
+        if telemetry_root is not None:
+            register_workspace_operational_root(workspace_root, telemetry_root)
         return cls(
             durable_root=workspace_root / ".k-slide-runs",
             scratch_root=workspace_root / ".k-slide-scratch" / "_workspace",
-            telemetry_root=_external_root(central_telemetry_root, workspace_root),
+            telemetry_root=telemetry_root,
             scope_ref="workspace",
             run_ref="workspace",
         )
@@ -355,6 +451,8 @@ class StorageLayout:
             raise _error("Storage plane is unsupported.") from exc
 
     def ensure_root(self, plane: StoragePlane | str) -> Path:
+        if self.mutation_guard is not None:
+            self.mutation_guard()
         root = self.root_for(plane)
         if root.exists() and root.is_symlink():
             raise _error("Storage plane root may not be a symbolic link.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
@@ -506,5 +604,9 @@ __all__ = [
     "StoragePlane",
     "StorageReference",
     "StorageResolver",
+    "allow_workspace_deletion_mutation",
+    "ensure_workspace_mutation_allowed",
+    "ensure_path_mutation_allowed",
+    "register_workspace_operational_root",
     "storage_path",
 ]

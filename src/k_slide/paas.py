@@ -1093,7 +1093,9 @@ class ReferencePaaSJobService(RunStoreResolver):
     def _deletion_fenced(self, scope_context: AuthorizedScopeContext, run_ref: str) -> None:
         """Reject new claims/resume/result mutations after KSA-13 starts."""
 
-        audit_root = self._scope_root(scope_context) / "_deletions"
+        audit_root = self._storage.root_for(StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY) / "deletions"
+        if audit_root.is_symlink():
+            raise KSlideError(ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT, "Central deletion audit root is a symbolic link.")
         if not audit_root.is_dir():
             return
         from .deletion import DeletionAudit

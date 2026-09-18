@@ -9,7 +9,7 @@ from pathlib import Path
 from .errors import KSlideError
 from .io import atomic_write_json, read_json
 from .state import RunPhase, load_state
-from .storage import StorageArtifact, StorageLayout
+from .storage import StorageArtifact, StorageLayout, ensure_workspace_mutation_allowed
 
 
 def session_key(session_id: str | None) -> str | None:
@@ -22,6 +22,7 @@ def bind_session(run_root: Path, session_id: str | None, run_id: str) -> str | N
     key = session_key(session_id)
     if key is None:
         return None
+    ensure_workspace_mutation_allowed(Path(run_root) / run_id)
     layout = StorageLayout.for_workspace_root(run_root.parent)
     session_path = layout.path(StorageArtifact.SESSION_BINDING, f"_sessions/{key}.json", create_parent=True)
     atomic_write_json(session_path, {"session_key": key, "run_id": run_id})
