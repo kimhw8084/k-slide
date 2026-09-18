@@ -117,7 +117,7 @@ class RuntimeArtifactContractTests(unittest.TestCase):
 
     def test_certification_can_bind_runtime_identity_without_turning_it_into_certification_state(self) -> None:
         manifest, _sbom, _system = self._manifest()
-        candidate = {"candidate_spec_version": "1.0", "subject_git_sha": "a" * 40, "kslide_version": "0.3.5", "runtime_artifact_identity": manifest["artifact_identity"], "runtime_artifact_manifest_sha256": "e" * 64, "runtime_sbom_sha256": manifest["sbom"]["sha256"]}
+        candidate = {"candidate_spec_version": "1.1", "subject_git_sha": "a" * 40, "kslide_version": "0.3.5", "runtime_artifact_identity": manifest["artifact_identity"], "runtime_artifact_manifest_sha256": "e" * 64, "runtime_sbom_sha256": manifest["sbom"]["sha256"]}
         fingerprint = candidate_deployment_fingerprint(candidate)
         changed = dict(candidate, runtime_artifact_identity={"kind": "canonical-build-inputs", "sha256": "f" * 64})
         self.assertNotEqual(fingerprint, candidate_deployment_fingerprint(changed))

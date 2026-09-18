@@ -217,7 +217,8 @@ class Phase35Tests(unittest.TestCase):
                 run = run_root / run_id
                 run.mkdir(mode=0o700)
                 (run / "RUN_STATE.json").write_text(json.dumps({"phase": phase, "updated_at": updated.isoformat()}), encoding="utf-8")
-            result = cleanup_expired_runs(root, 30, now=now)
+            policy = {"schema_version": "1.0", "content_retention_days": 30, "operational_metadata_retention_days": 60}
+            result = cleanup_expired_runs(root, policy, now=now)
             self.assertEqual({item["run_id"] for item in result["removed"]}, {"expired", "failed"})
             self.assertTrue((run_root / "active").is_dir())
             self.assertTrue((run_root / "recent").is_dir())
@@ -229,7 +230,7 @@ class Phase35Tests(unittest.TestCase):
             run_root.mkdir(mode=0o700)
             (run_root / "link").symlink_to(Path(outside), target_is_directory=True)
             with self.assertRaises(KSlideError) as raised:
-                cleanup_expired_runs(root, 1)
+                cleanup_expired_runs(root, {"schema_version": "1.0", "content_retention_days": 1, "operational_metadata_retention_days": 2})
             self.assertEqual(raised.exception.code, ErrorCode.RETENTION_REFUSED)
             self.assertTrue(Path(outside).is_dir())
 

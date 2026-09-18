@@ -17,6 +17,8 @@ import uuid
 from pathlib import Path
 from typing import Any, Iterable
 
+from .retention_policy import RetentionPolicy, RETENTION_POLICY_FIELD
+
 
 EVIDENCE_SCHEMA_VERSION = "2.2"
 EVIDENCE_TYPES = (
@@ -48,7 +50,7 @@ _HEX64 = set("0123456789abcdef")
 # Candidate identity is a source-free deployment contract.  These are the
 # only fields that may affect the deployment fingerprint.  Paths are accepted
 # as lookup hints but their content hash, never the path, is fingerprinted.
-CANDIDATE_SPEC_SCHEMA_VERSION = "1.0"
+CANDIDATE_SPEC_SCHEMA_VERSION = "1.1"
 DEPENDENCY_INVENTORY_SCHEMA_VERSION = "1.0"
 UNSET_VALUE = "UNSET"
 # Runtime discovery already uses ``not_exposed_by_runtime`` for structured
@@ -92,7 +94,7 @@ CANDIDATE_INPUT_FIELDS = (
     "termbase_hash",
     "model_policy",
     "schema_versions",
-    "retention_days",
+    RETENTION_POLICY_FIELD,
     "tenant_isolation",
     "network_egress",
     "corpus_identity",
@@ -203,7 +205,7 @@ _PRODUCTION_COMPLETENESS_FIELDS = (
     "image_preprocessing_settings", "prompt_identity", "generation_settings", "ocr_provider", "ocr_asset_manifest",
     "ocr_asset_manifest_sha256", "normalization_behavior", "repair_policy", "python_version", "paddle_version",
     "paddleocr_version", "libreoffice_version", "termbase_identity", "termbase_version", "termbase_hash", "model_policy",
-    "schema_versions", "retention_days", "tenant_isolation", "network_egress", "corpus_identity", "constraints_sha256",
+    "schema_versions", RETENTION_POLICY_FIELD, "tenant_isolation", "network_egress", "corpus_identity", "constraints_sha256",
     "resolved_dependency_set_sha256", "behavior_configuration",
 )
 _OPTIONAL_PROVIDER_METADATA = frozenset({"provider_backend", "model_revision", "quantization_or_dtype"})
@@ -568,7 +570,7 @@ DEPLOYMENT_PROFILE_FIELDS = (
     "paddle_version",
     "paddleocr_version",
     "libreoffice_version",
-    "retention_days",
+    RETENTION_POLICY_FIELD,
     "tenant_isolation",
     "network_egress",
     "runtime_artifact_identity",
@@ -691,9 +693,27 @@ def canonical_behavior_configuration(configuration: dict[str, Any] | None, *, mo
     return _canonical_behavior_configuration(configuration, model=model, ocr_provider=ocr_provider, strict=strict)
 
 
+def _validate_candidate_schema_version(value: dict[str, Any]) -> None:
+    declared = value.get("candidate_spec_version")
+    if declared is None:
+        declared = value.get("schema_version")
+    nested = value.get("candidate_spec")
+    if declared is None and isinstance(nested, dict):
+        declared = nested.get("candidate_spec_version") or nested.get("schema_version")
+    if declared is not None and str(declared) != CANDIDATE_SPEC_SCHEMA_VERSION:
+        raise EvidenceValidationError(f"unsupported candidate specification schema: {declared}")
+
+
 def _normalize_candidate_mapping(value: dict[str, Any], *, strict: bool = False) -> dict[str, Any]:
     source_value = dict(value.get("candidate_spec") or {}) if isinstance(value.get("candidate_spec"), dict) else {}
     source_value.update(value)
+    if "retention_days" in source_value:
+        raise EvidenceValidationError(
+            "legacy retention_days is unsupported; explicitly supply "
+            "retention_policy.content_retention_days and "
+            "retention_policy.operational_metadata_retention_days"
+        )
+    _validate_candidate_schema_version(value)
     normalized: dict[str, Any] = {}
     for raw_key, raw_value in source_value.items():
         if raw_key == "candidate_spec":
@@ -733,6 +753,11 @@ def _normalize_candidate_mapping(value: dict[str, Any], *, strict: bool = False)
     if "ocr_provider" in normalized:
         behavior.setdefault("ocr_provider", normalized["ocr_provider"])
     normalized["behavior_configuration"] = _canonical_behavior_configuration(behavior, strict=strict)
+    if RETENTION_POLICY_FIELD in normalized:
+        try:
+            normalized[RETENTION_POLICY_FIELD] = RetentionPolicy.from_mapping(normalized[RETENTION_POLICY_FIELD]).as_dict()
+        except (TypeError, ValueError) as exc:
+            raise EvidenceValidationError(str(exc)) from exc
     if isinstance(normalized.get("model_policy"), dict):
         from .model_policy import ModelPolicy
 
@@ -746,9 +771,12 @@ def load_candidate_spec(path: Path, *, root: Path | None = None, require_identit
     """Load one explicit public-safe candidate deployment specification."""
 
     path = path.expanduser().resolve()
-    value = _normalize_candidate_mapping(_load_candidate_mapping(path), strict=require_identity if strict is None else strict)
-    value.setdefault("schema_version", CANDIDATE_SPEC_SCHEMA_VERSION)
-    declared_version = str(value.get("candidate_spec_version") or value.get("schema_version") or "")
+    raw_value = _load_candidate_mapping(path)
+    nested_value = raw_value.get("candidate_spec") if isinstance(raw_value.get("candidate_spec"), dict) else {}
+    declared_version = str(raw_value.get("candidate_spec_version") or raw_value.get("schema_version") or nested_value.get("candidate_spec_version") or nested_value.get("schema_version") or "")
+    value = _normalize_candidate_mapping(raw_value, strict=require_identity if strict is None else strict)
+    value.setdefault("schema_version", declared_version or CANDIDATE_SPEC_SCHEMA_VERSION)
+    value.setdefault("candidate_spec_version", declared_version or CANDIDATE_SPEC_SCHEMA_VERSION)
     if declared_version != CANDIDATE_SPEC_SCHEMA_VERSION:
         raise EvidenceValidationError(f"unsupported candidate specification schema: {declared_version}")
     if root is not None and value.get("ocr_asset_manifest_sha256") is None:
@@ -1031,6 +1059,27 @@ def _hash_field_resolved(candidate: dict[str, Any], field: str, nested_field: st
     return True
 
 
+def _retention_policy_missing(candidate_spec: dict[str, Any]) -> list[str]:
+    if "retention_days" in candidate_spec:
+        return ["retention_policy.migration_required"]
+    raw_policy = candidate_spec.get(RETENTION_POLICY_FIELD)
+    if not isinstance(raw_policy, dict):
+        return [
+            f"{RETENTION_POLICY_FIELD}.content_retention_days",
+            f"{RETENTION_POLICY_FIELD}.operational_metadata_retention_days",
+        ]
+    try:
+        policy = RetentionPolicy.from_mapping(raw_policy)
+    except (TypeError, ValueError):
+        return [RETENTION_POLICY_FIELD]
+    missing: list[str] = []
+    if not isinstance(policy.content_retention_days, int):
+        missing.append(f"{RETENTION_POLICY_FIELD}.content_retention_days")
+    if not isinstance(policy.operational_metadata_retention_days, int):
+        missing.append(f"{RETENTION_POLICY_FIELD}.operational_metadata_retention_days")
+    return missing
+
+
 def candidate_completeness(candidate_spec: dict[str, Any], state: str) -> list[str]:
     """Return unresolved candidate inputs for a requested release state."""
 
@@ -1040,6 +1089,9 @@ def candidate_completeness(candidate_spec: dict[str, Any], state: str) -> list[s
     missing: list[str] = []
     for field in fields:
         allow_not_exposed = field in _OPTIONAL_PROVIDER_METADATA
+        if field == RETENTION_POLICY_FIELD:
+            missing.extend(_retention_policy_missing(candidate_spec))
+            continue
         if field == "subject_git_sha":
             raw_subject = str(candidate_spec.get(field) or "")
             valid = len(raw_subject) == 40 and not (set(raw_subject.lower()) - set("0123456789abcdef"))
@@ -1072,9 +1124,6 @@ def candidate_completeness(candidate_spec: dict[str, Any], state: str) -> list[s
     if state == "PRODUCTION_CERTIFIED" and candidate_spec.get("ocr_provider") != "paddle":
         missing.append("ocr_provider")
     if state == "PRODUCTION_CERTIFIED":
-        retention = candidate_spec.get("retention_days")
-        if isinstance(retention, bool) or not isinstance(retention, int) or retention <= 0:
-            missing.append("retention_days")
         if candidate_spec.get("tenant_isolation") != "workspace_per_session":
             missing.append("tenant_isolation")
         if candidate_spec.get("network_egress") != "approved_inference_only":

@@ -22,8 +22,10 @@ from .normalization import normalize_run
 from .extraction import extract_run
 from .doctor import diagnose
 from .policy import COMPLETION_POLICY, MAX_AUTO_REPAIRS_PER_UNIT
+from .production import PRODUCTION_PROFILE_SCHEMA_VERSION
 from .redaction import sanitize_operational
 from .retention import cleanup_expired_runs
+from .retention_policy import RetentionPolicy
 from .support import build_support_bundle
 from .queue import WorkUnitStatus, load_queue, save_queue
 from .runtime import discover_runtime
@@ -45,6 +47,22 @@ def _json(value: Any) -> str:
 
 def _diagnostic_roots(root: Path | None) -> tuple[Path, ...]:
     return (root.expanduser().resolve(),) if root is not None else ()
+
+
+def _load_cleanup_retention_policy(root: Path, profile_path: Path | None) -> RetentionPolicy:
+    path = (profile_path or (root / ".k-slide-config" / "production-profile.json")).expanduser()
+    if path.is_symlink() or not path.is_file():
+        raise KSlideError(ErrorCode.RETENTION_INVALID, "A managed production profile with a resolved retention_policy is required for cleanup.")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(value, dict) or value.get("schema_version") != PRODUCTION_PROFILE_SCHEMA_VERSION:
+            raise ValueError(f"unsupported production profile schema: {value.get('schema_version') if isinstance(value, dict) else 'invalid'}")
+        if "retention_days" in value:
+            raise ValueError("legacy retention_days-only production profiles are unsupported")
+        policy_value = value.get("retention_policy") if isinstance(value, dict) else None
+        return RetentionPolicy.from_mapping(policy_value, require_resolved=True)
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        raise KSlideError(ErrorCode.RETENTION_INVALID, f"Invalid managed retention policy: {exc}") from exc
 
 
 def _execution_for_run(run: Path) -> dict[str, Any] | None:
@@ -416,7 +434,7 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--json", action="store_true")
     retention = sub.add_parser("retention-cleanup", help="Admin-only cleanup of expired terminal run artifacts")
     retention.add_argument("--root", type=Path, default=Path.cwd())
-    retention.add_argument("--retention-days", type=int, required=True)
+    retention.add_argument("--production-profile", type=Path)
     retention.add_argument("--dry-run", action="store_true")
     retention.add_argument("--json", action="store_true")
     support = sub.add_parser("support-bundle", help="Admin-only sanitized operational support bundle")
@@ -472,7 +490,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "doctor":
             value = diagnose(args.root, engine_root=args.engine_root, opencode_root=args.opencode_root, production=args.production)
         elif args.command == "retention-cleanup":
-            value = cleanup_expired_runs(args.root, args.retention_days, dry_run=args.dry_run)
+            value = cleanup_expired_runs(args.root, _load_cleanup_retention_policy(args.root, args.production_profile), dry_run=args.dry_run)
         elif args.command == "support-bundle":
             value = build_support_bundle(args.root, args.output)
         elif args.command == "install":
