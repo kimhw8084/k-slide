@@ -56,6 +56,8 @@ def _execution_for_run(run: Path) -> dict[str, Any] | None:
 def _find_run(root: Path, run_id: str | None, session_id: str | None) -> Path:
     run = resolve_run(_run_root(root), explicit=run_id, session_id=session_id)
     if run is None:
+        if session_id is not None:
+            raise KSlideError(ErrorCode.RUN_NOT_FOUND, "No K-Slide run could be resolved.")
         choices = [path.name for path in incomplete_runs(_run_root(root))]
         if choices:
             raise KSlideError(ErrorCode.RUN_NOT_FOUND, "Multiple incomplete K-Slide runs exist; pass an explicit run ID or continue from the original session.", {"choices": choices})
@@ -141,6 +143,8 @@ def _status(
 ) -> dict[str, Any]:
     run = resolve_run(_run_root(root), explicit=run_id, session_id=session_id)
     if run is None:
+        if session_id is not None:
+            return sanitize_operational(add_host_contract({"status": "NO_RUN", "next": "Reconnect the original OpenCode session."}, phase=None), roots=_diagnostic_roots(root))
         choices = [path.name for path in incomplete_runs(_run_root(root))]
         if choices:
             return sanitize_operational(add_host_contract({"status": "AMBIGUOUS", "choices": choices, "next": "Pass a run ID or reconnect the original OpenCode session."}, phase=None), roots=_diagnostic_roots(root))

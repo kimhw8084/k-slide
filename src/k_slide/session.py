@@ -52,29 +52,46 @@ def incomplete_runs(run_root: Path) -> list[Path]:
 
 
 def resolve_run(run_root: Path, *, explicit: str | None = None, session_id: str | None = None) -> Path | None:
-    """Resolve explicit, current-session, then latest incomplete/latest run."""
+    """Resolve a run without allowing a hosted session to cross its binding.
+
+    A supplied session ID is a routing identifier, not an authority source.
+    Once a binding exists, every explicit run selection must match it. An
+    unbound session is intentionally not allowed to fall back to another
+    session's latest or incomplete run. The no-session form remains the
+    explicit local/operator compatibility path.
+    """
 
     run_root = run_root.resolve()
+    bound_run: Path | None = None
+    has_session_binding = False
+    key = session_key(session_id)
+    if key:
+        mapping = StorageLayout.for_workspace_root(run_root.parent).path(StorageArtifact.SESSION_BINDING, f"_sessions/{key}.json")
+        if mapping.is_file():
+            has_session_binding = True
+            try:
+                run_id = read_json(mapping)["run_id"]
+                if not isinstance(run_id, str):
+                    return None
+                candidate = (run_root / run_id).resolve()
+                if candidate.is_dir() and candidate.parent == run_root:
+                    bound_run = candidate
+            except (KSlideError, KeyError, TypeError, ValueError, OSError):
+                return None
+
     if explicit:
         candidate = Path(explicit)
         candidates = [candidate] if candidate.is_absolute() else [run_root.parent / candidate, run_root / candidate]
         for candidate_path in candidates:
             candidate_path = candidate_path.resolve()
             if candidate_path.is_dir() and candidate_path.parent == run_root:
+                if session_id is not None and (not has_session_binding or bound_run is None or candidate_path != bound_run):
+                    return None
                 return candidate_path
         return None
 
-    key = session_key(session_id)
     if key:
-        mapping = StorageLayout.for_workspace_root(run_root.parent).path(StorageArtifact.SESSION_BINDING, f"_sessions/{key}.json")
-        if mapping.is_file():
-            try:
-                run_id = str(read_json(mapping)["run_id"])
-                candidate = run_root / run_id
-                if candidate.is_dir():
-                    return candidate
-            except (KSlideError, KeyError, TypeError, ValueError, OSError):
-                pass
+        return bound_run
 
     runs = _run_dirs(run_root)
     incomplete = incomplete_runs(run_root)

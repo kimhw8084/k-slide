@@ -299,6 +299,9 @@ class DeletionAudit:
     # when the deletion was admitted.  These remain usable after the control
     # artifacts themselves have been removed.
     generation_anchors: tuple[tuple[str, str], ...] = ()
+    # Scoped PaaS deletion audits additionally bind the complete durable
+    # identity so a replay cannot be adopted by a guessed sibling identity.
+    identity_ref: str | None = None
 
     def __post_init__(self) -> None:
         if self.contract_version != DELETION_CONTRACT_VERSION:
@@ -338,9 +341,11 @@ class DeletionAudit:
             for item in self.generation_anchors
         ):
             raise _invalid("Deletion audit generation anchors are invalid.", code=ErrorCode.STATE_CORRUPT)
+        if self.identity_ref is not None and not _SHA256.fullmatch(self.identity_ref):
+            raise _invalid("Deletion audit identity reference is invalid.", code=ErrorCode.STATE_CORRUPT)
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "contract_version": self.contract_version,
             "deletion_id": self.deletion_id,
             "scope_ref": self.scope_ref,
@@ -358,11 +363,15 @@ class DeletionAudit:
             "targets": [item.as_dict() for item in self.targets],
             "generation_anchors": {name: reference for name, reference in self.generation_anchors},
         }
+        if self.identity_ref is not None:
+            value["identity_ref"] = self.identity_ref
+        return value
 
     @classmethod
     def from_dict(cls, value: Any) -> "DeletionAudit":
         required = {"contract_version", "deletion_id", "scope_ref", "run_ref", "reason", "target_generation_ref", "authority_ref", "hold_decision_ref", "requested_at", "updated_at", "retry_count", "state", "outcome", "error_code", "targets"}
-        if not isinstance(value, dict) or set(value) not in (required, required | {"generation_anchors"}) or not isinstance(value["targets"], list):
+        allowed_optional = {"generation_anchors", "identity_ref"}
+        if not isinstance(value, dict) or set(value) - (required | allowed_optional) or not isinstance(value["targets"], list):
             raise _invalid("Deletion audit record is incomplete.", code=ErrorCode.STATE_CORRUPT)
         try:
             targets = tuple(DeletionTargetRecord(item["target_ref"], item["artifact_class"], item["status"], item["result_code"]) for item in value["targets"])
@@ -374,6 +383,7 @@ class DeletionAudit:
                 reason=value["reason"], target_generation_ref=value["target_generation_ref"], authority_ref=value["authority_ref"], hold_decision_ref=value["hold_decision_ref"],
                 requested_at=value["requested_at"], updated_at=value["updated_at"], retry_count=value["retry_count"], state=value["state"], outcome=value["outcome"], error_code=value["error_code"], targets=targets,
                 generation_anchors=tuple(sorted(raw_anchors.items())),
+                identity_ref=value.get("identity_ref"),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise _invalid("Deletion audit record is invalid.", code=ErrorCode.STATE_CORRUPT) from exc
@@ -776,14 +786,14 @@ class ScopedReferenceDeletionBackend:
         self.scope_ref = str(scope_context.scope_ref)
         if isinstance(identity, DurableJobIdentity):
             if identity.scope_ref != scope_context.scope_ref:
-                raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Authorized scope context does not match the deletion identity.")
+                raise KSlideError(ErrorCode.EXECUTION_NOT_FOUND, "Durable execution is unavailable.")
             # The admission record is a deletion target.  It is authoritative
             # when present, but it cannot be a prerequisite for reopening a
             # central audit after a partial or complete deletion.
             record_path = service._scope_record_path(scope_context, identity.job_id)
             record = service._read_scoped_record(scope_context, identity.job_id) if record_path.is_file() else None
             if record is not None and record.identity != identity:
-                raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Deletion identity does not match the authorized scope record.")
+                raise KSlideError(ErrorCode.EXECUTION_NOT_FOUND, "Durable execution is unavailable.")
             resolved = identity
         else:
             record = service._read_scoped_record(scope_context, identity)
@@ -792,6 +802,11 @@ class ScopedReferenceDeletionBackend:
         self.record = record
         self.run_ref = resolved.run_id
         self.scope_root = service._scope_root(scope_context)
+        self.identity_ref = stable_revision(resolved.as_dict())
+        if record is None:
+            audit_dir = self._audit_root() / self.run_ref / resolved.job_id
+            if not audit_dir.is_dir() or not any(path.suffix == ".json" for path in audit_dir.iterdir()):
+                raise KSlideError(ErrorCode.EXECUTION_NOT_FOUND, "Durable execution is unavailable.")
 
     @contextmanager
     def lock(self) -> Iterator[None]:
@@ -842,6 +857,8 @@ class ScopedReferenceDeletionBackend:
             if candidate == path:
                 if audit.run_ref != self.run_ref:
                     raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Deletion audit identity does not match the authorized run.")
+                if audit.identity_ref != self.identity_ref:
+                    raise KSlideError(ErrorCode.EXECUTION_NOT_FOUND, "Durable execution is unavailable.")
                 requested = audit
                 continue
             # A different deletion ID for this exact typed identity is not a
@@ -856,6 +873,10 @@ class ScopedReferenceDeletionBackend:
         return requested
 
     def save_audit(self, audit: DeletionAudit) -> None:
+        if audit.identity_ref not in {None, self.identity_ref}:
+            raise KSlideError(ErrorCode.EXECUTION_NOT_FOUND, "Durable execution is unavailable.")
+        if audit.identity_ref is None:
+            audit = replace(audit, identity_ref=self.identity_ref)
         atomic_write_json(self.audit_path(audit.deletion_id, create_parent=True), audit.as_dict(), mode=0o600)
 
     def _job_if_present(self) -> Any | None:

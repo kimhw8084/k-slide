@@ -76,8 +76,11 @@ class _CountingEngine(ReferenceWorkerEngine):
 
 
 class EnvironmentBindingTests(unittest.TestCase):
+    def _reference_service(self, root: Path) -> ReferencePaaSJobService:
+        return ReferencePaaSJobService(root, reference_compatibility=True)
+
     def _submit(self, root: Path, environment: RunEnvironmentIdentity, *, scope: AuthorizedScopeContext | None = None, run_id: str = "run-environment", total: int = 2):
-        service = ReferencePaaSJobService(root)
+        service = self._reference_service(root)
         runtime = _runtime(environment)
         request = PaaSJobRequest(
             run_id=run_id,
@@ -87,21 +90,21 @@ class EnvironmentBindingTests(unittest.TestCase):
             environment_identity=environment,
             total_work_units=total,
         )
-        return PaaSController(service, scope_context=scope).submit(request)
+        return PaaSController(service, scope_context=scope, reference_mode=scope is None).submit(request)
 
     def test_creation_persists_one_complete_identity_and_recreation_is_field_equivalent(self) -> None:
         environment = _environment()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             receipt = self._submit(root, environment)
-            service = ReferencePaaSJobService(root)
+            service = self._reference_service(root)
             job = service.open_store(receipt.identity).load(receipt.job_id)
             self.assertEqual(job.environment_identity, environment)
             self.assertEqual(job.checkpoint.environment_identity_sha256, environment.identity_sha256)
-            recreated = ReferencePaaSJobService(root).open_store(receipt.identity).load(receipt.job_id)
+            recreated = self._reference_service(root).open_store(receipt.identity).load(receipt.job_id)
             self.assertEqual(recreated.environment_identity.as_dict(), environment.as_dict())
             self.assertEqual(recreated.environment_identity.identity_sha256, environment.identity_sha256)
-            status = ReferencePaaSJobService(root).inspect(receipt.identity).as_dict()
+            status = self._reference_service(root).inspect(receipt.identity).as_dict()
             self.assertEqual(status["environment_identity"], environment.as_dict())
             self.assertEqual(status["environment_identity_sha256"], environment.identity_sha256)
 
@@ -111,20 +114,20 @@ class EnvironmentBindingTests(unittest.TestCase):
             root = Path(directory)
             receipt = self._submit(root, environment)
             first_engine = _CountingEngine()
-            first = PaaSWorker(ReferencePaaSJobService(root), worker_id="worker-one", runtime_identity=_runtime(environment), engine=first_engine).run_once(receipt.identity)
+            first = PaaSWorker(self._reference_service(root), worker_id="worker-one", runtime_identity=_runtime(environment), engine=first_engine).run_once(receipt.identity)
             self.assertEqual(first.status, "ACCEPTED")
             self.assertEqual(first_engine.calls, 1)
             self.assertEqual(len(first.job.result_markers), 1)
 
             second_engine = _CountingEngine()
-            resumed = PaaSWorker(ReferencePaaSJobService(root), worker_id="worker-two", runtime_identity=_runtime(environment), engine=second_engine).run_until_terminal(receipt.identity)
+            resumed = PaaSWorker(self._reference_service(root), worker_id="worker-two", runtime_identity=_runtime(environment), engine=second_engine).run_until_terminal(receipt.identity)
             self.assertEqual(resumed.status, "DONE")
             self.assertEqual(second_engine.calls, 1)
-            committed = ReferencePaaSJobService(root).open_store(receipt.identity).load(receipt.job_id)
+            committed = self._reference_service(root).open_store(receipt.identity).load(receipt.job_id)
             self.assertEqual(len(committed.result_markers), 2)
-            replay = PaaSWorker(ReferencePaaSJobService(root), worker_id="worker-three", runtime_identity=_runtime(environment), engine=_CountingEngine()).run_once(receipt.identity)
+            replay = PaaSWorker(self._reference_service(root), worker_id="worker-three", runtime_identity=_runtime(environment), engine=_CountingEngine()).run_once(receipt.identity)
             self.assertEqual(replay.status, "DONE")
-            self.assertEqual(len(ReferencePaaSJobService(root).open_store(receipt.identity).load(receipt.job_id).result_markers), 2)
+            self.assertEqual(len(self._reference_service(root).open_store(receipt.identity).load(receipt.job_id).result_markers), 2)
 
     def test_rolling_upgrade_binds_new_runs_only_and_cannot_rewrite_old_binding(self) -> None:
         old_environment = _environment("a")
@@ -133,7 +136,7 @@ class EnvironmentBindingTests(unittest.TestCase):
             root = Path(directory)
             old_receipt = self._submit(root, old_environment, run_id="run-old")
             new_receipt = self._submit(root, new_environment, run_id="run-new")
-            service = ReferencePaaSJobService(root)
+            service = self._reference_service(root)
             old_before = service.open_store(old_receipt.identity).load(old_receipt.job_id)
             new_job = service.open_store(new_receipt.identity).load(new_receipt.job_id)
             self.assertEqual(old_before.environment_identity, old_environment)
@@ -212,7 +215,7 @@ class EnvironmentBindingTests(unittest.TestCase):
                 if field == "effective_model_identity":
                     modified = replace(modified, target_model_identity=changed)
                 engine = _CountingEngine()
-                worker = PaaSWorker(ReferencePaaSJobService(root), worker_id="stale-worker", runtime_identity=_runtime(modified), engine=engine, scope_context=scope)
+                worker = PaaSWorker(self._reference_service(root), worker_id="stale-worker", runtime_identity=_runtime(modified), engine=engine, scope_context=scope)
                 with self.assertRaises(KSlideError) as raised:
                     worker.run_once(receipt.identity)
                 self.assertEqual(raised.exception.code, ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH)
@@ -229,7 +232,7 @@ class EnvironmentBindingTests(unittest.TestCase):
             receipt = self._submit(root, environment)
             changed = replace(environment, runtime_image_identity=f"sha256:{_sha('different-image')}")
             try:
-                PaaSWorker(ReferencePaaSJobService(root), worker_id="wrong", runtime_identity=_runtime(changed), engine=ReferenceWorkerEngine()).run_once(receipt.identity)
+                PaaSWorker(self._reference_service(root), worker_id="wrong", runtime_identity=_runtime(changed), engine=ReferenceWorkerEngine()).run_once(receipt.identity)
             except KSlideError as exc:
                 payload = json.dumps(exc.as_dict(), ensure_ascii=False)
             else:  # pragma: no cover
@@ -287,7 +290,7 @@ class EnvironmentBindingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaises(KSlideError) as raised:
                 PaaSWorker(
-                    ReferencePaaSJobService(Path(directory)),
+                    self._reference_service(Path(directory)),
                     worker_id="worker-missing-environment",
                     runtime_identity=runtime,
                     engine=ReferenceWorkerEngine(),
