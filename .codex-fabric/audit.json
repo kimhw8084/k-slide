@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "accepted_at": "2026-09-19T01:26:46Z",
+  "project": "K-Slide",
+  "project_os_change": "CHG-16",
+  "work_item": "KSA-15",
+  "operation": "FIX",
+  "scope": {
+    "objective": "Remove ambient AccessKey substring coincidence from operational safety paths and restore the authenticated KSA-14 runtime boundary in the real OpenCode evaluation path.",
+    "included": [
+      "F15-01 provenance/structure-based safe diagnostic and operational persistence",
+      "F15-02 OpenCode runtime credential boundary and adversarial non-leakage proof",
+      "KSA-15 regressions through StorageLayout and persistence helpers",
+      "KSA-14 environment-only credential sourcing and approved service-call transport preservation"
+    ],
+    "excluded": [
+      "KSA-16 classification",
+      "tenant authorization",
+      "egress",
+      "termbase governance",
+      "content-bearing support authorization",
+      "malicious-document expansion",
+      "telemetry feature expansion",
+      "live company qualification",
+      "BUILD COMPLETE",
+      "release",
+      "production certification",
+      "Notion access"
+    ]
+  },
+  "base": {
+    "exact_integrated_main_base": "96c351fc358e559819f858f5ba99d505853fa642",
+    "base_is_ancestor": true,
+    "main_ref_observed": "origin/main",
+    "main_sha_observed": "96c351fc358e559819f858f5ba99d505853fa642"
+  },
+  "predecessor": {
+    "exact_candidate_sha": "6b3d038f3d29ace8909513d8bc52d946aba5f6cc",
+    "subject": "fix: harden KSA-15 AccessKey non-leakage",
+    "parent_is_exact_requested_base": true,
+    "carried_forward_in_ancestry": true
+  },
+  "resulting_candidate": {
+    "branch": "codex/k-slide-chg16-accesskey-nonleakage-01-fix01",
+    "head_sha": "84f63688b88bd2d903e0294ee8593065ba992eea",
+    "tree_sha": "219f78caf264d9d133546661c73edd5ecaf3247f",
+    "repair_subject": "fix: restore KSA-15 credential provenance boundary",
+    "repair_files": [
+      "src/k_slide/redaction.py",
+      "evals/opencode_runner.py",
+      "evals/opencode_diagnostics.py",
+      "tests/test_chg16_accesskey_nonleakage.py"
+    ]
+  },
+  "boundary_proof": {
+    "ambient_accesskey_substring_authority_removed": true,
+    "explicit_secret_provenance_supported": true,
+    "labelled_assignments_and_secret_fields_remain_redacted": true,
+    "short_common_rotation_and_removal_regressions": ["a", ".", " ", "한글", "opaque-value"],
+    "non_runtime_subprocess_environment_excludes_accesskey": true,
+    "real_opencode_runtime_environment_retains_process_accesskey": true,
+    "model_context_work_packets_and_structured_events_are_credential_free": true,
+    "stdout_stderr_and_diagnostic_artifacts_are_sanitized_with_runtime_provenance": true,
+    "synthetic_runtime_boundary_adversarial_test": "tests.test_chg16_accesskey_nonleakage.AccessKeyNonLeakageTests.test_opencode_runner_passes_key_to_runtime_and_sanitizes_adversarial_output"
+  },
+  "checks": [
+    {
+      "command": "rtk env PYTHONPATH=src python -m unittest tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_host_integration -q",
+      "exit_code": 0,
+      "result": "Ran 37 tests in 2.421s; OK"
+    },
+    {
+      "command": "rtk env PYTHONPATH=src python -m unittest discover -s tests -q",
+      "exit_code": 0,
+      "result": "Ran 324 tests in 19.525s; OK (skipped=3)"
+    },
+    {
+      "command": "rtk python -m compileall -q src evals tests",
+      "exit_code": 0,
+      "result": "Compilation completed successfully"
+    },
+    {
+      "command": "rtk git diff --check",
+      "exit_code": 0,
+      "result": "No whitespace errors"
+    },
+    {
+      "command": "rtk git merge-base --is-ancestor 96c351fc358e559819f858f5ba99d505853fa642 HEAD",
+      "exit_code": 0,
+      "result": "Exact requested main base is an ancestor"
+    },
+    {
+      "command": "rtk git merge-base --is-ancestor 6b3d038f3d29ace8909513d8bc52d946aba5f6cc HEAD",
+      "exit_code": 0,
+      "result": "Exact predecessor candidate is in ancestry"
+    },
+    {
+      "command": "rtk env PYTHONPATH=src python -m k_slide.cli doctor --root . --json",
+      "exit_code": 0,
+      "result": "overall=WARN; source tree, Python, OpenCode executable/config, image decoder, PPTX extraction, input validation PASS; model/vision/PDF/PPTX-render/OCR warnings are existing capability status and not certification claims"
+    }
+  ],
+  "changed_files_from_base": [
+    "evals/build_certification_bundle.py",
+    "evals/download_certification_bundle.py",
+    "evals/enforce_security.py",
+    "evals/freeze_production_dependencies.py",
+    "evals/generate_corpus.py",
+    "evals/heavy/doctor.py",
+    "evals/materialize_certification_bundle.py",
+    "evals/model_eval.py",
+    "evals/opencode_diagnostics.py",
+    "evals/opencode_runner.py",
+    "evals/release.py",
+    "evals/run_engine_eval.py",
+    "evals/run_model_eval.py",
+    "evals/run_opencode_diagnostics.py",
+    "evals/validate_certification_bundle_provenance.py",
+    "src/k_slide/authentication.py",
+    "src/k_slide/certification.py",
+    "src/k_slide/cli.py",
+    "src/k_slide/deletion.py",
+    "src/k_slide/doctor.py",
+    "src/k_slide/evidence_adapters.py",
+    "src/k_slide/extraction.py",
+    "src/k_slide/host_adapter.py",
+    "src/k_slide/ingest.py",
+    "src/k_slide/io.py",
+    "src/k_slide/normalization.py",
+    "src/k_slide/ocr/paddle.py",
+    "src/k_slide/ocr/policy.py",
+    "src/k_slide/production.py",
+    "src/k_slide/redaction.py",
+    "src/k_slide/retention.py",
+    "src/k_slide/runtime.py",
+    "src/k_slide/runtime_artifact.py",
+    "src/k_slide/security.py",
+    "src/k_slide/storage.py",
+    "src/k_slide/terminology.py",
+    "src/k_slide/verify.py",
+    "tests/test_chg16_accesskey_nonleakage.py"
+  ],
+  "commits": [
+    {
+      "sha": "6b3d038f3d29ace8909513d8bc52d946aba5f6cc",
+      "subject": "fix: harden KSA-15 AccessKey non-leakage",
+      "role": "exact predecessor carried forward"
+    },
+    {
+      "sha": "84f63688b88bd2d903e0294ee8593065ba992eea",
+      "subject": "fix: restore KSA-15 credential provenance boundary",
+      "role": "bounded F15-01/F15-02 repair"
+    }
+  ],
+  "git": {
+    "candidate_branch": "codex/k-slide-chg16-accesskey-nonleakage-01-fix01",
+    "candidate_head": "84f63688b88bd2d903e0294ee8593065ba992eea",
+    "worktree_clean_before_evidence_capture": true,
+    "main_mutated": false,
+    "notion_accessed": false
+  },
+  "evidence_manifest": {
+    "version": 1,
+    "count": 1,
+    "items": [
+      {
+        "path": ".codex-fabric/audit.json",
+        "purpose": "Exact base, predecessor ancestry, bounded repair identity, boundary proof, test results, scope exclusions, and non-certification status"
+      }
+    ]
+  },
+  "failure_class": null,
+  "finished_at": "2026-09-19T01:26:46Z"
+}
