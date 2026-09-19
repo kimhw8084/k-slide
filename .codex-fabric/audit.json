@@ -1,0 +1,624 @@
+{
+  "accepted_at": "2026-09-19T03:12:13Z",
+  "changed_files": [
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/build_certification_bundle.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/download_certification_bundle.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/enforce_security.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/freeze_production_dependencies.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/generate_corpus.py",
+      "status": "M"
+    },
+    {
+      "additions": 5,
+      "deletions": 5,
+      "path": "evals/heavy/doctor.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/materialize_certification_bundle.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 3,
+      "path": "evals/model_eval.py",
+      "status": "M"
+    },
+    {
+      "additions": 47,
+      "deletions": 20,
+      "path": "evals/opencode_diagnostics.py",
+      "status": "M"
+    },
+    {
+      "additions": 128,
+      "deletions": 18,
+      "path": "evals/opencode_runner.py",
+      "status": "M"
+    },
+    {
+      "additions": 19,
+      "deletions": 12,
+      "path": "evals/release.py",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 4,
+      "path": "evals/run_engine_eval.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "evals/run_model_eval.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "evals/run_opencode_diagnostics.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/validate_certification_bundle_provenance.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 1,
+      "path": "src/k_slide/authentication.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 3,
+      "path": "src/k_slide/certification.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/deletion.py",
+      "status": "M"
+    },
+    {
+      "additions": 12,
+      "deletions": 5,
+      "path": "src/k_slide/doctor.py",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 4,
+      "path": "src/k_slide/evidence_adapters.py",
+      "status": "M"
+    },
+    {
+      "additions": 5,
+      "deletions": 4,
+      "path": "src/k_slide/extraction.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/host_adapter.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 3,
+      "path": "src/k_slide/ingest.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/io.py",
+      "status": "M"
+    },
+    {
+      "additions": 8,
+      "deletions": 7,
+      "path": "src/k_slide/normalization.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 3,
+      "path": "src/k_slide/ocr/paddle.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 2,
+      "path": "src/k_slide/ocr/policy.py",
+      "status": "M"
+    },
+    {
+      "additions": 14,
+      "deletions": 10,
+      "path": "src/k_slide/production.py",
+      "status": "M"
+    },
+    {
+      "additions": 158,
+      "deletions": 17,
+      "path": "src/k_slide/redaction.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/retention.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 1,
+      "path": "src/k_slide/runtime.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/runtime_artifact.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/security.py",
+      "status": "M"
+    },
+    {
+      "additions": 40,
+      "deletions": 4,
+      "path": "src/k_slide/storage.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/terminology.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 2,
+      "path": "src/k_slide/verify.py",
+      "status": "M"
+    },
+    {
+      "additions": 314,
+      "deletions": 0,
+      "path": "tests/test_chg16_accesskey_nonleakage.py",
+      "status": "A"
+    },
+    {
+      "additions": 2,
+      "deletions": 2,
+      "path": "tests/test_chg16_foundation.py",
+      "status": "M"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"pwd && sed -n '1,240p' /Users/haewonkim/.codex/RTK.md && sed -n '1,260p' /Users/haewonkim/.codex/law.md && printf '\\\\n--- git ---\\\\n' && git status --short --branch && printf '\\\\n--- refs ---\\\\n' && git log --oneline --decorate -12\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show --stat --oneline --decorate 59a42d10df43a0ec607fd7677f3f36b6598d08d9 && rtk git show --no-ext-diff --format=fuller --no-renames 59a42d10df43a0ec607fd7677f3f36b6598d08d9 -- && printf '\\\\n--- base ancestry ---\\\\n' && rtk git merge-base --is-ancestor 59a42d10df43a0ec607fd7677f3f36b6598d08d9 96c351fc358e559819f858f5ba99d505853fa642; printf 'status=%s\\\\n' \\\"\"'$?\" && printf '\"'\\\\n--- branches containing predecessor ---\\\\n' && rtk git branch -a --contains 59a42d10df43a0ec607fd7677f3f36b6598d08d9\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show -s --format='%H%n%P%n%s' 59a42d10df43a0ec607fd7677f3f36b6598d08d9 && rtk git diff --stat 96c351fc358e559819f858f5ba99d505853fa642 59a42d10df43a0ec607fd7677f3f36b6598d08d9 && rtk rg -n \\\"safe_credential_json|safe_diagnostic_text|sanitize_operational|_runtime_environment|Popen|parse_json_events|normalized_events|opencode-(stdout|stderr|events)|kslide_\\\" .opencode evals src tests | head -n 300\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git log --graph --oneline --decorate --all --max-count=80 --date-order && printf '\\\\n--- base vs predecessor merge base ---\\\\n' && rtk git merge-base 96c351fc358e559819f858f5ba99d505853fa642 59a42d10df43a0ec607fd7677f3f36b6598d08d9 && printf '\\\\n--- base parents ---\\\\n' && rtk git show -s --format='%H%n%P%n%s' 96c351fc358e559819f858f5ba99d505853fa642 && printf '\\\\n--- predecessor path from merge base ---\\\\n' && rtk git log --oneline --ancestry-path \"'$(rtk git merge-base 96c351fc358e559819f858f5ba99d505853fa642 59a42d10df43a0ec607fd7677f3f36b6598d08d9)..59a42d10df43a0ec607fd7677f3f36b6598d08d9'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git merge --ff-only 59a42d10df43a0ec607fd7677f3f36b6598d08d9 && rtk git status --short --branch && rtk git log --oneline --decorate -8'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- files ---' && rtk rg --files .opencode evals src/k_slide tests | sort | sed -n '1,260p' && printf '%s\\\\n' '--- kslide tool ---' && sed -n '1,360p' .opencode/tools/kslide.ts && printf '%s\\\\n' '--- host plugin ---' && sed -n '1,380p' .opencode/plugin/k-slide-host.ts && printf '%s\\\\n' '--- opencode runner ---' && sed -n '1,470p' evals/opencode_runner.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- host plugin 180-360 ---' && sed -n '180,380p' .opencode/plugin/k-slide-host.ts && printf '%s\\\\n' '--- host plugin 380-760 ---' && sed -n '380,760p' .opencode/plugin/k-slide-host.ts && printf '%s\\\\n' '--- runner 1-180 ---' && sed -n '1,180p' evals/opencode_runner.py && printf '%s\\\\n' '--- runner 180-440 ---' && sed -n '180,440p' evals/opencode_runner.py && printf '%s\\\\n' '--- events ---' && sed -n '1,440p' evals/opencode_events.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,330p' src/k_slide/redaction.py && printf '%s\\\\n' '--- auth ---' && sed -n '1,260p' src/k_slide/authentication.py && printf '%s\\\\n' '--- cli output boundaries ---' && sed -n '1,570p' src/k_slide/cli.py && printf '%s\\\\n' '--- errors/state ---' && sed -n '1,150p' src/k_slide/errors.py && sed -n '120,180p' src/k_slide/state.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,380p' tests/test_chg16_accesskey_nonleakage.py && printf '%s\\\\n' '--- foundation redaction tests ---' && sed -n '1,180p' tests/test_chg16_foundation.py && printf '%s\\\\n' '--- auth tests relevant ---' && sed -n '1,380p' tests/test_chg16_authentication_transport.py && printf '%s\\\\n' '--- package/project configs ---' && rtk rg -n \\\"pytest|unittest|tsc|bun|npm|package.json|vitest|fabric|evidence|candidate\\\" README.md pyproject.toml setup.cfg package.json Makefile .github scripts .codex 2>/dev/null | head -n 300\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 73373,
+        "output_sha256": "1c424bc749932eb05f0e896b4ad3187e000637f227f08c0464a5e512cf9ffe17",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"authenticated_company_service_call|require_access_key|ACCESS_KEY_ENV|AccessKey|access_key\\\" src .opencode evals tests | sed -n '1,260p' && printf '%s\\\\n' '--- installer ---' && sed -n '1,340p' src/k_slide/installer.py && printf '%s\\\\n' '--- opencode commands/agent ---' && sed -n '1,180p' .opencode/agents/k-slide.md && sed -n '1,180p' .opencode/commands/k-slide.md && printf '%s\\\\n' '--- package manifests ---' && find . -maxdepth 3 -type f \\\\( -name package.json -o -name tsconfig.json -o -name bunfig.toml -o -name pyproject.toml -o -name setup.cfg \\\\) -print -exec sed -n '1,220p' {} \\\\;\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- FIX01 ---' && rtk git show --stat --oneline 84f63688b88bd2d903e0294ee8593065ba992eea && rtk git show 84f63688b88bd2d903e0294ee8593065ba992eea -- evals/opencode_runner.py src/k_slide/redaction.py tests/test_chg16_accesskey_nonleakage.py | sed -n '1,500p' && printf '%s\\\\n' '--- FIX02 relative ---' && rtk git diff 84f63688b88bd2d903e0294ee8593065ba992eea 59a42d10df43a0ec607fd7677f3f36b6598d08d9 -- evals/opencode_runner.py src/k_slide/redaction.py tests/test_chg16_accesskey_nonleakage.py | sed -n '1,500p' && printf '%s\\\\n' '--- previous issue names/metadata ---' && rtk rg -n \\\"F15-04|KSA-15|FIX03|nonleak|CHG-16\\\" . --glob '\"'!*.png'\"' --glob '\"'!*.jpg'\"' --glob '\"'!*.jsonl'\"' | head -n 300\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_host_integration'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,290p' evals/opencode_diagnostics.py && printf '%s\\\\n' '--- exact test helper refs ---' && rtk rg -n \\\"_persist_text\\\\(|_persist_json\\\\(|_persist_jsonl\\\\(|_persist_diagnostics\\\\(|_persist_level\\\\(|OpenCodeRunResult\\\\(\\\" evals tests | sed -n '1,260p' && printf '%s\\\\n' '--- storage/support/telemetry redaction calls ---' && rtk rg -n \\\"safe_credential_json|safe_diagnostic_text|sanitize_operational|redact_credentials|redact_text\\\" src evals | sed -n '1,320p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk which opencode || true && rtk opencode --version 2>/dev/null || true && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"runtime_secret_values|_capture_secret_values|_runtime_environment|_secret_values\\\" evals/opencode_runner.py evals/opencode_diagnostics.py && sed -n '125,170p' evals/opencode_diagnostics.py && sed -n '330,435p' evals/opencode_runner.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_host_integration'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --check && rtk git diff --stat && rtk git diff -- evals/opencode_runner.py evals/opencode_diagnostics.py tests/test_chg16_accesskey_nonleakage.py | sed -n '1,520p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_host_integration && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"_runtime_environment\\\\(\\\" . --glob '*.py' && rtk rg -n \\\"OpenCodeRunResult\\\\(\\\" evals tests --glob '*.py' | sed -n '1,220p' && rtk git diff --numstat && rtk git status --short --branch\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk find .opencode -maxdepth 2 -type f -name 'package.json' -print -exec rtk sed -n '1,220p' {} \\\\; && rtk which bun || true && rtk which pytest || true && rtk which pyright || true && rtk which tsc || true\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 129,
+        "output_sha256": "17eb62d0d7f711f24a6a74a0638ae1e70785300998a1298e5913f8b43d0cbd6b",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files .opencode | rtk rg 'package.json|tsconfig|bunfig' || true; if test -f .opencode/package.json; then rtk sed -n '1,220p' .opencode/package.json; fi; rtk which bun || true; rtk which pytest || true; rtk which pyright || true; rtk which tsc || true\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 88,
+        "output_sha256": "d7df77ca85bf47272d9e4780890f9b4b7842b1d1d5ab953b2ce9548fee651d76",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk pytest -q tests/test_chg16_accesskey_nonleakage.py tests/test_chg16_authentication_transport.py tests/test_chg16_host_integration.py tests/test_chg16_foundation.py'",
+      "exit_code": 2,
+      "test_result": {
+        "exit_code": 2,
+        "framework": "pytest",
+        "outcome": "interrupted",
+        "output_bytes": 102,
+        "output_sha256": "8f4cd1f0a04275f3f0c4f19de68571be9a90e9f88a7a9cd5a3be1024088f63c4",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. python -m unittest discover -s tests -p 'test_*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m compileall -q src evals tests && rtk git diff --check && rtk git diff --name-only && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk node --version 2>/dev/null || true; rtk npm --version 2>/dev/null || true; rtk npx --no-install tsx --version 2>/dev/null || true; rtk rg -n \"test_chg16_opencode_plugin|tsx|bun test|npm test\" .github evals tests README.md pyproject.toml .opencode 2>/dev/null | head -n 120'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk npx --no-install tsx tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,180p' tests/test_chg16_opencode_plugin.ts && rtk sed -n '280,330p' tests/test_chg16_opencode_plugin.ts && rtk git show 59a42d10df43a0ec607fd7677f3f36b6598d08d9:tests/test_chg16_opencode_plugin.ts >/tmp/kslide_plugin_test_base.ts && rtk npx --no-install tsx /tmp/kslide_plugin_test_base.ts\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba tests/test_chg16_opencode_plugin.ts | rtk sed -n '132,150p'; rtk node -e \\\"console.log(process.cwd())\\\"; rtk git diff 59a42d10df43a0ec607fd7677f3f36b6598d08d9 -- tests/test_chg16_opencode_plugin.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"if printenv AccessKey >/dev/null; then echo AccessKey-present; else echo AccessKey-absent; fi; rtk env PYTHONPATH=src:. python -m k_slide.cli prepare --root /tmp/k-slide-host-cli-manual --json --session-id composer-cli-success --host-inputs-json '{\\\"schema_version\\\":\\\"1.0\\\",\\\"adapter_version\\\":\\\"1.0\\\",\\\"input_refs\\\":[{\\\"source_kind\\\":\\\"attachment\\\",\\\"logical_name\\\":\\\"x.png\\\",\\\"locator\\\":\\\"/tmp/nonexistent.png\\\"}]}' --host-worktree /tmp/k-slide-host-cli-manual; rtk git diff --stat 59a42d10df43a0ec607fd7677f3f36b6598d08d9 -- tests/test_chg16_opencode_plugin.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"candidate subject|source revision|KSLIDE_.*(SHA|REV|SUBJECT)|Approved KSA-10|environment identity\\\" src tests | sed -n '1,260p' && rtk sed -n '1,180p' src/k_slide/execution.py && rtk sed -n '1,140p' src/k_slide/environment.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '380,490p' src/k_slide/environment.py && rtk rg -n \\\"resolve_effective_environment|subject_git_sha|candidate_subject\\\" src/k_slide/ingest.py src/k_slide/cli.py src/k_slide/certification.py | head -n 180\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_host_integration tests.test_chg16_foundation && rtk env PYTHONPATH=src:. python -m compileall -q src evals tests && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff -- evals/opencode_runner.py evals/opencode_diagnostics.py tests/test_chg16_accesskey_nonleakage.py | rtk sed -n '1,520p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. python -m unittest discover -s tests -p 'test_*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git diff --check && rtk git diff --stat && rtk git log --oneline --decorate -5'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add evals/opencode_runner.py evals/opencode_diagnostics.py tests/test_chg16_accesskey_nonleakage.py && rtk git commit -m \"fix: close KSA-15 runtime output provenance\" && rtk git status --short --branch && rtk git log --oneline --decorate -6'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git remote -v && rtk git branch -a | head -n 80 && rtk rg --files -g '*fabric*' -g '*evidence*' -g '*publish*' . /Users/haewonkim/.codex-fabric 2>/dev/null | head -n 200\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl --help'",
+      "exit_code": 2,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-30f0aff95439f254610b1fec'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl publish-evidence CF-30f0aff95439f254610b1fec'",
+      "exit_code": 2,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg --files /Users/haewonkim/.codex-fabric/jobs/CF-30f0aff95439f254610b1fec /Users/haewonkim/.codex-fabric/results/CF-30f0aff95439f254610b1fec 2>/dev/null | sort | head -n 200; for file in /Users/haewonkim/.codex-fabric/jobs/CF-30f0aff95439f254610b1fec/*; do if test -f \"$file\"; then echo \"--- $file\"; rtk sed -n '\"'1,220p' \\\"\"'$file\"; fi; done'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' /Users/haewonkim/.codex-fabric/results/CF-30f0aff95439f254610b1fec/codex.events.jsonl && printf '%s\\\\n' '--- stderr ---' && rtk sed -n '1,220p' /Users/haewonkim/.codex-fabric/results/CF-30f0aff95439f254610b1fec/codex.stderr.log && printf '%s\\\\n' '--- pending evidence candidates ---' && rtk /Users/haewonkim/.codex-fabric/bin/fabricctl publish-pending-evidence\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short --branch && printf '%s\\\\n' '--- identity ---' && rtk git rev-parse HEAD && rtk git show -s --format='%H%n%P%n%s' HEAD && printf '%s\\\\n' '--- ancestry ---' && rtk git merge-base --is-ancestor 96c351fc358e559819f858f5ba99d505853fa642 HEAD; printf 'base_ancestor=%s\\\\n' \\\"\"'$?\" && rtk git merge-base --is-ancestor 59a42d10df43a0ec607fd7677f3f36b6598d08d9 HEAD; printf '\"'predecessor_ancestor=%s\\\\n' \\\"\"'$?\" && printf '\"'%s\\\\n' '--- main unchanged ---' && rtk git rev-parse origin/main && rtk git diff --stat origin/main..HEAD && printf '%s\\\\n' '--- changed files ---' && rtk git diff-tree --no-commit-id --name-only -r HEAD\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 107,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 96.59,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 5470976,
+      "fresh_input_tokens": 193401,
+      "input_tokens": 5664377,
+      "non_reasoning_output_tokens": 12649,
+      "output_tokens": 34320,
+      "reasoning_output_tokens": 21671,
+      "total_processed_tokens": 5698697
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "11e43a7d0857d6e0e5dfc705a69778bf794d714b",
+      "subject": "fix: close KSA-15 runtime output provenance"
+    },
+    {
+      "sha": "59a42d10df43a0ec607fd7677f3f36b6598d08d9",
+      "subject": "fix: bound KSA-15 credential redaction"
+    },
+    {
+      "sha": "84f63688b88bd2d903e0294ee8593065ba992eea",
+      "subject": "fix: restore KSA-15 credential provenance boundary"
+    },
+    {
+      "sha": "6b3d038f3d29ace8909513d8bc52d946aba5f6cc",
+      "subject": "fix: harden KSA-15 AccessKey non-leakage"
+    }
+  ],
+  "diff": {
+    "additions": 801,
+    "changed_files": 39,
+    "commit_count": 4,
+    "deletions": 147
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 2,
+    "items": [
+      {
+        "bytes": 75247,
+        "path": "src/k_slide/evidence_adapters.py",
+        "sha256": "1fde2cda6dcf9d1db2fe99776d3b366cacabd5eb95d11d4923cdae0a69b49111"
+      },
+      {
+        "bytes": 32222,
+        "path": "src/k_slide/runtime_artifact.py",
+        "sha256": "00b7e31c726061942b6c35721a017fe6881c02bfbdd8000d61946e50623a8141"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-19T03:25:18Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "96c351fc358e559819f858f5ba99d505853fa642",
+    "branch": "codex/k-slide-chg16-accesskey-nonleakage-01-fix03",
+    "detached_verify": false,
+    "head_sha": "11e43a7d0857d6e0e5dfc705a69778bf794d714b",
+    "remote_exact_head": true,
+    "remote_head_sha": "11e43a7d0857d6e0e5dfc705a69778bf794d714b",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "96c351fc358e559819f858f5ba99d505853fa642",
+    "work_branch": "codex/k-slide-chg16-accesskey-nonleakage-01-fix03",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-30f0aff95439f254610b1fec",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-accesskey-nonleakage-01-fix03",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-accesskey-nonleakage-01-fix03"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-accesskey-nonleakage-01-fix03",
+  "schema_version": 1,
+  "started_at": "2026-09-19T03:12:13Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 785,
+    "queue_seconds": 0,
+    "total_seconds": 785
+  },
+  "transport": {
+    "bytes": 4249,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 3918,
+    "prompt_sha256": "a48550189015d4ddf7e66031f4cfeea5b6d51b6292956619c90905982530515d",
+    "sha256": "30f0aff95439f254610b1fecd813149e39c5802300efbf3cd726809c5738de92"
+  }
+}
