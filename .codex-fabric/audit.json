@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "kind": "codex-fabric-audit-evidence",
+  "project_id": "k-slide",
+  "operation": "FIX",
+  "request": "chg16-accesskey-nonleakage-01-fix04",
+  "job_id": "CF-427adb1f05214e528e966b632f9fad4e",
+  "status": "EXECUTED_CHANGE",
+  "base_sha": "96c351fc358e559819f858f5ba99d505853fa642",
+  "candidate_identity": {
+    "predecessor_sha": "11e43a7d0857d6e0e5dfc705a69778bf794d714b",
+    "predecessor_parent": "59a42d10df43a0ec607fd7677f3f36b6598d08d9",
+    "fix_sha": "d4396b2313d52f5f2a4690486bcb4d04d290dba8"
+  },
+  "git": {
+    "base_sha": "96c351fc358e559819f858f5ba99d505853fa642",
+    "base_is_ancestor": true,
+    "branch": "codex/k-slide-chg16-accesskey-nonleakage-01-fix04",
+    "work_branch": "codex/k-slide-chg16-accesskey-nonleakage-01-fix04",
+    "head_sha": "d4396b2313d52f5f2a4690486bcb4d04d290dba8",
+    "remote_head_sha": "d4396b2313d52f5f2a4690486bcb4d04d290dba8",
+    "remote_exact_head": true,
+    "target_branch": "main",
+    "target_head_observed_after_execution": "96c351fc358e559819f858f5ba99d505853fa642",
+    "target_drifted_since_acceptance": false,
+    "detached_verify": false,
+    "worktree_clean": true
+  },
+  "changed_files": [
+    {"path": ".opencode/plugin/k-slide-access-key.ts", "status": "A", "additions": 37, "deletions": 0, "sha256": "020ca46c4e4e4498b1c801622eed53cdd68684c12aa3daa2d25c5658a3a8926e"},
+    {"path": ".opencode/plugin/k-slide-host.ts", "status": "M", "additions": 1, "deletions": 0, "sha256": "ed05ef8d56b5b0dfd691d82eb4e12df7e9373ec0ff9cee8acd999dfb6decf734"},
+    {"path": ".opencode/tools/kslide.ts", "status": "M", "additions": 4, "deletions": 1, "sha256": "bfc85b5ad41d68c6f23e7a23dd0b1a9276f3de6ded4b416649aeaaa8b3035e04"},
+    {"path": "evals/opencode_diagnostics.py", "status": "M", "additions": 4, "deletions": 7, "sha256": "cac07095e9b940f69b18445d5c0b6a7e29d354384251fe2a5817d29d04610738"},
+    {"path": "evals/opencode_runner.py", "status": "M", "additions": 114, "deletions": 49, "sha256": "57c89ce0feeceda1f9665238b84b02b55dd4515bf9d548802a09463dd6920d69"},
+    {"path": "tests/test_chg16_accesskey_nonleakage.py", "status": "M", "additions": 96, "deletions": 36, "sha256": "14acef08b25cf82fd01beb42a50fee474d9d5d9075fe6bc282dd4e6fd5576eb5"}
+  ],
+  "checks": [
+    {"type": "command_execution", "command": "PYTHONPATH=src python3 -m unittest tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_foundation tests.test_chg16_host_integration", "exit_code": 0, "result": "47 tests passed"},
+    {"type": "command_execution", "command": "PYTHONPATH=src python3 -m compileall -q src evals tests", "exit_code": 0, "result": "compiled"},
+    {"type": "command_execution", "command": "esbuild .opencode/plugin/k-slide-access-key.ts .opencode/plugin/k-slide-host.ts .opencode/tools/kslide.ts --bundle --external:@opencode-ai/plugin", "exit_code": 0, "result": "bundled"},
+    {"type": "command_execution", "command": "PYTHONPATH=src python3 -m unittest discover -s tests -q", "exit_code": 0, "result": "326 tests passed; 3 optional skips"},
+    {"type": "command_execution", "command": "git diff 96c351fc358e559819f858f5ba99d505853fa642..d4396b2313d52f5f2a4690486bcb4d04d290dba8 --check", "exit_code": 0, "result": "clean"},
+    {"type": "environmental_block", "command": "bun tests/test_chg16_opencode_plugin.ts", "exit_code": 1, "result": "existing KSA-10 fixture blocked before boundary assertions: no candidate subject was found"}
+  ],
+  "verification": {
+    "boundary_proof": "OpenCode and provider subprocesses receive no AccessKey; trusted core child receives exact opaque values through the process-bound handoff and KSA-14 observes them only in the dedicated transport slot.",
+    "long_unique_canary": "passed",
+    "short_common_values": ["a", ".", "whitespace", "non-ASCII", "opaque punctuation"],
+    "runtime_length_filter_removed": true,
+    "runtime_raw_secret_scan_removed": true,
+    "labelled_structured_redaction_preserved": true,
+    "ordinary_text_preservation_preserved": true
+  },
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-accesskey-nonleakage-01-fix04",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-accesskey-nonleakage-01-fix04"
+  },
+  "recovery": {
+    "worktree_retained": true,
+    "recovery_required": false,
+    "model_rerun_safe": false,
+    "retry_safe": false,
+    "retry_scope": null
+  }
+}
