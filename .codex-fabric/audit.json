@@ -1,0 +1,501 @@
+{
+  "accepted_at": "2026-09-19T14:55:09Z",
+  "changed_files": [
+    {
+      "additions": 21,
+      "deletions": 7,
+      "path": ".opencode/plugin/k-slide-host.ts",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": ".opencode/tools/kslide.ts",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 0,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 34,
+      "deletions": 0,
+      "path": "docs/adr/0044-classification-admission.md",
+      "status": "A"
+    },
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "evals/production-candidate.example.yaml",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "evals/production-candidate.yaml",
+      "status": "M"
+    },
+    {
+      "additions": 19,
+      "deletions": 0,
+      "path": "evals/release.py",
+      "status": "M"
+    },
+    {
+      "additions": 10,
+      "deletions": 1,
+      "path": "src/k_slide/certification.py",
+      "status": "M"
+    },
+    {
+      "additions": 300,
+      "deletions": 0,
+      "path": "src/k_slide/classification_policy.py",
+      "status": "A"
+    },
+    {
+      "additions": 98,
+      "deletions": 2,
+      "path": "src/k_slide/environment.py",
+      "status": "M"
+    },
+    {
+      "additions": 5,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 2,
+      "path": "src/k_slide/execution.py",
+      "status": "M"
+    },
+    {
+      "additions": 8,
+      "deletions": 1,
+      "path": "src/k_slide/extraction.py",
+      "status": "M"
+    },
+    {
+      "additions": 19,
+      "deletions": 3,
+      "path": "src/k_slide/host_adapter.py",
+      "status": "M"
+    },
+    {
+      "additions": 98,
+      "deletions": 6,
+      "path": "src/k_slide/ingest.py",
+      "status": "M"
+    },
+    {
+      "additions": 15,
+      "deletions": 2,
+      "path": "src/k_slide/production.py",
+      "status": "M"
+    },
+    {
+      "additions": 11,
+      "deletions": 1,
+      "path": "src/k_slide/security.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 0,
+      "path": "src/k_slide/state.py",
+      "status": "M"
+    },
+    {
+      "additions": 194,
+      "deletions": 0,
+      "path": "tests/test_chg16_classification_admission.py",
+      "status": "A"
+    },
+    {
+      "additions": 23,
+      "deletions": 2,
+      "path": "tests/test_chg16_opencode_plugin.ts",
+      "status": "M"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '80,135p' README.md && rtk sed -n '1,140p' docs/adr/0044-classification-admission.md && rtk sed -n '1,340p' src/k_slide/classification_policy.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '740,790p' src/k_slide/certification.py && rtk sed -n '300,345p' evals/release.py && rtk sed -n '535,575p' src/k_slide/production.py && rtk sed -n '1,220p' tests/test_chg16_classification_admission.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,240p' .opencode/plugin/k-slide-host.ts && rtk sed -n '1,160p' .opencode/tools/kslide.ts && rtk sed -n '1,220p' src/k_slide/host_adapter.py && rtk sed -n '190,325p' src/k_slide/ingest.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '120,245p' src/k_slide/ingest.py && rtk sed -n '1,135p' src/k_slide/ingest.py && rtk sed -n '1,150p' src/k_slide/security.py && rtk rg -n \\\"class StorageArtifact|ADMISSION_RECORD|RUN_MANIFEST\\\" src/k_slide/storage.py src/k_slide -g '*.py' | head -100\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '240,520p' .opencode/plugin/k-slide-host.ts && rtk sed -n '1,230p' tests/test_chg16_opencode_plugin.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '230,520p' tests/test_chg16_opencode_plugin.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk npx --yes tsx -e 'Promise.all([import(\\\"./.opencode/plugin/k-slide-host.ts\\\"), import(\\\"./.opencode/tools/kslide.ts\\\")]).then(() => console.log(\\\"OpenCode TypeScript imports passed\\\"))'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk npx --yes tsx tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk ls -la .opencode | head -80 && rtk sed -n '1,160p' .opencode/package.json 2>/dev/null && rtk find .opencode -maxdepth 2 -iname 'tsconfig*.json' -o -iname 'bunfig.toml' -o -iname 'package.json' | sort\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files .opencode | rtk rg '(tsconfig|bunfig|package\\\\.json)\"'$'\"' || true; rtk cat .opencode/package.json\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk bun test tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 127,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk npx --yes tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions --skipLibCheck .opencode/plugin/k-slide-host.ts .opencode/tools/kslide.ts'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk npx --yes tsx -e 'import(\\\"./tests/test_chg16_opencode_plugin.ts\\\").then((m) => m.openCodeV139PluginLoaderCompatibilityBoundary()).then(() => console.log(\\\"OpenCode loader compatibility boundary passed\\\"))'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk npx --yes tsx -e 'import(\\\"./tests/test_chg16_opencode_plugin.ts\\\").then((m) => console.log(Object.keys(m), m.default && Object.keys(m.default)))'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk npx --yes tsx -e 'import(\\\"./tests/test_chg16_opencode_plugin.ts\\\").then((m) => m.default.openCodeV139PluginLoaderCompatibilityBoundary()).then(() => console.log(\\\"OpenCode loader compatibility boundary passed\\\"))'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files tests | rtk rg '(chg16|model_policy|environment|candidate|accesskey|retention|storage)' | sort\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -l 'ModelPolicy|model policy|candidate_deployment_fingerprint' tests | sort\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest -q tests.test_chg16_classification_admission tests.test_chg16_accesskey_nonleakage tests.test_chg16_deletion tests.test_chg16_durable_execution tests.test_chg16_environment_binding tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_chg16_retention_policy tests.test_chg16_storage_planes tests.test_certification_closure tests.test_runtime_artifact'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short && rtk git diff -- src/k_slide/errors.py src/k_slide/security.py src/k_slide/host_adapter.py src/k_slide/state.py src/k_slide/extraction.py src/k_slide/execution.py src/k_slide/environment.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff -- .opencode/plugin/k-slide-host.ts .opencode/tools/kslide.ts src/k_slide/certification.py src/k_slide/ingest.py src/k_slide/production.py evals/release.py evals/production-candidate.yaml evals/production-candidate.example.yaml tests/test_chg16_opencode_plugin.ts && rtk sed -n '1,120p' docs/adr/0044-classification-admission.md && rtk sed -n '1,220p' tests/test_chg16_classification_admission.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest tests.test_chg16_classification_admission -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"def candidate_deployment_fingerprint|CANDIDATE_INPUT_FIELDS|candidate_deployment\\\" src/k_slide/certification.py && rtk sed -n '200,255p' src/k_slide/certification.py && rtk sed -n '990,1045p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1140,1170p' src/k_slide/certification.py && rtk sed -n '55,110p' src/k_slide/certification.py && rtk sed -n '710,740p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"PRODUCTION_CERTIFIED|candidate_spec.*\\\\{|requested_model.*qwen|ReleaseState\\\\.PRODUCTION\\\" tests | head -160\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files .k-slide-config 2>/dev/null | sort | head -80; rtk rg -n \\\"inference_route_identity|inference_data_use_policy|classification_rules\\\" --glob '\"'!tests/**'\"' --glob '\"'!docs/adr/0044-classification-admission.md'\"' --glob '\"'!src/k_slide/classification_policy.py'\"' . | head -120\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n -i 'fabric|job/request|normal evidence|publish.*evidence|CHG-16|KSA-16' . --glob '\"'!tests/**'\"' --glob '\"'!.git/**'\"' | head -200\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,240p' IMPLEMENTATION_STATUS.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk command -v fabric || true; rtk command -v codex-fabric || true; rtk rg -n 'Fabric' /Users/haewonkim/.codex /Users/haewonkim/.codex-fabric 2>/dev/null | head -80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk ls -la /Users/haewonkim/.codex-fabric | head -120; rtk rg --files /Users/haewonkim/.codex-fabric | rtk rg '(\"'^|/)(fabric|job|evidence|audit|publish)'\"' | head -120\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl --help'",
+      "exit_code": 2,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk ls -lt /Users/haewonkim/.codex-fabric/jobs | head -30; rtk ls -lt /Users/haewonkim/.codex-fabric/results | head -30; rtk git branch --show-current; rtk git rev-parse HEAD; rtk git rev-parse b6ef67c7985db2e09d8e2e82db673ae4a414eed7'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk cat /Users/haewonkim/.codex-fabric/jobs/CF-17f61fd893adb3487722da41.running/job.json; rtk cat /Users/haewonkim/.codex-fabric/jobs/CF-17f61fd893adb3487722da41.running/lease.json; rtk cat /Users/haewonkim/.codex-fabric/jobs/CF-17f61fd893adb3487722da41.running/prompt.md | head -80'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-17f61fd893adb3487722da41'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"publish-evidence|publish_pending|def main|job_state\\\" /Users/haewonkim/.codex-fabric/current/fabric.py /Users/haewonkim/.codex-fabric/releases/1.2.3-resume-candidate/fabric.py | head -120; rtk sed -n '1,120p' /Users/haewonkim/.codex-fabric/bin/fabricctl\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '2630,2865p' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk tail -80 IMPLEMENTATION_STATUS.md'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git status --short && rtk git diff --stat && rtk wc -l src/k_slide/classification_policy.py tests/test_chg16_classification_admission.py docs/adr/0044-classification-admission.md'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add -A'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short && rtk git diff --cached --check && rtk git diff --cached --stat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git commit -m \"Implement KSA-16 classification admission\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short && rtk git log -1 --oneline --decorate && rtk git rev-parse HEAD && rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-17f61fd893adb3487722da41'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --porcelain=v1 && rtk git branch --show-current && rtk git merge-base HEAD b6ef67c7985db2e09d8e2e82db673ae4a414eed7 && rtk git diff --check b6ef67c7985db2e09d8e2e82db673ae4a414eed7 HEAD && rtk git diff --name-only b6ef67c7985db2e09d8e2e82db673ae4a414eed7 HEAD && rtk git show --stat --oneline --decorate HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest tests.test_chg16_classification_admission -q && PYTHONPATH=src:. rtk python -m compileall -q src && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add src/k_slide/classification_policy.py && rtk git commit --amend --no-edit'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m compileall -q src evals tests && rtk git diff --check && rtk git status --porcelain=v1 && rtk git branch --show-current && rtk git rev-parse HEAD && rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-17f61fd893adb3487722da41'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 325,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.6,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 21556480,
+      "fresh_input_tokens": 529069,
+      "input_tokens": 22085549,
+      "non_reasoning_output_tokens": 38177,
+      "output_tokens": 73180,
+      "reasoning_output_tokens": 35003,
+      "total_processed_tokens": 22158729
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "235f421e3b8d8f426b28fca2106a5ca6b345ad0f",
+      "subject": "Implement KSA-16 classification admission"
+    }
+  ],
+  "diff": {
+    "additions": 871,
+    "changed_files": 20,
+    "commit_count": 1,
+    "deletions": 27
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 2,
+    "items": [
+      {
+        "bytes": 32756,
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "cc6bc91d59d021f60b0a5344a7e930b968e864a9c903d1261ac3ac6db0364447"
+      },
+      {
+        "bytes": 2076,
+        "path": "docs/adr/0044-classification-admission.md",
+        "sha256": "8eff0edbaadd7d45d0a4ba3ae11939e9a9a2a81ae37d4f5b841a40006914d6fc"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-19T15:42:13Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "b6ef67c7985db2e09d8e2e82db673ae4a414eed7",
+    "branch": "codex/k-slide-chg16-classification-admission-01",
+    "detached_verify": false,
+    "head_sha": "235f421e3b8d8f426b28fca2106a5ca6b345ad0f",
+    "remote_exact_head": true,
+    "remote_head_sha": "235f421e3b8d8f426b28fca2106a5ca6b345ad0f",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "b6ef67c7985db2e09d8e2e82db673ae4a414eed7",
+    "work_branch": "codex/k-slide-chg16-classification-admission-01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-17f61fd893adb3487722da41",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-classification-admission-01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-classification-admission-01"
+  },
+  "operation": "BUILD",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-classification-admission-01",
+  "schema_version": 1,
+  "started_at": "2026-09-19T14:55:09Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 2824,
+    "queue_seconds": 0,
+    "total_seconds": 2824
+  },
+  "transport": {
+    "bytes": 5380,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 5051,
+    "prompt_sha256": "6fa571922ee27cf0cf0a3fc6c462927c47e3cd71e91cca7ad18f3f8a585eb611",
+    "sha256": "17f61fd893adb3487722da4175ac4ba9ee859ff1f46b85a2a46a7ef4a93d0b15"
+  }
+}
