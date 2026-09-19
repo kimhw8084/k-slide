@@ -3,6 +3,8 @@ from __future__ import annotations
 import io
 import json
 import os
+import shutil
+import subprocess
 import tempfile
 import unittest
 import zipfile
@@ -304,11 +306,20 @@ summary = {
 print(json.dumps({"type": "text", "text": json.dumps(summary, ensure_ascii=False)}))
 """
         values = (self.CANARY,) + self.ORDINARY_VALUES
+        source_path = str(Path(__file__).resolve().parents[1] / "src")
         for value in values:
-            with self.subTest(value=value), tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {ACCESS_KEY_ENV: value, "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")}, clear=True):
+            fixture_environment = dict(os.environ)
+            fixture_environment.update({ACCESS_KEY_ENV: value, "PYTHONPATH": source_path})
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, fixture_environment, clear=True):
                 opencode = Path(directory) / "opencode"
                 opencode.write_text(host_script, encoding="utf-8")
                 opencode.chmod(0o700)
+                path_value = fixture_environment.get("PATH")
+                self.assertTrue(path_value, "synthetic OpenCode fixture requires a usable PATH")
+                self.assertIsNotNone(shutil.which("python3", path=path_value), "synthetic OpenCode fixture cannot resolve python3 from PATH")
+                version = subprocess.run([str(opencode), "--version"], env=fixture_environment, capture_output=True, text=True, check=False)
+                self.assertEqual(version.returncode, 0, f"synthetic OpenCode fixture could not start through its shebang: {version.stderr.strip()}")
+                self.assertEqual(version.stdout.strip(), "1.3.9", "synthetic OpenCode fixture did not report its expected version")
                 workspace = Path(directory) / "workspace"
                 with patch("k_slide.installer.install"):
                     result = OpenCodeEvalRunner(model="synthetic/model", opencode=str(opencode), timeout_seconds=5).run(workspace=workspace)
