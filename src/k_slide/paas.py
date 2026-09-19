@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, Callable, Protocol
 
 from . import EXECUTION_CONTRACT_VERSION
-from .authentication import ApprovedCompanyServiceTransport, CompanyServiceRequest, authenticated_company_service_call
+from .authentication import ApprovedCompanyServiceTransport, CompanyServiceRequest, authorized_company_service_call
 from .egress_policy import EGRESS_CAPABILITY_DURABLE_JOB_CONTROL, EGRESS_DATA_CLASS_OPERATIONAL_METADATA, EGRESS_PURPOSE_JOB_CONTROL
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import stable_revision
@@ -67,11 +67,7 @@ def authenticated_paas_service_call(
 ) -> object:
     """Use the common AccessKey boundary for durable/PaaS callers."""
 
-    if egress_policy is None:
-        # Preserve the KSA-14/15 reference-adapter seam. Production callers
-        # pass the deployment policy and therefore take the guarded path.
-        return authenticated_company_service_call(transport, request)
-    return authenticated_company_service_call(
+    return authorized_company_service_call(
         transport,
         request,
         egress_policy=egress_policy,

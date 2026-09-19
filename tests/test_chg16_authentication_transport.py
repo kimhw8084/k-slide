@@ -13,6 +13,21 @@ from k_slide.authentication import (
     CompanyServiceAuthenticationRejected,
     CompanyServiceRequest,
     authenticated_company_service_call,
+    reference_company_service_call,
+)
+from k_slide.egress_policy import (
+    EGRESS_CAPABILITY_DURABLE_JOB_CONTROL,
+    EGRESS_CAPABILITY_INFERENCE_ROUTE,
+    EGRESS_CAPABILITY_NON_CONTENT_TELEMETRY,
+    EGRESS_CAPABILITY_SCOPED_STORAGE,
+    EGRESS_DATA_CLASS_NON_CONTENT,
+    EGRESS_PURPOSE_INFERENCE,
+    EGRESS_PURPOSE_JOB_CONTROL,
+    EGRESS_PURPOSE_STORAGE,
+    EGRESS_PURPOSE_TELEMETRY,
+    EgressPolicy,
+    egress_policy_hash_for_mapping,
+    egress_policy_identity_for_mapping,
 )
 from k_slide.errors import ErrorCode, KSlideError
 from k_slide.execution import (
@@ -28,6 +43,51 @@ from k_slide.host_adapter import authenticated_host_service_call
 from k_slide.paas import authenticated_paas_service_call
 from k_slide.production import production_checks
 from tests.reference_fixtures import reference_environment
+
+
+def _deployment_policy() -> EgressPolicy:
+    capabilities = [
+        {
+            "capability_class": EGRESS_CAPABILITY_INFERENCE_ROUTE,
+            "purpose": EGRESS_PURPOSE_INFERENCE,
+            "service_identity": "inference-service-v1",
+            "route_identity": "route-v1",
+            "data_class": "source_content",
+        },
+        {
+            "capability_class": EGRESS_CAPABILITY_DURABLE_JOB_CONTROL,
+            "purpose": EGRESS_PURPOSE_JOB_CONTROL,
+            "service_identity": "job-service-v1",
+            "route_identity": None,
+            "data_class": "operational_metadata",
+        },
+        {
+            "capability_class": EGRESS_CAPABILITY_SCOPED_STORAGE,
+            "purpose": EGRESS_PURPOSE_STORAGE,
+            "service_identity": "storage-service-v1",
+            "route_identity": None,
+            "data_class": "source_content",
+        },
+        {
+            "capability_class": EGRESS_CAPABILITY_NON_CONTENT_TELEMETRY,
+            "purpose": EGRESS_PURPOSE_TELEMETRY,
+            "service_identity": "telemetry-service-v1",
+            "route_identity": None,
+            "data_class": EGRESS_DATA_CLASS_NON_CONTENT,
+        },
+    ]
+    version = "2026.09.18"
+    policy_hash = egress_policy_hash_for_mapping(policy_version=version, capabilities=capabilities)
+    return EgressPolicy.from_mapping(
+        {
+            "schema_version": "1.0",
+            "policy_version": version,
+            "policy_hash": policy_hash,
+            "policy_identity": egress_policy_identity_for_mapping(policy_version=version, policy_hash=policy_hash),
+            "default_action": "deny",
+            "capabilities": capabilities,
+        }
+    )
 
 
 @dataclass(frozen=True)
@@ -81,7 +141,7 @@ class KSA14AuthenticationTransportTests(unittest.TestCase):
         )
 
     def _call(self, transport: _ReferenceTransport, request: CompanyServiceRequest | None = None) -> object:
-        return authenticated_company_service_call(transport, request or self._request())
+        return reference_company_service_call(transport, request or self._request())
 
     def test_process_access_key_is_the_only_runtime_credential_source(self) -> None:
         transport = _ReferenceTransport()
@@ -137,20 +197,75 @@ class KSA14AuthenticationTransportTests(unittest.TestCase):
                 self.assertEqual(len(transport.calls), 0)
                 self._assert_absent(self.CANARY, raised.exception.as_dict())
 
-    def test_host_and_paas_callers_share_secret_free_serializable_boundary(self) -> None:
+    def test_explicit_reference_helper_preserves_ksa14_credential_transport(self) -> None:
         request = self._request()
         transport = _ReferenceTransport()
         with patch.dict(os.environ, {"AccessKey": self.CANARY}, clear=True):
-            host_response = authenticated_host_service_call(transport, request)
-            paas_response = authenticated_paas_service_call(transport, request)
-        self.assertEqual(len(transport.calls), 2)
-        for captured in transport.calls:
-            self.assertTrue(captured.access_key == self.CANARY, "adapter did not receive the raw key in its dedicated argument")
-            self._assert_absent(self.CANARY, captured.request.as_dict())
+            response = reference_company_service_call(transport, request)
+        self.assertEqual(len(transport.calls), 1)
+        self.assertEqual(transport.calls[0].access_key, self.CANARY)
+        self._assert_absent(self.CANARY, transport.calls[0].request.as_dict())
         self._assert_absent(self.CANARY, request.as_dict())
-        self._assert_absent(self.CANARY, host_response)
-        self._assert_absent(self.CANARY, paas_response)
+        self._assert_absent(self.CANARY, response)
         self.assertEqual(json.loads(json.dumps(request.as_dict()))["operation"], "approved.lookup")
+
+    def test_host_and_paas_missing_policy_fail_before_access_key_or_transport(self) -> None:
+        request = self._request()
+        transport = _ReferenceTransport()
+        with patch.dict(os.environ, {"AccessKey": self.CANARY}, clear=True), patch(
+            "k_slide.authentication.require_access_key", side_effect=AssertionError("AccessKey retrieval must follow egress admission")
+        ) as require_access_key:
+            for helper in (authenticated_host_service_call, authenticated_paas_service_call):
+                with self.subTest(helper=helper.__name__), self.assertRaises(KSlideError) as raised:
+                    helper(transport, request, egress_policy=None, service_identity="wrong-service")
+                self.assertEqual(raised.exception.code, ErrorCode.EGRESS_POLICY_INVALID)
+        require_access_key.assert_not_called()
+        self.assertEqual(transport.calls, [])
+
+    def test_host_and_paas_wrong_service_or_capability_fail_before_access_key(self) -> None:
+        request = self._request()
+        policy = _deployment_policy()
+        transport = _ReferenceTransport()
+        with patch.dict(os.environ, {"AccessKey": self.CANARY}, clear=True), patch(
+            "k_slide.authentication.require_access_key", side_effect=AssertionError("AccessKey retrieval must follow egress admission")
+        ) as require_access_key:
+            for helper in (authenticated_host_service_call, authenticated_paas_service_call):
+                with self.subTest(helper=helper.__name__), self.assertRaises(KSlideError):
+                    helper(transport, request, egress_policy=policy, service_identity="wrong-service")
+            with self.assertRaises(KSlideError):
+                authenticated_company_service_call(
+                    transport,
+                    request,
+                    egress_policy=policy,
+                    capability_class="wrong-capability",
+                    purpose=EGRESS_PURPOSE_STORAGE,
+                    service_identity="storage-service-v1",
+                    data_class="source_content",
+                )
+        require_access_key.assert_not_called()
+        self.assertEqual(transport.calls, [])
+
+    def test_guarded_host_and_paas_calls_use_exact_key_after_admission(self) -> None:
+        request = self._request()
+        policy = _deployment_policy()
+        transport = _ReferenceTransport()
+        with patch("k_slide.authentication.require_access_key", return_value=self.CANARY) as require_access_key:
+            authenticated_host_service_call(transport, request, egress_policy=policy, service_identity="storage-service-v1")
+            authenticated_paas_service_call(transport, request, egress_policy=policy, service_identity="job-service-v1")
+        self.assertEqual(require_access_key.call_count, 2)
+        self.assertEqual([call.access_key for call in transport.calls], [self.CANARY, self.CANARY])
+
+    def test_ordinary_payload_values_cannot_activate_reference_seam(self) -> None:
+        transport = _ReferenceTransport()
+        request = CompanyServiceRequest("approved.lookup", {"reference_mode": True, "reference_adapter": True})
+        with patch.dict(os.environ, {"AccessKey": self.CANARY}, clear=True), patch(
+            "k_slide.authentication.require_access_key", side_effect=AssertionError("payload must not select reference mode")
+        ) as require_access_key:
+            with self.assertRaises(KSlideError) as raised:
+                authenticated_company_service_call(transport, request)
+        self.assertEqual(raised.exception.code, ErrorCode.EGRESS_POLICY_INVALID)
+        require_access_key.assert_not_called()
+        self.assertEqual(transport.calls, [])
 
     def test_canary_does_not_enter_model_run_environment_candidate_telemetry_or_files(self) -> None:
         request = self._request()
@@ -158,8 +273,8 @@ class KSA14AuthenticationTransportTests(unittest.TestCase):
         environment = reference_environment()
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"AccessKey": self.CANARY}, clear=True):
             root = Path(directory)
-            host_response = authenticated_host_service_call(transport, request)
-            paas_response = authenticated_paas_service_call(transport, request)
+            host_response = reference_company_service_call(transport, request)
+            paas_response = reference_company_service_call(transport, request)
             workspace_job = new_execution_job(
                 "run-workspace-auth",
                 profile=ExecutionProfile.WORKSPACE_LOCAL,

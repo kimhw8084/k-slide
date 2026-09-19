@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 from urllib.parse import unquote, urlparse
 
-from .authentication import ApprovedCompanyServiceTransport, CompanyServiceRequest, authenticated_company_service_call
+from .authentication import ApprovedCompanyServiceTransport, CompanyServiceRequest, authorized_company_service_call
 from .egress_policy import EGRESS_CAPABILITY_SCOPED_STORAGE, EGRESS_DATA_CLASS_SOURCE_CONTENT, EGRESS_PURPOSE_STORAGE
 from .classification_policy import DEFAULT_CLASSIFICATION, validate_classification_label
 from .errors import ErrorCode, KSlideError
@@ -33,11 +33,7 @@ def authenticated_host_service_call(
 ) -> object:
     """Use the common AccessKey boundary for host-neutral callers."""
 
-    if egress_policy is None:
-        # Preserve the KSA-14/15 reference-adapter seam. Production callers
-        # pass the deployment policy and therefore take the guarded path.
-        return authenticated_company_service_call(transport, request)
-    return authenticated_company_service_call(
+    return authorized_company_service_call(
         transport,
         request,
         egress_policy=egress_policy,
