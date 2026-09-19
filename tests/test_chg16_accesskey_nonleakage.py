@@ -230,32 +230,42 @@ class AccessKeyNonLeakageTests(unittest.TestCase):
 
     def test_opencode_runtime_boundary_keeps_key_for_real_k_slide_process_only(self) -> None:
         with patch.dict(os.environ, {ACCESS_KEY_ENV: self.CANARY}, clear=True):
-            environment = _runtime_environment()
+            environment, secret_values = _runtime_environment()
             non_runtime = _process_environment()
         self.assertEqual(environment[ACCESS_KEY_ENV], self.CANARY)
+        self.assertEqual(secret_values, (self.CANARY,))
         self.assertNotIn(ACCESS_KEY_ENV, non_runtime)
 
     def test_opencode_runner_passes_key_to_runtime_and_sanitizes_adversarial_output(self) -> None:
         canary = self.CANARY
 
-        class CompletedProcess:
-            returncode = 0
-
-            def communicate(self, *, timeout: int) -> tuple[str, str]:
-                return json.dumps({"type": "event", "AccessKey": canary}) + "\n", ""
-
-        captured: dict[str, object] = {}
-
-        def popen(_command, **kwargs):
-            captured.update(kwargs)
-            return CompletedProcess()
-
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {ACCESS_KEY_ENV: self.CANARY}, clear=True):
+            opencode = Path(directory) / "opencode"
+            opencode.write_text(
+                "#!/usr/bin/env python3\n"
+                "import json\n"
+                "import os\n"
+                "import sys\n"
+                "if '--version' in sys.argv:\n"
+                "    print('1.3.9')\n"
+                "    raise SystemExit(0)\n"
+                "if sys.argv[1:3] == ['debug', 'config']:\n"
+                "    print(json.dumps({'model': 'synthetic/model'}))\n"
+                "    raise SystemExit(0)\n"
+                "secret = os.environ.get('AccessKey', '')\n"
+                "print(json.dumps({'type': 'text', 'text': f'raw {secret}', 'error': f'diagnostic {secret}', 'runtime_key_present': bool(secret)}))\n"
+                "print(f'stderr raw {secret}', file=sys.stderr)\n",
+                encoding="utf-8",
+            )
+            opencode.chmod(0o700)
             workspace = Path(directory) / "workspace"
-            with patch("k_slide.installer.install"), patch("evals.opencode_runner._version", return_value="1.3.9"), patch("evals.opencode_runner._configured_model", return_value=None), patch("evals.opencode_runner.subprocess.Popen", side_effect=popen):
-                result = OpenCodeEvalRunner(model="synthetic/model", opencode="/approved/opencode", timeout_seconds=5).run(workspace=workspace)
-            self.assertEqual(captured["env"][ACCESS_KEY_ENV], self.CANARY)
+            with patch("k_slide.installer.install"):
+                result = OpenCodeEvalRunner(model="synthetic/model", opencode=str(opencode), timeout_seconds=5).run(workspace=workspace)
+            self.assertTrue(result.events[0]["runtime_key_present"])
             self.assertNotIn(self.CANARY, json.dumps(result.events, ensure_ascii=False))
+            self.assertNotIn(self.CANARY, json.dumps(result.normalized_events, ensure_ascii=False))
+            self.assertNotIn(self.CANARY, result.final_text or "")
+            self.assertNotIn(self.CANARY, json.dumps(result.diagnostics, ensure_ascii=False))
             self.assertNotIn(self.CANARY, json.dumps(result.as_dict(), ensure_ascii=False))
             self.assertNotIn(self.CANARY, "".join(path.read_text(encoding="utf-8") for path in workspace.rglob("*") if path.is_file()))
 
@@ -266,13 +276,13 @@ class AccessKeyNonLeakageTests(unittest.TestCase):
                 stdout = json.dumps({"type": "text", "text": f"ordinary model output retains {value!r}"}, ensure_ascii=False) + "\n"
                 stderr = f"ordinary diagnostic retains {value!r}\n"
 
+                captured: dict[str, object] = {}
+
                 class CompletedProcess:
                     returncode = 0
 
                     def communicate(self, *, timeout: int) -> tuple[str, str]:
                         return stdout, stderr
-
-                captured: dict[str, object] = {}
 
                 def popen(_command, **kwargs):
                     captured.update(kwargs)

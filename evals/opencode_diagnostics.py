@@ -175,6 +175,7 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
         clean_workspace.mkdir()
         kslide_workspace.mkdir()
         levels: list[dict[str, Any]] = []
+        runtime_secret_values: tuple[str, ...] = ()
         provider_result: dict[str, Any] = {"status": "NOT_RUN", "reason": "OpenCode executable check has not completed."}
 
         version = _run_command("level0_opencode", [executable, "--version"], clean_workspace, output, 15)
@@ -222,10 +223,12 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
                 Image.new("RGB", (1280, 720), "white").save(source)
                 runner = OpenCodeEvalRunner(model=model, timeout_seconds=warm_timeout, opencode=executable, policy=policy, policy_root=repo_root, candidate_spec=candidate if candidate_profile is not None else None, candidate_root=repo_root)
                 level4 = runner.run(source=source, workspace=kslide_workspace, mode="protocol")
-                level4_events = json.loads(safe_credential_json(list(level4.normalized_events), roots=(output,)))
+                level4_secret_values = level4._secret_values
+                level4_events = json.loads(safe_credential_json(list(level4.normalized_events), roots=(output,), secret_values=level4_secret_values))
                 level4_result = {"level": "level4_k_slide_command", "status": level4.status, "command": runner.command(kslide_workspace), "exit_code": None, "duration_seconds": level4.duration_seconds, "event_count": len(level4.events), "last_event": (level4_events[-1] if level4_events else None), "last_tool": level4_events[-1].get("tool_name") if level4_events else None, "stdout": "", "stderr": level4.reason or "", "events": level4_events, "process_cleanup": level4.diagnostics.get("process_cleanup", {}), "reason": level4.reason, "diagnostics": level4.diagnostics}
                 levels.append(level4_result)
-                _persist_level(output, "level4_k_slide_command", level4_result)
+                _persist_level(output, "level4_k_slide_command", level4_result, secret_values=level4_secret_values)
+                runtime_secret_values = level4_secret_values
             except Exception as exc:
                 level4_result = {"level": "level4_k_slide_command", "status": "BLOCKED", "reason": f"K-Slide command diagnostic failed ({type(exc).__name__}).", "event_count": 0, "last_event": None, "last_tool": None, "stdout": "", "stderr": f"{type(exc).__name__}", "events": [], "process_cleanup": {"sigterm_sent": False, "sigkill_sent": False, "reaped": True}}
                 levels.append(level4_result)
@@ -250,9 +253,9 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
                 "kslide_has_engine": (kslide_workspace / ".k-slide-engine").exists(),
             },
             "install": install_result,
-            "levels": redact_value(levels, roots=(output,)),
+            "levels": redact_value(levels, roots=(output,), secret_values=runtime_secret_values),
             "first_failed_level": first_failed,
             "conclusion": conclusion,
         }
-        _persist_diagnostics(output, result)
+        _persist_diagnostics(output, result, secret_values=runtime_secret_values)
         return result

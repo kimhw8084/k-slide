@@ -56,6 +56,7 @@ class OpenCodeRunResult:
     kslide_complete: bool = False
     quality_metrics_authoritative: bool = False
     diagnostics: dict[str, Any] = field(default_factory=dict)
+    _secret_values: tuple[str, ...] = field(default=(), repr=False, compare=False)
 
     def as_dict(self) -> dict[str, Any]:
         payload = {
@@ -78,7 +79,7 @@ class OpenCodeRunResult:
             "diagnostics": self.diagnostics,
         }
         try:
-            return json.loads(safe_credential_json(payload))
+            return json.loads(safe_credential_json(payload, secret_values=self._secret_values))
         except CredentialExposureError:
             # A result is a user/host boundary. If a free-form field still
             # contains provenance-bound credential material after structural
@@ -109,15 +110,31 @@ def _process_environment() -> dict[str, str]:
     return environment
 
 
-def _runtime_environment() -> dict[str, str]:
-    """Return the environment for the real K-Slide runtime process.
+def _runtime_environment() -> tuple[dict[str, str], tuple[str, ...]]:
+    """Return the real runtime environment and its bounded provenance.
 
     The process AccessKey stays available only to this authenticated runtime
-    boundary. It is not copied into result objects or diagnostic persistence
-    calls as a broad substring-matching authority.
+    boundary. The returned provenance is threaded only through this runner's
+    captured-output boundary; it is never added to model packets or run state.
     """
 
-    return dict(os.environ)
+    environment = dict(os.environ)
+    access_key = environment.get(ACCESS_KEY_ENV)
+    secret_values = (access_key,) if isinstance(access_key, str) and access_key else ()
+    return environment, secret_values
+
+
+def _capture_secret_values(secret_values: Iterable[str]) -> tuple[str, ...]:
+    """Return values safe to use for bounded free-form runtime capture.
+
+    Structural credential fields remain protected for every format, including
+    short/common values. Exact-value fallback is reserved for sufficiently
+    unambiguous runtime values so an opaque value such as ``a`` or ``한글``
+    cannot rewrite ordinary model or diagnostic prose merely because it is the
+    process AccessKey. This is a collision bound, not a credential grammar.
+    """
+
+    return tuple(value for value in secret_values if isinstance(value, str) and len(value) >= 16)
 
 
 def _persist_text(path: Path, value: str, *, secret_values: Iterable[str] = ()) -> None:
@@ -328,7 +345,8 @@ class OpenCodeEvalRunner:
                 if root_context is not None:
                     root_context.cleanup()
                 return OpenCodeRunResult("CANDIDATE_CONFIG_BLOCKED", mode, self.model, self.runtime_version, str(root), 0.0, (), (), (), None, None, reason=f"Candidate configuration could not be prepared ({type(exc).__name__}).", diagnostics={"candidate_termbase_verified": False})
-        env = _runtime_environment()
+        env, runtime_secret_values = _runtime_environment()
+        capture_secret_values = _capture_secret_values(runtime_secret_values)
         env["KSLIDE_MODEL"] = self.model
         started = time.monotonic()
         try:
@@ -346,20 +364,24 @@ class OpenCodeEvalRunner:
                 partial_stderr = stderr or ""
                 raw_events = parse_json_events(f"{partial}\n{partial_stderr}")
                 normalized = normalize_events(raw_events)
-                safe_events = tuple(json.loads(safe_credential_json(raw_events, roots=(root,))))
-                diagnostics = _diagnostics(root, events=raw_events, timeout=True)
+                safe_events = tuple(json.loads(safe_credential_json(raw_events, roots=(root,), secret_values=capture_secret_values)))
+                diagnostics = _diagnostics(root, events=raw_events, timeout=True, secret_values=capture_secret_values)
                 diagnostics.update({"process_state": "TIMEOUT", "event_count": len(raw_events), "last_tool_call": normalized[-1].tool_name if normalized else None, "elapsed_seconds": time.monotonic() - started, "process_cleanup": cleanup})
-                _persist_text(root / "opencode-timeout-stdout.log", partial)
-                _persist_text(root / "opencode-timeout-stderr.log", partial_stderr)
-                _persist_json(root / "opencode-timeout-diagnostics.json", diagnostics)
-                return OpenCodeRunResult("TIMEOUT", mode, self.model, self.runtime_version, str(root), time.monotonic() - started, safe_events, tool_calls(normalized), forbidden_tool_attempts(normalized), None, None, reason="OpenCode command exceeded the evaluation timeout.", normalized_events=tuple(json.loads(safe_credential_json([event.as_dict() for event in normalized], roots=(root,)))), diagnostics=diagnostics)
+                diagnostics = json.loads(safe_credential_json(diagnostics, roots=(root,), secret_values=capture_secret_values))
+                _persist_text(root / "opencode-timeout-stdout.log", partial, secret_values=capture_secret_values)
+                _persist_text(root / "opencode-timeout-stderr.log", partial_stderr, secret_values=capture_secret_values)
+                _persist_json(root / "opencode-timeout-diagnostics.json", diagnostics, secret_values=capture_secret_values)
+                safe_normalized = tuple(json.loads(safe_credential_json([event.as_dict() for event in normalized], roots=(root,), secret_values=capture_secret_values)))
+                safe_tool_calls = tuple(safe_diagnostic_text(value, secret_values=capture_secret_values) for value in tool_calls(normalized))
+                safe_forbidden = tuple(safe_diagnostic_text(value, secret_values=capture_secret_values) for value in forbidden_tool_attempts(normalized))
+                return OpenCodeRunResult("TIMEOUT", mode, self.model, self.runtime_version, str(root), time.monotonic() - started, safe_events, safe_tool_calls, safe_forbidden, None, None, reason="OpenCode command exceeded the evaluation timeout.", normalized_events=safe_normalized, diagnostics=diagnostics, _secret_values=capture_secret_values)
             combined = f"{stdout}\n{stderr}"
             raw_events = parse_json_events(combined)
             normalized = normalize_events(raw_events)
-            _persist_text(root / "opencode-stdout.log", stdout)
-            _persist_text(root / "opencode-stderr.log", stderr)
-            _persist_jsonl(root / "opencode-events.jsonl", raw_events)
-            _persist_jsonl(root / "opencode-events.normalized.jsonl", [item.as_dict() for item in normalized])
+            _persist_text(root / "opencode-stdout.log", stdout, secret_values=capture_secret_values)
+            _persist_text(root / "opencode-stderr.log", stderr, secret_values=capture_secret_values)
+            _persist_jsonl(root / "opencode-events.jsonl", raw_events, secret_values=capture_secret_values)
+            _persist_jsonl(root / "opencode-events.normalized.jsonl", [item.as_dict() for item in normalized], secret_values=capture_secret_values)
             forbidden = forbidden_tool_attempts(normalized)
             media = media_compliance(normalized)
             read_violations = _read_policy_violations(root, normalized)
@@ -373,14 +395,14 @@ class OpenCodeEvalRunner:
                 if not isinstance(raw, dict) or "error" not in raw:
                     continue
                 try:
-                    structured_error_text.append(safe_diagnostic_text(json.dumps(raw.get("error"), ensure_ascii=False)))
+                    structured_error_text.append(safe_diagnostic_text(json.dumps(raw.get("error"), ensure_ascii=False), secret_values=capture_secret_values))
                 except CredentialExposureError:
                     structured_error_text.append("[REDACTED_UNSAFE_DIAGNOSTIC]")
             latest_run = _latest_run(root)
             kslide_complete, contract = _completion_contract(latest_run)
             final_text = next((event.text for event in reversed(normalized) if event.text), None)
-            safe_events = tuple(json.loads(safe_credential_json(raw_events, roots=(root,))))
-            final_text = safe_diagnostic_text(final_text, roots=(root,)) if final_text is not None else None
+            safe_events = tuple(json.loads(safe_credential_json(raw_events, roots=(root,), secret_values=capture_secret_values)))
+            final_text = safe_diagnostic_text(final_text, roots=(root,), secret_values=capture_secret_values) if final_text is not None else None
             artifact_count = sum(1 for item in (root / ".k-slide-runs").rglob("*") if item.is_file()) if (root / ".k-slide-runs").is_dir() else 0
             policy = self.policy or load_model_policy(self.policy_root or root)
             if completed_returncode != 0:
@@ -404,6 +426,10 @@ class OpenCodeEvalRunner:
             else:
                 status = "PASS"
                 reason = None
+            safe_tool_calls = tuple(safe_diagnostic_text(value, secret_values=capture_secret_values) for value in tool_calls(normalized))
+            safe_forbidden = tuple(safe_diagnostic_text(value, secret_values=capture_secret_values) for value in forbidden)
+            if reason is not None:
+                reason = safe_diagnostic_text(reason, secret_values=capture_secret_values)
             diagnostics = {
                 "completion": contract,
                 "structured_error_count": len(error_events),
@@ -419,7 +445,10 @@ class OpenCodeEvalRunner:
                 "candidate_termbase_verified": self.candidate_spec is not None,
                 "effective_termbase_hash": ((self.candidate_spec or {}).get("termbase_identity") or {}).get("hash") if self.candidate_spec is not None else None,
             }
-            return OpenCodeRunResult(status, mode, self.model, self.runtime_version, str(root), time.monotonic() - started, safe_events, tool_calls(normalized), forbidden, bool(media.get("read_count")) if media.get("planned") else None, final_text, artifact_count, reason, tuple(json.loads(safe_credential_json([event.as_dict() for event in normalized], roots=(root,)))), media, kslide_complete, False, diagnostics)
+            safe_media = json.loads(safe_credential_json(media, roots=(root,), secret_values=capture_secret_values))
+            safe_diagnostics = json.loads(safe_credential_json(diagnostics, roots=(root,), secret_values=capture_secret_values))
+            safe_normalized = tuple(json.loads(safe_credential_json([event.as_dict() for event in normalized], roots=(root,), secret_values=capture_secret_values)))
+            return OpenCodeRunResult(status, mode, self.model, self.runtime_version, str(root), time.monotonic() - started, safe_events, safe_tool_calls, safe_forbidden, bool(media.get("read_count")) if media.get("planned") else None, final_text, artifact_count, reason, safe_normalized, safe_media, kslide_complete, False, safe_diagnostics, _secret_values=capture_secret_values)
         finally:
             if termbase_overlay is not None and termbase_overlay.exists():
                 termbase_overlay.unlink()
