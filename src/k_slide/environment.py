@@ -18,6 +18,13 @@ from . import (
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import stable_revision
 from .translation_contract import TRANSLATION_PATCH_SCHEMA_VERSION
+from .classification_policy import (
+    InferenceDataUsePolicy,
+    REFERENCE_POLICY_VERSION,
+    REFERENCE_ROUTE_IDENTITY,
+)
+
+_REFERENCE_POLICY = InferenceDataUsePolicy.reference()
 
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
@@ -82,6 +89,10 @@ class RunEnvironmentIdentity:
     ocr_provider: str
     termbase_identity: str
     termbase_version: str
+    inference_route_identity: str = REFERENCE_ROUTE_IDENTITY
+    inference_data_policy_version: str = REFERENCE_POLICY_VERSION
+    inference_data_policy_hash: str = _REFERENCE_POLICY.policy_hash
+    inference_data_policy_identity: str = _REFERENCE_POLICY.policy_identity
     execution_contract_version: str = EXECUTION_CONTRACT_VERSION
     run_store_schema_version: str = RUN_STORE_SCHEMA_VERSION
     evidence_ir_schema_version: str = EVIDENCE_IR_SCHEMA_VERSION
@@ -119,8 +130,15 @@ class RunEnvironmentIdentity:
             (self.target_model_identity, "target model identity"),
             (self.effective_model_identity, "effective model identity"),
             (self.ocr_provider, "OCR provider identity"),
+            (self.inference_route_identity, "inference route identity"),
+            (self.inference_data_policy_version, "inference data-use policy version"),
         ):
             _text(value, label)
+        for value, label in (
+            (self.inference_data_policy_hash, "inference data-use policy hash"),
+            (self.inference_data_policy_identity, "inference data-use policy identity"),
+        ):
+            _sha(value, label)
         for value, label in (
             (self.execution_contract_version, "execution contract version"),
             (self.run_store_schema_version, "run-store schema version"),
@@ -154,6 +172,10 @@ class RunEnvironmentIdentity:
             "ocr_provider": self.ocr_provider,
             "termbase_identity": self.termbase_identity,
             "termbase_version": self.termbase_version,
+            "inference_route_identity": self.inference_route_identity,
+            "inference_data_policy_version": self.inference_data_policy_version,
+            "inference_data_policy_hash": self.inference_data_policy_hash,
+            "inference_data_policy_identity": self.inference_data_policy_identity,
             "execution_contract_version": self.execution_contract_version,
             "run_store_schema_version": self.run_store_schema_version,
             "evidence_ir_schema_version": self.evidence_ir_schema_version,
@@ -194,14 +216,25 @@ class RunEnvironmentIdentity:
             "runtime_artifact_identity", "runtime_image_identity", "runtime_build_identity", "runtime_manifest_sha256",
             "runtime_sbom_sha256", "target_model_identity", "effective_model_identity", "model_config_identity",
             "semantic_config_identity", "ocr_asset_identity", "ocr_config_identity", "ocr_provider", "termbase_identity",
-            "termbase_version", "execution_contract_version", "run_store_schema_version", "evidence_ir_schema_version",
+            "termbase_version", "inference_route_identity", "inference_data_policy_version", "inference_data_policy_hash",
+            "inference_data_policy_identity", "execution_contract_version", "run_store_schema_version", "evidence_ir_schema_version",
             "translation_patch_schema_version", "slide_ir_schema_version",
         }
-        if not isinstance(value, Mapping) or set(value) != fields:
+        if not isinstance(value, Mapping) or set(value) not in (fields, fields - {"inference_route_identity", "inference_data_policy_version", "inference_data_policy_hash", "inference_data_policy_identity"}):
             raise _invalid("Run environment identity is incomplete.", code=ErrorCode.STATE_CORRUPT)
         try:
             raw = dict(value)
             raw["kslide_source_revision"] = raw.pop("kslide_revision")
+            if "inference_route_identity" not in raw:
+                reference = InferenceDataUsePolicy.reference()
+                raw.update(
+                    {
+                        "inference_route_identity": reference.inference_route_identity,
+                        "inference_data_policy_version": reference.policy_version,
+                        "inference_data_policy_hash": reference.policy_hash,
+                        "inference_data_policy_identity": reference.policy_identity,
+                    }
+                )
             return cls(**raw)
         except (TypeError, ValueError) as exc:
             if isinstance(exc, KSlideError):
@@ -244,6 +277,10 @@ class RunEnvironmentIdentity:
             ocr_provider="reference",
             termbase_identity=_hash({"termbase": termbase_identity}),
             termbase_version="1.0",
+            inference_route_identity=InferenceDataUsePolicy.reference().inference_route_identity,
+            inference_data_policy_version=InferenceDataUsePolicy.reference().policy_version,
+            inference_data_policy_hash=InferenceDataUsePolicy.reference().policy_hash,
+            inference_data_policy_identity=InferenceDataUsePolicy.reference().policy_identity,
             execution_contract_version=engine_contract_version,
         )
 
@@ -263,6 +300,15 @@ class RunEnvironmentIdentity:
         except Exception as exc:
             raise _invalid("Run environment candidate identity is unavailable.") from exc
         runtime = dict(runtime_manifest or {})
+        raw_policy = candidate.get("inference_data_use_policy")
+        if raw_policy is None:
+            raw_policy = candidate.get("inference_data_policy")
+        route = candidate.get("inference_route_identity")
+        if not isinstance(route, str) or not route or not isinstance(raw_policy, Mapping):
+            raise _invalid("Run environment inference route/data-use policy identity is incomplete.")
+        policy = InferenceDataUsePolicy.from_mapping(raw_policy)
+        if policy.inference_route_identity != route:
+            raise _invalid("Run environment inference route/data-use policy identity is inconsistent.")
         candidate_source = candidate.get("subject_git_sha")
         runtime_source = runtime.get("source_revision")
         if runtime_source not in (None, "") and runtime_source != candidate_source:
@@ -321,6 +367,10 @@ class RunEnvironmentIdentity:
             "ocr_provider": candidate.get("ocr_provider"),
             "termbase_identity": candidate.get("termbase_hash") or termbase,
             "termbase_version": candidate.get("termbase_version") or (termbase or {}).get("version") if isinstance(termbase, Mapping) else candidate.get("termbase_version"),
+            "inference_route_identity": route,
+            "inference_data_policy_version": policy.policy_version,
+            "inference_data_policy_hash": policy.policy_hash,
+            "inference_data_policy_identity": policy.policy_identity,
             "execution_contract_version": candidate.get("execution_contract_version", EXECUTION_CONTRACT_VERSION),
             "run_store_schema_version": candidate.get("run_store_schema_version", RUN_STORE_SCHEMA_VERSION),
             "evidence_ir_schema_version": schema.get("evidence_ir"),
@@ -365,6 +415,36 @@ def raise_environment_mismatch(expected: RunEnvironmentIdentity | None, actual: 
             ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
             "Run environment is incompatible; resume was refused.",
             {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": list(fields)},
+        )
+
+
+def ensure_configured_policy_matches_environment(root: "Path", environment: RunEnvironmentIdentity) -> None:
+    """Re-check deployment policy drift before a resumable workspace mutation."""
+
+    from .classification_policy import REFERENCE_ROUTE_IDENTITY, load_inference_data_use_policy
+
+    if environment.inference_route_identity == REFERENCE_ROUTE_IDENTITY:
+        return
+    try:
+        configured = load_inference_data_use_policy(root, route_identity=environment.inference_route_identity)
+    except KSlideError as exc:
+        raise KSlideError(
+            ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
+            "Run environment is incompatible; resume was refused.",
+            {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": ["inference_data_policy"]},
+        ) from exc
+    fields = []
+    if configured.policy_version != environment.inference_data_policy_version:
+        fields.append("inference_data_policy_version")
+    if configured.policy_hash != environment.inference_data_policy_hash:
+        fields.append("inference_data_policy_hash")
+    if configured.policy_identity != environment.inference_data_policy_identity:
+        fields.append("inference_data_policy_identity")
+    if fields:
+        raise KSlideError(
+            ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
+            "Run environment is incompatible; resume was refused.",
+            {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": fields},
         )
 
 
@@ -460,6 +540,22 @@ def resolve_effective_environment(root: "Path", *, environment_identity: RunEnvi
         if source_revision is not None and runtime.get("source_revision") != source_revision:
             raise _invalid("Approved runtime manifest is not bound to the current K-Slide revision.")
         identity = RunEnvironmentIdentity.from_candidate_spec(candidate, runtime_manifest=runtime)
+        from .classification_policy import load_inference_data_use_policy
+
+        configured_policy = load_inference_data_use_policy(root, route_identity=identity.inference_route_identity)
+        if (
+            configured_policy.policy_version != identity.inference_data_policy_version
+            or configured_policy.policy_hash != identity.inference_data_policy_hash
+            or configured_policy.policy_identity != identity.inference_data_policy_identity
+        ):
+            raise KSlideError(
+                ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
+                "Run environment is incompatible; resume was refused.",
+                {
+                    "mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH",
+                    "mismatch_fields": ["inference_data_policy"],
+                },
+            )
     except KSlideError:
         raise
     except EvidenceValidationError as exc:

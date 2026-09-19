@@ -42,6 +42,7 @@ from .certification import (
 from .errors import ErrorCode, KSlideError
 from .authentication import authentication_readiness
 from .model_policy import load_model_policy
+from .classification_policy import load_inference_data_use_policy, policy_completeness
 from .ocr.policy import OCRProviderPolicy, create_ocr_provider
 from .runtime import RuntimeMetadata
 from .retention_policy import RetentionPolicy, RETENTION_POLICY_FIELD, CONTENT_RETENTION_FIELD, OPERATIONAL_METADATA_RETENTION_FIELD
@@ -526,7 +527,8 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
         return [*checks, _check("Production profile", False, exc.message), *_retention_policy_checks(RetentionPolicy("1.0", "UNSET", "UNSET"), invalid_detail=exc.message)]
     checks.append(_check("Production profile schema", profile.schema_version == PRODUCTION_PROFILE_SCHEMA_VERSION, profile.schema_version))
     checks.append(_check("Release state", profile.release_state == ReleaseState.PRODUCTION_CERTIFIED.value, profile.release_state))
-    candidate_missing = candidate_completeness(profile.candidate_spec or {}, ReleaseState.PRODUCTION_CERTIFIED.value)
+    candidate = profile.candidate_spec or {}
+    candidate_missing = candidate_completeness(candidate, ReleaseState.PRODUCTION_CERTIFIED.value)
     checks.append(_check("Candidate completeness", not candidate_missing, "complete" if not candidate_missing else "unresolved=" + ",".join(candidate_missing)))
     checks.extend(_execution_behavior_checks(root, profile))
     expected_kslide = (profile.candidate_spec or {}).get("kslide_version")
@@ -534,7 +536,7 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
     checks.append(_check("OpenCode version", runtime.opencode_version == profile.opencode_version, f"expected={profile.opencode_version}; actual={runtime.opencode_version or 'unknown'}"))
     from .model_policy import ModelPolicy
 
-    candidate_policy = (profile.candidate_spec or {}).get("model_policy")
+    candidate_policy = candidate.get("model_policy")
     policy = ModelPolicy.from_mapping(candidate_policy) if isinstance(candidate_policy, dict) else load_model_policy(root)
     try:
         from evals.scenarios import split_manifest
@@ -547,6 +549,17 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
         corpus = canonical_corpus_identity((profile.candidate_spec or {}).get("corpus_identity"))
     checks.append(_candidate_execution_binding_check(root, profile, policy, corpus))
     checks.append(_check("Requested/effective model policy", policy.approved(requested=profile.requested_model, effective=profile.effective_model), f"requested={profile.requested_model}; effective={profile.effective_model}"))
+    if "inference_route_identity" in candidate or "inference_data_use_policy" in candidate:
+        raw_data_policy = candidate.get("inference_data_use_policy")
+        policy_ready, policy_detail = policy_completeness(raw_data_policy)
+        configured_match = False
+        if policy_ready and isinstance(raw_data_policy, dict):
+            try:
+                configured = load_inference_data_use_policy(root, route_identity=str(candidate.get("inference_route_identity")), policy=None)
+                configured_match = configured.as_dict() == raw_data_policy
+            except (KSlideError, OSError, UnicodeError, json.JSONDecodeError, ValueError, TypeError):
+                configured_match = False
+        checks.append(_check("Inference data-use policy", policy_ready and configured_match, policy_detail if not configured_match else "deployment policy matches candidate"))
     checks.append(_check("Runtime model match", runtime.reported_model_id == profile.effective_model, runtime.reported_model_id or "unknown"))
     checks.extend(_runtime_identity_checks(profile, runtime))
     installed_ok, installed_detail = _installed_build_status(root, profile)

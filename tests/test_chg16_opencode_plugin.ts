@@ -43,7 +43,7 @@ function safeMinimalPptx(): Buffer | undefined {
 }
 
 function dataPart(mime: string, filename: string, bytes: Buffer, url = `data:${mime};base64,${bytes.toString("base64")}`): Record<string, unknown> {
-  return { type: "file", mime, filename, url }
+  return { id: "prt_test", sessionID: "ses_test", messageID: "msg_test", type: "file", mime, filename, url }
 }
 
 function sha256(bytes: Buffer): string {
@@ -126,9 +126,10 @@ async function successBoundary(): Promise<void> {
   assert.ok(!JSON.stringify(messageOutput).includes("data:"))
   assert.ok(!encodedValues.some((encoded) => JSON.stringify(messageOutput).includes(encoded)))
   assert.ok(!originalBytes.some((bytes) => JSON.stringify(messageOutput).includes(bytes.toString("latin1"))))
-  const args = output.args as unknown as { host_input_refs: Array<{ logical_name: string; locator: string }> }
+  const args = output.args as unknown as { host_input_refs: Array<{ logical_name: string; locator: string; classification: string }> }
   assert.deepEqual(args.host_input_refs.map((ref) => ref.logical_name), fileParts.map((part) => part.filename))
   assert.equal(args.host_input_refs.length, fileParts.length)
+  assert.deepEqual(args.host_input_refs.map((ref) => ref.classification), fileParts.map(() => "company_confidential"))
   for (const ref of args.host_input_refs) {
     assert.ok(!ref.locator.startsWith("data:"))
     assert.ok(!encodedValues.some((encoded) => JSON.stringify(output.args).includes(encoded)))
@@ -264,10 +265,47 @@ async function routingBoundary(): Promise<void> {
   assert.deepEqual(routedOutput.parts, [])
   const routedToolOutput = { args: { explicit_input_paths: [] as string[] } }
   await before({ tool: "kslide_prepare", sessionID: routedSessionID, callID: "routed-call" } as never, routedToolOutput)
-  const routedArgs = routedToolOutput.args as unknown as { host_input_refs: Array<{ logical_name: string }> }
+  const routedArgs = routedToolOutput.args as unknown as { host_input_refs: Array<{ logical_name: string; classification: string }> }
   assert.deepEqual(routedArgs.host_input_refs.map((ref) => ref.logical_name), ["routed.png"])
+  assert.equal(routedArgs.host_input_refs[0].classification, "company_confidential")
   await hooks["tool.execute.after"]?.({ tool: "kslide_prepare", sessionID: routedSessionID, callID: "routed-call", args: routedToolOutput.args } as never, {} as never)
   assert.deepEqual(await stagingEntries(routedSessionID), [])
+
+  const spoofSessionID = "model-classification-spoof-session"
+  const spoofParts = [dataPart("image/png", "trusted.png", PNG)]
+  const spoofMessageOutput = { message: {} as never, parts: spoofParts }
+  await message({ sessionID: spoofSessionID, agent: "k-slide" } as never, spoofMessageOutput as never)
+  const spoofToolOutput = {
+    args: {
+      explicit_input_paths: [],
+      classification: "restricted",
+      classifications: ["restricted"],
+      classification_policy: { classification_rules: { restricted: true } },
+      inference_route_identity: "model-route",
+      inference_data_use_policy: { classification_rules: { restricted: true } },
+      inference_data_policy: { classification_rules: { restricted: true } },
+      host_input_refs: [{ source_kind: "attachment", logical_name: "spoof.png", locator: "model-value", classification: "restricted" }],
+    },
+  }
+  await before({ tool: "kslide_prepare", sessionID: spoofSessionID, callID: "spoof-call" } as never, spoofToolOutput)
+  const trustedArgs = spoofToolOutput.args as unknown as {
+    classification?: string
+    classifications?: unknown
+    classification_policy?: unknown
+    inference_route_identity?: unknown
+    inference_data_use_policy?: unknown
+    inference_data_policy?: unknown
+    host_input_refs: Array<{ logical_name: string; classification: string }>
+  }
+  assert.equal(trustedArgs.classification, undefined)
+  assert.equal(trustedArgs.classifications, undefined)
+  assert.equal(trustedArgs.classification_policy, undefined)
+  assert.equal(trustedArgs.inference_route_identity, undefined)
+  assert.equal(trustedArgs.inference_data_use_policy, undefined)
+  assert.equal(trustedArgs.inference_data_policy, undefined)
+  assert.deepEqual(trustedArgs.host_input_refs.map((ref) => ref.logical_name), ["trusted.png"])
+  assert.equal(trustedArgs.host_input_refs[0].classification, "company_confidential")
+  await hooks["tool.execute.after"]?.({ tool: "kslide_prepare", sessionID: spoofSessionID, callID: "spoof-call", args: spoofToolOutput.args } as never, {} as never)
 }
 
 async function replacementBoundary(): Promise<void> {
@@ -340,6 +378,8 @@ export async function openCodeV139PluginLoaderCompatibilityBoundary(): Promise<v
   assert.match(hostSource, new RegExp(`from [\"']${canonicalImport.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\"']`))
   assert.match(toolSource, new RegExp(`from [\"']${canonicalImport.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\"']`))
   assert.doesNotMatch(hostSource, /from [\"']\.\/k-slide-access-key\.ts[\"']/) // The helper is not an independent plugin entrypoint.
+  assert.doesNotMatch(hostSource, /hostClassificationForPart|part as unknown as \{ classification/)
+  assert.doesNotMatch(toolSource, /classification: tool\.schema/)
 }
 
 async function main(): Promise<void> {

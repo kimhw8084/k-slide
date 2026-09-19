@@ -18,14 +18,14 @@ from threading import RLock
 from typing import Any, Iterator, Mapping, Protocol
 
 from . import EXECUTION_CONTRACT_VERSION, RUN_STORE_SCHEMA_VERSION
-from .environment import RunEnvironmentIdentity, raise_environment_mismatch, resolve_effective_environment
+from .environment import RunEnvironmentIdentity, ensure_configured_policy_matches_environment, raise_environment_mismatch, resolve_effective_environment
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import stable_revision
 from .io import atomic_write_json, read_json
 from .locking import filesystem_lock, run_lock
 from .queue import WorkQueue, load_queue
 from .storage import StorageArtifact, StorageLayout, StoragePlane, workspace_mutation_guard
-from .state import RunPhase, RunState, load_state, now_utc
+from .state import OPERATIONAL_FAILURE_PHASES, RunPhase, RunState, load_state, now_utc
 
 
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
@@ -1105,6 +1105,8 @@ def ensure_workspace_environment_compatible(
     job = store.load(f"job-{state.run_id}")
     effective = resolve_effective_environment(_workspace_project_root(run_dir), environment_identity=environment_identity)
     raise_environment_mismatch(job.environment_identity, effective)
+    if state.phase not in OPERATIONAL_FAILURE_PHASES:
+        ensure_configured_policy_matches_environment(_workspace_project_root(run_dir), effective)
     return job, effective
 
 

@@ -10,6 +10,7 @@ from typing import Any, Iterable, Mapping
 from urllib.parse import unquote, urlparse
 
 from .authentication import ApprovedCompanyServiceTransport, CompanyServiceRequest, authenticated_company_service_call
+from .classification_policy import DEFAULT_CLASSIFICATION, validate_classification_label
 from .errors import ErrorCode, KSlideError
 from .queue import WorkQueue, WorkUnitStatus
 from .redaction import sanitize_operational
@@ -93,12 +94,19 @@ class HostInputReference:
     source_kind: str
     logical_name: str
     locator: str
+    classification: str | None = DEFAULT_CLASSIFICATION
+
+    def __post_init__(self) -> None:
+        if self.classification is None:
+            object.__setattr__(self, "classification", DEFAULT_CLASSIFICATION)
+        else:
+            validate_classification_label(self.classification, allow_none=False)
 
     @classmethod
     def from_mapping(cls, value: Any) -> "HostInputReference":
         if not isinstance(value, dict):
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "Host input reference must be an object.")
-        allowed = {"source_kind", "logical_name", "locator"}
+        allowed = {"source_kind", "logical_name", "locator", "classification"}
         if set(value) - allowed:
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "Host input reference contains unsupported fields.")
         source_kind = value.get("source_kind")
@@ -115,7 +123,8 @@ class HostInputReference:
             raise KSlideError(ErrorCode.INPUT_UNSUPPORTED, "Host input file type is not supported by K-Slide.", {"extension": extension})
         if not isinstance(locator, str) or not locator.strip() or "\x00" in locator:
             raise KSlideError(ErrorCode.INPUT_NOT_FOUND, "Host input reference is empty.")
-        return cls(source_kind, logical_name, locator)
+        classification = validate_classification_label(value.get("classification")) or DEFAULT_CLASSIFICATION
+        return cls(source_kind, logical_name, locator, classification)
 
 
 @dataclass(frozen=True)
@@ -168,7 +177,14 @@ def validate_host_inputs(references: Iterable[HostInputReference], *, approved_r
     for reference in references:
         candidate = _local_path(reference, approved_root=root)
         allowed_root = root if reference.source_kind == "workspace_file" else None
-        artifacts.append(validate_input(candidate, allowed_root=allowed_root, logical_name=reference.logical_name))
+        artifacts.append(
+            validate_input(
+                candidate,
+                allowed_root=allowed_root,
+                logical_name=reference.logical_name,
+                classification=reference.classification if reference.classification is not None else DEFAULT_CLASSIFICATION,
+            )
+        )
     return artifacts
 
 

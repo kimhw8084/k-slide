@@ -9,6 +9,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from .errors import ErrorCode, KSlideError
+from .classification_policy import DEFAULT_CLASSIFICATION, validate_classification_label
 
 
 MAX_INPUT_BYTES = 512 * 1024 * 1024
@@ -33,6 +34,7 @@ class InputArtifact:
     kind: str
     size_bytes: int
     sha256: str
+    classification: str = DEFAULT_CLASSIFICATION
 
     def as_dict(self) -> dict[str, object]:
         value = asdict(self)
@@ -94,7 +96,13 @@ def _reject_symlink_components(path: Path) -> None:
         raise KSlideError(ErrorCode.INPUT_NOT_FOUND, "Input path could not be inspected safely.") from exc
 
 
-def validate_input(path: Path, *, allowed_root: Path | None = None, logical_name: str | None = None) -> InputArtifact:
+def validate_input(
+    path: Path,
+    *,
+    allowed_root: Path | None = None,
+    logical_name: str | None = None,
+    classification: str | None = None,
+) -> InputArtifact:
     """Validate a supported source without trusting its filename."""
 
     original = path.expanduser()
@@ -139,6 +147,7 @@ def validate_input(path: Path, *, allowed_root: Path | None = None, logical_name
         _inspect_zip(resolved, extension=extension)
 
     kind = {".png": "image", ".jpg": "image", ".jpeg": "image", ".webp": "image", ".pdf": "pdf", ".pptx": "pptx"}[extension]
+    effective_classification = validate_classification_label(classification) or DEFAULT_CLASSIFICATION
     return InputArtifact(
         source_path=str(resolved),
         source_name=display_name,
@@ -146,4 +155,5 @@ def validate_input(path: Path, *, allowed_root: Path | None = None, logical_name
         kind=kind,
         size_bytes=size,
         sha256=sha256_file(resolved),
+        classification=effective_classification,
     )
