@@ -1,0 +1,438 @@
+{
+  "accepted_at": "2026-09-19T18:46:32Z",
+  "changed_files": [
+    {
+      "additions": 4,
+      "deletions": 0,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 25,
+      "deletions": 4,
+      "path": "src/k_slide/deletion.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 163,
+      "deletions": 54,
+      "path": "src/k_slide/paas.py",
+      "status": "M"
+    },
+    {
+      "additions": 28,
+      "deletions": 11,
+      "path": "src/k_slide/session.py",
+      "status": "M"
+    },
+    {
+      "additions": 11,
+      "deletions": 1,
+      "path": "src/k_slide/worker.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "tests/test_chg16_deletion.py",
+      "status": "M"
+    },
+    {
+      "additions": 17,
+      "deletions": 14,
+      "path": "tests/test_chg16_environment_binding.py",
+      "status": "M"
+    },
+    {
+      "additions": 14,
+      "deletions": 13,
+      "path": "tests/test_chg16_paas_worker.py",
+      "status": "M"
+    },
+    {
+      "additions": 210,
+      "deletions": 0,
+      "path": "tests/test_chg17_run_scope_authorization.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,360p' src/k_slide/paas.py; rtk sed -n '361,760p' src/k_slide/paas.py; rtk sed -n '1,320p' src/k_slide/session.py; rtk sed -n '1,340p' src/k_slide/worker.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n '\"'^class |''^def |''^    def |''^@dataclass'\"' src/k_slide/paas.py src/k_slide/host_adapter.py src/k_slide/cli.py src/k_slide/deletion.py src/k_slide/storage.py src/k_slide/run_store.py src/k_slide/execution.py src/k_slide/authentication.py | head -500\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '740,1465p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1018,1468p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1468,1870p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1870,2300p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"ReferencePaaSJobService\\\\(|PaaSController\\\\(|PaaSWorker\\\\(|\\\\.inspect\\\\(|\\\\.reconnect\\\\(|\\\\.request_cancellation\\\\(|\\\\.claim\\\\(|\\\\.claim_next\\\\(|\\\\.open_store\\\\(|\\\\.queue\\\\(|resolve_(result|evidence|references|store)|content_layout\\\" tests src README.md docs | head -600\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,420p' tests/test_chg16_scoped_admission.py; rtk sed -n '1,330p' tests/test_chg16_paas_worker.py; rtk sed -n '1,280p' tests/test_chg16_host_integration.py; rtk sed -n '1,260p' src/k_slide/errors.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"resolve_run\\\\(|bind_session\\\\(|session_id|run_id\\\" src/k_slide tests | head -500; rtk sed -n '1,240p' src/k_slide/cli.py; rtk sed -n '240,520p' src/k_slide/cli.py; rtk rg -n \\\"resolve_run|session\\\" .opencode src tests -g '*.ts' -g '*.py' | head -400\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,220p' src/k_slide/cli.py; rtk sed -n '360,515p' src/k_slide/cli.py; rtk sed -n '1,360p' src/k_slide/ingest.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '760,980p' src/k_slide/deletion.py; rtk sed -n '980,1240p' src/k_slide/deletion.py; rtk sed -n '1,180p' docs/adr/0041-scoped-durable-admission.md; rtk sed -n '1,180p' docs/adr/0040-paas-worker-controller-boundary.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"def delete_scoped_run|class ScopedReferenceDeletionBackend|def cleanup_scoped\\\" src/k_slide/deletion.py; rtk sed -n '1240,1450p' src/k_slide/deletion.py; rtk sed -n '1,120p' tests/test_chg16_paas_worker.py; rtk sed -n '120,320p' tests/test_chg16_paas_worker.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,240p' pyproject.toml; rtk rg -n \\\"pytest|unittest|mypy|ruff|black|tsc|opencode|Fabric|evidence|BUILD\\\" README.md DEVELOPMENT_NOTES.md IMPLEMENTATION_STATUS.md scripts .github 2>/dev/null | head -300; rtk git status --short\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 31000,
+        "output_sha256": "f7f20c17c51f88e536be5d00f802451306fead27f14923afa7099a104e826d53",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '238,420p' src/k_slide/deletion.py; rtk sed -n '330,390p' tests/test_chg16_deletion.py; rtk sed -n '120,240p' tests/test_chg16_deletion.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"DeletionAudit\\\\(\\\" src/k_slide/deletion.py; rtk sed -n '420,470p' src/k_slide/deletion.py; rtk sed -n '1240,1285p' src/k_slide/deletion.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '35,90p' src/k_slide/paas.py; rtk sed -n '565,615p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '575,610p' src/k_slide/paas.py; rtk sed -n '620,650p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1030,1050p' src/k_slide/paas.py; rtk sed -n '1050,1075p' src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,45p' src/k_slide/deletion.py; rtk sed -n '790,825p' src/k_slide/deletion.py; rtk sed -n '1020,1185p' src/k_slide/deletion.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '330,390p' src/k_slide/deletion.py; rtk sed -n '810,850p' src/k_slide/deletion.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '760,815p' src/k_slide/deletion.py; rtk sed -n '850,900p' src/k_slide/deletion.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3 -m compileall -q src/k_slide && rtk git diff --check && rtk git diff --stat && rtk git diff -- src/k_slide/paas.py src/k_slide/session.py src/k_slide/worker.py src/k_slide/errors.py src/k_slide/deletion.py | head -500'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"def save_audit|identity_ref\\\" src/k_slide/deletion.py | head -40; rtk sed -n '590,615p' src/k_slide/deletion.py; rtk sed -n '855,880p' src/k_slide/deletion.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_chg16_scoped_admission tests.test_chg16_paas_worker tests.test_chg16_deletion tests.test_phase1 -q'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"ReferencePaaSJobService\\\\(|PaaSController\\\\(|PaaSWorker\\\\(\\\" tests/test_chg16_paas_worker.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_chg16_scoped_admission tests.test_chg16_paas_worker tests.test_chg16_deletion tests.test_phase1 -q'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"ScopedPaaSRunStore\\\\(\\\" tests src | cat; rtk sed -n '250,390p' tests/test_chg16_scoped_admission.py; rtk sed -n '1,120p' tests/test_phase1.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '910,940p' src/k_slide/paas.py; rtk rg -n \\\"binding_guard is None\\\" src/k_slide/paas.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_chg17_run_scope_authorization -q'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_chg17_run_scope_authorization -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_chg17_run_scope_authorization tests.test_chg16_scoped_admission tests.test_chg16_paas_worker tests.test_chg16_deletion tests.test_chg16_storage_planes tests.test_chg16_environment_binding tests.test_chg16_authentication_transport tests.test_chg16_classification_admission -q'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '65,165p' tests/test_chg16_environment_binding.py; rtk sed -n '190,310p' tests/test_chg16_environment_binding.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"ReferencePaaSJobService\\\\(\\\" tests/test_chg16_environment_binding.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_chg16_environment_binding -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"scope_context = scope_context|scope_context is None|scope_context: AuthorizedScopeContext \\\\| None|_identity\\\\(|_read_record\\\\(\\\" src/k_slide/paas.py src/k_slide/worker.py | head -250\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk command -v python3.12 || true; rtk command -v python3.11 || true; rtk command -v node || true; rtk command -v bun || true; rtk rg --files -g 'package.json' -g 'tsconfig*.json' -g 'bun.lock*' -g 'package-lock.json' -g 'pnpm-lock.yaml' -g 'yarn.lock' -g '\"'!node_modules'\"' | sort; rtk git status --short\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3.12 -m unittest tests.test_chg17_run_scope_authorization tests.test_chg16_scoped_admission tests.test_chg16_paas_worker tests.test_chg16_deletion tests.test_chg16_storage_planes tests.test_chg16_environment_binding -q; rtk env PYTHONPATH=src:. python3.12 -m compileall -q src evals tests; rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3.12 -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --stat && rtk git status --short'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"opencode|tsc|esbuild|TypeScript|typescript|node --check|bun test\" README.md IMPLEMENTATION_STATUS.md DEVELOPMENT_NOTES.md .github tests | head -250; rtk command -v tsc || true; rtk command -v esbuild || true; rtk command -v opencode || true; rtk command -v bun || true'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk opencode --version'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk opencode debug config'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff -- src/k_slide/paas.py src/k_slide/session.py src/k_slide/worker.py src/k_slide/cli.py src/k_slide/deletion.py src/k_slide/errors.py tests/test_chg17_run_scope_authorization.py tests/test_chg16_paas_worker.py tests/test_chg16_environment_binding.py tests/test_chg16_deletion.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3.12 -m unittest tests.test_chg17_run_scope_authorization tests.test_chg16_scoped_admission tests.test_chg16_paas_worker tests.test_chg16_deletion tests.test_chg16_environment_binding -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"Fabric|fabric|CHG-16|KSA-17|candidate identity|base SHA|BUILD\\\" . -g '\"'!**/.git/**'\"' -g '\"'!node_modules'\"' | head -300\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check; rtk git add src/k_slide/cli.py src/k_slide/deletion.py src/k_slide/errors.py src/k_slide/paas.py src/k_slide/session.py src/k_slide/worker.py tests/test_chg16_deletion.py tests/test_chg16_environment_binding.py tests/test_chg16_paas_worker.py tests/test_chg17_run_scope_authorization.py; rtk git status --short; rtk git diff --cached --stat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git commit -m \"KSA-17 BUILD: enforce run-scoped authorization and tenant isolation\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch; rtk git rev-parse HEAD; rtk git rev-parse HEAD''^; rtk git merge-base --is-ancestor 860053203001fe20a3267341dd1b71e298542b33 HEAD; rtk git show --stat --oneline --decorate HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 175,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 98.19,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 15323392,
+      "fresh_input_tokens": 281861,
+      "input_tokens": 15605253,
+      "non_reasoning_output_tokens": 27047,
+      "output_tokens": 51232,
+      "reasoning_output_tokens": 24185,
+      "total_processed_tokens": 15656485
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "322456214dc198219bf3d3f913da4e8a65448a3d",
+      "subject": "KSA-17 BUILD: enforce run-scoped authorization and tenant isolation"
+    }
+  ],
+  "diff": {
+    "additions": 475,
+    "changed_files": 10,
+    "commit_count": 1,
+    "deletions": 98
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 0,
+    "items": [],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-19T19:09:16Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "860053203001fe20a3267341dd1b71e298542b33",
+    "branch": "codex/k-slide-chg16-run-scope-authorization-01",
+    "detached_verify": false,
+    "head_sha": "322456214dc198219bf3d3f913da4e8a65448a3d",
+    "remote_exact_head": true,
+    "remote_head_sha": "322456214dc198219bf3d3f913da4e8a65448a3d",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "860053203001fe20a3267341dd1b71e298542b33",
+    "work_branch": "codex/k-slide-chg16-run-scope-authorization-01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-2a978f7c96de6fe4474b3f4d",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-run-scope-authorization-01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-run-scope-authorization-01"
+  },
+  "operation": "BUILD",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-run-scope-authorization-01",
+  "schema_version": 1,
+  "started_at": "2026-09-19T18:46:32Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1364,
+    "queue_seconds": 0,
+    "total_seconds": 1364
+  },
+  "transport": {
+    "bytes": 5298,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 4971,
+    "prompt_sha256": "6706386f4c743f31ed6e79d0067fa366ddc385734e73cc9b039145c7af9f6b2b",
+    "sha256": "2a978f7c96de6fe4474b3f4d9d676f1c87c92d6c54ff564070a59508f476f1c9"
+  }
+}
