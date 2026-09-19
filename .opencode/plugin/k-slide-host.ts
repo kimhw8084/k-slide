@@ -24,6 +24,9 @@ type SessionInputs = {
 const MAX_INPUT_BYTES = 512 * 1024 * 1024
 const STAGING_PREFIX = "k-slide-opencode-attachments-"
 const DEFAULT_CLASSIFICATION = "company_confidential"
+const K_SLIDE_AGENT = "k-slide"
+const APPROVED_PROVIDER_ID = "google"
+const APPROVED_MODEL_ID = "gemma-4-31b-it"
 const DATA_URL = /^data:([^;,]+);base64,([A-Za-z0-9+/]*={0,2})$/
 const URI_SCHEME = /^[A-Za-z][A-Za-z\d+.-]*:/
 
@@ -56,6 +59,33 @@ function isSupportedMime(value: unknown): value is string {
 function normalizedMime(value: unknown): string {
   if (!isSupportedMime(value)) throw new Error("K-Slide attachment was rejected.")
   return value.toLowerCase()
+}
+
+function hasProviderRouteOverride(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false
+  const routeKeys = new Set(["baseurl", "endpoint", "fallback", "host", "proxy", "provider", "transport"])
+  return Object.entries(value).some(([key, child]) => {
+    const normalized = key.toLowerCase().replaceAll("_", "")
+    return routeKeys.has(normalized) || (child && typeof child === "object" && hasProviderRouteOverride(child))
+  })
+}
+
+function assertPinnedKSlideModel(input: {
+  agent: string
+  model: { id: string; providerID: string; options: Record<string, unknown> }
+  provider: { info: { id: string; options: Record<string, unknown> }; options: Record<string, unknown> }
+  message: { model: { providerID: string; modelID: string } }
+}): void {
+  if (input.agent !== K_SLIDE_AGENT) return
+  const exactModel =
+    input.model.providerID === APPROVED_PROVIDER_ID &&
+    input.model.id === APPROVED_MODEL_ID &&
+    input.provider.info.id === APPROVED_PROVIDER_ID &&
+    input.message.model.providerID === APPROVED_PROVIDER_ID &&
+    input.message.model.modelID === APPROVED_MODEL_ID
+  if (!exactModel || hasProviderRouteOverride(input.model.options) || hasProviderRouteOverride(input.provider.info.options) || hasProviderRouteOverride(input.provider.options)) {
+    throw new Error("K-Slide refused an unapproved provider/model or provider route before the LLM request.")
+  }
 }
 
 function isSafeLogicalName(value: string): boolean {
@@ -230,7 +260,7 @@ async function referenceFromPart(part: FilePart, index: number, sessionID: strin
 const KSlideHostPlugin: Plugin = async ({ worktree }) => {
   const currentMessageInputs = new Map<string, SessionInputs>()
 
-  const isKSlideInvocation = (input: { agent?: string }): boolean => input.agent === "k-slide"
+  const isKSlideInvocation = (input: { agent?: string }): boolean => input.agent === K_SLIDE_AGENT
 
   const releaseSession = async (sessionID: string): Promise<void> => {
     const current = currentMessageInputs.get(sessionID)
@@ -240,6 +270,9 @@ const KSlideHostPlugin: Plugin = async ({ worktree }) => {
   }
 
   return {
+    "chat.params": async (input) => {
+      assertPinnedKSlideModel(input)
+    },
     "chat.message": async (input, output) => {
       await releaseSession(input.sessionID)
       if (!isKSlideInvocation(input)) return

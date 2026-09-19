@@ -20,6 +20,7 @@ from typing import Any, Callable, Protocol
 
 from . import EXECUTION_CONTRACT_VERSION
 from .authentication import ApprovedCompanyServiceTransport, CompanyServiceRequest, authenticated_company_service_call
+from .egress_policy import EGRESS_CAPABILITY_DURABLE_JOB_CONTROL, EGRESS_DATA_CLASS_OPERATIONAL_METADATA, EGRESS_PURPOSE_JOB_CONTROL
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import stable_revision
 from .environment import RunEnvironmentIdentity, environment_mismatch_fields, raise_environment_mismatch
@@ -60,10 +61,25 @@ _AUTHORIZATION_REQUIRED_MESSAGE = "An authorized scope context is required."
 def authenticated_paas_service_call(
     transport: ApprovedCompanyServiceTransport,
     request: CompanyServiceRequest | Mapping[str, Any],
+    *,
+    egress_policy: Any | None = None,
+    service_identity: str | None = None,
 ) -> object:
     """Use the common AccessKey boundary for durable/PaaS callers."""
 
-    return authenticated_company_service_call(transport, request)
+    if egress_policy is None:
+        # Preserve the KSA-14/15 reference-adapter seam. Production callers
+        # pass the deployment policy and therefore take the guarded path.
+        return authenticated_company_service_call(transport, request)
+    return authenticated_company_service_call(
+        transport,
+        request,
+        egress_policy=egress_policy,
+        capability_class=EGRESS_CAPABILITY_DURABLE_JOB_CONTROL,
+        purpose=EGRESS_PURPOSE_JOB_CONTROL,
+        service_identity=service_identity,
+        data_class=EGRESS_DATA_CLASS_OPERATIONAL_METADATA,
+    )
 
 
 def _invalid(message: str, *, code: ErrorCode = ErrorCode.EXECUTION_INVALID) -> KSlideError:
