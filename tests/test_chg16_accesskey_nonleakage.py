@@ -19,7 +19,7 @@ from k_slide.errors import ErrorCode, KSlideError
 from k_slide.execution import ExecutionProfile, execution_metadata, new_execution_job
 from k_slide.host_adapter import add_host_contract
 from k_slide.model import build_translation_prompt, build_work_packet
-from k_slide.redaction import redact_text, redact_value, safe_credential_json, safe_diagnostic_text, safe_operational_json, sanitize_operational
+from k_slide.redaction import redact_text, redact_value, safe_credential_json, safe_diagnostic_text, safe_diagnostic_text_or_placeholder, safe_operational_json, sanitize_operational
 from k_slide.state import RunPhase, RunState
 from k_slide.storage import StorageArtifact, StorageLayout
 from k_slide.support import build_support_bundle
@@ -58,6 +58,9 @@ class AccessKeyNonLeakageTests(unittest.TestCase):
                 self.assertEqual(sanitize_operational(payload), payload)
                 self.assertEqual(json.loads(safe_operational_json(payload)), payload)
                 self.assertEqual(json.loads(safe_credential_json(payload)), payload)
+                labelled = sanitize_operational({"AccessKey": value, "message": prose})
+                self.assertEqual(labelled["AccessKey"], "[REDACTED_SECRET]")
+                self.assertEqual(labelled["message"], prose)
                 self.assertEqual(sanitize_operational({"text": "Business token: a"})["text"], "[REDACTED_CONTENT]")
 
     def test_labelled_credentials_remain_structurally_redacted_after_rotation(self) -> None:
@@ -65,7 +68,7 @@ class AccessKeyNonLeakageTests(unittest.TestCase):
             with self.subTest(value=value), patch.dict(os.environ, {ACCESS_KEY_ENV: "rotated-away"}, clear=True):
                 text = safe_diagnostic_text(f"AccessKey={value}")
                 operational = json.loads(safe_operational_json({"AccessKey": value, "message": f"Access-Key={value}"}))
-                diagnostic = json.loads(safe_credential_json({"AccessKey": value, "message": f"raw {value}"}))
+                diagnostic = json.loads(safe_credential_json({"AccessKey": value, "message": f"raw {value}"}, secret_values=(value,)))
                 self.assertNotEqual(text, f"AccessKey={value}")
                 self.assertEqual(operational["AccessKey"], "[REDACTED_SECRET]")
                 self.assertEqual(diagnostic["AccessKey"], "[REDACTED_SECRET]")
@@ -227,10 +230,9 @@ class AccessKeyNonLeakageTests(unittest.TestCase):
 
     def test_opencode_runtime_boundary_keeps_key_for_real_k_slide_process_only(self) -> None:
         with patch.dict(os.environ, {ACCESS_KEY_ENV: self.CANARY}, clear=True):
-            environment, secret_values = _runtime_environment()
+            environment = _runtime_environment()
             non_runtime = _process_environment()
         self.assertEqual(environment[ACCESS_KEY_ENV], self.CANARY)
-        self.assertEqual(secret_values, (self.CANARY,))
         self.assertNotIn(ACCESS_KEY_ENV, non_runtime)
 
     def test_opencode_runner_passes_key_to_runtime_and_sanitizes_adversarial_output(self) -> None:
@@ -240,7 +242,7 @@ class AccessKeyNonLeakageTests(unittest.TestCase):
             returncode = 0
 
             def communicate(self, *, timeout: int) -> tuple[str, str]:
-                return json.dumps({"type": "text", "text": f"model output {canary}"}) + "\n", ""
+                return json.dumps({"type": "event", "AccessKey": canary}) + "\n", ""
 
         captured: dict[str, object] = {}
 
@@ -253,8 +255,49 @@ class AccessKeyNonLeakageTests(unittest.TestCase):
             with patch("k_slide.installer.install"), patch("evals.opencode_runner._version", return_value="1.3.9"), patch("evals.opencode_runner._configured_model", return_value=None), patch("evals.opencode_runner.subprocess.Popen", side_effect=popen):
                 result = OpenCodeEvalRunner(model="synthetic/model", opencode="/approved/opencode", timeout_seconds=5).run(workspace=workspace)
             self.assertEqual(captured["env"][ACCESS_KEY_ENV], self.CANARY)
+            self.assertNotIn(self.CANARY, json.dumps(result.events, ensure_ascii=False))
             self.assertNotIn(self.CANARY, json.dumps(result.as_dict(), ensure_ascii=False))
             self.assertNotIn(self.CANARY, "".join(path.read_text(encoding="utf-8") for path in workspace.rglob("*") if path.is_file()))
+
+    def test_runtime_persistence_preserves_common_values_without_runtime_secret_scanning(self) -> None:
+        ordinary_values = self.ORDINARY_VALUES
+        for value in ordinary_values:
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {ACCESS_KEY_ENV: value}, clear=True):
+                stdout = json.dumps({"type": "text", "text": f"ordinary model output retains {value!r}"}, ensure_ascii=False) + "\n"
+                stderr = f"ordinary diagnostic retains {value!r}\n"
+
+                class CompletedProcess:
+                    returncode = 0
+
+                    def communicate(self, *, timeout: int) -> tuple[str, str]:
+                        return stdout, stderr
+
+                captured: dict[str, object] = {}
+
+                def popen(_command, **kwargs):
+                    captured.update(kwargs)
+                    return CompletedProcess()
+
+                workspace = Path(directory) / "workspace"
+                with patch("k_slide.installer.install"), patch("evals.opencode_runner._version", return_value="1.3.9"), patch("evals.opencode_runner._configured_model", return_value=None), patch("evals.opencode_runner.subprocess.Popen", side_effect=popen):
+                    result = OpenCodeEvalRunner(model="synthetic/model", opencode="/approved/opencode", timeout_seconds=5).run(workspace=workspace)
+
+                self.assertEqual(captured["env"][ACCESS_KEY_ENV], value)
+                self.assertEqual((workspace / "opencode-stdout.log").read_text(encoding="utf-8"), stdout)
+                self.assertEqual((workspace / "opencode-stderr.log").read_text(encoding="utf-8"), stderr)
+                self.assertEqual(result.as_dict()["final_text"], f"ordinary model output retains {value!r}")
+
+    def test_explicit_free_form_provenance_redacts_a_bounded_line(self) -> None:
+        value = self.CANARY
+        diagnostic = f"first ordinary line\nraw credential-bearing line: {value}\nlast ordinary line"
+        self.assertEqual(
+            safe_diagnostic_text_or_placeholder(diagnostic, secret_values=(value,)),
+            "first ordinary line\n[REDACTED_UNSAFE_DIAGNOSTIC]\nlast ordinary line",
+        )
+        self.assertEqual(
+            safe_diagnostic_text(diagnostic.splitlines()[0], secret_values=(value,)),
+            diagnostic.splitlines()[0],
+        )
 
 
 if __name__ == "__main__":

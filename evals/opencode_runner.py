@@ -33,7 +33,7 @@ from .certification import load_model_policy
 from k_slide.certification import EvidenceValidationError, effective_termbase_identity
 from .process_control import terminate_process_group
 from k_slide.authentication import ACCESS_KEY_ENV
-from k_slide.redaction import CredentialExposureError, safe_credential_json, safe_diagnostic_text_or_placeholder, sanitize_operational
+from k_slide.redaction import CredentialExposureError, safe_credential_json, safe_diagnostic_text, safe_diagnostic_text_or_placeholder, sanitize_operational
 
 
 @dataclass(frozen=True)
@@ -56,7 +56,6 @@ class OpenCodeRunResult:
     kslide_complete: bool = False
     quality_metrics_authoritative: bool = False
     diagnostics: dict[str, Any] = field(default_factory=dict)
-    _secret_values: tuple[str, ...] = field(default=(), repr=False, compare=False)
 
     def as_dict(self) -> dict[str, Any]:
         payload = {
@@ -79,7 +78,7 @@ class OpenCodeRunResult:
             "diagnostics": self.diagnostics,
         }
         try:
-            return json.loads(safe_credential_json(payload, secret_values=self._secret_values))
+            return json.loads(safe_credential_json(payload))
         except CredentialExposureError:
             # A result is a user/host boundary. If a free-form field still
             # contains provenance-bound credential material after structural
@@ -110,13 +109,15 @@ def _process_environment() -> dict[str, str]:
     return environment
 
 
-def _runtime_environment() -> tuple[dict[str, str], tuple[str, ...]]:
-    """Return the actual runtime environment and its explicit secret provenance."""
+def _runtime_environment() -> dict[str, str]:
+    """Return the environment for the real K-Slide runtime process.
 
-    environment = dict(os.environ)
-    access_key = environment.get(ACCESS_KEY_ENV)
-    secret_values = (access_key,) if isinstance(access_key, str) and access_key else ()
-    return environment, secret_values
+    The process AccessKey stays available only to this authenticated runtime
+    boundary. It is not copied into result objects or diagnostic persistence
+    calls as a broad substring-matching authority.
+    """
+
+    return dict(os.environ)
 
 
 def _persist_text(path: Path, value: str, *, secret_values: Iterable[str] = ()) -> None:
@@ -205,7 +206,7 @@ def _completion_contract(run_dir: Path | None) -> tuple[bool, dict[str, Any]]:
     return complete, {"run_id": run_dir.name, "phase": state.get("phase"), "missing_artifacts": missing}
 
 
-def _diagnostics(root: Path, *, events: list[dict[str, Any]] | None = None, timeout: bool = False, secret_values: Iterable[str] = ()) -> dict[str, Any]:
+def _diagnostics(root: Path, *, events: list[dict[str, Any]] | None = None, timeout: bool = False) -> dict[str, Any]:
     result: dict[str, Any] = {"timeout": timeout, "last_event": events[-1] if events else None}
     run = _latest_run(root)
     if run is None:
@@ -219,9 +220,9 @@ def _diagnostics(root: Path, *, events: list[dict[str, Any]] | None = None, time
                 result[filename] = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
                 result[filename] = "CORRUPT_OR_UNREADABLE"
-    safe = sanitize_operational(result, secret_values=secret_values)
+    safe = sanitize_operational(result)
     try:
-        return json.loads(safe_credential_json(safe, roots=(root,), secret_values=secret_values))
+        return json.loads(safe_credential_json(safe, roots=(root,)))
     except CredentialExposureError:
         return {"timeout": timeout, "run": result.get("run"), "status": "REDACTED_UNSAFE_DIAGNOSTIC"}
 
@@ -327,7 +328,7 @@ class OpenCodeEvalRunner:
                 if root_context is not None:
                     root_context.cleanup()
                 return OpenCodeRunResult("CANDIDATE_CONFIG_BLOCKED", mode, self.model, self.runtime_version, str(root), 0.0, (), (), (), None, None, reason=f"Candidate configuration could not be prepared ({type(exc).__name__}).", diagnostics={"candidate_termbase_verified": False})
-        env, runtime_secret_values = _runtime_environment()
+        env = _runtime_environment()
         env["KSLIDE_MODEL"] = self.model
         started = time.monotonic()
         try:
@@ -345,19 +346,20 @@ class OpenCodeEvalRunner:
                 partial_stderr = stderr or ""
                 raw_events = parse_json_events(f"{partial}\n{partial_stderr}")
                 normalized = normalize_events(raw_events)
-                diagnostics = _diagnostics(root, events=raw_events, timeout=True, secret_values=runtime_secret_values)
+                safe_events = tuple(json.loads(safe_credential_json(raw_events, roots=(root,))))
+                diagnostics = _diagnostics(root, events=raw_events, timeout=True)
                 diagnostics.update({"process_state": "TIMEOUT", "event_count": len(raw_events), "last_tool_call": normalized[-1].tool_name if normalized else None, "elapsed_seconds": time.monotonic() - started, "process_cleanup": cleanup})
-                _persist_text(root / "opencode-timeout-stdout.log", partial, secret_values=runtime_secret_values)
-                _persist_text(root / "opencode-timeout-stderr.log", partial_stderr, secret_values=runtime_secret_values)
-                _persist_json(root / "opencode-timeout-diagnostics.json", diagnostics, secret_values=runtime_secret_values)
-                return OpenCodeRunResult("TIMEOUT", mode, self.model, self.runtime_version, str(root), time.monotonic() - started, tuple(raw_events), tool_calls(normalized), forbidden_tool_attempts(normalized), None, None, reason="OpenCode command exceeded the evaluation timeout.", normalized_events=tuple(json.loads(safe_credential_json([event.as_dict() for event in normalized], roots=(root,), secret_values=runtime_secret_values))), diagnostics=diagnostics, _secret_values=runtime_secret_values)
+                _persist_text(root / "opencode-timeout-stdout.log", partial)
+                _persist_text(root / "opencode-timeout-stderr.log", partial_stderr)
+                _persist_json(root / "opencode-timeout-diagnostics.json", diagnostics)
+                return OpenCodeRunResult("TIMEOUT", mode, self.model, self.runtime_version, str(root), time.monotonic() - started, safe_events, tool_calls(normalized), forbidden_tool_attempts(normalized), None, None, reason="OpenCode command exceeded the evaluation timeout.", normalized_events=tuple(json.loads(safe_credential_json([event.as_dict() for event in normalized], roots=(root,)))), diagnostics=diagnostics)
             combined = f"{stdout}\n{stderr}"
             raw_events = parse_json_events(combined)
             normalized = normalize_events(raw_events)
-            _persist_text(root / "opencode-stdout.log", stdout, secret_values=runtime_secret_values)
-            _persist_text(root / "opencode-stderr.log", stderr, secret_values=runtime_secret_values)
-            _persist_jsonl(root / "opencode-events.jsonl", raw_events, secret_values=runtime_secret_values)
-            _persist_jsonl(root / "opencode-events.normalized.jsonl", [item.as_dict() for item in normalized], secret_values=runtime_secret_values)
+            _persist_text(root / "opencode-stdout.log", stdout)
+            _persist_text(root / "opencode-stderr.log", stderr)
+            _persist_jsonl(root / "opencode-events.jsonl", raw_events)
+            _persist_jsonl(root / "opencode-events.normalized.jsonl", [item.as_dict() for item in normalized])
             forbidden = forbidden_tool_attempts(normalized)
             media = media_compliance(normalized)
             read_violations = _read_policy_violations(root, normalized)
@@ -371,12 +373,14 @@ class OpenCodeEvalRunner:
                 if not isinstance(raw, dict) or "error" not in raw:
                     continue
                 try:
-                    structured_error_text.append(safe_diagnostic_text(json.dumps(raw.get("error"), ensure_ascii=False), secret_values=runtime_secret_values))
+                    structured_error_text.append(safe_diagnostic_text(json.dumps(raw.get("error"), ensure_ascii=False)))
                 except CredentialExposureError:
                     structured_error_text.append("[REDACTED_UNSAFE_DIAGNOSTIC]")
             latest_run = _latest_run(root)
             kslide_complete, contract = _completion_contract(latest_run)
             final_text = next((event.text for event in reversed(normalized) if event.text), None)
+            safe_events = tuple(json.loads(safe_credential_json(raw_events, roots=(root,))))
+            final_text = safe_diagnostic_text(final_text, roots=(root,)) if final_text is not None else None
             artifact_count = sum(1 for item in (root / ".k-slide-runs").rglob("*") if item.is_file()) if (root / ".k-slide-runs").is_dir() else 0
             policy = self.policy or load_model_policy(self.policy_root or root)
             if completed_returncode != 0:
@@ -415,7 +419,7 @@ class OpenCodeEvalRunner:
                 "candidate_termbase_verified": self.candidate_spec is not None,
                 "effective_termbase_hash": ((self.candidate_spec or {}).get("termbase_identity") or {}).get("hash") if self.candidate_spec is not None else None,
             }
-            return OpenCodeRunResult(status, mode, self.model, self.runtime_version, str(root), time.monotonic() - started, tuple(raw_events), tool_calls(normalized), forbidden, bool(media.get("read_count")) if media.get("planned") else None, final_text, artifact_count, reason, tuple(json.loads(safe_credential_json([event.as_dict() for event in normalized], roots=(root,), secret_values=runtime_secret_values))), media, kslide_complete, False, diagnostics, _secret_values=runtime_secret_values)
+            return OpenCodeRunResult(status, mode, self.model, self.runtime_version, str(root), time.monotonic() - started, safe_events, tool_calls(normalized), forbidden, bool(media.get("read_count")) if media.get("planned") else None, final_text, artifact_count, reason, tuple(json.loads(safe_credential_json([event.as_dict() for event in normalized], roots=(root,)))), media, kslide_complete, False, diagnostics)
         finally:
             if termbase_overlay is not None and termbase_overlay.exists():
                 termbase_overlay.unlink()

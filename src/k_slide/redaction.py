@@ -30,9 +30,10 @@ _CONTENT_KEYS = {
     "ocr_candidates",
 }
 _BEARER = re.compile(r"(?i)(\bbearer\s+)[A-Za-z0-9._~+/=-]+")
-_ASSIGNMENT = re.compile(rf"(?i)(?P<prefix>\b{_SECRET_NAME}\b\s*[:=]\s*)")
+_ASSIGNMENT = re.compile(rf"(?i)(?P<prefix>\b{_SECRET_NAME}\b\s*[\"']?\s*[:=]\s*)")
 _URL_CREDENTIALS = re.compile(r"(?i)(https?://)([^/@\s]+):([^/@\s]+)@")
 _REDACTED_VALUE = "[REDACTED]"
+_REDACTED_UNSAFE_DIAGNOSTIC = "[REDACTED_UNSAFE_DIAGNOSTIC]"
 
 
 class CredentialExposureError(ValueError):
@@ -55,36 +56,6 @@ def _is_secret_key(key: str) -> bool:
     """Recognize secret-bearing field names without matching ordinary tokens."""
 
     return _SECRET_KEY.search(key) is not None
-
-
-def _string_leaves(value: Any) -> Iterable[str]:
-    if isinstance(value, str) and value:
-        yield value
-    elif isinstance(value, Mapping):
-        for item in value.values():
-            yield from _string_leaves(item)
-    elif isinstance(value, (list, tuple)):
-        for item in value:
-            yield from _string_leaves(item)
-
-
-def _provenance_secret_values(value: Any) -> tuple[str, ...]:
-    """Collect values supplied through explicitly secret-bearing fields."""
-
-    found: list[str] = []
-
-    def visit(item: Any) -> None:
-        if isinstance(item, Mapping):
-            for name, child in item.items():
-                if isinstance(name, str) and _is_secret_key(name):
-                    found.extend(_string_leaves(child))
-                visit(child)
-        elif isinstance(item, (list, tuple)):
-            for child in item:
-                visit(child)
-
-    visit(value)
-    return _secret_values(found)
 
 
 def _redact_assignments(value: str) -> str:
@@ -119,12 +90,35 @@ def _redact_assignments(value: str) -> str:
     return "".join(result)
 
 
+def _assignment_free_text(value: str) -> str:
+    """Return only text outside labelled credential assignments."""
+
+    result: list[str] = []
+    cursor = 0
+    while cursor < len(value):
+        match = _ASSIGNMENT.search(value, cursor)
+        if match is None:
+            result.append(value[cursor:])
+            break
+        result.append(value[cursor:match.start()])
+        start = match.end()
+        quote = value[start] if start < len(value) and value[start] in "\"'`" else None
+        line_end = value.find("\n", start)
+        if line_end < 0:
+            line_end = len(value)
+        if quote is not None:
+            close = value.find(quote, start + 1, line_end)
+            if close >= 0:
+                cursor = close + 1
+                continue
+        cursor = line_end
+    return "".join(result)
+
+
 def redact_text(value: str, *, roots: tuple[Path, ...] = (), secret_values: Iterable[str] = ()) -> str:
     """Redact credentials and local absolute paths without logging content."""
 
     result = value
-    for secret in _secret_values(secret_values):
-        result = result.replace(secret, _REDACTED_VALUE)
     home = str(Path.home())
     if home:
         result = result.replace(home, "$HOME")
@@ -133,9 +127,17 @@ def redact_text(value: str, *, roots: tuple[Path, ...] = (), secret_values: Iter
             result = result.replace(str(root.resolve()), "$KSLIDE_ROOT")
         except OSError:
             continue
+    unlabelled = _assignment_free_text(result)
     result = _redact_assignments(result)
     result = _BEARER.sub(r"\1[REDACTED]", result)
     result = _URL_CREDENTIALS.sub(r"\1[REDACTED]@", result)
+    unlabelled = _BEARER.sub(r"\1[REDACTED]", unlabelled)
+    unlabelled = _URL_CREDENTIALS.sub(r"\1[REDACTED]@", unlabelled)
+    if any(secret in unlabelled for secret in _secret_values(secret_values)):
+        # A caller-provided secret value is usable only as provenance for this
+        # bounded free-form field.  It is never a license to rewrite matching
+        # substrings inside otherwise meaningful operational text.
+        return _REDACTED_UNSAFE_DIAGNOSTIC
     return result
 
 
@@ -152,7 +154,7 @@ def sanitize_operational(value: Any, *, roots: tuple[Path, ...] = (), secret_val
 def redact_value(value: Any, *, roots: tuple[Path, ...] = (), key: str | None = None, secret_values: Iterable[str] = ()) -> Any:
     """Recursively redact a JSON-compatible diagnostic value."""
 
-    secrets = _secret_values((*secret_values, *_provenance_secret_values(value)))
+    secrets = _secret_values(secret_values)
     return _redact_value(value, roots=roots, key=key, secrets=secrets)
 
 
@@ -178,7 +180,7 @@ def _redact_value(value: Any, *, roots: tuple[Path, ...], key: str | None, secre
 def redact_credentials(value: Any, *, roots: tuple[Path, ...] = (), secret_values: Iterable[str] = ()) -> Any:
     """Redact credentials while preserving non-secret diagnostic/content fields."""
 
-    secrets = _secret_values((*secret_values, *_provenance_secret_values(value)))
+    secrets = _secret_values(secret_values)
 
     def visit(item: Any, key: str | None = None) -> Any:
         if key and _is_secret_key(key):
@@ -225,15 +227,16 @@ def safe_diagnostic_text_or_placeholder(value: str, *, roots: tuple[Path, ...] =
     """Return a persisted diagnostic line, or a fixed safe placeholder."""
 
     try:
-        return safe_diagnostic_text(value, roots=roots, secret_values=secret_values)
-    except CredentialExposureError:
         lines: list[str] = []
         for line in value.splitlines(keepends=True):
-            try:
-                lines.append(safe_diagnostic_text(line, roots=roots, secret_values=secret_values))
-            except CredentialExposureError:
-                lines.append("[REDACTED_UNSAFE_DIAGNOSTIC]\n")
-        return "".join(lines) or "[REDACTED_UNSAFE_DIAGNOSTIC]"
+            safe = safe_diagnostic_text(line, roots=roots, secret_values=secret_values)
+            if safe == _REDACTED_UNSAFE_DIAGNOSTIC:
+                body = line.rstrip("\r\n")
+                safe = _REDACTED_UNSAFE_DIAGNOSTIC + line[len(body):]
+            lines.append(safe)
+        return "".join(lines) or safe_diagnostic_text(value, roots=roots, secret_values=secret_values)
+    except CredentialExposureError:
+        return _REDACTED_UNSAFE_DIAGNOSTIC
 
 
 def safe_operational_json(value: Any, *, roots: tuple[Path, ...] = (), secret_values: Iterable[str] = ()) -> str:
