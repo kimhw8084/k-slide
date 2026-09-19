@@ -1,7 +1,7 @@
 import { tool } from "@opencode-ai/plugin"
 import path from "node:path"
 import { existsSync } from "node:fs"
-import { trustedAccessKey } from "../plugin/k-slide-access-key.ts"
+import { trustedAccessKey } from "../internal/lib/k-slide-access-key.ts"
 
 type ToolContext = {
   sessionID: string

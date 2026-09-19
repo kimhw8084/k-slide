@@ -249,7 +249,23 @@ class HostIntegrationTests(unittest.TestCase):
             target = Path(directory) / "host"
             install(root, target)
             self.assertTrue((target / ".opencode" / "plugin" / "k-slide-host.ts").is_file())
+            self.assertTrue((target / ".opencode" / "internal" / "lib" / "k-slide-access-key.ts").is_file())
             self.assertTrue(all(passed for _, passed in verify_install(target)))
+
+    def test_install_migrates_unchanged_legacy_access_key_plugin_helper(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "host"
+            install(root, target)
+            legacy = target / ".opencode" / "plugin" / "k-slide-access-key.ts"
+            legacy.write_text("legacy helper", encoding="utf-8")
+            manifest_path = target / ".k-slide-install.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["files"][str(legacy.relative_to(target))] = hashlib.sha256(legacy.read_bytes()).hexdigest()
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            install(root, target)
+            self.assertFalse(legacy.exists())
+            self.assertTrue((target / ".opencode" / "internal" / "lib" / "k-slide-access-key.ts").is_file())
 
 
 if __name__ == "__main__":

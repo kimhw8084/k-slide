@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process"
 import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import KSlideHostPlugin from "../.opencode/plugin/k-slide-host.ts"
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
@@ -307,7 +307,43 @@ async function negativeBoundary(): Promise<void> {
   assert.deepEqual(output.args, {})
 }
 
+export async function openCodeV139PluginLoaderCompatibilityBoundary(): Promise<void> {
+  const autoDiscovered: string[] = []
+  for (const directoryName of ["plugin", "plugins"]) {
+    const directory = path.join(ROOT, ".opencode", directoryName)
+    let entries
+    try {
+      entries = await readdir(directory, { withFileTypes: true })
+    } catch {
+      continue
+    }
+    for (const entry of entries) {
+      if (entry.isFile() && /\.(?:ts|js)$/.test(entry.name)) autoDiscovered.push(path.join(directory, entry.name))
+    }
+  }
+  autoDiscovered.sort()
+
+  const helper = path.join(ROOT, ".opencode", "internal", "lib", "k-slide-access-key.ts")
+  assert.ok(await stat(helper))
+  assert.equal(autoDiscovered.includes(helper), false)
+  assert.equal(autoDiscovered.some((file) => path.basename(file) === "k-slide-access-key.ts"), false)
+  assert.ok(autoDiscovered.length > 0)
+
+  for (const file of autoDiscovered) {
+    const loaded = await import(pathToFileURL(file).href)
+    assert.equal(typeof loaded.default, "function", `OpenCode v1.3.9 rejected ${file}: Plugin export is not a function`)
+  }
+
+  const hostSource = await readFile(path.join(ROOT, ".opencode", "plugin", "k-slide-host.ts"), "utf8")
+  const toolSource = await readFile(path.join(ROOT, ".opencode", "tools", "kslide.ts"), "utf8")
+  const canonicalImport = "../internal/lib/k-slide-access-key.ts"
+  assert.match(hostSource, new RegExp(`from [\"']${canonicalImport.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\"']`))
+  assert.match(toolSource, new RegExp(`from [\"']${canonicalImport.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\"']`))
+  assert.doesNotMatch(hostSource, /from [\"']\.\/k-slide-access-key\.ts[\"']/) // The helper is not an independent plugin entrypoint.
+}
+
 async function main(): Promise<void> {
+  await openCodeV139PluginLoaderCompatibilityBoundary()
   await routingBoundary()
   await replacementBoundary()
   await successBoundary()
@@ -316,7 +352,9 @@ async function main(): Promise<void> {
   console.log("OpenCode host attachment regression tests passed")
 }
 
-main().catch((error: unknown) => {
-  console.error(error)
-  process.exitCode = 1
-})
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error: unknown) => {
+    console.error(error)
+    process.exitCode = 1
+  })
+}
