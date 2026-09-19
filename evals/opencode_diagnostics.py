@@ -22,18 +22,18 @@ from k_slide.redaction import CredentialExposureError, redact_value, safe_creden
 from .scenarios import split_manifest
 
 
-def _persist_level(output: Path, name: str, result: dict[str, Any]) -> None:
+def _persist_level(output: Path, name: str, result: dict[str, Any], *, secret_values: tuple[str, ...] = ()) -> None:
     output.mkdir(parents=True, exist_ok=True)
     try:
-        safe_json = safe_credential_json(result, roots=(output,))
+        safe_json = safe_credential_json(result, roots=(output,), secret_values=secret_values)
     except CredentialExposureError:
         safe_json = json.dumps({"status": "REDACTED_UNSAFE_DIAGNOSTIC", "artifact": f"{name}.json"}, ensure_ascii=False, indent=2) + "\n"
     (output / f"{name}.json").write_text(safe_json, encoding="utf-8")
     for suffix, field in (("stdout", "stdout"), ("stderr", "stderr")):
-        text = safe_diagnostic_text_or_placeholder(str(result.get(field, "")), roots=(output,))
+        text = safe_diagnostic_text_or_placeholder(str(result.get(field, "")), roots=(output,), secret_values=secret_values)
         (output / f"{name}.{suffix}").write_text(text, encoding="utf-8")
     try:
-        events = safe_credential_json(result.get("events", []), roots=(output,))
+        events = safe_credential_json(result.get("events", []), roots=(output,), secret_values=secret_values)
     except CredentialExposureError:
         events = json.dumps({"status": "REDACTED_UNSAFE_DIAGNOSTIC", "artifact": f"{name}.events.json"}, ensure_ascii=False, indent=2) + "\n"
     (output / f"{name}.events.json").write_text(events, encoding="utf-8")
@@ -45,9 +45,9 @@ def _process_environment() -> dict[str, str]:
     return environment
 
 
-def _persist_diagnostics(output: Path, result: dict[str, Any]) -> None:
+def _persist_diagnostics(output: Path, result: dict[str, Any], *, secret_values: tuple[str, ...] = ()) -> None:
     try:
-        text = safe_credential_json(result, roots=(output,))
+        text = safe_credential_json(result, roots=(output,), secret_values=secret_values)
     except CredentialExposureError:
         text = json.dumps({"status": "REDACTED_UNSAFE_DIAGNOSTIC", "artifact": "diagnostics.json"}, ensure_ascii=False, indent=2) + "\n"
     (output / "diagnostics.json").write_text(text, encoding="utf-8")
@@ -222,7 +222,8 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
                 Image.new("RGB", (1280, 720), "white").save(source)
                 runner = OpenCodeEvalRunner(model=model, timeout_seconds=warm_timeout, opencode=executable, policy=policy, policy_root=repo_root, candidate_spec=candidate if candidate_profile is not None else None, candidate_root=repo_root)
                 level4 = runner.run(source=source, workspace=kslide_workspace, mode="protocol")
-                level4_result = {"level": "level4_k_slide_command", "status": level4.status, "command": runner.command(kslide_workspace), "exit_code": None, "duration_seconds": level4.duration_seconds, "event_count": len(level4.events), "last_event": (level4.normalized_events[-1] if level4.normalized_events else None), "last_tool": level4.normalized_events[-1].get("tool_name") if level4.normalized_events else None, "stdout": "", "stderr": level4.reason or "", "events": list(level4.normalized_events), "process_cleanup": level4.diagnostics.get("process_cleanup", {}), "reason": level4.reason, "diagnostics": level4.diagnostics}
+                level4_events = json.loads(safe_credential_json(list(level4.normalized_events), roots=(output,), secret_values=level4._secret_values))
+                level4_result = {"level": "level4_k_slide_command", "status": level4.status, "command": runner.command(kslide_workspace), "exit_code": None, "duration_seconds": level4.duration_seconds, "event_count": len(level4.events), "last_event": (level4_events[-1] if level4_events else None), "last_tool": level4_events[-1].get("tool_name") if level4_events else None, "stdout": "", "stderr": level4.reason or "", "events": level4_events, "process_cleanup": level4.diagnostics.get("process_cleanup", {}), "reason": level4.reason, "diagnostics": level4.diagnostics}
                 levels.append(level4_result)
                 _persist_level(output, "level4_k_slide_command", level4_result)
             except Exception as exc:

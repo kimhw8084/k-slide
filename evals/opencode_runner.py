@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -55,6 +56,7 @@ class OpenCodeRunResult:
     kslide_complete: bool = False
     quality_metrics_authoritative: bool = False
     diagnostics: dict[str, Any] = field(default_factory=dict)
+    _secret_values: tuple[str, ...] = field(default=(), repr=False, compare=False)
 
     def as_dict(self) -> dict[str, Any]:
         payload = {
@@ -77,12 +79,12 @@ class OpenCodeRunResult:
             "diagnostics": self.diagnostics,
         }
         try:
-            return json.loads(safe_credential_json(payload))
+            return json.loads(safe_credential_json(payload, secret_values=self._secret_values))
         except CredentialExposureError:
             # A result is a user/host boundary. If a free-form field still
-            # contains the ambient credential after structural sanitization,
-            # keep only bounded non-diagnostic facts rather than serializing a
-            # guessed credential format or raw model output.
+            # contains provenance-bound credential material after structural
+            # sanitization, keep only bounded non-diagnostic facts rather than
+            # serializing a guessed credential format or raw model output.
             return {
                 "status": self.status,
                 "mode": self.mode,
@@ -101,31 +103,40 @@ class OpenCodeRunResult:
 
 
 def _process_environment() -> dict[str, str]:
-    """Give OpenCode no access to the process-only company credential."""
+    """Environment for subprocesses that do not use the approved service edge."""
 
     environment = dict(os.environ)
     environment.pop(ACCESS_KEY_ENV, None)
     return environment
 
 
-def _persist_text(path: Path, value: str) -> None:
-    safe = safe_diagnostic_text_or_placeholder(value, roots=(path.parent,))
+def _runtime_environment() -> tuple[dict[str, str], tuple[str, ...]]:
+    """Return the actual runtime environment and its explicit secret provenance."""
+
+    environment = dict(os.environ)
+    access_key = environment.get(ACCESS_KEY_ENV)
+    secret_values = (access_key,) if isinstance(access_key, str) and access_key else ()
+    return environment, secret_values
+
+
+def _persist_text(path: Path, value: str, *, secret_values: Iterable[str] = ()) -> None:
+    safe = safe_diagnostic_text_or_placeholder(value, roots=(path.parent,), secret_values=secret_values)
     path.write_text(safe, encoding="utf-8")
 
 
-def _persist_json(path: Path, value: Any) -> None:
+def _persist_json(path: Path, value: Any, *, secret_values: Iterable[str] = ()) -> None:
     try:
-        safe = safe_credential_json(value, roots=(path.parent,))
+        safe = safe_credential_json(value, roots=(path.parent,), secret_values=secret_values)
     except CredentialExposureError:
         safe = json.dumps({"status": "REDACTED_UNSAFE_DIAGNOSTIC", "artifact": path.name}, ensure_ascii=False, indent=2) + "\n"
     path.write_text(safe, encoding="utf-8")
 
 
-def _persist_jsonl(path: Path, values: list[Any]) -> None:
+def _persist_jsonl(path: Path, values: list[Any], *, secret_values: Iterable[str] = ()) -> None:
     lines: list[str] = []
     for value in values:
         try:
-            lines.append(safe_credential_json(value, roots=(path.parent,)).rstrip("\n"))
+            lines.append(safe_credential_json(value, roots=(path.parent,), secret_values=secret_values).rstrip("\n"))
         except CredentialExposureError:
             lines.append(json.dumps({"status": "REDACTED_UNSAFE_DIAGNOSTIC", "artifact": path.name}, ensure_ascii=False))
     path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
@@ -194,7 +205,7 @@ def _completion_contract(run_dir: Path | None) -> tuple[bool, dict[str, Any]]:
     return complete, {"run_id": run_dir.name, "phase": state.get("phase"), "missing_artifacts": missing}
 
 
-def _diagnostics(root: Path, *, events: list[dict[str, Any]] | None = None, timeout: bool = False) -> dict[str, Any]:
+def _diagnostics(root: Path, *, events: list[dict[str, Any]] | None = None, timeout: bool = False, secret_values: Iterable[str] = ()) -> dict[str, Any]:
     result: dict[str, Any] = {"timeout": timeout, "last_event": events[-1] if events else None}
     run = _latest_run(root)
     if run is None:
@@ -208,9 +219,9 @@ def _diagnostics(root: Path, *, events: list[dict[str, Any]] | None = None, time
                 result[filename] = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
                 result[filename] = "CORRUPT_OR_UNREADABLE"
-    safe = sanitize_operational(result)
+    safe = sanitize_operational(result, secret_values=secret_values)
     try:
-        return json.loads(safe_credential_json(safe, roots=(root,)))
+        return json.loads(safe_credential_json(safe, roots=(root,), secret_values=secret_values))
     except CredentialExposureError:
         return {"timeout": timeout, "run": result.get("run"), "status": "REDACTED_UNSAFE_DIAGNOSTIC"}
 
@@ -316,7 +327,7 @@ class OpenCodeEvalRunner:
                 if root_context is not None:
                     root_context.cleanup()
                 return OpenCodeRunResult("CANDIDATE_CONFIG_BLOCKED", mode, self.model, self.runtime_version, str(root), 0.0, (), (), (), None, None, reason=f"Candidate configuration could not be prepared ({type(exc).__name__}).", diagnostics={"candidate_termbase_verified": False})
-        env = _process_environment()
+        env, runtime_secret_values = _runtime_environment()
         env["KSLIDE_MODEL"] = self.model
         started = time.monotonic()
         try:
@@ -334,19 +345,19 @@ class OpenCodeEvalRunner:
                 partial_stderr = stderr or ""
                 raw_events = parse_json_events(f"{partial}\n{partial_stderr}")
                 normalized = normalize_events(raw_events)
-                diagnostics = _diagnostics(root, events=raw_events, timeout=True)
+                diagnostics = _diagnostics(root, events=raw_events, timeout=True, secret_values=runtime_secret_values)
                 diagnostics.update({"process_state": "TIMEOUT", "event_count": len(raw_events), "last_tool_call": normalized[-1].tool_name if normalized else None, "elapsed_seconds": time.monotonic() - started, "process_cleanup": cleanup})
-                _persist_text(root / "opencode-timeout-stdout.log", partial)
-                _persist_text(root / "opencode-timeout-stderr.log", partial_stderr)
-                _persist_json(root / "opencode-timeout-diagnostics.json", diagnostics)
-                return OpenCodeRunResult("TIMEOUT", mode, self.model, self.runtime_version, str(root), time.monotonic() - started, tuple(raw_events), tool_calls(normalized), forbidden_tool_attempts(normalized), None, None, reason="OpenCode command exceeded the evaluation timeout.", normalized_events=tuple(event.as_dict() for event in normalized), diagnostics=diagnostics)
+                _persist_text(root / "opencode-timeout-stdout.log", partial, secret_values=runtime_secret_values)
+                _persist_text(root / "opencode-timeout-stderr.log", partial_stderr, secret_values=runtime_secret_values)
+                _persist_json(root / "opencode-timeout-diagnostics.json", diagnostics, secret_values=runtime_secret_values)
+                return OpenCodeRunResult("TIMEOUT", mode, self.model, self.runtime_version, str(root), time.monotonic() - started, tuple(raw_events), tool_calls(normalized), forbidden_tool_attempts(normalized), None, None, reason="OpenCode command exceeded the evaluation timeout.", normalized_events=tuple(json.loads(safe_credential_json([event.as_dict() for event in normalized], roots=(root,), secret_values=runtime_secret_values))), diagnostics=diagnostics, _secret_values=runtime_secret_values)
             combined = f"{stdout}\n{stderr}"
             raw_events = parse_json_events(combined)
             normalized = normalize_events(raw_events)
-            _persist_text(root / "opencode-stdout.log", stdout)
-            _persist_text(root / "opencode-stderr.log", stderr)
-            _persist_jsonl(root / "opencode-events.jsonl", raw_events)
-            _persist_jsonl(root / "opencode-events.normalized.jsonl", [item.as_dict() for item in normalized])
+            _persist_text(root / "opencode-stdout.log", stdout, secret_values=runtime_secret_values)
+            _persist_text(root / "opencode-stderr.log", stderr, secret_values=runtime_secret_values)
+            _persist_jsonl(root / "opencode-events.jsonl", raw_events, secret_values=runtime_secret_values)
+            _persist_jsonl(root / "opencode-events.normalized.jsonl", [item.as_dict() for item in normalized], secret_values=runtime_secret_values)
             forbidden = forbidden_tool_attempts(normalized)
             media = media_compliance(normalized)
             read_violations = _read_policy_violations(root, normalized)
@@ -360,7 +371,7 @@ class OpenCodeEvalRunner:
                 if not isinstance(raw, dict) or "error" not in raw:
                     continue
                 try:
-                    structured_error_text.append(safe_diagnostic_text(json.dumps(raw.get("error"), ensure_ascii=False)))
+                    structured_error_text.append(safe_diagnostic_text(json.dumps(raw.get("error"), ensure_ascii=False), secret_values=runtime_secret_values))
                 except CredentialExposureError:
                     structured_error_text.append("[REDACTED_UNSAFE_DIAGNOSTIC]")
             latest_run = _latest_run(root)
@@ -404,7 +415,7 @@ class OpenCodeEvalRunner:
                 "candidate_termbase_verified": self.candidate_spec is not None,
                 "effective_termbase_hash": ((self.candidate_spec or {}).get("termbase_identity") or {}).get("hash") if self.candidate_spec is not None else None,
             }
-            return OpenCodeRunResult(status, mode, self.model, self.runtime_version, str(root), time.monotonic() - started, tuple(raw_events), tool_calls(normalized), forbidden, bool(media.get("read_count")) if media.get("planned") else None, final_text, artifact_count, reason, tuple(event.as_dict() for event in normalized), media, kslide_complete, False, diagnostics)
+            return OpenCodeRunResult(status, mode, self.model, self.runtime_version, str(root), time.monotonic() - started, tuple(raw_events), tool_calls(normalized), forbidden, bool(media.get("read_count")) if media.get("planned") else None, final_text, artifact_count, reason, tuple(json.loads(safe_credential_json([event.as_dict() for event in normalized], roots=(root,), secret_values=runtime_secret_values))), media, kslide_complete, False, diagnostics, _secret_values=runtime_secret_values)
         finally:
             if termbase_overlay is not None and termbase_overlay.exists():
                 termbase_overlay.unlink()

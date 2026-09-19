@@ -9,13 +9,10 @@ bundles or public evaluation metadata.
 from __future__ import annotations
 
 import json
-import os
 import re
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
-
-from .authentication import ACCESS_KEY_ENV
 
 _ACCESS_KEY_NAME = r"access[\s_.:/-]*(?:key|token)"
 _GENERIC_SECRET_NAME = r"(?:token(?![_A-Za-z0-9])|api[\s_.:/-]*key|auth(?:orization)?|password|secret|cookie|private[\s_.:/-]*key|credential(?:s)?)"
@@ -168,7 +165,7 @@ def _redact_value(value: Any, *, roots: tuple[Path, ...], key: str | None, secre
         return redact_text(value, roots=roots, secret_values=secrets)
     if isinstance(value, dict):
         return {
-            redact_text(str(name), roots=roots, secret_values=secrets): _redact_value(item, roots=roots, key=str(name), secrets=secrets)
+            str(name): _redact_value(item, roots=roots, key=str(name), secrets=secrets)
             for name, item in value.items()
         }
     if isinstance(value, list):
@@ -190,7 +187,7 @@ def redact_credentials(value: Any, *, roots: tuple[Path, ...] = (), secret_value
             return redact_text(item, roots=roots, secret_values=secrets)
         if isinstance(item, dict):
             return {
-                redact_text(str(name), roots=roots, secret_values=secrets): visit(child, str(name))
+                str(name): visit(child, str(name))
                 for name, child in item.items()
             }
         if isinstance(item, list):
@@ -216,16 +213,12 @@ def redact_environment(value: dict[str, str]) -> dict[str, str]:
 def safe_diagnostic_text(value: str, *, roots: tuple[Path, ...] = (), secret_values: Iterable[str] = ()) -> str:
     """Return text safe for operational persistence, or fail closed.
 
-    Labelled assignments and explicit secret values are sanitized normally.
-    An ambient AccessKey appearing elsewhere has no safe value boundary, so
-    callers must not persist the diagnostic text at all.
+    Labelled assignments and explicitly provenance-bound secret values are
+    sanitized normally. Ambient process values are not a credential authority
+    for generic text because ordinary prose can contain the same value.
     """
 
-    result = redact_text(value, roots=roots, secret_values=secret_values)
-    ambient = os.environ.get(ACCESS_KEY_ENV)
-    if ambient and ambient in result:
-        raise CredentialExposureError("unbounded diagnostic contains ambient AccessKey material")
-    return result
+    return redact_text(value, roots=roots, secret_values=secret_values)
 
 
 def safe_diagnostic_text_or_placeholder(value: str, *, roots: tuple[Path, ...] = (), secret_values: Iterable[str] = ()) -> str:
@@ -244,22 +237,14 @@ def safe_diagnostic_text_or_placeholder(value: str, *, roots: tuple[Path, ...] =
 
 
 def safe_operational_json(value: Any, *, roots: tuple[Path, ...] = (), secret_values: Iterable[str] = ()) -> str:
-    """Serialize an operational value only after credential-safe sanitization."""
+    """Serialize operational data using structural/provenance redaction."""
 
     safe = sanitize_operational(value, roots=roots, secret_values=secret_values)
-    text = json.dumps(safe, ensure_ascii=False, indent=2) + "\n"
-    ambient = os.environ.get(ACCESS_KEY_ENV)
-    if ambient and ambient in text:
-        raise CredentialExposureError("unbounded operational value contains ambient AccessKey material")
-    return text
+    return json.dumps(safe, ensure_ascii=False, indent=2) + "\n"
 
 
 def safe_credential_json(value: Any, *, roots: tuple[Path, ...] = (), secret_values: Iterable[str] = ()) -> str:
-    """Serialize captured diagnostics without blanket-redacting business text."""
+    """Serialize captured diagnostics without ambient substring matching."""
 
     safe = redact_credentials(value, roots=roots, secret_values=secret_values)
-    text = json.dumps(safe, ensure_ascii=False, indent=2) + "\n"
-    ambient = os.environ.get(ACCESS_KEY_ENV)
-    if ambient and ambient in text:
-        raise CredentialExposureError("unbounded diagnostic contains ambient AccessKey material")
-    return text
+    return json.dumps(safe, ensure_ascii=False, indent=2) + "\n"

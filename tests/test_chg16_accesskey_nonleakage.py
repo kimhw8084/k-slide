@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from evals.opencode_diagnostics import _persist_diagnostics, _persist_level
-from evals.opencode_runner import OpenCodeRunResult, _persist_json, _persist_jsonl, _persist_text, _process_environment
+from evals.opencode_runner import OpenCodeEvalRunner, OpenCodeRunResult, _persist_json, _persist_jsonl, _persist_text, _process_environment, _runtime_environment
 from k_slide.authentication import ACCESS_KEY_ENV, authenticated_company_service_call
 from k_slide.cli import main
 from k_slide.evidence_ir import EvidenceIR, EvidenceRegion, save_evidence
@@ -19,7 +19,7 @@ from k_slide.errors import ErrorCode, KSlideError
 from k_slide.execution import ExecutionProfile, execution_metadata, new_execution_job
 from k_slide.host_adapter import add_host_contract
 from k_slide.model import build_translation_prompt, build_work_packet
-from k_slide.redaction import redact_text, redact_value, sanitize_operational
+from k_slide.redaction import redact_text, redact_value, safe_credential_json, safe_diagnostic_text, safe_operational_json, sanitize_operational
 from k_slide.state import RunPhase, RunState
 from k_slide.storage import StorageArtifact, StorageLayout
 from k_slide.support import build_support_bundle
@@ -30,6 +30,7 @@ from tests.reference_fixtures import reference_environment
 class AccessKeyNonLeakageTests(unittest.TestCase):
     CANARY = "KSA15-ACCESSKEY-CANARY-9f4d2a7c::unique::🧪::do-not-persist"
     OLD_KEY = "old key with spaces, punctuation; and 한글"
+    ORDINARY_VALUES = ("a", ".", " ", "한글", "opaque-value")
 
     def test_structured_variants_nested_values_and_explicit_assignments(self) -> None:
         payload = {
@@ -48,11 +49,27 @@ class AccessKeyNonLeakageTests(unittest.TestCase):
         self.assertNotIn(self.OLD_KEY, redact_text(f"Access-Key={self.OLD_KEY}\nnext diagnostic"))
 
     def test_ambient_short_common_key_is_not_a_substring_authority(self) -> None:
-        with patch.dict(os.environ, {ACCESS_KEY_ENV: "a"}, clear=True):
-            prose = "adapter completed a normal diagnostic; data remains intact"
-            self.assertEqual(redact_text(prose), prose)
-            self.assertEqual(sanitize_operational({"message": prose})["message"], prose)
-            self.assertEqual(sanitize_operational({"text": "Business token: a"})["text"], "[REDACTED_CONTENT]")
+        for value in self.ORDINARY_VALUES:
+            with self.subTest(value=value), patch.dict(os.environ, {ACCESS_KEY_ENV: value}, clear=True):
+                prose = f"adapter completed a normal diagnostic; opaque value is {value!r}"
+                payload = {"message": prose, "value": value}
+                self.assertEqual(redact_text(prose), prose)
+                self.assertEqual(safe_diagnostic_text(prose), prose)
+                self.assertEqual(sanitize_operational(payload), payload)
+                self.assertEqual(json.loads(safe_operational_json(payload)), payload)
+                self.assertEqual(json.loads(safe_credential_json(payload)), payload)
+                self.assertEqual(sanitize_operational({"text": "Business token: a"})["text"], "[REDACTED_CONTENT]")
+
+    def test_labelled_credentials_remain_structurally_redacted_after_rotation(self) -> None:
+        for value in self.ORDINARY_VALUES + (self.OLD_KEY,):
+            with self.subTest(value=value), patch.dict(os.environ, {ACCESS_KEY_ENV: "rotated-away"}, clear=True):
+                text = safe_diagnostic_text(f"AccessKey={value}")
+                operational = json.loads(safe_operational_json({"AccessKey": value, "message": f"Access-Key={value}"}))
+                diagnostic = json.loads(safe_credential_json({"AccessKey": value, "message": f"raw {value}"}))
+                self.assertNotEqual(text, f"AccessKey={value}")
+                self.assertEqual(operational["AccessKey"], "[REDACTED_SECRET]")
+                self.assertEqual(diagnostic["AccessKey"], "[REDACTED_SECRET]")
+                self.assertNotEqual(diagnostic["message"], f"raw {value}")
 
     def test_source_evidence_and_model_packet_are_not_blanket_redacted(self) -> None:
         business_text = "Business label: AccessKey/token is a source-owned term; value a is literal."
@@ -164,15 +181,37 @@ class AccessKeyNonLeakageTests(unittest.TestCase):
             self.assertNotIn(self.CANARY, marker.read_text(encoding="utf-8"))
             self.assertNotIn(self.CANARY, json.dumps(RunState("run-ksa15", "smart", phase=RunPhase.FAILED_RUNTIME, error_message=f"AccessKey={self.CANARY}").as_dict()))
 
+    def test_storage_layout_preserves_common_values_in_operational_persistence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {ACCESS_KEY_ENV: "a"}, clear=True):
+            layout = StorageLayout.for_workspace_root(Path(directory))
+            for index, value in enumerate(self.ORDINARY_VALUES):
+                payload = {"status": "RUNNING", "message": f"ordinary operational value {value!r}", "value": value}
+                json_path = layout.write_json(StorageArtifact.RUN_STATE, f"run-{index}/RUN_STATE.json", payload)
+                text_path = layout.write_text(StorageArtifact.FAILURE_MARKER, f"run-{index}/RUN_FAILED.md", payload["message"])
+                self.assertEqual(json.loads(json_path.read_text(encoding="utf-8")), payload)
+                self.assertEqual(text_path.read_text(encoding="utf-8"), payload["message"])
+
+    def test_runtime_persistence_receives_explicit_secret_provenance(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            secret_values = (self.CANARY,)
+            _persist_text(root / "stdout.log", f"raw stdout {self.CANARY}", secret_values=secret_values)
+            _persist_json(root / "timeout.json", {"message": f"raw {self.CANARY}"}, secret_values=secret_values)
+            _persist_jsonl(root / "raw-events.jsonl", [{"event": f"raw {self.CANARY}"}], secret_values=secret_values)
+            _persist_diagnostics(root, {"stderr": f"raw {self.CANARY}"}, secret_values=secret_values)
+            _persist_level(root, "level0", {"stdout": f"raw {self.CANARY}", "events": []}, secret_values=secret_values)
+            self.assertNotIn(self.CANARY, "".join(path.read_text(encoding="utf-8") for path in root.iterdir()))
+
     def test_opencode_and_diagnostic_artifacts_fail_closed_or_sanitize(self) -> None:
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {ACCESS_KEY_ENV: self.CANARY}, clear=True):
             root = Path(directory)
-            _persist_text(root / "stdout.log", f"raw stdout {self.CANARY}")
-            _persist_text(root / "stderr.log", f"AccessKey={self.CANARY}")
-            _persist_json(root / "timeout.json", {"timeout": True, "message": f"raw {self.CANARY}", "AccessKey": self.CANARY})
-            _persist_jsonl(root / "raw-events.jsonl", [{"type": "event", "Access-Key": self.CANARY}, {"text": "business text"}])
-            _persist_diagnostics(root, {"status": "TIMEOUT", "stderr": f"raw {self.CANARY}", "nested": {"access_token": self.CANARY}})
-            _persist_level(root, "level0", {"status": "FAIL", "stdout": f"raw {self.CANARY}", "stderr": f"AccessKey={self.CANARY}", "events": [{"AccessKey": self.CANARY}]})
+            secret_values = (self.CANARY,)
+            _persist_text(root / "stdout.log", f"raw stdout {self.CANARY}", secret_values=secret_values)
+            _persist_text(root / "stderr.log", f"AccessKey={self.CANARY}", secret_values=secret_values)
+            _persist_json(root / "timeout.json", {"timeout": True, "message": f"raw {self.CANARY}", "AccessKey": self.CANARY}, secret_values=secret_values)
+            _persist_jsonl(root / "raw-events.jsonl", [{"type": "event", "Access-Key": self.CANARY}, {"text": "business text"}], secret_values=secret_values)
+            _persist_diagnostics(root, {"status": "TIMEOUT", "stderr": f"raw {self.CANARY}", "nested": {"access_token": self.CANARY}}, secret_values=secret_values)
+            _persist_level(root, "level0", {"status": "FAIL", "stdout": f"raw {self.CANARY}", "stderr": f"AccessKey={self.CANARY}", "events": [{"AccessKey": self.CANARY}]}, secret_values=secret_values)
             result = OpenCodeRunResult(
                 "FAILED", "protocol", "synthetic/model", None, str(root), 0.1, (), (), (), None,
                 f"AccessKey={self.CANARY}", reason=f"AccessKey={self.CANARY}", diagnostics={"AccessKey": self.CANARY},
@@ -185,6 +224,37 @@ class AccessKeyNonLeakageTests(unittest.TestCase):
         with patch.dict(os.environ, {ACCESS_KEY_ENV: self.CANARY}, clear=True):
             environment = _process_environment()
         self.assertNotIn(ACCESS_KEY_ENV, environment)
+
+    def test_opencode_runtime_boundary_keeps_key_for_real_k_slide_process_only(self) -> None:
+        with patch.dict(os.environ, {ACCESS_KEY_ENV: self.CANARY}, clear=True):
+            environment, secret_values = _runtime_environment()
+            non_runtime = _process_environment()
+        self.assertEqual(environment[ACCESS_KEY_ENV], self.CANARY)
+        self.assertEqual(secret_values, (self.CANARY,))
+        self.assertNotIn(ACCESS_KEY_ENV, non_runtime)
+
+    def test_opencode_runner_passes_key_to_runtime_and_sanitizes_adversarial_output(self) -> None:
+        canary = self.CANARY
+
+        class CompletedProcess:
+            returncode = 0
+
+            def communicate(self, *, timeout: int) -> tuple[str, str]:
+                return json.dumps({"type": "text", "text": f"model output {canary}"}) + "\n", ""
+
+        captured: dict[str, object] = {}
+
+        def popen(_command, **kwargs):
+            captured.update(kwargs)
+            return CompletedProcess()
+
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {ACCESS_KEY_ENV: self.CANARY}, clear=True):
+            workspace = Path(directory) / "workspace"
+            with patch("k_slide.installer.install"), patch("evals.opencode_runner._version", return_value="1.3.9"), patch("evals.opencode_runner._configured_model", return_value=None), patch("evals.opencode_runner.subprocess.Popen", side_effect=popen):
+                result = OpenCodeEvalRunner(model="synthetic/model", opencode="/approved/opencode", timeout_seconds=5).run(workspace=workspace)
+            self.assertEqual(captured["env"][ACCESS_KEY_ENV], self.CANARY)
+            self.assertNotIn(self.CANARY, json.dumps(result.as_dict(), ensure_ascii=False))
+            self.assertNotIn(self.CANARY, "".join(path.read_text(encoding="utf-8") for path in workspace.rglob("*") if path.is_file()))
 
 
 if __name__ == "__main__":
