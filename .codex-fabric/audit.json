@@ -1,0 +1,137 @@
+{
+  "accepted_at": "2026-09-19T00:45:27Z",
+  "project": "K-Slide",
+  "project_os_change": "CHG-16",
+  "work_item": "KSA-15",
+  "scope": {
+    "objective": "Make AccessKey non-leakage explicit, comprehensive, and adversarially testable across operational surfaces.",
+    "excluded": [
+      "KSA-16 classification",
+      "KSA-17 authorization and tenant-isolation expansion",
+      "KSA-18 egress",
+      "KSA-19 termbase governance",
+      "KSA-20 content-bearing support authorization",
+      "KSA-21 malicious-document expansion",
+      "KSA-35 telemetry expansion",
+      "live company qualification",
+      "BUILD COMPLETE",
+      "release and production certification"
+    ]
+  },
+  "candidate_identity": {
+    "status": "DEVELOPMENT_ONLY",
+    "subject_git_sha": "6b3d038f3d29ace8909513d8bc52d946aba5f6cc",
+    "requested_model": "UNSET",
+    "effective_model": "UNSET",
+    "deployment_fingerprint": "UNSET",
+    "quality_metrics_authoritative": false
+  },
+  "base": {
+    "exact_integrated_main_base": "96c351fc358e559819f858f5ba99d505853fa642",
+    "base_is_ancestor": true
+  },
+  "checks": [
+    {
+      "command": "rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_accesskey_nonleakage tests.test_chg16_foundation tests.test_chg16_authentication_transport tests.test_chg16_host_integration -q",
+      "exit_code": 0,
+      "result": "Ran 40 tests in 2.508s; OK"
+    },
+    {
+      "command": "rtk env PYTHONPATH=src:. python -m unittest discover -s tests -q",
+      "exit_code": 0,
+      "result": "Ran 319 tests in 18.675s; OK (skipped=3)"
+    },
+    {
+      "command": "rtk env PYTHONPATH=src:. python -m compileall -q src evals tests",
+      "exit_code": 0,
+      "result": "Compilation completed successfully"
+    },
+    {
+      "command": "rtk git diff --check",
+      "exit_code": 0,
+      "result": "No whitespace errors"
+    },
+    {
+      "command": "rtk git merge-base --is-ancestor 96c351fc358e559819f858f5ba99d505853fa642 6b3d038f3d29ace8909513d8bc52d946aba5f6cc",
+      "exit_code": 0,
+      "result": "Exact requested base is an ancestor of the candidate"
+    },
+    {
+      "command": "rtk git push -u origin codex/k-slide-chg16-accesskey-nonleakage-01",
+      "exit_code": 0,
+      "result": "Remote work branch created at 6b3d038f3d29ace8909513d8bc52d946aba5f6cc"
+    }
+  ],
+  "changed_files": [
+    "evals/build_certification_bundle.py",
+    "evals/download_certification_bundle.py",
+    "evals/enforce_security.py",
+    "evals/freeze_production_dependencies.py",
+    "evals/generate_corpus.py",
+    "evals/heavy/doctor.py",
+    "evals/materialize_certification_bundle.py",
+    "evals/model_eval.py",
+    "evals/opencode_diagnostics.py",
+    "evals/opencode_runner.py",
+    "evals/release.py",
+    "evals/run_engine_eval.py",
+    "evals/run_model_eval.py",
+    "evals/run_opencode_diagnostics.py",
+    "evals/validate_certification_bundle_provenance.py",
+    "src/k_slide/authentication.py",
+    "src/k_slide/certification.py",
+    "src/k_slide/cli.py",
+    "src/k_slide/deletion.py",
+    "src/k_slide/doctor.py",
+    "src/k_slide/evidence_adapters.py",
+    "src/k_slide/extraction.py",
+    "src/k_slide/host_adapter.py",
+    "src/k_slide/ingest.py",
+    "src/k_slide/io.py",
+    "src/k_slide/normalization.py",
+    "src/k_slide/ocr/paddle.py",
+    "src/k_slide/ocr/policy.py",
+    "src/k_slide/production.py",
+    "src/k_slide/redaction.py",
+    "src/k_slide/retention.py",
+    "src/k_slide/runtime.py",
+    "src/k_slide/runtime_artifact.py",
+    "src/k_slide/security.py",
+    "src/k_slide/storage.py",
+    "src/k_slide/terminology.py",
+    "src/k_slide/verify.py",
+    "tests/test_chg16_accesskey_nonleakage.py"
+  ],
+  "commits": [
+    {
+      "sha": "6b3d038f3d29ace8909513d8bc52d946aba5f6cc",
+      "subject": "fix: harden KSA-15 AccessKey non-leakage"
+    }
+  ],
+  "git": {
+    "branch": "codex/k-slide-chg16-accesskey-nonleakage-01",
+    "head_sha": "6b3d038f3d29ace8909513d8bc52d946aba5f6cc",
+    "worktree_clean": true,
+    "main_mutated": false,
+    "notion_accessed": false
+  },
+  "evidence_manifest": {
+    "version": 1,
+    "count": 1,
+    "items": [
+      {
+        "path": ".codex-fabric/audit.json",
+        "purpose": "Exact commands/results, candidate identity, scope, and commit provenance"
+      }
+    ]
+  },
+  "failure_class": null,
+  "fabric_capture": {
+    "applied": false,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "finished_at": "2026-09-19T00:45:27Z"
+}
