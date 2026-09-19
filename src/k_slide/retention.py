@@ -68,7 +68,7 @@ def cleanup_expired_runs(
         policy = retention_policy if isinstance(retention_policy, RetentionPolicy) else RetentionPolicy.from_mapping(retention_policy, require_resolved=True)
         policy.require_resolved()
     except (TypeError, ValueError) as exc:
-        raise KSlideError(ErrorCode.RETENTION_INVALID, f"Invalid retention policy for content cleanup: {exc}") from exc
+        raise KSlideError(ErrorCode.RETENTION_INVALID, "Invalid retention policy for content cleanup.", {"reason": type(exc).__name__}) from exc
     if not isinstance(scope_context, AuthorizedScopeContext) or scope_context.scope_ref != "workspace":
         raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Retention expiry requires an authorized workspace scope context.")
     if hold_provider is None:

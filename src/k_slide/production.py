@@ -107,7 +107,7 @@ class ProductionProfile:
         try:
             retention_policy = RetentionPolicy.from_mapping(value[RETENTION_POLICY_FIELD], require_resolved=require_resolved_retention)
         except (TypeError, ValueError) as exc:
-            raise KSlideError(ErrorCode.PRODUCTION_PROFILE_INVALID, f"Invalid production retention policy: {exc}") from exc
+            raise KSlideError(ErrorCode.PRODUCTION_PROFILE_INVALID, "Invalid production retention policy.", {"reason": type(exc).__name__}) from exc
         return cls(
             schema_version=schema_version,
             release_state=str(value["release_state"]),
@@ -177,11 +177,15 @@ def _check(label: str, passed: bool, detail: str) -> dict[str, str]:
     return {"label": label, "status": "PASS" if passed else "FAIL", "detail": detail}
 
 
+def _safe_exception_detail(exc: Exception) -> str:
+    return type(exc).__name__
+
+
 def _asset_manifest_status(path: Path) -> tuple[bool, str]:
     try:
         result = validate_ocr_asset_manifest(path)
     except (EvidenceValidationError, OSError, UnicodeError, ValueError) as exc:
-        return False, str(exc)
+        return False, _safe_exception_detail(exc)
     return True, f"{result['file_count']} local assets"
 
 
@@ -235,7 +239,7 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
                 if expected_envelope:
                     checks.append(_check(f"Evidence {evidence_type} envelope hash", record.get("envelope_sha256") == expected_envelope, f"sha256={record.get('envelope_sha256')}"))
             except (EvidenceValidationError, OSError, ValueError) as exc:
-                checks.append(_check(f"Evidence {evidence_type}", False, str(exc)))
+                checks.append(_check(f"Evidence {evidence_type}", False, _safe_exception_detail(exc)))
         production_dependencies = manifest.get("production_dependencies")
         if manifest.get("release_state") == ReleaseState.PRODUCTION_CERTIFIED.value:
             if not isinstance(production_dependencies, dict):
@@ -306,7 +310,7 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
         certification_match = expected_certification == profile.certification_fingerprint == manifest.get("certification_fingerprint")
         checks.append(_check("Certification fingerprint", certification_match, f"expected={expected_certification}; profile={profile.certification_fingerprint}"))
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError, EvidenceValidationError) as exc:
-        checks.append(_check("Release manifest", False, str(exc)))
+        checks.append(_check("Release manifest", False, _safe_exception_detail(exc)))
     from .model_policy import ModelPolicy
 
     candidate_policy = (profile.candidate_spec or {}).get("model_policy")
@@ -372,7 +376,7 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
                 checks.append(_check("Candidate source identity", source_match, str(candidate_source)))
         except (EvidenceValidationError, OSError, UnicodeError, ValueError, TypeError) as exc:
             candidate_source_match = False
-            checks.append(_check("Candidate source identity", False, str(exc)))
+            checks.append(_check("Candidate source identity", False, _safe_exception_detail(exc)))
     checks.append(_check("Certification freshness", deployment_match and certification_match and candidate_source_match, "current" if deployment_match and certification_match and candidate_source_match else "CERTIFICATION_STALE"))
     return checks
 
@@ -431,7 +435,7 @@ def _candidate_execution_binding_check(root: Path, profile: ProductionProfile, p
         )
         expected = candidate_deployment_fingerprint(resolved)
     except (EvidenceValidationError, OSError, UnicodeError, ValueError, TypeError) as exc:
-        return _check("Candidate execution binding", False, str(exc))
+        return _check("Candidate execution binding", False, _safe_exception_detail(exc))
     return _check(
         "Candidate execution binding",
         expected == profile.deployment_fingerprint,
@@ -571,7 +575,7 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
         selected_manifest_match = runtime_ocr.get("asset_manifest_sha256") == manifest_identity.get("sha256")
         checks.append(_check("OCR selected configuration", selected_config_match and selected_manifest_match, f"expected={manifest_identity.get('paddlex_config')}; actual={runtime_ocr.get('paddlex_config') or 'unavailable'}"))
     except (EvidenceValidationError, OSError, UnicodeError, ValueError) as exc:
-        checks.append(_check("OCR selected configuration", False, str(exc)))
+        checks.append(_check("OCR selected configuration", False, _safe_exception_detail(exc)))
     checks.extend(_retention_policy_checks(profile.retention_policy))
     checks.append(_check("Tenant isolation", profile.tenant_isolation == "workspace_per_session", profile.tenant_isolation))
     checks.append(_check("Network egress", profile.network_egress == "approved_inference_only", profile.network_egress))
@@ -594,13 +598,13 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
         checks.append(_check("Paddle version", actual_paddle == profile.paddle_version, f"expected={profile.paddle_version}; actual={actual_paddle}"))
         checks.append(_check("PaddleOCR version", actual_paddleocr == profile.paddleocr_version, f"expected={profile.paddleocr_version}; actual={actual_paddleocr}"))
     except importlib.metadata.PackageNotFoundError as exc:
-        checks.append(_check("Pinned OCR dependency versions", False, str(exc)))
+        checks.append(_check("Pinned OCR dependency versions", False, _safe_exception_detail(exc)))
     try:
         expected_inventory = str((profile.candidate_spec or {}).get("resolved_dependency_set_sha256") or "")
         actual_inventory = dependency_inventory_hash(installed_dependency_inventory())
         checks.append(_check("Production dependency subject", actual_inventory == expected_inventory, f"expected={expected_inventory}; actual={actual_inventory}"))
     except (EvidenceValidationError, OSError, ValueError) as exc:
-        checks.append(_check("Production dependency subject", False, str(exc)))
+        checks.append(_check("Production dependency subject", False, _safe_exception_detail(exc)))
     office_version = getattr(runtime, "libreoffice_version", None) or _version_from_command("libreoffice") or _version_from_command("soffice")
     try:
         canonical_exact_version(profile.libreoffice_version, "libreoffice_version")
@@ -614,7 +618,7 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
     except KSlideError as exc:
         checks.append(_check("Paddle provider initialization", False, f"{exc.code.value}: {exc.message}"))
     except Exception as exc:
-        checks.append(_check("Paddle provider initialization", False, str(exc)))
+        checks.append(_check("Paddle provider initialization", False, _safe_exception_detail(exc)))
     checks.append(_check("Offline OCR mode", os.environ.get("KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS", "0").lower() in {"1", "true", "yes"}, "local assets required" if os.environ.get("KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS", "0").lower() in {"1", "true", "yes"} else "offline asset enforcement disabled"))
     checks.extend(_manifest_and_fingerprint_status(root, profile, runtime))
     return checks

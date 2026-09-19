@@ -81,7 +81,7 @@ def _inspect_zip(path: Path, *, extension: str) -> None:
     except KSlideError:
         raise
     except (OSError, zipfile.BadZipFile) as exc:
-        raise KSlideError(ErrorCode.INPUT_CORRUPT, "The Office archive is not readable.", {"reason": str(exc)}) from exc
+        raise KSlideError(ErrorCode.INPUT_CORRUPT, "The Office archive is not readable.", {"reason": type(exc).__name__}) from exc
 
 
 def _reject_symlink_components(path: Path) -> None:

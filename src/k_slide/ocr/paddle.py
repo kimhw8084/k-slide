@@ -59,7 +59,7 @@ class PaddleOCRProvider:
                     asset_root = Path.cwd()
                 runtime_configuration = paddle_runtime_configuration(asset_root=asset_root, configured_config=configured_config, require_local=require_local)
             except Exception as exc:
-                raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "Configured PaddleX OCR pipeline identity is invalid.", {"reason": str(exc)}) from exc
+                raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "Configured PaddleX OCR pipeline identity is invalid.", {"reason": type(exc).__name__}) from exc
         else:
             runtime_configuration = {"paddlex_config": None, "paddlex_config_sha256": None, "offline_assets_required": False, "asset_manifest_sha256": None}
         kwargs: dict[str, Any] = {"use_doc_orientation_classify": False, "use_doc_unwarping": False, "use_textline_orientation": False}
@@ -86,13 +86,13 @@ class PaddleOCRProvider:
         try:
             self._engine = paddleocr.PaddleOCR(**kwargs)
         except Exception as exc:
-            raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "PaddleOCR could not be initialized with the configured local assets.", {"reason": str(exc), "asset_config": self.asset_config}) from exc
+            raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "PaddleOCR could not be initialized with the configured local assets.", {"reason": type(exc).__name__, "asset_config": self.asset_config}) from exc
 
     def extract(self, image: Path, *, language_hints: tuple[str, ...] = ("ko", "en")) -> OCRResult:
         try:
             output = self._engine.predict(str(image))
         except Exception as exc:
-            raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "PaddleOCR failed to process the image.", {"image": image.name, "reason": str(exc)}) from exc
+            raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "PaddleOCR failed to process the image.", {"image": image.name, "reason": type(exc).__name__}) from exc
         regions: list[OCRRegion] = []
         for item in output or []:
             data = _result_mapping(item)

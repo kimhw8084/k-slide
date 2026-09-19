@@ -114,6 +114,31 @@ STORAGE_POLICY: Mapping[StorageArtifact, StoragePlane] = {
     StorageArtifact.DELETION_AUDIT: StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY,
 }
 
+_OPERATIONAL_JSON_ARTIFACTS = frozenset(
+    {
+        StorageArtifact.INPUT_INVENTORY,
+        StorageArtifact.RUN_MANIFEST,
+        StorageArtifact.RECOVERY_GUIDE,
+        StorageArtifact.SESSION_BINDING,
+        StorageArtifact.RUNTIME_METADATA,
+        StorageArtifact.RUN_STATE,
+        StorageArtifact.WORK_QUEUE,
+        StorageArtifact.EXECUTION_JOB,
+        StorageArtifact.ADMISSION_RECORD,
+        StorageArtifact.ADMISSION_QUEUE,
+        StorageArtifact.ADMISSION_CONTROL,
+        StorageArtifact.NORMALIZATION_MANIFEST,
+        StorageArtifact.NORMALIZATION_ERROR,
+        StorageArtifact.OCR_METADATA,
+        StorageArtifact.EXTRACTION_ERROR,
+        StorageArtifact.METRICS,
+        StorageArtifact.FAILURE_MARKER,
+        StorageArtifact.COMPLETION_MARKER,
+        StorageArtifact.DELETION_AUDIT,
+    }
+)
+_OPERATIONAL_TEXT_ARTIFACTS = frozenset({StorageArtifact.RECOVERY_GUIDE, StorageArtifact.FAILURE_MARKER, StorageArtifact.COMPLETION_MARKER})
+
 
 def _error(message: str, *, code: ErrorCode = ErrorCode.EXECUTION_INVALID) -> KSlideError:
     return KSlideError(code, message)
@@ -485,19 +510,30 @@ class StorageLayout:
     def write_text(self, artifact: StorageArtifact | str, relative_path: str, text: str, *, mode: int | None = 0o600) -> Path:
         from .io import atomic_write_text
 
-        if STORAGE_POLICY[_artifact(artifact)] is StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY:
+        artifact = _artifact(artifact)
+        if STORAGE_POLICY[artifact] is StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY:
             raise _error("Central telemetry must be written through TelemetryWriter.")
         path = self.path(artifact, relative_path, create_parent=True)
+        if artifact in _OPERATIONAL_TEXT_ARTIFACTS:
+            from .redaction import safe_diagnostic_text_or_placeholder
+
+            text = safe_diagnostic_text_or_placeholder(text, roots=(path.parent,))
         atomic_write_text(path, text, mode=mode)
         return path
 
     def write_json(self, artifact: StorageArtifact | str, relative_path: str, value: Any, *, mode: int | None = 0o600) -> Path:
-        from .io import atomic_write_json
+        from .io import atomic_write_json, atomic_write_text
 
-        if STORAGE_POLICY[_artifact(artifact)] is StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY:
+        artifact = _artifact(artifact)
+        if STORAGE_POLICY[artifact] is StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY:
             raise _error("Central telemetry must be written through TelemetryWriter.")
         path = self.path(artifact, relative_path, create_parent=True)
-        atomic_write_json(path, value, mode=mode)
+        if artifact in _OPERATIONAL_JSON_ARTIFACTS:
+            from .redaction import safe_operational_json
+
+            atomic_write_text(path, safe_operational_json(value), mode=mode)
+        else:
+            atomic_write_json(path, value, mode=mode)
         return path
 
     def resolve(self, reference: StorageReference, *, authorized_scope_ref: str | None = None, expected_plane: StoragePlane | str | None = None) -> Path:

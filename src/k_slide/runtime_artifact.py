@@ -559,7 +559,7 @@ def _main(argv: list[str] | None = None) -> int:
         else:
             value = verify_dependency_subject(lock_path=args.lock, inventory_path=args.inventory)
     except (EvidenceValidationError, OSError, UnicodeError, ValueError) as exc:
-        print(json.dumps({"status": "FAIL", "reason": str(exc)}, sort_keys=True))
+        print(json.dumps({"status": "FAIL", "reason": f"Runtime artifact check failed ({type(exc).__name__})."}, sort_keys=True))
         return 2
     print(json.dumps(value, ensure_ascii=False, sort_keys=True))
     return 0

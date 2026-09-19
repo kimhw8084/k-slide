@@ -88,7 +88,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = build(output=args.output, target_subject_git_sha=args.target_subject_sha, candidate_profile=args.candidate_profile, production_dependency_lock=args.production_dependency_lock, termbase_overlay=args.termbase_overlay, ocr_asset_manifest=args.ocr_asset_manifest)
     except (EvidenceValidationError, OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
-        print(json.dumps({"status": "BLOCKED", "reason": str(exc)}, ensure_ascii=False))
+        print(json.dumps({"status": "BLOCKED", "reason": f"Certification bundle blocked ({type(exc).__name__})."}, ensure_ascii=False))
         return 2
     print(json.dumps(result, ensure_ascii=False))
     return 0

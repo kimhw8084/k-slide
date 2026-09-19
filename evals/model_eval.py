@@ -218,7 +218,7 @@ class ModelEvaluationRunner:
             candidate_spec = self._candidate_spec(repo_root, subject_sha, manifest, model_policy)
         except (EvidenceValidationError, OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
             if self.mode == "quality" and (self.split in {"validation", "held_out"} or self.high_risk):
-                return self._blocked_record(self.output, model=self.model, split=self.split, reason=str(exc))
+                return self._blocked_record(self.output, model=self.model, split=self.split, reason=f"Model evaluation blocked ({type(exc).__name__}).")
             candidate_spec = {
                 "schema_version": CANDIDATE_SPEC_SCHEMA_VERSION,
                 "subject_git_sha": subject_sha,
@@ -287,8 +287,8 @@ class ModelEvaluationRunner:
             corpus_root = self.output / "corpus" / "artifacts"
             generate_artifacts(scenarios, corpus_root, formats=self.formats, variants=(DEFAULT_VARIANT,))
         except Exception as exc:
-            record = {"status": "CAPABILITY_BLOCK", "evaluation_state": EvaluationState.CAPABILITY_BLOCKED.value, "reason": f"Artifact generation unavailable: {exc}", "model": self.model, "split": self.split, "quality_metrics_authoritative": False}
-            write_results(self.output, [], {**record, "case_count": 0}, "# K-Slide Model Evaluation\n\n`CAPABILITY_BLOCK`\n\n" + str(exc) + "\n")
+            record = {"status": "CAPABILITY_BLOCK", "evaluation_state": EvaluationState.CAPABILITY_BLOCKED.value, "reason": f"Artifact generation unavailable ({type(exc).__name__}).", "model": self.model, "split": self.split, "quality_metrics_authoritative": False}
+            write_results(self.output, [], {**record, "case_count": 0}, "# K-Slide Model Evaluation\n\n`CAPABILITY_BLOCK`\n\nArtifact generation unavailable.\n")
             return record
         results: list[dict[str, Any]] = []
         runner = OpenCodeEvalRunner(model=self.model, timeout_seconds=self.timeout, ocr_policy=self.ocr_provider, policy=model_policy, policy_root=repo_root, candidate_spec=candidate_spec, candidate_root=repo_root)

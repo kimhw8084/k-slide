@@ -18,7 +18,7 @@ from .io import atomic_write_json, atomic_write_text
 from .queue import create_queue, save_queue
 from .policy import COMPLETION_POLICY
 from .runtime import discover_runtime
-from .redaction import sanitize_operational
+from .redaction import safe_diagnostic_text_or_placeholder, sanitize_operational
 from .security import InputArtifact, SUPPORTED_EXTENSIONS, sha256_file, validate_input
 from .session import bind_session
 from .storage import StorageArtifact, StorageLayout, StoragePlane, storage_path
@@ -170,7 +170,7 @@ def prepare_run(
         save_state(run_dir, state)
         sync_workspace_execution(run_dir, environment_identity=bound_environment)
         atomic_write_json(storage_path(run_dir, StorageArtifact.INPUT_INVENTORY, "00_input_inventory.json", create_parent=True), {"schema_version": SCHEMA_VERSION, "status": "failed_input", "error": sanitize_operational(exc.as_dict(), roots=(root,))}, mode=0o600)
-        atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{exc.message}\n\nError code: `{exc.code.value}`\n")
+        atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{safe_diagnostic_text_or_placeholder(exc.message)}\n\nError code: `{exc.code.value}`\n")
         return run_dir
     candidates = [] if raw_host_refs else _input_candidates(root, explicit_paths)
     host_inputs = bool(raw_host_refs)
@@ -195,7 +195,7 @@ def prepare_run(
         save_state(run_dir, state)
         sync_workspace_execution(run_dir, environment_identity=bound_environment)
         atomic_write_json(storage_path(run_dir, StorageArtifact.INPUT_INVENTORY, "00_input_inventory.json", create_parent=True), {"schema_version": SCHEMA_VERSION, "status": "failed_input", "error": sanitize_operational(exc.as_dict(), roots=(root,))}, mode=0o600)
-        atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{exc.message}\n\nError code: `{exc.code.value}`\n")
+        atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{safe_diagnostic_text_or_placeholder(exc.message)}\n\nError code: `{exc.code.value}`\n")
         return run_dir
 
     for index, artifact in enumerate(artifacts, start=1):

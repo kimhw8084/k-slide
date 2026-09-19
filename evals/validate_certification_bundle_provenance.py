@@ -149,7 +149,7 @@ def main(argv: list[str] | None = None) -> int:
         repository = json.loads(Path(args.repository_json).read_text(encoding="utf-8"))
         result = validate_provenance(run=run, artifacts=artifacts, expected_run_id=args.run_id, expected_artifact_name=args.artifact_name, expected_source_repository=args.source_repository, expected_workflow_id=args.workflow_id, expected_workflow_path=args.workflow_path, target_subject_git_sha=args.target_subject_sha, expected_digest=args.artifact_sha256, public_repository=args.public_repository, source_repository_metadata=repository)
     except (OSError, UnicodeError, json.JSONDecodeError, BundleProvenanceError) as exc:
-        print(json.dumps({"status": "BLOCKED", "reason": str(exc)}, ensure_ascii=False))
+        print(json.dumps({"status": "BLOCKED", "reason": f"Certification provenance blocked ({type(exc).__name__})."}, ensure_ascii=False))
         return 2
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0

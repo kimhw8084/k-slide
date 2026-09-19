@@ -1276,7 +1276,7 @@ def _metadata_policy(retention_policy: RetentionPolicy | Mapping[str, Any]) -> R
         policy.require_resolved()
         return policy
     except (TypeError, ValueError) as exc:
-        raise KSlideError(ErrorCode.RETENTION_INVALID, f"Invalid retention policy for operational-metadata cleanup: {exc}") from exc
+        raise KSlideError(ErrorCode.RETENTION_INVALID, "Invalid retention policy for operational-metadata cleanup.", {"reason": type(exc).__name__}) from exc
 
 
 def _operational_root(root: Path, *, workspace_namespace: Path | None = None) -> Path:

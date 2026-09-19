@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from .model_eval import ModelEvaluationRunner
+from k_slide.redaction import sanitize_operational
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -50,7 +51,7 @@ def main(argv: list[str] | None = None) -> int:
         candidate_profile=args.candidate_profile,
         high_risk=args.high_risk,
     ).run()
-    print(json.dumps(result, ensure_ascii=False))
+    print(json.dumps(sanitize_operational(result), ensure_ascii=False))
     if result.get("status") in {"GEMMA_QUALITY_EVALUATION_BLOCKED", "CAPABILITY_BLOCK", "NON_AUTHORITATIVE", "PROTOCOL_SMOKE_ONLY", "CAPABILITY_BLOCKED"}:
         return 0
     return 0 if result.get("status") == "PASS" else 2

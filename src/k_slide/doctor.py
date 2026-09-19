@@ -14,12 +14,19 @@ from .runtime import discover_runtime
 from .security import validate_input
 from .ocr.policy import create_ocr_provider, load_ocr_policy
 from .production import production_checks
-from .redaction import sanitize_operational
+from .redaction import CredentialExposureError, safe_diagnostic_text, sanitize_operational
 from .storage import StorageLayout, StoragePlane
 
 
 def _check(label: str, status: str, detail: str) -> dict[str, str]:
     return {"label": label, "status": status, "detail": detail}
+
+
+def _safe_exception_detail(exc: Exception) -> str:
+    try:
+        return safe_diagnostic_text(str(exc))
+    except CredentialExposureError:
+        return f"{type(exc).__name__} (diagnostic detail omitted safely)"
 
 
 def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path | None = None, production: bool = False) -> dict[str, Any]:
@@ -71,7 +78,7 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
             finally:
                 image_path.unlink(missing_ok=True)
         except (ImportError, OSError, ValueError) as exc:
-            image_detail = f"Pillow is installed but decode smoke test failed: {exc}"
+            image_detail = f"Pillow is installed but decode smoke test failed: {_safe_exception_detail(exc)}"
     checks.append(_check("Image decoder", image_status, image_detail))
     checks.append(_check("PDF extraction/rendering", "PASS" if importlib.util.find_spec("fitz") else "WARN", "PyMuPDF available" if importlib.util.find_spec("fitz") else "install k-slide[pdf] for PDF normalization"))
     checks.append(_check("PPTX extraction", "PASS" if importlib.util.find_spec("pptx") else "WARN", "python-pptx available" if importlib.util.find_spec("pptx") else "install k-slide[pptx] for native PPTX extraction"))
@@ -88,7 +95,7 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
         checks.append(_check("OCR policy", ocr_status, f"requested={selection.requested}; effective={selection.effective}; version={selection.version}; {selection.reason or 'provider initialized'}"))
         checks.append(_check("Korean OCR", "PASS" if selection.effective == "paddle" else "WARN", f"effective provider: {selection.effective}"))
     except Exception as exc:
-        checks.append(_check("OCR policy", "FAIL", str(exc)))
+        checks.append(_check("OCR policy", "FAIL", _safe_exception_detail(exc)))
     try:
         # A scratch probe cannot establish whether normal run creation can
         # write the durable authority. Probe the actual durable root and
@@ -108,7 +115,7 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
             raise OSError("durable run writability probe was not removed")
         checks.append(_check("Writable run directory", "PASS", str(root / ".k-slide-runs")))
     except OSError as exc:
-        checks.append(_check("Writable run directory", "FAIL", str(exc)))
+        checks.append(_check("Writable run directory", "FAIL", _safe_exception_detail(exc)))
     try:
         if importlib.util.find_spec("PIL"):
             from PIL import Image
@@ -124,7 +131,7 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
         else:
             checks.append(_check("Input validation", "WARN", "Pillow unavailable; header-only validation is not treated as a capability pass"))
     except Exception as exc:
-        checks.append(_check("Input validation", "FAIL", str(exc)))
+        checks.append(_check("Input validation", "FAIL", _safe_exception_detail(exc)))
     if production:
         checks.extend(production_checks(root, runtime))
     overall = "FAIL" if any(item["status"] == "FAIL" for item in checks) else ("WARN" if any(item["status"] == "WARN" for item in checks) else "PASS")

@@ -31,6 +31,8 @@ from .opencode_events import (
 from .certification import load_model_policy
 from k_slide.certification import EvidenceValidationError, effective_termbase_identity
 from .process_control import terminate_process_group
+from k_slide.authentication import ACCESS_KEY_ENV
+from k_slide.redaction import CredentialExposureError, safe_credential_json, safe_diagnostic_text_or_placeholder, sanitize_operational
 
 
 @dataclass(frozen=True)
@@ -55,7 +57,7 @@ class OpenCodeRunResult:
     diagnostics: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "status": self.status,
             "mode": self.mode,
             "model": self.model,
@@ -74,11 +76,64 @@ class OpenCodeRunResult:
             "quality_metrics_authoritative": self.quality_metrics_authoritative,
             "diagnostics": self.diagnostics,
         }
+        try:
+            return json.loads(safe_credential_json(payload))
+        except CredentialExposureError:
+            # A result is a user/host boundary. If a free-form field still
+            # contains the ambient credential after structural sanitization,
+            # keep only bounded non-diagnostic facts rather than serializing a
+            # guessed credential format or raw model output.
+            return {
+                "status": self.status,
+                "mode": self.mode,
+                "model": self.model,
+                "runtime_version": self.runtime_version,
+                "duration_seconds": self.duration_seconds,
+                "event_count": len(self.events),
+                "media_read_observed": self.media_read_observed,
+                "run_artifact_count": self.run_artifact_count,
+                "kslide_complete": self.kslide_complete,
+                "quality_metrics_authoritative": self.quality_metrics_authoritative,
+                "final_text": None,
+                "reason": "OpenCode diagnostic output was omitted because it could not be persisted safely.",
+                "diagnostics": {"status": "REDACTED_UNSAFE_DIAGNOSTIC"},
+            }
+
+
+def _process_environment() -> dict[str, str]:
+    """Give OpenCode no access to the process-only company credential."""
+
+    environment = dict(os.environ)
+    environment.pop(ACCESS_KEY_ENV, None)
+    return environment
+
+
+def _persist_text(path: Path, value: str) -> None:
+    safe = safe_diagnostic_text_or_placeholder(value, roots=(path.parent,))
+    path.write_text(safe, encoding="utf-8")
+
+
+def _persist_json(path: Path, value: Any) -> None:
+    try:
+        safe = safe_credential_json(value, roots=(path.parent,))
+    except CredentialExposureError:
+        safe = json.dumps({"status": "REDACTED_UNSAFE_DIAGNOSTIC", "artifact": path.name}, ensure_ascii=False, indent=2) + "\n"
+    path.write_text(safe, encoding="utf-8")
+
+
+def _persist_jsonl(path: Path, values: list[Any]) -> None:
+    lines: list[str] = []
+    for value in values:
+        try:
+            lines.append(safe_credential_json(value, roots=(path.parent,)).rstrip("\n"))
+        except CredentialExposureError:
+            lines.append(json.dumps({"status": "REDACTED_UNSAFE_DIAGNOSTIC", "artifact": path.name}, ensure_ascii=False))
+    path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 
 
 def _version(opencode: str) -> str | None:
     try:
-        result = subprocess.run([opencode, "--version"], capture_output=True, text=True, timeout=5, check=False)
+        result = subprocess.run([opencode, "--version"], capture_output=True, text=True, timeout=5, check=False, env=_process_environment())
     except (OSError, subprocess.TimeoutExpired):
         return None
     output = (result.stdout or result.stderr).strip()
@@ -90,7 +145,7 @@ def _configured_model(opencode: str) -> str | None:
     """Read the effective configured model when OpenCode exposes it."""
 
     try:
-        result = subprocess.run([opencode, "debug", "config"], capture_output=True, text=True, timeout=10, check=False)
+        result = subprocess.run([opencode, "debug", "config"], capture_output=True, text=True, timeout=10, check=False, env=_process_environment())
     except (OSError, subprocess.TimeoutExpired):
         return None
     try:
@@ -153,7 +208,11 @@ def _diagnostics(root: Path, *, events: list[dict[str, Any]] | None = None, time
                 result[filename] = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
                 result[filename] = "CORRUPT_OR_UNREADABLE"
-    return result
+    safe = sanitize_operational(result)
+    try:
+        return json.loads(safe_credential_json(safe, roots=(root,)))
+    except CredentialExposureError:
+        return {"timeout": timeout, "run": result.get("run"), "status": "REDACTED_UNSAFE_DIAGNOSTIC"}
 
 
 def _read_policy_violations(root: Path, normalized: tuple[Any, ...]) -> list[str]:
@@ -246,7 +305,7 @@ class OpenCodeEvalRunner:
         except Exception as exc:
             if root_context is not None:
                 root_context.cleanup()
-            return OpenCodeRunResult("INSTALL_FAILED", mode, self.model, self.runtime_version, str(root), 0.0, (), (), (), None, None, reason=str(exc))
+            return OpenCodeRunResult("INSTALL_FAILED", mode, self.model, self.runtime_version, str(root), 0.0, (), (), (), None, None, reason=f"OpenCode project installation failed ({type(exc).__name__}).")
         termbase_overlay: Path | None = None
         if self.candidate_spec is not None:
             try:
@@ -256,8 +315,8 @@ class OpenCodeEvalRunner:
                     termbase_overlay.unlink()
                 if root_context is not None:
                     root_context.cleanup()
-                return OpenCodeRunResult("CANDIDATE_CONFIG_BLOCKED", mode, self.model, self.runtime_version, str(root), 0.0, (), (), (), None, None, reason=str(exc), diagnostics={"candidate_termbase_verified": False})
-        env = dict(os.environ)
+                return OpenCodeRunResult("CANDIDATE_CONFIG_BLOCKED", mode, self.model, self.runtime_version, str(root), 0.0, (), (), (), None, None, reason=f"Candidate configuration could not be prepared ({type(exc).__name__}).", diagnostics={"candidate_termbase_verified": False})
+        env = _process_environment()
         env["KSLIDE_MODEL"] = self.model
         started = time.monotonic()
         try:
@@ -277,17 +336,17 @@ class OpenCodeEvalRunner:
                 normalized = normalize_events(raw_events)
                 diagnostics = _diagnostics(root, events=raw_events, timeout=True)
                 diagnostics.update({"process_state": "TIMEOUT", "event_count": len(raw_events), "last_tool_call": normalized[-1].tool_name if normalized else None, "elapsed_seconds": time.monotonic() - started, "process_cleanup": cleanup})
-                (root / "opencode-timeout-stdout.log").write_text(partial, encoding="utf-8")
-                (root / "opencode-timeout-stderr.log").write_text(partial_stderr, encoding="utf-8")
-                (root / "opencode-timeout-diagnostics.json").write_text(json.dumps(diagnostics, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                _persist_text(root / "opencode-timeout-stdout.log", partial)
+                _persist_text(root / "opencode-timeout-stderr.log", partial_stderr)
+                _persist_json(root / "opencode-timeout-diagnostics.json", diagnostics)
                 return OpenCodeRunResult("TIMEOUT", mode, self.model, self.runtime_version, str(root), time.monotonic() - started, tuple(raw_events), tool_calls(normalized), forbidden_tool_attempts(normalized), None, None, reason="OpenCode command exceeded the evaluation timeout.", normalized_events=tuple(event.as_dict() for event in normalized), diagnostics=diagnostics)
             combined = f"{stdout}\n{stderr}"
             raw_events = parse_json_events(combined)
             normalized = normalize_events(raw_events)
-            (root / "opencode-stdout.log").write_text(stdout, encoding="utf-8")
-            (root / "opencode-stderr.log").write_text(stderr, encoding="utf-8")
-            (root / "opencode-events.jsonl").write_text("\n".join(json.dumps(item, ensure_ascii=False) for item in raw_events) + ("\n" if raw_events else ""), encoding="utf-8")
-            (root / "opencode-events.normalized.jsonl").write_text("\n".join(json.dumps(item.as_dict(), ensure_ascii=False) for item in normalized) + ("\n" if normalized else ""), encoding="utf-8")
+            _persist_text(root / "opencode-stdout.log", stdout)
+            _persist_text(root / "opencode-stderr.log", stderr)
+            _persist_jsonl(root / "opencode-events.jsonl", raw_events)
+            _persist_jsonl(root / "opencode-events.normalized.jsonl", [item.as_dict() for item in normalized])
             forbidden = forbidden_tool_attempts(normalized)
             media = media_compliance(normalized)
             read_violations = _read_policy_violations(root, normalized)
@@ -296,7 +355,14 @@ class OpenCodeEvalRunner:
             observed_model = observed_models[0] if len(observed_models) == 1 else None
             effective_model = observed_model
             error_events = [event for raw, event in zip(raw_events, normalized) if is_error_event(event, raw)]
-            structured_error_text = [json.dumps(raw.get("error"), ensure_ascii=False) for raw in raw_events if isinstance(raw, dict) and "error" in raw]
+            structured_error_text: list[str] = []
+            for raw in raw_events:
+                if not isinstance(raw, dict) or "error" not in raw:
+                    continue
+                try:
+                    structured_error_text.append(safe_diagnostic_text(json.dumps(raw.get("error"), ensure_ascii=False)))
+                except CredentialExposureError:
+                    structured_error_text.append("[REDACTED_UNSAFE_DIAGNOSTIC]")
             latest_run = _latest_run(root)
             kslide_complete, contract = _completion_contract(latest_run)
             final_text = next((event.text for event in reversed(normalized) if event.text), None)

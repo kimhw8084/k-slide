@@ -82,7 +82,7 @@ def load_termbase(path: Path) -> Termbase:
         else:
             value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Termbase could not be read.", {"path": str(path), "reason": str(exc)}) from exc
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Termbase could not be read.", {"path": str(path), "reason": type(exc).__name__}) from exc
     return _parse_records(value, origin=str(path))
 
 

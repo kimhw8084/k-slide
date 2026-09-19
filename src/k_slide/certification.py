@@ -467,7 +467,7 @@ def effective_termbase_identity(root: Path) -> dict[str, Any] | None:
     try:
         termbase = load_effective_termbase(root)
     except Exception as exc:
-        raise EvidenceValidationError(f"effective termbase could not be resolved: {exc}") from exc
+        raise EvidenceValidationError(f"effective termbase could not be resolved ({type(exc).__name__})") from exc
     if not termbase.records:
         return None
     records = []
@@ -757,7 +757,7 @@ def _normalize_candidate_mapping(value: dict[str, Any], *, strict: bool = False)
         try:
             normalized[RETENTION_POLICY_FIELD] = RetentionPolicy.from_mapping(normalized[RETENTION_POLICY_FIELD]).as_dict()
         except (TypeError, ValueError) as exc:
-            raise EvidenceValidationError(str(exc)) from exc
+            raise EvidenceValidationError(f"retention policy is invalid ({type(exc).__name__})") from exc
     if isinstance(normalized.get("model_policy"), dict):
         from .model_policy import ModelPolicy
 
@@ -1538,7 +1538,7 @@ def load_evidence(path: Path, *, expected_type: str | None = None, subject_git_s
         try:
             verified = verify_machine_envelope(path, value, subject_git_sha=subject_git_sha, deployment_fingerprint=deployment_fingerprint, root=repository_root, candidate_spec=candidate_spec)
         except AdapterError as exc:
-            raise EvidenceValidationError(str(exc)) from exc
+            raise EvidenceValidationError(f"machine evidence adapter rejected the envelope ({type(exc).__name__})") from exc
         if payload != verified["payload"]:
             raise EvidenceValidationError("machine evidence payload is not the adapter-derived payload")
         validate_evidence_payload(str(evidence_type), payload)

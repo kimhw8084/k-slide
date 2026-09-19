@@ -23,7 +23,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = enforce_security_scanners(sources)
     except (AdapterError, OSError, ValueError) as exc:
-        print(json.dumps({"status": "FAIL", "reason": str(exc)}, ensure_ascii=False))
+        print(json.dumps({"status": "FAIL", "reason": f"Security enforcement failed ({type(exc).__name__})."}, ensure_ascii=False))
         return 2
     print(json.dumps({"status": "PASS", **result}, ensure_ascii=False))
     return 0

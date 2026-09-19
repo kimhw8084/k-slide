@@ -342,7 +342,7 @@ def _derive_heavy(sources: dict[str, Path], *, root: Path | None = None, candida
             try:
                 asset_identity = validate_ocr_asset_manifest(values["ocr_asset_manifest"], expected_sha256=expected_asset_hash, verify_files=False)
             except EvidenceValidationError as exc:
-                raise AdapterError(f"heavy OCR asset manifest is invalid: {exc}") from exc
+                raise AdapterError(f"heavy OCR asset manifest is invalid ({type(exc).__name__})") from exc
             asset_context = _read_json(values["ocr_asset_context"])
             if not isinstance(asset_context, dict) or asset_context.get("status") != "PASS" or asset_context.get("runtime_verified") is not True or asset_context.get("after_engine") is not True:
                 raise AdapterError("heavy OCR asset runtime proof is missing")
@@ -1082,7 +1082,7 @@ def verify_envelope_sources(envelope_path: Path, envelope: dict[str, Any]) -> tu
         try:
             path = safe_relative_path(root, relative, label="machine evidence source", require_file=True)
         except EvidenceValidationError as exc:
-            raise AdapterError(str(exc)) from exc
+            raise AdapterError(f"machine evidence source is invalid ({type(exc).__name__})") from exc
         expected = str(item.get("sha256", "")).lower()
         actual = _hash_file(path)
         if actual != expected:
@@ -1106,7 +1106,7 @@ def build_machine_evidence(output: Path, *, evidence_type: str, subject_git_sha:
                 policy = ModelPolicy.from_mapping(candidate_spec.get("model_policy")) if isinstance(candidate_spec.get("model_policy"), dict) else None
                 resolved = resolve_candidate_spec(candidate_spec, root=root, subject_git_sha=subject_git_sha, model_policy=policy, corpus=candidate_spec.get("corpus_identity"), require_sources=True)
             except (EvidenceValidationError, OSError, ValueError, TypeError) as exc:
-                raise AdapterError(f"candidate execution inputs could not be verified: {exc}") from exc
+                raise AdapterError(f"candidate execution inputs could not be verified ({type(exc).__name__})") from exc
             if canonical_candidate_factors(resolved) != canonical_candidate_factors(candidate_spec):
                 raise AdapterError("candidate specification is not the finalized executable candidate")
         candidate_factors = canonical_candidate_factors(candidate_spec)
@@ -1182,7 +1182,7 @@ def main(argv: list[str] | None = None) -> int:
         # source-verifying instead of degrading to a profile-only fingerprint.
         build_machine_evidence(args.output, evidence_type=args.evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=candidate_root, candidate_spec=candidate)
     except (AdapterError, OSError, ValueError) as exc:
-        print(json.dumps({"status": "BLOCKED", "reason": str(exc)}, ensure_ascii=False))
+        print(json.dumps({"status": "BLOCKED", "reason": f"Evidence adapter blocked ({type(exc).__name__})."}, ensure_ascii=False))
         return 2
     print(json.dumps({"status": "PASS", "evidence": str(args.output), "evidence_type": args.evidence_type}, ensure_ascii=False))
     return 0

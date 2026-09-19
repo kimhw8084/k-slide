@@ -45,7 +45,7 @@ def read_json(path: Path) -> Any:
         raise KSlideError(
             ErrorCode.STATE_CORRUPT,
             f"Could not read structured state: {path.name}",
-            {"path": str(path), "reason": str(exc)},
+            {"path": str(path), "reason": type(exc).__name__},
         ) from exc
 
 

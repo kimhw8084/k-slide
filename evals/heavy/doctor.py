@@ -43,7 +43,7 @@ def _font_check() -> dict[str, object]:
         info = discover_korean_font()
         return {"status": "PASS", "family": info.family, "path": info.path}
     except Exception as exc:
-        return {"status": "FAIL", "reason": str(exc)}
+        return {"status": "FAIL", "reason": f"Check failed ({type(exc).__name__})."}
 
 
 def _ocr_asset_identity(*, required: bool = False) -> dict[str, object]:
@@ -69,7 +69,7 @@ def _ocr_asset_identity(*, required: bool = False) -> dict[str, object]:
             "offline_assets_required": configuration["offline_assets_required"],
         }
     except Exception as exc:
-        return {"status": "FAIL", "reason": str(exc)}
+        return {"status": "FAIL", "reason": f"Check failed ({type(exc).__name__})."}
 
 
 def _libreoffice_roundtrip(*, required: bool = False) -> dict[str, object]:
@@ -112,7 +112,7 @@ def _libreoffice_roundtrip(*, required: bool = False) -> dict[str, object]:
             valid = len(units) == 3 and all(path.is_file() and path.stat().st_size > 0 for path in renders)
             return {"status": "PASS" if valid else "FAIL", "slide_count": len(units), "render_count": len(renders), "render_dimensions": [[unit.width_px, unit.height_px] for unit in units]}
     except Exception as exc:
-        return {"status": "FAIL", "reason": str(exc)}
+        return {"status": "FAIL", "reason": f"Check failed ({type(exc).__name__})."}
 
 
 def _paddle_ocr_roundtrip(*, required: bool = False) -> dict[str, object]:
@@ -141,7 +141,7 @@ def _paddle_ocr_roundtrip(*, required: bool = False) -> dict[str, object]:
             boxes_valid = all(region.bbox_px[2] > region.bbox_px[0] and region.bbox_px[3] > region.bbox_px[1] for region in result.regions)
             return {"status": "PASS" if result.regions and found >= 1 and boxes_valid else "FAIL", "region_count": len(result.regions), "expected_key_recall": found / len(expected), "boxes_valid": boxes_valid, "provider": result.provider, "version": result.provider_version, "requested_policy": selection.requested, "effective_provider": selection.effective}
     except Exception as exc:
-        return {"status": "FAIL", "reason": str(exc)}
+        return {"status": "FAIL", "reason": f"Check failed ({type(exc).__name__})."}
 
 
 def main(*, required: bool = False, networkless: bool = False) -> int:
@@ -173,7 +173,7 @@ def main(*, required: bool = False, networkless: bool = False) -> int:
             selection = create_ocr_provider(OCRProviderPolicy.PADDLE)
             checks["paddle_load"] = {"status": "PASS", "provider": selection.effective, "version": selection.version, "requested_policy": selection.requested}
         except Exception as exc:
-            checks["paddle_load"] = {"status": "FAIL", "reason": str(exc)}
+            checks["paddle_load"] = {"status": "FAIL", "reason": f"Paddle load failed ({type(exc).__name__})."}
     else:
         missing = [name for name, module in (("PaddleOCR", "paddleocr"), ("Pillow", "PIL")) if importlib.util.find_spec(module) is None]
         checks["paddle_load"] = {"status": "FAIL" if required else "BLOCKED", "reason": f"Unavailable: {', '.join(missing)}."}

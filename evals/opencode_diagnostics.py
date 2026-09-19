@@ -17,24 +17,47 @@ from k_slide import __version__
 from k_slide.certification import CANDIDATE_SPEC_SCHEMA_VERSION, candidate_deployment_fingerprint, canonical_candidate_factors, canonical_corpus_identity, load_candidate_spec, resolve_candidate_spec
 from k_slide.model_policy import load_model_policy
 from k_slide.runtime import discover_runtime
-from k_slide.redaction import redact_text, redact_value
+from k_slide.authentication import ACCESS_KEY_ENV
+from k_slide.redaction import CredentialExposureError, redact_value, safe_credential_json, safe_diagnostic_text_or_placeholder
 from .scenarios import split_manifest
 
 
 def _persist_level(output: Path, name: str, result: dict[str, Any]) -> None:
     output.mkdir(parents=True, exist_ok=True)
-    safe = redact_value(result, roots=(output,))
-    (output / f"{name}.json").write_text(json.dumps(safe, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    (output / f"{name}.stdout").write_text(redact_text(str(result.get("stdout", "")), roots=(output,)), encoding="utf-8")
-    (output / f"{name}.stderr").write_text(redact_text(str(result.get("stderr", "")), roots=(output,)), encoding="utf-8")
-    (output / f"{name}.events.json").write_text(json.dumps(redact_value(result.get("events", []), roots=(output,)), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    try:
+        safe_json = safe_credential_json(result, roots=(output,))
+    except CredentialExposureError:
+        safe_json = json.dumps({"status": "REDACTED_UNSAFE_DIAGNOSTIC", "artifact": f"{name}.json"}, ensure_ascii=False, indent=2) + "\n"
+    (output / f"{name}.json").write_text(safe_json, encoding="utf-8")
+    for suffix, field in (("stdout", "stdout"), ("stderr", "stderr")):
+        text = safe_diagnostic_text_or_placeholder(str(result.get(field, "")), roots=(output,))
+        (output / f"{name}.{suffix}").write_text(text, encoding="utf-8")
+    try:
+        events = safe_credential_json(result.get("events", []), roots=(output,))
+    except CredentialExposureError:
+        events = json.dumps({"status": "REDACTED_UNSAFE_DIAGNOSTIC", "artifact": f"{name}.events.json"}, ensure_ascii=False, indent=2) + "\n"
+    (output / f"{name}.events.json").write_text(events, encoding="utf-8")
+
+
+def _process_environment() -> dict[str, str]:
+    environment = dict(os.environ)
+    environment.pop(ACCESS_KEY_ENV, None)
+    return environment
+
+
+def _persist_diagnostics(output: Path, result: dict[str, Any]) -> None:
+    try:
+        text = safe_credential_json(result, roots=(output,))
+    except CredentialExposureError:
+        text = json.dumps({"status": "REDACTED_UNSAFE_DIAGNOSTIC", "artifact": "diagnostics.json"}, ensure_ascii=False, indent=2) + "\n"
+    (output / "diagnostics.json").write_text(text, encoding="utf-8")
 
 
 def _run_command(name: str, command: list[str], workspace: Path, output: Path, timeout: int, *, parse_events: bool = False) -> dict[str, Any]:
     started = time.monotonic()
     cleanup = {"sigterm_sent": False, "sigkill_sent": False, "reaped": True}
     try:
-        process = subprocess.Popen(command, cwd=workspace, env=dict(os.environ), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+        process = subprocess.Popen(command, cwd=workspace, env=_process_environment(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
         try:
             stdout, stderr = process.communicate(timeout=timeout)
             timed_out = False
@@ -44,7 +67,7 @@ def _run_command(name: str, command: list[str], workspace: Path, output: Path, t
             timed_out = True
         exit_code = process.returncode
     except OSError as exc:
-        result = {"level": name, "command": command, "status": "BLOCKED", "exit_code": None, "duration_seconds": round(time.monotonic() - started, 3), "event_count": 0, "last_event": None, "last_tool": None, "stdout": "", "stderr": str(exc), "events": [], "process_cleanup": cleanup}
+        result = {"level": name, "command": command, "status": "BLOCKED", "exit_code": None, "duration_seconds": round(time.monotonic() - started, 3), "event_count": 0, "last_event": None, "last_tool": None, "stdout": "", "stderr": f"{type(exc).__name__}", "events": [], "process_cleanup": cleanup}
         _persist_level(output, name, result)
         return result
     raw_events = parse_json_events(f"{stdout}\n{stderr}") if parse_events else []
@@ -119,20 +142,20 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
         try:
             candidate = load_candidate_spec(candidate_profile, root=repo_root, require_identity=False, strict=True)
         except Exception as exc:
-            result = {"status": "BLOCKED", "model": model, "subject_git_sha": subject_sha, "reason": str(exc), "levels": [], "first_failed_level": "candidate_profile", "conclusion": "CANDIDATE_PROFILE_INVALID"}
-            (output / "diagnostics.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            result = {"status": "BLOCKED", "model": model, "subject_git_sha": subject_sha, "reason": f"Candidate profile could not be loaded ({type(exc).__name__}).", "levels": [], "first_failed_level": "candidate_profile", "conclusion": "CANDIDATE_PROFILE_INVALID"}
+            _persist_diagnostics(output, result)
             return result
     else:
         candidate = {"schema_version": CANDIDATE_SPEC_SCHEMA_VERSION, "subject_git_sha": subject_sha, "kslide_version": __version__, "requested_model": model, "effective_model": "UNSET"}
     declared_model = str(candidate.get("requested_model") or "")
     if declared_model and declared_model.upper() != "UNSET" and declared_model != model:
         result = {"status": "BLOCKED", "model": model, "subject_git_sha": subject_sha, "reason": "candidate requested_model does not match diagnostic model", "levels": [], "first_failed_level": "candidate_profile", "conclusion": "CANDIDATE_PROFILE_INVALID"}
-        (output / "diagnostics.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        _persist_diagnostics(output, result)
         return result
     declared_subject = str(candidate.get("subject_git_sha") or "")
     if declared_subject and declared_subject.upper() != "UNSET" and declared_subject != subject_sha:
         result = {"status": "BLOCKED", "model": model, "subject_git_sha": subject_sha, "reason": "candidate subject_git_sha does not match diagnostic subject", "levels": [], "first_failed_level": "candidate_profile", "conclusion": "CANDIDATE_PROFILE_INVALID"}
-        (output / "diagnostics.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        _persist_diagnostics(output, result)
         return result
     candidate["subject_git_sha"] = subject_sha
     candidate["requested_model"] = model
@@ -142,7 +165,7 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
     executable = opencode or shutil.which("opencode")
     if not executable or (opencode is not None and not Path(executable).is_file()):
         result = {"status": "BLOCKED", "model": model, "subject_git_sha": subject_sha, "deployment_fingerprint": deployment, "candidate_spec": canonical_candidate_factors(candidate), "runtime_provenance": discover_runtime(repo_root).as_dict(), "reason": "OpenCode executable is unavailable.", "levels": [], "first_failed_level": "level0_opencode", "conclusion": "OPENCODE_EXECUTABLE_UNAVAILABLE"}
-        (output / "diagnostics.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        _persist_diagnostics(output, result)
         return result
 
     with tempfile.TemporaryDirectory(prefix="k-slide-opencode-diagnostics-") as directory:
@@ -186,7 +209,7 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
                 install(Path(__file__).resolve().parents[1], kslide_workspace, scope="project")
                 install_result = {"status": "PASS", "workspace": str(kslide_workspace)}
             except Exception as exc:
-                install_result = {"status": "FAIL", "reason": str(exc), "workspace": str(kslide_workspace)}
+                install_result = {"status": "FAIL", "reason": f"Project installation failed ({type(exc).__name__}).", "workspace": str(kslide_workspace)}
         _persist_level(output, "kslide_install", install_result)
 
         if install_result.get("status") == "PASS":
@@ -203,7 +226,7 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
                 levels.append(level4_result)
                 _persist_level(output, "level4_k_slide_command", level4_result)
             except Exception as exc:
-                level4_result = {"level": "level4_k_slide_command", "status": "BLOCKED", "reason": str(exc), "event_count": 0, "last_event": None, "last_tool": None, "stdout": "", "stderr": str(exc), "events": [], "process_cleanup": {"sigterm_sent": False, "sigkill_sent": False, "reaped": True}}
+                level4_result = {"level": "level4_k_slide_command", "status": "BLOCKED", "reason": f"K-Slide command diagnostic failed ({type(exc).__name__}).", "event_count": 0, "last_event": None, "last_tool": None, "stdout": "", "stderr": f"{type(exc).__name__}", "events": [], "process_cleanup": {"sigterm_sent": False, "sigkill_sent": False, "reaped": True}}
                 levels.append(level4_result)
                 _persist_level(output, "level4_k_slide_command", level4_result)
 
@@ -230,5 +253,5 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
             "first_failed_level": first_failed,
             "conclusion": conclusion,
         }
-        (output / "diagnostics.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        _persist_diagnostics(output, result)
         return result

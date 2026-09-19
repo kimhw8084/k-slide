@@ -221,4 +221,4 @@ def add_host_contract(value: dict[str, Any], *, phase: RunPhase | None, queue: W
         result.setdefault(key, item)
     if execution is not None:
         result.setdefault("execution", sanitize_operational(dict(execution)))
-    return result
+    return sanitize_operational(result)

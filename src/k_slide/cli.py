@@ -518,7 +518,7 @@ def main(argv: list[str] | None = None) -> int:
                 "status": "FAILED",
                 "error": {
                     "code": "KSLIDE_INTERNAL",
-                    "message": str(exc) or "K-Slide command failed safely.",
+                    "message": "K-Slide command failed safely.",
                     "details": {"exception_type": type(exc).__name__},
                 },
             },
