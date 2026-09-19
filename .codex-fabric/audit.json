@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "kind": "codex-fabric-audit-evidence",
+  "project_id": "k-slide",
+  "operation": "FIX",
+  "request": "chg16-accesskey-nonleakage-01-fix05",
+  "job_id": "CF-e32f40b50cbacc8036970f75",
+  "status": "EXECUTED_CHANGE",
+  "base_sha": "96c351fc358e559819f858f5ba99d505853fa642",
+  "candidate_identity": {
+    "predecessor_sha": "d4396b2313d52f5f2a4690486bcb4d04d290dba8",
+    "predecessor_parent": "11e43a7d0857d6e0e5dfc705a69778bf794d714b",
+    "fix_sha": "00970f47482a4930836aefc933962dd20fa86e7f"
+  },
+  "git": {
+    "base_sha": "96c351fc358e559819f858f5ba99d505853fa642",
+    "base_is_ancestor": true,
+    "branch": "codex/k-slide-chg16-accesskey-nonleakage-01-fix05",
+    "work_branch": "codex/k-slide-chg16-accesskey-nonleakage-01-fix05",
+    "head_sha": "00970f47482a4930836aefc933962dd20fa86e7f",
+    "remote_head_sha": "00970f47482a4930836aefc933962dd20fa86e7f",
+    "remote_exact_head": true,
+    "target_branch": "main",
+    "target_head_observed_after_execution": "96c351fc358e559819f858f5ba99d505853fa642",
+    "target_drifted_since_acceptance": false,
+    "detached_verify": false,
+    "worktree_clean": true,
+    "notion_accessed": false
+  },
+  "changed_files": [
+    {"path": ".opencode/internal/lib/k-slide-access-key.ts", "status": "R", "additions": 0, "deletions": 0, "sha256": "020ca46c4e4e4498b1c801622eed53cdd68684c12aa3daa2d25c5658a3a8926e"},
+    {"path": ".opencode/plugin/k-slide-host.ts", "status": "M", "additions": 3, "deletions": 1, "sha256": "d468690d4f38da9967338e025c2570b717f6bb89825ebff64d9bf168710bcf22"},
+    {"path": ".opencode/tools/kslide.ts", "status": "M", "additions": 1, "deletions": 1, "sha256": "536457f96fe9783ae5e65ef2a26cab732496c4d49d43ef7b98867aea64d4a72f"},
+    {"path": "src/k_slide/installer.py", "status": "M", "additions": 17, "deletions": 0, "sha256": "4c6f632778e541c96055cc263f24c111bbeea33d669bc948afc804cec8ccfb92"},
+    {"path": "tests/test_chg16_host_integration.py", "status": "M", "additions": 16, "deletions": 0, "sha256": "52932f073ffefc83ff06b99624afc6b9c1edc0529db833c1eb214ec31026ed67"},
+    {"path": "tests/test_chg16_opencode_plugin.ts", "status": "M", "additions": 43, "deletions": 5, "sha256": "8935406e2a03faeed7858e8693c116aad965491870f99374905b1c4118289682"}
+  ],
+  "checks": [
+    {"type": "command_execution", "command": "PYTHONPATH=src python3 -m unittest tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_foundation tests.test_chg16_host_integration", "exit_code": 0, "result": "48 tests passed"},
+    {"type": "command_execution", "command": "PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py'", "exit_code": 0, "result": "327 tests passed; 3 optional skips"},
+    {"type": "command_execution", "command": "PYTHONPATH=src python3 -m compileall -q src evals tests", "exit_code": 0, "result": "compiled"},
+    {"type": "command_execution", "command": "npx --yes esbuild .opencode/plugin/k-slide-host.ts .opencode/tools/kslide.ts tests/test_chg16_opencode_plugin.ts --bundle --platform=node --format=esm --external:@opencode-ai/plugin", "exit_code": 0, "result": "bundled"},
+    {"type": "command_execution", "command": "npx --yes tsx -e 'import(\"./tests/test_chg16_opencode_plugin.ts\").then((module) => module.default.openCodeV139PluginLoaderCompatibilityBoundary())", "exit_code": 0, "result": "OpenCode v1.3.9 plugin-loader compatibility regression passed"},
+    {"type": "command_execution", "command": "opencode --version", "exit_code": 0, "result": "1.3.9"},
+    {"type": "command_execution", "command": "git diff 96c351fc358e559819f858f5ba99d505853fa642..00970f47482a4930836aefc933962dd20fa86e7f --check", "exit_code": 0, "result": "clean"},
+    {"type": "environmental_block", "command": "npx --yes tsx tests/test_chg16_opencode_plugin.ts", "exit_code": 1, "result": "pre-existing temporary-workspace KSA-10 fixture blocked before host boundary assertions: no candidate subject was found"},
+    {"type": "publication_attempt", "command": "fabricctl publish-evidence CF-e32f40b50cbacc8036970f75", "exit_code": 2, "result": "JOB_NOT_TERMINAL; native publication is runtime-controlled while the live job remains RUNNING"}
+  ],
+  "verification": {
+    "module_placement": "The shared AccessKey helper is under .opencode/internal/lib and is absent from direct .opencode/plugin and .opencode/plugins auto-discovery candidates.",
+    "opencode_v139_plugin_contract": "Every enumerated direct .opencode/{plugin,plugins}/*.{ts,js} module loaded with a callable default plugin export.",
+    "shared_helper_import": "k-slide-host.ts and kslide.ts import the same canonical internal/lib module path.",
+    "boundary_proof": "OpenCode/provider environments remain AccessKey-free; trusted core receives the exact opaque value through the inherited descriptor and KSA-14 receives it only in the dedicated secret slot.",
+    "long_unique_canary": "passed",
+    "short_common_values": ["a", ".", "whitespace", "punctuation", "non-ASCII"],
+    "ordinary_text_preservation": "passed",
+    "labelled_structured_redaction_preserved": true,
+    "restart_safe_support_and_telemetry_storage_protections_preserved": true,
+    "source_evidence_reconstruction_fidelity_preserved": true
+  },
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-accesskey-nonleakage-01-fix05",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-accesskey-nonleakage-01-fix05"
+  },
+  "recovery": {
+    "worktree_retained": true,
+    "recovery_required": false,
+    "model_rerun_safe": false,
+    "retry_safe": false,
+    "retry_scope": null
+  }
+}
