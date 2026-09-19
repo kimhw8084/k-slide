@@ -1,6 +1,7 @@
 import { tool } from "@opencode-ai/plugin"
 import path from "node:path"
 import { existsSync } from "node:fs"
+import { trustedAccessKey } from "../plugin/k-slide-access-key.ts"
 
 type ToolContext = {
   sessionID: string
@@ -93,11 +94,13 @@ function projectAndEngine(context: ToolContext): { root: string; engine: string;
 
 async function runCore(context: ToolContext, command: string, args: string[] = []): Promise<string> {
   const project = projectAndEngine(context)
+  const environment: Record<string, string> = { ...process.env, PYTHONPATH: path.join(project.engine, "src") } as Record<string, string>
+  if (trustedAccessKey !== undefined) environment.AccessKey = trustedAccessKey
   const child = Bun.spawn(
     ["python3", "-m", "k_slide.cli", command, "--root", project.root, "--json", ...(command === "doctor" ? ["--engine-root", project.engine, "--opencode-root", project.opencodeRoot] : []), ...args],
     {
       cwd: project.root,
-      env: { ...process.env, PYTHONPATH: path.join(project.engine, "src") },
+      env: environment,
       stdout: "pipe",
       stderr: "pipe",
     },

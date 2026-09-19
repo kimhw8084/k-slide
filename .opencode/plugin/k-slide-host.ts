@@ -5,6 +5,7 @@ import { chmod, lstat, mkdtemp, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import "./k-slide-access-key.ts"
 
 type HostInputReference = {
   source_kind: "attachment" | "workspace_file"

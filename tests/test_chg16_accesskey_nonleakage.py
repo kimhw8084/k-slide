@@ -230,44 +230,103 @@ class AccessKeyNonLeakageTests(unittest.TestCase):
 
     def test_opencode_runtime_boundary_keeps_key_for_real_k_slide_process_only(self) -> None:
         with patch.dict(os.environ, {ACCESS_KEY_ENV: self.CANARY}, clear=True):
-            environment, secret_values = _runtime_environment()
+            environment, access_key = _runtime_environment()
             non_runtime = _process_environment()
-        self.assertEqual(environment[ACCESS_KEY_ENV], self.CANARY)
-        self.assertEqual(secret_values, (self.CANARY,))
+        self.assertNotIn(ACCESS_KEY_ENV, environment)
+        self.assertEqual(access_key, self.CANARY)
         self.assertNotIn(ACCESS_KEY_ENV, non_runtime)
 
-    def test_opencode_runner_passes_key_to_runtime_and_sanitizes_adversarial_output(self) -> None:
-        canary = self.CANARY
+    def test_actual_process_boundary_hides_all_formats_and_preserves_exact_core_transport(self) -> None:
+        host_script = """#!/usr/bin/env python3
+import json
+import os
+import subprocess
+import sys
 
-        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {ACCESS_KEY_ENV: self.CANARY}, clear=True):
-            opencode = Path(directory) / "opencode"
-            opencode.write_text(
-                "#!/usr/bin/env python3\n"
-                "import json\n"
-                "import os\n"
-                "import sys\n"
-                "if '--version' in sys.argv:\n"
-                "    print('1.3.9')\n"
-                "    raise SystemExit(0)\n"
-                "if sys.argv[1:3] == ['debug', 'config']:\n"
-                "    print(json.dumps({'model': 'synthetic/model'}))\n"
-                "    raise SystemExit(0)\n"
-                "secret = os.environ.get('AccessKey', '')\n"
-                "print(json.dumps({'type': 'text', 'text': f'raw {secret}', 'error': f'diagnostic {secret}', 'runtime_key_present': bool(secret)}))\n"
-                "print(f'stderr raw {secret}', file=sys.stderr)\n",
-                encoding="utf-8",
-            )
-            opencode.chmod(0o700)
-            workspace = Path(directory) / "workspace"
-            with patch("k_slide.installer.install"):
-                result = OpenCodeEvalRunner(model="synthetic/model", opencode=str(opencode), timeout_seconds=5).run(workspace=workspace)
-            self.assertTrue(result.events[0]["runtime_key_present"])
-            self.assertNotIn(self.CANARY, json.dumps(result.events, ensure_ascii=False))
-            self.assertNotIn(self.CANARY, json.dumps(result.normalized_events, ensure_ascii=False))
-            self.assertNotIn(self.CANARY, result.final_text or "")
-            self.assertNotIn(self.CANARY, json.dumps(result.diagnostics, ensure_ascii=False))
-            self.assertNotIn(self.CANARY, json.dumps(result.as_dict(), ensure_ascii=False))
-            self.assertNotIn(self.CANARY, "".join(path.read_text(encoding="utf-8") for path in workspace.rglob("*") if path.is_file()))
+HANDOFF_FD = 198
+
+def receive_access_key():
+    chunks = []
+    try:
+        while True:
+            chunk = os.read(HANDOFF_FD, 65536)
+            if not chunk:
+                break
+            chunks.append(chunk)
+    except OSError:
+        return None
+    finally:
+        try:
+            os.close(HANDOFF_FD)
+        except OSError:
+            pass
+    return b"".join(chunks).decode("utf-8")
+
+if "--version" in sys.argv:
+    print("1.3.9")
+    raise SystemExit(0)
+if sys.argv[1:3] == ["debug", "config"]:
+    print(json.dumps({"model": "synthetic/model"}))
+    raise SystemExit(0)
+
+trusted_key = receive_access_key()
+generic_environment = os.environ.copy()
+provider_code = (
+    "import json, os, sys; "
+    "value = os.environ.get('AccessKey'); "
+    "print(json.dumps({'env_contains_access_key': value is not None, 'emitted_value': value or ''})); "
+    "print(json.dumps({'stderr_value': value or ''}), file=sys.stderr)"
+)
+provider = subprocess.run([sys.executable, "-c", provider_code], env=generic_environment, capture_output=True, text=True, check=False)
+core_environment = generic_environment.copy()
+if trusted_key is not None:
+    core_environment["AccessKey"] = trusted_key
+core_code = (
+    "import json, os\\n"
+    "from k_slide.authentication import CompanyServiceRequest, authenticated_company_service_call\\n"
+    "observed = {}\\n"
+    "class Transport:\\n"
+    "    def call(self, request, *, access_key):\\n"
+    "        observed['dedicated_slot_matches_core_env'] = access_key == os.environ.get('AccessKey')\\n"
+    "        observed['request_has_credential_field'] = 'accesskey' in json.dumps(request.as_dict()).lower()\\n"
+    "        observed['nonempty'] = access_key != ''\\n"
+    "        return {'status': 'ok'}\\n"
+    "response = authenticated_company_service_call(Transport(), CompanyServiceRequest('approved.lookup', {'ordinary': 'business'})); "
+    "print(json.dumps({'response_ok': response == {'status': 'ok'}, **observed}))"
+)
+core = subprocess.run([sys.executable, "-c", core_code], env=core_environment, capture_output=True, text=True, check=False)
+summary = {
+    "generic_env_contains_access_key": "AccessKey" in generic_environment,
+    "provider_stdout": provider.stdout,
+    "provider_stderr": provider.stderr,
+    "core": json.loads(core.stdout),
+}
+print(json.dumps({"type": "text", "text": json.dumps(summary, ensure_ascii=False)}))
+"""
+        values = (self.CANARY,) + self.ORDINARY_VALUES
+        for value in values:
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {ACCESS_KEY_ENV: value, "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")}, clear=True):
+                opencode = Path(directory) / "opencode"
+                opencode.write_text(host_script, encoding="utf-8")
+                opencode.chmod(0o700)
+                workspace = Path(directory) / "workspace"
+                with patch("k_slide.installer.install"):
+                    result = OpenCodeEvalRunner(model="synthetic/model", opencode=str(opencode), timeout_seconds=5).run(workspace=workspace)
+                self.assertEqual(len(result.events), 1, f"{result.status}: {result.reason}")
+                summary = json.loads(result.events[0]["text"])
+                self.assertFalse(summary["generic_env_contains_access_key"])
+                provider_stdout = json.loads(summary["provider_stdout"])
+                provider_stderr = json.loads(summary["provider_stderr"])
+                self.assertFalse(provider_stdout["env_contains_access_key"])
+                self.assertEqual(provider_stdout["emitted_value"], "")
+                self.assertEqual(provider_stderr["stderr_value"], "")
+                self.assertEqual(summary["core"], {"response_ok": True, "dedicated_slot_matches_core_env": True, "request_has_credential_field": False, "nonempty": True})
+                serialized_result = json.dumps(result.as_dict(), ensure_ascii=False)
+                persisted = "".join(path.read_text(encoding="utf-8") for path in workspace.rglob("*") if path.is_file())
+                if value == self.CANARY:
+                    self.assertNotIn(value, serialized_result)
+                    self.assertNotIn(value, result.final_text or "")
+                    self.assertNotIn(value, persisted)
 
     def test_runtime_persistence_preserves_common_values_without_runtime_secret_scanning(self) -> None:
         ordinary_values = self.ORDINARY_VALUES
@@ -292,7 +351,8 @@ class AccessKeyNonLeakageTests(unittest.TestCase):
                 with patch("k_slide.installer.install"), patch("evals.opencode_runner._version", return_value="1.3.9"), patch("evals.opencode_runner._configured_model", return_value=None), patch("evals.opencode_runner.subprocess.Popen", side_effect=popen):
                     result = OpenCodeEvalRunner(model="synthetic/model", opencode="/approved/opencode", timeout_seconds=5).run(workspace=workspace)
 
-                self.assertEqual(captured["env"][ACCESS_KEY_ENV], value)
+                self.assertNotIn(ACCESS_KEY_ENV, captured["env"])
+                self.assertIn(198, captured["pass_fds"])
                 self.assertEqual((workspace / "opencode-stdout.log").read_text(encoding="utf-8"), stdout)
                 self.assertEqual((workspace / "opencode-stderr.log").read_text(encoding="utf-8"), stderr)
                 self.assertEqual(result.as_dict()["final_text"], f"ordinary model output retains {value!r}")
