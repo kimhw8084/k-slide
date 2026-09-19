@@ -8,8 +8,14 @@ K-Slide treats submitted artifacts and content-bearing derivatives as
 `company_confidential` when the trusted host supplies no classification.  An
 authoritative host/platform label is carried independently with each input;
 it is never inferred from a filename, document bytes, model output, or tool
-arguments.  The OpenCode host plugin owns the references and classification
-metadata together and removes model-supplied values before `kslide_prepare`.
+arguments.  OpenCode v1.3.9 `FilePart` has no classification field or
+arbitrary metadata bag, and its supported plugin hooks expose no trusted
+classification resolver.  Therefore the OpenCode adapter assigns
+`company_confidential` to every document and removes model-supplied references,
+labels, route, and policy arguments before `kslide_prepare`.  OpenCode cannot
+preserve a stronger external label until the deployment supplies a real,
+supported trusted metadata/resolver integration that is outside model, tool,
+and user control and fails closed per document.
 
 Before source validation, snapshot creation, normalization, extraction, or
 EvidenceIR generation, the engine evaluates every document against a

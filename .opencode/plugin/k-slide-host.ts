@@ -11,7 +11,7 @@ type HostInputReference = {
   source_kind: "attachment" | "workspace_file"
   logical_name: string
   locator: string
-  classification?: string
+  classification: string
 }
 
 type FilePart = Extract<Part, { type: "file" }>
@@ -23,6 +23,7 @@ type SessionInputs = {
 
 const MAX_INPUT_BYTES = 512 * 1024 * 1024
 const STAGING_PREFIX = "k-slide-opencode-attachments-"
+const DEFAULT_CLASSIFICATION = "company_confidential"
 const DATA_URL = /^data:([^;,]+);base64,([A-Za-z0-9+/]*={0,2})$/
 const URI_SCHEME = /^[A-Za-z][A-Za-z\d+.-]*:/
 
@@ -114,7 +115,7 @@ function localReference(part: FilePart, index: number, worktree: string, sourceP
   const scheme = locator.match(URI_SCHEME)?.[0].slice(0, -1).toLowerCase()
   if (scheme && scheme !== "file") throw new Error("K-Slide attachment was rejected.")
   const logicalName = logicalNameForPart(part, index, undefined, sourcePath, locator)
-  return { source_kind: sourceKindForLocator(locator, worktree), logical_name: logicalName, locator }
+  return { source_kind: sourceKindForLocator(locator, worktree), logical_name: logicalName, locator, classification: DEFAULT_CLASSIFICATION }
 }
 
 function decodedDataByteLength(encodedLength: number, padding: number): number {
@@ -185,12 +186,7 @@ function unavailableLocator(sessionID: string): string {
   return path.join(path.resolve(tmpdir()), `${stagingPrefix(sessionID)}unmaterialized-${randomBytes(18).toString("hex")}.missing`)
 }
 
-function hostClassificationForPart(part: FilePart): string | undefined {
-  const candidate = (part as unknown as { classification?: unknown }).classification
-  return typeof candidate === "string" ? candidate : undefined
-}
-
-function rejectedReference(sessionID: string, index: number, mime: unknown, stagingDirectory?: string, classification?: string): HostInputReference {
+function rejectedReference(sessionID: string, index: number, mime: unknown, stagingDirectory?: string): HostInputReference {
   const normalized = typeof mime === "string" ? mime.toLowerCase() : ""
   // Keep the rejection packet schema-valid even when the advertised MIME is
   // unsupported; the missing private locator makes prepare persist FAILED_INPUT.
@@ -202,34 +198,33 @@ function rejectedReference(sessionID: string, index: number, mime: unknown, stag
     source_kind: "attachment",
     logical_name: `attachment-${String(index).padStart(3, "0")}${extension}`,
     locator,
-    ...(classification === undefined ? {} : { classification }),
+    classification: DEFAULT_CLASSIFICATION,
   }
 }
 
-async function materializeDataAttachment(part: FilePart, index: number, stagingDirectory: string, classification?: string): Promise<HostInputReference> {
+async function materializeDataAttachment(part: FilePart, index: number, stagingDirectory: string): Promise<HostInputReference> {
   const { mime, bytes } = decodedDataUrl(part)
   const logicalName = logicalNameForPart(part, index, mime)
   const destination = path.join(stagingDirectory, `attachment-${randomBytes(18).toString("hex")}${extensionByMime[mime]}`)
   await writeFile(destination, bytes, { flag: "wx", mode: 0o600 })
   await chmod(destination, 0o600)
-  return { source_kind: "attachment", logical_name: logicalName, locator: destination, ...(classification === undefined ? {} : { classification }) }
+  return { source_kind: "attachment", logical_name: logicalName, locator: destination, classification: DEFAULT_CLASSIFICATION }
 }
 
 async function referenceFromPart(part: FilePart, index: number, sessionID: string, worktree: string, stagingDirectory?: string): Promise<{ ref: HostInputReference; stagingDirectory?: string }> {
-  const classification = hostClassificationForPart(part)
   const sourcePath = sourcePathForPart(part)
-  if (sourcePath) return { ref: { ...localReference(part, index, worktree, sourcePath), ...(classification === undefined ? {} : { classification }) }, stagingDirectory }
+  if (sourcePath) return { ref: localReference(part, index, worktree, sourcePath), stagingDirectory }
 
   if (typeof part.url === "string" && part.url.startsWith("data:")) {
     const directory = stagingDirectory || await createStagingDirectory(sessionID)
     try {
-      return { ref: await materializeDataAttachment(part, index, directory, classification), stagingDirectory: directory }
+      return { ref: await materializeDataAttachment(part, index, directory), stagingDirectory: directory }
     } catch {
-      return { ref: rejectedReference(sessionID, index, part.mime, directory, classification), stagingDirectory: directory }
+      return { ref: rejectedReference(sessionID, index, part.mime, directory), stagingDirectory: directory }
     }
   }
 
-  return { ref: { ...localReference(part, index, worktree), ...(classification === undefined ? {} : { classification }) }, stagingDirectory }
+  return { ref: localReference(part, index, worktree), stagingDirectory }
 }
 
 const KSlideHostPlugin: Plugin = async ({ worktree }) => {
