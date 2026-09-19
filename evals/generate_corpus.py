@@ -29,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         counts = generate_artifacts(scenarios, args.output / "artifacts", formats=tuple(args.formats), variants=variants)
     except KoreanFontUnavailable as exc:
-        summary = {"tier": "artifact_corpus_generation", "status": "CAPABILITY_BLOCK", "reason": str(exc), "split": args.split, "scenario_specs": len(scenarios), "formats": [item.lower() for item in args.formats], "semantic_translation_scored": False}
+        summary = {"tier": "artifact_corpus_generation", "status": "CAPABILITY_BLOCK", "reason": f"Corpus generation blocked ({type(exc).__name__}).", "split": args.split, "scenario_specs": len(scenarios), "formats": [item.lower() for item in args.formats], "semantic_translation_scored": False}
         args.output.mkdir(parents=True, exist_ok=True)
         (args.output / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(summary, ensure_ascii=False))

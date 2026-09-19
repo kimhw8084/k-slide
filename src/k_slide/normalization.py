@@ -20,6 +20,7 @@ from .queue import WorkUnit, WorkUnitStatus, WorkQueue, load_queue, save_queue
 from .security import sha256_file
 from .storage import StorageArtifact, StorageLayout, storage_path
 from .state import RunPhase, load_state, save_state
+from .redaction import safe_diagnostic_text_or_placeholder
 def _terminate_subprocess_group(process: subprocess.Popen[str], grace_seconds: float = 5.0) -> None:
     """Keep document conversion cleanup local to the core runtime."""
 
@@ -106,7 +107,7 @@ def _normalize_image(run_dir: Path, input_id: str, source: Path, index: int, doc
     except KSlideError:
         raise
     except (OSError, UnidentifiedImageError, DecompressionBombError, ValueError) as exc:
-        raise KSlideError(ErrorCode.IMAGE_DECODE_FAILED, "Image could not be decoded safely.", {"input": source.name, "reason": str(exc)}) from exc
+        raise KSlideError(ErrorCode.IMAGE_DECODE_FAILED, "Image could not be decoded safely.", {"input": source.name, "reason": type(exc).__name__}) from exc
     native_path = storage_path(run_dir, StorageArtifact.NATIVE_EXTRACTION, f"native/{work_unit_id}.json", create_parent=True)
     atomic_write_json(native_path, {"provider": "image_decoder", "regions": []}, mode=0o600)
     durable_root = Path(run_dir).resolve()
@@ -121,7 +122,7 @@ def _pdf_units(run_dir: Path, input_id: str, source: Path, document_id: str, sou
     try:
         document = fitz.open(source)
     except Exception as exc:
-        raise KSlideError(ErrorCode.NORMALIZATION_FAILED, "PDF could not be opened.", {"input": source.name, "reason": str(exc)}) from exc
+        raise KSlideError(ErrorCode.NORMALIZATION_FAILED, "PDF could not be opened.", {"input": source.name, "reason": type(exc).__name__}) from exc
     if document.is_encrypted:
         document.close()
         raise KSlideError(ErrorCode.PDF_ENCRYPTED, "Password-protected PDFs are not accepted by the local normalizer.", {"input": source.name})
@@ -210,7 +211,7 @@ def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, r
     try:
         presentation = Presentation(str(source))
     except Exception as exc:
-        raise KSlideError(ErrorCode.NORMALIZATION_FAILED, "PPTX could not be parsed.", {"input": source.name, "reason": str(exc)}) from exc
+        raise KSlideError(ErrorCode.NORMALIZATION_FAILED, "PPTX could not be parsed.", {"input": source.name, "reason": type(exc).__name__}) from exc
     slide_width_emu = int(presentation.slide_width)
     slide_height_emu = int(presentation.slide_height)
     units: list[DocumentUnit] = []
@@ -268,7 +269,7 @@ def _render_pptx(source: Path, run_dir: Path, document_id: str) -> list[Path]:
         try:
             process = subprocess.Popen(command, cwd=temporary, env={"PATH": os.environ.get("PATH", ""), "HOME": temporary, "LANG": "C.UTF-8"}, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
         except OSError as exc:
-            raise KSlideError(ErrorCode.PPTX_RENDER_UNAVAILABLE, "PPTX converter could not be started.", {"input": source.name, "reason": str(exc)}) from exc
+                raise KSlideError(ErrorCode.PPTX_RENDER_UNAVAILABLE, "PPTX converter could not be started.", {"input": source.name, "reason": type(exc).__name__}) from exc
         try:
             stdout, stderr = process.communicate(timeout=120)
         except subprocess.TimeoutExpired as exc:
@@ -354,15 +355,15 @@ def normalize_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity
             state.transition(RunPhase.FAILED_NORMALIZATION, next_action="Fix the normalization capability or source file and retry", error_code=exc.code.value, error_message=exc.message)
             save_state(run_dir, state)
             atomic_write_json(storage_path(run_dir, StorageArtifact.NORMALIZATION_ERROR, "normalized/NORMALIZATION_ERROR.json", create_parent=True), exc.as_dict(), mode=0o600)
-            atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{exc.message}\n\nError code: `{exc.code.value}`\n")
+            atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{safe_diagnostic_text_or_placeholder(exc.message)}\n\nError code: `{exc.code.value}`\n")
             raise
         except (ImportError, OSError, RuntimeError, ValueError) as exc:
-            error = KSlideError(ErrorCode.NORMALIZATION_FAILED, "Document normalization failed safely.", {"reason": str(exc)})
+            error = KSlideError(ErrorCode.NORMALIZATION_FAILED, "Document normalization failed safely.", {"reason": type(exc).__name__})
             state = load_state(run_dir)
             state.transition(RunPhase.FAILED_NORMALIZATION, next_action="Fix the normalization capability or source file and retry", error_code=error.code.value, error_message=error.message)
             save_state(run_dir, state)
             atomic_write_json(storage_path(run_dir, StorageArtifact.NORMALIZATION_ERROR, "normalized/NORMALIZATION_ERROR.json", create_parent=True), error.as_dict(), mode=0o600)
-            atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{error.message}\n\nError code: `{error.code.value}`\n")
+            atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{safe_diagnostic_text_or_placeholder(error.message)}\n\nError code: `{error.code.value}`\n")
             raise error from exc
 
 

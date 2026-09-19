@@ -188,7 +188,9 @@ def authenticated_company_service_call(
             json.dumps(response, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
         except (TypeError, ValueError):
             raise _authentication_failure("response_not_serializable") from None
-        return response
+        from .redaction import sanitize_operational
+
+        return sanitize_operational(response)
     finally:
         # Keep the raw value's lifetime bounded to the actual service call.
         del access_key

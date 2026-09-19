@@ -105,7 +105,7 @@ def main(argv: list[str] | None = None) -> int:
                 lock_input=args.lock_input.expanduser() if args.lock_input else None,
             )
     except (EvidenceValidationError, OSError, UnicodeError, ValueError) as exc:
-        print(json.dumps({"status": "BLOCKED", "reason": str(exc)}, ensure_ascii=False))
+        print(json.dumps({"status": "BLOCKED", "reason": f"Dependency freeze blocked ({type(exc).__name__})."}, ensure_ascii=False))
         return 2
     print(json.dumps({"status": "PASS", "package_count": len(inventory["packages"])}))
     return 0

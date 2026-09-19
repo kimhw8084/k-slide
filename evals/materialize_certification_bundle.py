@@ -201,7 +201,7 @@ def main(argv: list[str] | None = None) -> int:
             manifest = manifest or args.bundle_root / "certification-bundle.json"
             result = materialize(bundle_root=args.bundle_root, manifest_path=manifest, output_root=args.output_root, target_subject_git_sha=args.target_subject_sha)
     except (EvidenceValidationError, OSError, UnicodeError, ValueError) as exc:
-        print(json.dumps({"status": "BLOCKED", "reason": str(exc)}, ensure_ascii=False))
+        print(json.dumps({"status": "BLOCKED", "reason": f"Certification materialization blocked ({type(exc).__name__})."}, ensure_ascii=False))
         return 2
     print(json.dumps(result, ensure_ascii=False))
     return 0

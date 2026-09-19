@@ -5,6 +5,7 @@ import { chmod, lstat, mkdtemp, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import { trustedAccessKey } from "../internal/lib/k-slide-access-key.ts"
 
 type HostInputReference = {
   source_kind: "attachment" | "workspace_file"
@@ -23,6 +24,8 @@ const MAX_INPUT_BYTES = 512 * 1024 * 1024
 const STAGING_PREFIX = "k-slide-opencode-attachments-"
 const DATA_URL = /^data:([^;,]+);base64,([A-Za-z0-9+/]*={0,2})$/
 const URI_SCHEME = /^[A-Za-z][A-Za-z\d+.-]*:/
+
+void trustedAccessKey
 
 const extensionByMime: Record<string, string> = {
   "image/png": ".png",

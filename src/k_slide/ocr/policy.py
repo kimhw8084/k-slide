@@ -49,7 +49,7 @@ def _parse_policy_file(path: Path) -> str | None:
         try:
             value = json.loads(text)
         except json.JSONDecodeError as exc:
-            raise KSlideError(ErrorCode.CONFIG_INVALID, "OCR JSON configuration is malformed.", {"path": str(path), "reason": str(exc)}) from exc
+            raise KSlideError(ErrorCode.CONFIG_INVALID, "OCR JSON configuration is malformed.", {"path": str(path), "reason": type(exc).__name__}) from exc
         if not isinstance(value, dict) or not ("ocr_provider" in value or "ocr_policy" in value):
             raise KSlideError(ErrorCode.CONFIG_INVALID, "OCR configuration must define ocr_provider.", {"path": str(path)})
         selected = value.get("ocr_provider", value.get("ocr_policy"))
@@ -116,7 +116,7 @@ def create_ocr_provider(policy: OCRProviderPolicy | str = OCRProviderPolicy.AUTO
             return OCRProviderSelection(requested, provider.name, provider.version, provider, "PaddleOCR initialization failed; using NoneOCRProvider", True, fallback_code)
         except Exception as exc:
             if requested == OCRProviderPolicy.PADDLE.value:
-                raise KSlideError(ErrorCode.OCR_PROVIDER_UNAVAILABLE, "PaddleOCR could not be initialized.", {"reason": str(exc)}) from exc
+                raise KSlideError(ErrorCode.OCR_PROVIDER_UNAVAILABLE, "PaddleOCR could not be initialized.", {"reason": type(exc).__name__}) from exc
             provider = NoneOCRProvider()
             return OCRProviderSelection(requested, provider.name, provider.version, provider, "PaddleOCR initialization failed; using NoneOCRProvider", True, ErrorCode.OCR_PROVIDER_UNAVAILABLE.value)
     provider = NoneOCRProvider()

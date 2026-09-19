@@ -145,7 +145,7 @@ def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult
             if not item.get("reason") and not item.get("unresolved_reason"):
                 _issue(result, "KSLIDE_UNRESOLVED_UNDISCLOSED", Severity.CRITICAL, "Unresolved evidence lacks a reason.", target=work_unit_id)
     except (KSlideError, KeyError, TypeError, ValueError, json.JSONDecodeError, OSError) as exc:
-        _issue(result, "KSLIDE_SCHEMA_INVALID", Severity.CRITICAL, f"Could not validate SlideIR: {exc}", target=work_unit_id)
+        _issue(result, "KSLIDE_SCHEMA_INVALID", Severity.CRITICAL, "Could not validate SlideIR safely.", target=work_unit_id)
 
 
 def _verify_unlocked(run_dir: Path) -> VerificationResult:
@@ -155,7 +155,7 @@ def _verify_unlocked(run_dir: Path) -> VerificationResult:
         queue = load_queue(run_dir)
         result.queue_revision = queue.queue_revision
     except (KSlideError, OSError) as exc:
-        _issue(result, "KSLIDE_WORK_QUEUE_INVALID", Severity.CRITICAL, str(exc), target="WORK_QUEUE.json")
+        _issue(result, "KSLIDE_WORK_QUEUE_INVALID", Severity.CRITICAL, "Work queue could not be loaded safely.", target="WORK_QUEUE.json")
         queue = WorkQueue(run_id=state.run_id)
     result.checked_work_units = len(queue.work_units)
     if not queue.work_units:

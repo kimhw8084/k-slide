@@ -34,13 +34,20 @@ from k_slide.certification import (
 from k_slide.model_policy import load_model_policy
 from k_slide.production import ReleaseState
 from k_slide.runtime import discover_runtime
-from k_slide.io import atomic_write_json
+from k_slide.io import atomic_write_text
 from k_slide.errors import KSlideError
+from k_slide.redaction import safe_operational_json
 
 from .scenarios import DATASET_VERSION, split_manifest
 
 
 REQUESTABLE_STATES = tuple(item.value for item in ReleaseState if item != ReleaseState.CERTIFICATION_STALE)
+
+
+def _write_operational_json(path: Path, value: Any) -> None:
+    """Persist release/profile metadata only through the operational boundary."""
+
+    atomic_write_text(path, safe_operational_json(value, roots=(path.parent,)), mode=0o600)
 
 
 def _sha256(path: Path | None) -> str | None:
@@ -128,7 +135,7 @@ def build_production_sbom(root: Path, output: Path, *, inventory_path: Path | No
     }
     validate_cyclonedx_1_5(value)
     output.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write_json(output, value, mode=0o600)
+    _write_operational_json(output, value)
     return value
 
 
@@ -240,7 +247,7 @@ def _load_records(paths: dict[str, Path], *, subject_sha: str, deployment_fp: st
         try:
             records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject_sha, deployment_fingerprint=deployment_fp, repository_root=repository_root or path.parent, candidate_spec=candidate_spec, require_candidate_spec=require_candidate_binding)
         except EvidenceValidationError as exc:
-            errors.append(f"{evidence_type}: {exc}")
+            errors.append(f"{evidence_type}: evidence validation blocked ({type(exc).__name__})")
     return records, errors
 
 
@@ -548,13 +555,13 @@ def materialize_certified_profile(root: Path, *, candidate_spec: dict[str, Any],
         raise EvidenceValidationError("certified profile output already exists; refusing to replace a prior release")
     profile = _certified_profile_mapping(root, candidate_spec=candidate_spec, manifest=manifest, manifest_path=manifest_path, manifest_sha256=sha256_file(manifest_path))
     output.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write_json(output, profile, mode=0o600)
+    _write_operational_json(output, profile)
     return output
 
 
 def _write_development_sbom(root: Path, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write_json(path, build_sbom(root), mode=0o600)
+    _write_operational_json(path, build_sbom(root))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -594,7 +601,7 @@ def main(argv: list[str] | None = None) -> int:
             require_identity=requested != ReleaseState.DEVELOPMENT.value,
         )
     except (EvidenceValidationError, OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
-        print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": [str(exc)]}, ensure_ascii=False, indent=2))
+        print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": [f"Release validation blocked ({type(exc).__name__})."]}, ensure_ascii=False, indent=2))
         return 2
     if requested != ReleaseState.DEVELOPMENT.value and args.candidate_profile is None and not (root / ".k-slide-config" / "production-candidate.json").is_file():
         print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": ["certification-quality release requires --candidate-profile"]}, ensure_ascii=False, indent=2))
@@ -603,9 +610,9 @@ def main(argv: list[str] | None = None) -> int:
         try:
             resolved_output = args.resolved_candidate_output.expanduser()
             resolved_output.parent.mkdir(parents=True, exist_ok=True)
-            atomic_write_json(resolved_output, candidate, mode=0o600)
+            _write_operational_json(resolved_output, candidate)
         except (OSError, TypeError, ValueError) as exc:
-            print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": [f"resolved candidate could not be persisted: {exc}"]}, ensure_ascii=False, indent=2))
+            print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": [f"resolved candidate could not be persisted ({type(exc).__name__})."]}, ensure_ascii=False, indent=2))
             return 2
     completeness_blockers = candidate_completeness(candidate, requested)
     if completeness_blockers:
@@ -618,7 +625,7 @@ def main(argv: list[str] | None = None) -> int:
                 inventory_path = root / inventory_path
             build_production_sbom(root, root / ".k-slide-config" / "production-sbom.json", inventory_path=inventory_path)
         except (EvidenceValidationError, OSError, RuntimeError) as exc:
-            print(json.dumps({"status": "BLOCKED", "reasons": [str(exc)]}, ensure_ascii=False, indent=2))
+            print(json.dumps({"status": "BLOCKED", "reasons": [f"Release preparation blocked ({type(exc).__name__})."]}, ensure_ascii=False, indent=2))
             return 2
     paths = _evidence_arguments(args)
     # A certifying candidate is frozen before any evidence is loaded.  Model
@@ -665,9 +672,9 @@ def main(argv: list[str] | None = None) -> int:
             # for this preflight structural check.
             _certified_profile_mapping(root, candidate_spec=candidate, manifest=manifest, manifest_path=args.output, manifest_sha256="0" * 64)
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        atomic_write_json(args.output, manifest, mode=0o600)
+        _write_operational_json(args.output, manifest)
     except (EvidenceValidationError, KSlideError, OSError, TypeError, ValueError) as exc:
-        print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": [str(exc)]}, ensure_ascii=False, indent=2))
+        print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": [f"Release validation blocked ({type(exc).__name__})."]}, ensure_ascii=False, indent=2))
         return 2
     if manifest["release_state"] == ReleaseState.PRODUCTION_CERTIFIED.value:
         try:
@@ -682,7 +689,7 @@ def main(argv: list[str] | None = None) -> int:
                     args.certified_profile_output.unlink(missing_ok=True)
             except OSError:
                 pass
-            print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": manifest["release_state"], "reasons": [str(exc)]}, ensure_ascii=False, indent=2))
+            print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": manifest["release_state"], "reasons": [f"Release finalization blocked ({type(exc).__name__})."]}, ensure_ascii=False, indent=2))
             return 2
     if args.sbom:
         _write_development_sbom(root, args.sbom)

@@ -158,7 +158,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = download_artifact_archive(repository=args.repository, artifact_id=args.artifact_id, output=args.output, expected_sha256=args.artifact_sha256, token=os.environ.get(args.token_env, ""), api_base_url=args.api_base_url)
     except CertificationBundleDownloadError as exc:
-        print(f"artifact download BLOCKED: {exc}")
+        print(f"artifact download BLOCKED ({type(exc).__name__})")
         return 2
     print(f"artifact download PASS: artifact_id={result['artifact_id']} sha256={result['sha256']}")
     return 0

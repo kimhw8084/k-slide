@@ -31,6 +31,8 @@ from .opencode_events import (
 from .certification import load_model_policy
 from k_slide.certification import EvidenceValidationError, effective_termbase_identity
 from .process_control import terminate_process_group
+from k_slide.authentication import ACCESS_KEY_ENV
+from k_slide.redaction import CredentialExposureError, safe_credential_json, safe_diagnostic_text, safe_diagnostic_text_or_placeholder, sanitize_operational
 
 
 @dataclass(frozen=True)
@@ -55,7 +57,7 @@ class OpenCodeRunResult:
     diagnostics: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "status": self.status,
             "mode": self.mode,
             "model": self.model,
@@ -74,11 +76,151 @@ class OpenCodeRunResult:
             "quality_metrics_authoritative": self.quality_metrics_authoritative,
             "diagnostics": self.diagnostics,
         }
+        try:
+            return json.loads(safe_credential_json(payload))
+        except CredentialExposureError:
+            # A result is a user/host boundary. If a free-form field still
+            # contains provenance-bound credential material after structural
+            # sanitization, keep only bounded non-diagnostic facts rather than
+            # serializing a guessed credential format or raw model output.
+            return {
+                "status": self.status,
+                "mode": self.mode,
+                "model": self.model,
+                "runtime_version": self.runtime_version,
+                "duration_seconds": self.duration_seconds,
+                "event_count": len(self.events),
+                "media_read_observed": self.media_read_observed,
+                "run_artifact_count": self.run_artifact_count,
+                "kslide_complete": self.kslide_complete,
+                "quality_metrics_authoritative": self.quality_metrics_authoritative,
+                "final_text": None,
+                "reason": "OpenCode diagnostic output was omitted because it could not be persisted safely.",
+                "diagnostics": {"status": "REDACTED_UNSAFE_DIAGNOSTIC"},
+            }
+
+
+def _process_environment() -> dict[str, str]:
+    """Environment for generic OpenCode/model/provider subprocesses."""
+
+    environment = dict(os.environ)
+    environment.pop(ACCESS_KEY_ENV, None)
+    return environment
+
+
+ACCESS_KEY_HANDOFF_FD = 198
+
+
+class AccessKeyBoundaryError(RuntimeError):
+    """Raised when the trusted host/tool handoff cannot be established."""
+
+
+class _AccessKeyHandoff:
+    """One-shot in-memory handoff from the trusted runner to the host plugin."""
+
+    def __init__(self, access_key: str | None):
+        self._write_fd: int | None = None
+        self._child_fd: int | None = None
+        self._access_key = b""
+        try:
+            os.fstat(ACCESS_KEY_HANDOFF_FD)
+        except OSError:
+            pass
+        else:
+            raise AccessKeyBoundaryError("AccessKey handoff descriptor is already occupied.")
+        read_fd: int | None = None
+        write_fd: int | None = None
+        try:
+            read_fd, write_fd = os.pipe()
+            os.dup2(read_fd, ACCESS_KEY_HANDOFF_FD, inheritable=True)
+            os.close(read_fd)
+            read_fd = None
+            self._write_fd = write_fd
+            write_fd = None
+            self._child_fd = ACCESS_KEY_HANDOFF_FD
+            self._access_key = (access_key or "").encode("utf-8")
+        except (OSError, UnicodeError) as exc:
+            if read_fd is not None:
+                os.close(read_fd)
+            if write_fd is not None:
+                os.close(write_fd)
+            self.close()
+            raise AccessKeyBoundaryError("AccessKey handoff could not be established safely.") from exc
+
+    @property
+    def pass_fds(self) -> tuple[int, ...]:
+        return (self._child_fd,) if self._child_fd is not None else ()
+
+    def send(self) -> None:
+        if self._write_fd is None:
+            return
+        try:
+            remaining = memoryview(self._access_key)
+            while remaining:
+                written = os.write(self._write_fd, remaining)
+                remaining = remaining[written:]
+        except OSError as exc:
+            raise AccessKeyBoundaryError("AccessKey handoff was not consumed by the trusted host boundary.") from exc
+        finally:
+            os.close(self._write_fd)
+            self._write_fd = None
+            self._access_key = b""
+
+    def close(self) -> None:
+        if self._write_fd is not None:
+            try:
+                os.close(self._write_fd)
+            except OSError:
+                pass
+            self._write_fd = None
+        if self._child_fd is not None:
+            try:
+                os.close(self._child_fd)
+            except OSError:
+                pass
+            self._child_fd = None
+
+
+def _runtime_environment() -> tuple[dict[str, str], str | None]:
+    """Return generic subprocess environment plus a private handoff value.
+
+    AccessKey is never placed in the OpenCode/model/provider environment. The
+    value is handed to the trusted host/tool boundary over one anonymous
+    inherited descriptor and is then supplied only to the trusted K-Slide core
+    child. No captured-output redaction authority is derived from it.
+    """
+
+    environment = _process_environment()
+    access_key = os.environ.get(ACCESS_KEY_ENV)
+    return environment, access_key if isinstance(access_key, str) and access_key else None
+
+
+def _persist_text(path: Path, value: str, *, secret_values: Iterable[str] = ()) -> None:
+    safe = safe_diagnostic_text_or_placeholder(value, roots=(path.parent,), secret_values=secret_values)
+    path.write_text(safe, encoding="utf-8")
+
+
+def _persist_json(path: Path, value: Any, *, secret_values: Iterable[str] = ()) -> None:
+    try:
+        safe = safe_credential_json(value, roots=(path.parent,), secret_values=secret_values)
+    except CredentialExposureError:
+        safe = json.dumps({"status": "REDACTED_UNSAFE_DIAGNOSTIC", "artifact": path.name}, ensure_ascii=False, indent=2) + "\n"
+    path.write_text(safe, encoding="utf-8")
+
+
+def _persist_jsonl(path: Path, values: list[Any], *, secret_values: Iterable[str] = ()) -> None:
+    lines: list[str] = []
+    for value in values:
+        try:
+            lines.append(safe_credential_json(value, roots=(path.parent,), secret_values=secret_values).rstrip("\n"))
+        except CredentialExposureError:
+            lines.append(json.dumps({"status": "REDACTED_UNSAFE_DIAGNOSTIC", "artifact": path.name}, ensure_ascii=False))
+    path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 
 
 def _version(opencode: str) -> str | None:
     try:
-        result = subprocess.run([opencode, "--version"], capture_output=True, text=True, timeout=5, check=False)
+        result = subprocess.run([opencode, "--version"], capture_output=True, text=True, timeout=5, check=False, env=_process_environment())
     except (OSError, subprocess.TimeoutExpired):
         return None
     output = (result.stdout or result.stderr).strip()
@@ -90,7 +232,7 @@ def _configured_model(opencode: str) -> str | None:
     """Read the effective configured model when OpenCode exposes it."""
 
     try:
-        result = subprocess.run([opencode, "debug", "config"], capture_output=True, text=True, timeout=10, check=False)
+        result = subprocess.run([opencode, "debug", "config"], capture_output=True, text=True, timeout=10, check=False, env=_process_environment())
     except (OSError, subprocess.TimeoutExpired):
         return None
     try:
@@ -153,7 +295,11 @@ def _diagnostics(root: Path, *, events: list[dict[str, Any]] | None = None, time
                 result[filename] = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
                 result[filename] = "CORRUPT_OR_UNREADABLE"
-    return result
+    safe = sanitize_operational(result)
+    try:
+        return json.loads(safe_credential_json(safe, roots=(root,)))
+    except CredentialExposureError:
+        return {"timeout": timeout, "run": result.get("run"), "status": "REDACTED_UNSAFE_DIAGNOSTIC"}
 
 
 def _read_policy_violations(root: Path, normalized: tuple[Any, ...]) -> list[str]:
@@ -246,7 +392,7 @@ class OpenCodeEvalRunner:
         except Exception as exc:
             if root_context is not None:
                 root_context.cleanup()
-            return OpenCodeRunResult("INSTALL_FAILED", mode, self.model, self.runtime_version, str(root), 0.0, (), (), (), None, None, reason=str(exc))
+            return OpenCodeRunResult("INSTALL_FAILED", mode, self.model, self.runtime_version, str(root), 0.0, (), (), (), None, None, reason=f"OpenCode project installation failed ({type(exc).__name__}).")
         termbase_overlay: Path | None = None
         if self.candidate_spec is not None:
             try:
@@ -256,12 +402,15 @@ class OpenCodeEvalRunner:
                     termbase_overlay.unlink()
                 if root_context is not None:
                     root_context.cleanup()
-                return OpenCodeRunResult("CANDIDATE_CONFIG_BLOCKED", mode, self.model, self.runtime_version, str(root), 0.0, (), (), (), None, None, reason=str(exc), diagnostics={"candidate_termbase_verified": False})
-        env = dict(os.environ)
+                return OpenCodeRunResult("CANDIDATE_CONFIG_BLOCKED", mode, self.model, self.runtime_version, str(root), 0.0, (), (), (), None, None, reason=f"Candidate configuration could not be prepared ({type(exc).__name__}).", diagnostics={"candidate_termbase_verified": False})
+        env, access_key = _runtime_environment()
         env["KSLIDE_MODEL"] = self.model
+        handoff = _AccessKeyHandoff(access_key)
         started = time.monotonic()
+        process: subprocess.Popen[str] | None = None
         try:
-            process = subprocess.Popen(self.command(root), cwd=root, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+            process = subprocess.Popen(self.command(root), cwd=root, env=env, pass_fds=handoff.pass_fds, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+            handoff.send()
             timed_out = False
             try:
                 stdout, stderr = process.communicate(timeout=self.timeout_seconds)
@@ -275,19 +424,24 @@ class OpenCodeEvalRunner:
                 partial_stderr = stderr or ""
                 raw_events = parse_json_events(f"{partial}\n{partial_stderr}")
                 normalized = normalize_events(raw_events)
+                safe_events = tuple(json.loads(safe_credential_json(raw_events, roots=(root,))))
                 diagnostics = _diagnostics(root, events=raw_events, timeout=True)
                 diagnostics.update({"process_state": "TIMEOUT", "event_count": len(raw_events), "last_tool_call": normalized[-1].tool_name if normalized else None, "elapsed_seconds": time.monotonic() - started, "process_cleanup": cleanup})
-                (root / "opencode-timeout-stdout.log").write_text(partial, encoding="utf-8")
-                (root / "opencode-timeout-stderr.log").write_text(partial_stderr, encoding="utf-8")
-                (root / "opencode-timeout-diagnostics.json").write_text(json.dumps(diagnostics, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-                return OpenCodeRunResult("TIMEOUT", mode, self.model, self.runtime_version, str(root), time.monotonic() - started, tuple(raw_events), tool_calls(normalized), forbidden_tool_attempts(normalized), None, None, reason="OpenCode command exceeded the evaluation timeout.", normalized_events=tuple(event.as_dict() for event in normalized), diagnostics=diagnostics)
+                diagnostics = json.loads(safe_credential_json(diagnostics, roots=(root,)))
+                _persist_text(root / "opencode-timeout-stdout.log", partial)
+                _persist_text(root / "opencode-timeout-stderr.log", partial_stderr)
+                _persist_json(root / "opencode-timeout-diagnostics.json", diagnostics)
+                safe_normalized = tuple(json.loads(safe_credential_json([event.as_dict() for event in normalized], roots=(root,))))
+                safe_tool_calls = tuple(safe_diagnostic_text(value) for value in tool_calls(normalized))
+                safe_forbidden = tuple(safe_diagnostic_text(value) for value in forbidden_tool_attempts(normalized))
+                return OpenCodeRunResult("TIMEOUT", mode, self.model, self.runtime_version, str(root), time.monotonic() - started, safe_events, safe_tool_calls, safe_forbidden, None, None, reason="OpenCode command exceeded the evaluation timeout.", normalized_events=safe_normalized, diagnostics=diagnostics)
             combined = f"{stdout}\n{stderr}"
             raw_events = parse_json_events(combined)
             normalized = normalize_events(raw_events)
-            (root / "opencode-stdout.log").write_text(stdout, encoding="utf-8")
-            (root / "opencode-stderr.log").write_text(stderr, encoding="utf-8")
-            (root / "opencode-events.jsonl").write_text("\n".join(json.dumps(item, ensure_ascii=False) for item in raw_events) + ("\n" if raw_events else ""), encoding="utf-8")
-            (root / "opencode-events.normalized.jsonl").write_text("\n".join(json.dumps(item.as_dict(), ensure_ascii=False) for item in normalized) + ("\n" if normalized else ""), encoding="utf-8")
+            _persist_text(root / "opencode-stdout.log", stdout)
+            _persist_text(root / "opencode-stderr.log", stderr)
+            _persist_jsonl(root / "opencode-events.jsonl", raw_events)
+            _persist_jsonl(root / "opencode-events.normalized.jsonl", [item.as_dict() for item in normalized])
             forbidden = forbidden_tool_attempts(normalized)
             media = media_compliance(normalized)
             read_violations = _read_policy_violations(root, normalized)
@@ -296,10 +450,19 @@ class OpenCodeEvalRunner:
             observed_model = observed_models[0] if len(observed_models) == 1 else None
             effective_model = observed_model
             error_events = [event for raw, event in zip(raw_events, normalized) if is_error_event(event, raw)]
-            structured_error_text = [json.dumps(raw.get("error"), ensure_ascii=False) for raw in raw_events if isinstance(raw, dict) and "error" in raw]
+            structured_error_text: list[str] = []
+            for raw in raw_events:
+                if not isinstance(raw, dict) or "error" not in raw:
+                    continue
+                try:
+                    structured_error_text.append(safe_diagnostic_text(json.dumps(raw.get("error"), ensure_ascii=False)))
+                except CredentialExposureError:
+                    structured_error_text.append("[REDACTED_UNSAFE_DIAGNOSTIC]")
             latest_run = _latest_run(root)
             kslide_complete, contract = _completion_contract(latest_run)
             final_text = next((event.text for event in reversed(normalized) if event.text), None)
+            safe_events = tuple(json.loads(safe_credential_json(raw_events, roots=(root,))))
+            final_text = safe_diagnostic_text(final_text) if final_text is not None else None
             artifact_count = sum(1 for item in (root / ".k-slide-runs").rglob("*") if item.is_file()) if (root / ".k-slide-runs").is_dir() else 0
             policy = self.policy or load_model_policy(self.policy_root or root)
             if completed_returncode != 0:
@@ -323,6 +486,10 @@ class OpenCodeEvalRunner:
             else:
                 status = "PASS"
                 reason = None
+            safe_tool_calls = tuple(safe_diagnostic_text(value) for value in tool_calls(normalized))
+            safe_forbidden = tuple(safe_diagnostic_text(value) for value in forbidden)
+            if reason is not None:
+                reason = safe_diagnostic_text(reason)
             diagnostics = {
                 "completion": contract,
                 "structured_error_count": len(error_events),
@@ -338,8 +505,16 @@ class OpenCodeEvalRunner:
                 "candidate_termbase_verified": self.candidate_spec is not None,
                 "effective_termbase_hash": ((self.candidate_spec or {}).get("termbase_identity") or {}).get("hash") if self.candidate_spec is not None else None,
             }
-            return OpenCodeRunResult(status, mode, self.model, self.runtime_version, str(root), time.monotonic() - started, tuple(raw_events), tool_calls(normalized), forbidden, bool(media.get("read_count")) if media.get("planned") else None, final_text, artifact_count, reason, tuple(event.as_dict() for event in normalized), media, kslide_complete, False, diagnostics)
+            safe_media = json.loads(safe_credential_json(media, roots=(root,)))
+            safe_diagnostics = json.loads(safe_credential_json(diagnostics, roots=(root,)))
+            safe_normalized = tuple(json.loads(safe_credential_json([event.as_dict() for event in normalized], roots=(root,))))
+            return OpenCodeRunResult(status, mode, self.model, self.runtime_version, str(root), time.monotonic() - started, safe_events, safe_tool_calls, safe_forbidden, bool(media.get("read_count")) if media.get("planned") else None, final_text, artifact_count, reason, safe_normalized, safe_media, kslide_complete, False, safe_diagnostics)
+        except AccessKeyBoundaryError:
+            if process is not None and process.poll() is None:
+                terminate_process_group(process, grace_seconds=1)
+            return OpenCodeRunResult("AUTHENTICATION_BOUNDARY_BLOCKED", mode, self.model, self.runtime_version, str(root), time.monotonic() - started, (), (), (), None, None, reason="Trusted AccessKey handoff could not be established safely.")
         finally:
+            handoff.close()
             if termbase_overlay is not None and termbase_overlay.exists():
                 termbase_overlay.unlink()
             if root_context is not None:

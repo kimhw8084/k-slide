@@ -108,19 +108,19 @@ def main(argv: list[str] | None = None) -> int:
         )
         deployment = candidate_deployment_fingerprint(candidate)
     except (EvidenceValidationError, OSError, UnicodeError, ValueError, TypeError, json.JSONDecodeError) as exc:
-        blocked = {"evaluation_tier": "synthetic_engine_evidence", "status": "CANDIDATE_PROFILE_BLOCKED", "subject_git_sha": subject_sha, "split": args.split, "reason": str(exc), "model_evaluated": False, "semantic_translation_scored": False, "generated_at": datetime.now(timezone.utc).isoformat(), "results": []}
+        blocked = {"evaluation_tier": "synthetic_engine_evidence", "status": "CANDIDATE_PROFILE_BLOCKED", "subject_git_sha": subject_sha, "split": args.split, "reason": f"Candidate profile blocked ({type(exc).__name__}).", "model_evaluated": False, "semantic_translation_scored": False, "generated_at": datetime.now(timezone.utc).isoformat(), "results": []}
         (args.output / "summary.json").write_text(json.dumps(blocked, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        (args.output / "EVAL_REPORT.md").write_text(f"# K-Slide Engine Evidence Evaluation\n\n`CANDIDATE_PROFILE_BLOCKED`\n\n{exc}\n", encoding="utf-8")
+        (args.output / "EVAL_REPORT.md").write_text(f"# K-Slide Engine Evidence Evaluation\n\n`CANDIDATE_PROFILE_BLOCKED`\n\nCandidate profile blocked ({type(exc).__name__}).\n", encoding="utf-8")
         print(json.dumps(blocked, ensure_ascii=False))
         return 2
     write_specs(args.output / "specs")
     try:
         counts = generate_artifacts(selected, args.output / "artifacts", formats=tuple(args.formats), variants=(DEFAULT_VARIANT,))
     except KoreanFontUnavailable as exc:
-        summary = {"evaluation_tier": "synthetic_engine_evidence", "status": "CAPABILITY_BLOCK", "subject_git_sha": subject_sha, "deployment_fingerprint": deployment, "candidate_spec": canonical_candidate_factors(candidate), "runtime_provenance": discover_runtime(repo_root).as_dict(), "model_evaluated": False, "semantic_translation_scored": False, "scenario_specs": len(scenarios), "split": args.split, "scenarios_selected": len(selected), "case_count": 0, "formats_requested": [item.lower() for item in args.formats], "generated_artifacts": {}, "engine": {"capability_block": str(exc)}, "generated_at": datetime.now(timezone.utc).isoformat(), "results": []}
+        summary = {"evaluation_tier": "synthetic_engine_evidence", "status": "CAPABILITY_BLOCK", "subject_git_sha": subject_sha, "deployment_fingerprint": deployment, "candidate_spec": canonical_candidate_factors(candidate), "runtime_provenance": discover_runtime(repo_root).as_dict(), "model_evaluated": False, "semantic_translation_scored": False, "scenario_specs": len(scenarios), "split": args.split, "scenarios_selected": len(selected), "case_count": 0, "formats_requested": [item.lower() for item in args.formats], "generated_artifacts": {}, "engine": {"capability_block": type(exc).__name__}, "generated_at": datetime.now(timezone.utc).isoformat(), "results": []}
         args.output.mkdir(parents=True, exist_ok=True)
         (args.output / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        (args.output / "EVAL_REPORT.md").write_text(f"# K-Slide Engine Evidence Evaluation\n\n`CAPABILITY_BLOCK`\n\n{exc}\n", encoding="utf-8")
+        (args.output / "EVAL_REPORT.md").write_text(f"# K-Slide Engine Evidence Evaluation\n\n`CAPABILITY_BLOCK`\n\nCapability blocked ({type(exc).__name__}).\n", encoding="utf-8")
         print(json.dumps(summary, ensure_ascii=False))
         return 0
     results: list[dict[str, object]] = []

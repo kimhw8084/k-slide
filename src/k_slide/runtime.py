@@ -44,7 +44,9 @@ class RuntimeMetadata:
     ocr_provider: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        from .redaction import sanitize_operational
+
+        return sanitize_operational(asdict(self))
 
 
 @lru_cache(maxsize=4)

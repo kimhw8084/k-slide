@@ -20,6 +20,7 @@ from .queue import WorkUnitStatus, load_queue, save_queue
 from .runtime import discover_runtime
 from .storage import StorageArtifact, storage_path
 from .state import RunPhase, load_state, save_state
+from .redaction import safe_diagnostic_text_or_placeholder
 
 
 CROP_PADDING = 0.10
@@ -35,7 +36,7 @@ def _crop_regions(run_dir: Path, unit: Any, native_items: list[dict[str, Any]]) 
     try:
         image = Image.open(render_path).convert("RGB")
     except Exception as exc:
-        raise KSlideError(ErrorCode.IMAGE_DECODE_FAILED, "Normalized render could not be opened for region cropping.", {"work_unit_id": unit.work_unit_id, "reason": str(exc)}) from exc
+        raise KSlideError(ErrorCode.IMAGE_DECODE_FAILED, "Normalized render could not be opened for region cropping.", {"work_unit_id": unit.work_unit_id, "reason": type(exc).__name__}) from exc
     width, height = image.size
     regions: list[EvidenceRegion] = []
     items = native_items or [{"source_id": f"{unit.work_unit_id}-region-001", "text": None, "bbox_px": [0, 0, width, height], "region_type": "IMAGE", "evidence_source": "visual"}]
@@ -174,7 +175,7 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None, ocr_p
                 except KSlideError:
                     raise
                 except (OSError, ValueError) as exc:
-                    raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "Configured OCR provider failed.", {"work_unit_id": unit.work_unit_id, "reason": str(exc)}) from exc
+                    raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "Configured OCR provider failed.", {"work_unit_id": unit.work_unit_id, "reason": type(exc).__name__}) from exc
                 if not native_items and ocr_result.regions:
                     native_items = [
                         {
@@ -259,9 +260,9 @@ def extract_run(
                     message = exc.message if isinstance(exc, KSlideError) else "Evidence extraction failed safely."
                     state.transition(RunPhase.FAILED_EXTRACTION, next_action="Fix the extraction capability or source file and retry", error_code=code, error_message=message)
                     save_state(run_dir, state)
-                    details = exc.as_dict() if isinstance(exc, KSlideError) else {"code": code, "message": message, "details": {"reason": str(exc)}}
+                    details = exc.as_dict() if isinstance(exc, KSlideError) else {"code": code, "message": message, "details": {"reason": type(exc).__name__}}
                     atomic_write_json(storage_path(run_dir, StorageArtifact.EXTRACTION_ERROR, "evidence/EXTRACTION_ERROR.json", create_parent=True), details, mode=0o600)
-                    atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{message}\n\nError code: `{code}`\n")
+                    atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{safe_diagnostic_text_or_placeholder(message)}\n\nError code: `{code}`\n")
         except (KSlideError, OSError):
             pass
         raise

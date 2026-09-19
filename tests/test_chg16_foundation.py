@@ -101,11 +101,11 @@ class Chg16FoundationTests(unittest.TestCase):
                 "nested": {"diagnostic": canary, "items": [f"before {canary} after", {"opaque": canary}]},
                 "list": [canary],
             }
-            safe = sanitize_operational(payload)
+            safe = sanitize_operational(payload, secret_values=(canary,))
             serialized = json.dumps(safe, ensure_ascii=False)
             self.assertNotIn(canary, serialized)
             self.assertEqual(safe["AccessKey"], "[REDACTED_SECRET]")
-            self.assertNotIn(canary, redact_json(payload))
+            self.assertNotIn(canary, redact_json(payload, secret_values=(canary,)))
 
             error = KSlideError(ErrorCode.INTERNAL, f"Diagnostic value: {canary}", {"nested": [canary, {"value": canary}]})
             self.assertNotIn(canary, json.dumps(error.as_dict(), ensure_ascii=False))
