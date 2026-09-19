@@ -1,0 +1,573 @@
+{
+  "accepted_at": "2026-09-19T02:04:59Z",
+  "changed_files": [
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/build_certification_bundle.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/download_certification_bundle.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/enforce_security.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/freeze_production_dependencies.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/generate_corpus.py",
+      "status": "M"
+    },
+    {
+      "additions": 5,
+      "deletions": 5,
+      "path": "evals/heavy/doctor.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/materialize_certification_bundle.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 3,
+      "path": "evals/model_eval.py",
+      "status": "M"
+    },
+    {
+      "additions": 42,
+      "deletions": 18,
+      "path": "evals/opencode_diagnostics.py",
+      "status": "M"
+    },
+    {
+      "additions": 98,
+      "deletions": 17,
+      "path": "evals/opencode_runner.py",
+      "status": "M"
+    },
+    {
+      "additions": 19,
+      "deletions": 12,
+      "path": "evals/release.py",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 4,
+      "path": "evals/run_engine_eval.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "evals/run_model_eval.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "evals/run_opencode_diagnostics.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/validate_certification_bundle_provenance.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 1,
+      "path": "src/k_slide/authentication.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 3,
+      "path": "src/k_slide/certification.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/deletion.py",
+      "status": "M"
+    },
+    {
+      "additions": 12,
+      "deletions": 5,
+      "path": "src/k_slide/doctor.py",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 4,
+      "path": "src/k_slide/evidence_adapters.py",
+      "status": "M"
+    },
+    {
+      "additions": 5,
+      "deletions": 4,
+      "path": "src/k_slide/extraction.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/host_adapter.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 3,
+      "path": "src/k_slide/ingest.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/io.py",
+      "status": "M"
+    },
+    {
+      "additions": 8,
+      "deletions": 7,
+      "path": "src/k_slide/normalization.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 3,
+      "path": "src/k_slide/ocr/paddle.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 2,
+      "path": "src/k_slide/ocr/policy.py",
+      "status": "M"
+    },
+    {
+      "additions": 14,
+      "deletions": 10,
+      "path": "src/k_slide/production.py",
+      "status": "M"
+    },
+    {
+      "additions": 158,
+      "deletions": 17,
+      "path": "src/k_slide/redaction.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/retention.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 1,
+      "path": "src/k_slide/runtime.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/runtime_artifact.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/security.py",
+      "status": "M"
+    },
+    {
+      "additions": 40,
+      "deletions": 4,
+      "path": "src/k_slide/storage.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/terminology.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 2,
+      "path": "src/k_slide/verify.py",
+      "status": "M"
+    },
+    {
+      "additions": 304,
+      "deletions": 0,
+      "path": "tests/test_chg16_accesskey_nonleakage.py",
+      "status": "A"
+    },
+    {
+      "additions": 2,
+      "deletions": 2,
+      "path": "tests/test_chg16_foundation.py",
+      "status": "M"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"pwd && sed -n '1,240p' /Users/haewonkim/.codex/RTK.md && sed -n '1,260p' /Users/haewonkim/.codex/law.md && printf '\\\\n--- git status ---\\\\n' && git status --short --branch && printf '\\\\n--- recent commits ---\\\\n' && git log --oneline --decorate -12 && printf '\\\\n--- branches ---\\\\n' && git branch -a --contains 84f63688b88bd2d903e0294ee8593065ba992eea 2>/dev/null || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show --stat --oneline --decorate 84f63688b88bd2d903e0294ee8593065ba992eea && rtk git show --no-ext-diff --format=fuller --summary 84f63688b88bd2d903e0294ee8593065ba992eea && printf '\\\\n--- ancestry ---\\\\n' && rtk git log --oneline --decorate --all --ancestry-path 96c351fc358e559819f858f5ba99d505853fa642..84f63688b88bd2d903e0294ee8593065ba992eea && printf '\\\\n--- refs containing predecessor ---\\\\n' && rtk git for-each-ref --contains 84f63688b88bd2d903e0294ee8593065ba992eea --format='%(refname)'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git log --graph --oneline --decorate --all --max-count=30 && printf '\\\\n--- predecessor parent/base relationship ---\\\\n' && rtk git rev-list --parents -n 1 84f63688b88bd2d903e0294ee8593065ba992eea && rtk git merge-base --is-ancestor 84f63688b88bd2d903e0294ee8593065ba992eea 96c351fc358e559819f858f5ba99d505853fa642; printf 'pred->base exit=%s\\\\n' \\\"\"'$?\" && rtk git merge-base --is-ancestor 96c351fc358e559819f858f5ba99d505853fa642 84f63688b88bd2d903e0294ee8593065ba992eea; printf '\"'base->pred exit=%s\\\\n' \\\"\"'$?\" && printf '\"'\\\\n--- full merge parents ---\\\\n' && rtk git show -s --format='%H%n%P%n%s' 96c351fc358e559819f858f5ba99d505853fa642 && rtk git show -s --format='%H%n%P%n%s' 84f63688b88bd2d903e0294ee8593065ba992eea\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git merge --ff-only 84f63688b88bd2d903e0294ee8593065ba992eea && printf '\\\\n--- nested guidance ---\\\\n' && (rtk rg --files -g 'AGENTS.md' -g '\"'!/.git'\"' || true) && printf '\\\\n--- tracked top-level ---\\\\n' && rtk rg --files -g '\"'!/.git'\"' | sed -n '1,220p' && printf '\\\\n--- redaction references ---\\\\n' && rtk rg -n \\\"redact_text|secret_values|AccessKey|accesskey|diagnostic|runtime|persistence\\\" src evals tests | sed -n '1,320p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- src/k_slide/redaction.py ---' && rtk sed -n '1,360p' src/k_slide/redaction.py && printf '%s\\\\n' '--- evals/opencode_runner.py ---' && rtk sed -n '1,480p' evals/opencode_runner.py && printf '%s\\\\n' '--- evals/opencode_diagnostics.py ---' && rtk sed -n '1,360p' evals/opencode_diagnostics.py && printf '%s\\\\n' '--- accesskey tests ---' && rtk sed -n '1,520p' tests/test_chg16_accesskey_nonleakage.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- auth/runtime/host references ---' && rtk rg -n \\\"authenticated_company_service_call|CompanyService|access_key|ACCESS_KEY_ENV|_runtime_environment|Popen\\\\(\\\" src evals tests --glob '*.py' && printf '%s\\\\n' '--- runner run implementation ---' && rtk sed -n '250,470p' evals/opencode_runner.py && printf '%s\\\\n' '--- diagnostics persistence ---' && rtk sed -n '1,230p' evals/opencode_diagnostics.py && printf '%s\\\\n' '--- auth ---' && rtk sed -n '1,260p' src/k_slide/authentication.py && printf '%s\\\\n' '--- plugin/host transport ---' && rtk sed -n '1,280p' src/k_slide/host_adapter.py && rtk sed -n '1,300p' tests/test_chg16_authentication_transport.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '320,455p' evals/opencode_runner.py && printf '\\\\n--- diagnostics file 1 ---\\\\n' && rtk sed -n '1,190p' evals/opencode_diagnostics.py && printf '\\\\n--- authentication.py ---\\\\n' && rtk sed -n '1,280p' src/k_slide/authentication.py && printf '\\\\n--- storage redaction hooks ---\\\\n' && rtk rg -n \\\"safe_operational|safe_credential|sanitize_operational|redact_credentials|redact_text|secret_values\\\" src/k_slide evals --glob '*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"company-service|approved\\\\.lookup|authenticated_host|authenticated_paas|transport|AccessKey\\\" README.md docs src evals tests --glob '\"'!tests/test_chg16_accesskey_nonleakage.py'\"' --glob '\"'!tests/test_chg16_authentication_transport.py'\"' | sed -n '1,360p' && printf '\\\\n--- installer / plugin surfaces ---\\\\n' && rtk rg -n \\\"opencode|plugin|KSLIDE|ACCESS|AccessKey|environment|env\\\" src/k_slide/installer.py tests/test_chg16_opencode_plugin.ts tests --glob '*.ts' --glob '*.py' | sed -n '1,400p' && printf '\\\\n--- git show predecessor relevant diffs ---\\\\n' && rtk git show --format=fuller --no-ext-diff 84f6368 -- src/k_slide/redaction.py evals/opencode_runner.py evals/opencode_diagnostics.py tests/test_chg16_accesskey_nonleakage.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- .opencode files ---' && rtk rg --files .opencode | sort && printf '%s\\\\n' '--- command ---' && rtk sed -n '1,260p' .opencode/commands/k-slide.md && printf '%s\\\\n' '--- agent ---' && rtk sed -n '1,260p' .opencode/agents/k-slide.md && printf '%s\\\\n' '--- plugin ---' && rtk sed -n '1,380p' .opencode/plugin/k-slide-host.ts && printf '%s\\\\n' '--- tool ---' && rtk sed -n '1,420p' .opencode/tools/kslide.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m unittest -v tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_foundation'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m unittest -v tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_foundation'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '55,225p' tests/test_chg16_foundation.py && printf '\\\\n--- errors/cli/state/storage relevant ---\\\\n' && rtk sed -n '70,180p' src/k_slide/errors.py && rtk sed -n '120,175p' src/k_slide/state.py && rtk sed -n '500,550p' src/k_slide/storage.py && printf '\\\\n--- git diff base..predecessor redaction/run files only ---\\\\n' && rtk git diff --no-ext-diff 96c351fc358e559819f858f5ba99d505853fa642..84f63688b88bd2d903e0294ee8593065ba992eea -- src/k_slide/redaction.py evals/opencode_runner.py evals/opencode_diagnostics.py .opencode/tools/kslide.ts tests/test_chg16_accesskey_nonleakage.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"Fabric|evidence|publish|job ID|execution identity|RUN_COMPLETE|codex-fabric\\\" README.md DEVELOPMENT_NOTES.md docs evals scripts .github 2>/dev/null | sed -n '1,420p' && printf '\\\\n--- refs and remote config ---\\\\n' && rtk git remote -v && rtk git config --get-regexp 'branch\\\\..*|remote\\\\..*' | sed -n '1,200p' && printf '\\\\n--- current branch/status ---\\\\n' && rtk git status --short --branch && rtk git log -1 --format=fuller\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"fabric|execution identity|job_id|job ID|evidence\\\" /Users/haewonkim/.codex-fabric /Users/haewonkim/.codex --glob '*.md' --glob '*.py' --glob '*.json' --glob '*.sh' --glob '*.js' --glob '*.ts' 2>/dev/null | sed -n '1,420p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- fabric files ---' && (rtk find /Users/haewonkim/.codex-fabric -maxdepth 3 -type f \\\\( -name 'fabric.py' -o -name 'projectos_integrate.py' -o -name '*evidence*' \\\\) | sed -n '1,120p') && printf '%s\\\\n' '--- current jobs for k-slide ---' && (rtk find /Users/haewonkim/.codex-fabric/jobs -maxdepth 3 -type f -name job.json -print0 | xargs -0 rtk rg -l 'k-slide|CHG-16|KSA-15' | sed -n '1,120p') && printf '%s\\\\n' '--- evidence refs tree ---' && rtk git ls-tree -r --name-only codex-fabric/evidence/k-slide/chg16-accesskey-nonleakage-01-fix01 | sed -n '1,120p' && printf '%s\\\\n' '--- predecessor evidence audit ---' && rtk git show codex-fabric/evidence/k-slide/chg16-accesskey-nonleakage-01-fix01:.codex-fabric/audit.json 2>/dev/null | sed -n '1,260p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy find /Users/haewonkim/.codex-fabric/jobs -maxdepth 3 -type f -name job.json -print0 | xargs -0 rtk rg -l 'k-slide|CHG-16|KSA-15' | sed -n '1,120p' && printf '\\\\n--- current repo project config ---\\\\n' && rtk rg -n '\\\"name\\\"|k-slide|CHG-16|KSA-15' /Users/haewonkim/.codex-fabric/projects.yaml /Users/haewonkim/.codex-fabric/state/projects.normalized.v11.json 2>/dev/null | sed -n '1,160p' && printf '\\\\n--- latest k-slide execution artifacts ---\\\\n' && rtk proxy find /Users/haewonkim/.codex-fabric -maxdepth 3 -type f \\\\( -name audit.json -o -name job.json \\\\) -print0 | xargs -0 rtk rg -l 'CHG-16|KSA-15|chg16-accesskey' | sed -n '1,160p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' /Users/haewonkim/.codex-fabric/jobs/CF-fd0e96081196e4784f4ed8c0.running/job.json && printf '\\\\n--- current job prompt head ---\\\\n' && rtk sed -n '1,260p' /Users/haewonkim/.codex-fabric/jobs/CF-fd0e96081196e4784f4ed8c0.running/prompt.md 2>/dev/null || true && printf '\\\\n--- prior same change job metadata ---\\\\n' && for f in /Users/haewonkim/.codex-fabric/jobs/CF-1979ba4e4086cdabee9dab75.executed/job.json /Users/haewonkim/.codex-fabric/jobs/CF-26abf879d3839b52463b463b.executed/job.json /Users/haewonkim/.codex-fabric/jobs/CF-f6e805a9e2fd265fd75acba6.executed/job.json /Users/haewonkim/.codex-fabric/jobs/CF-96cbcccf235c74e4726c3344.executed/job.json; do echo \\\"--- \"'$f\"; rtk sed -n '\"'1,100p' \\\"\"'$f\"; done'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy find /Users/haewonkim/.codex-fabric -maxdepth 2 -type f -print | sed -n '1,240p' && printf '\\\\n--- fabric root dirs ---\\\\n' && rtk proxy find /Users/haewonkim/.codex-fabric -maxdepth 1 -mindepth 1 -type d -print | sort\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk /Users/haewonkim/.codex-fabric/bin/fabricctl --help 2>&1 | sed -n '1,240p' && printf '\\\\n--- projectos integrate help ---\\\\n' && rtk /Users/haewonkim/.codex-fabric/bin/projectos-integrate-stdin --help 2>&1 | sed -n '1,220p' && printf '\\\\n--- receive stdin help ---\\\\n' && rtk /Users/haewonkim/.codex-fabric/bin/receive-stdin --help 2>&1 | sed -n '1,180p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- prior job result files ---' && rtk proxy find /Users/haewonkim/.codex-fabric/results -maxdepth 4 -type f -path '*CF-96cbcccf235c74e4726c3344*' -print | sed -n '1,160p' && printf '%s\\\\n' '--- prior launcher log tail ---' && rtk tail -80 /Users/haewonkim/.codex-fabric/logs/CF-96cbcccf235c74e4726c3344.launcher.log && printf '%s\\\\n' '--- publish commands in live script ---' && rtk rg -n \\\"publish-evidence|refresh-evidence|evidence_commit|audit.json|worktree_clean|candidate_branch\\\" /Users/haewonkim/.codex-fabric/libexec/projectos_integrate.py /Users/haewonkim/.codex-fabric/bin/fabricctl | sed -n '1,280p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk file /Users/haewonkim/.codex-fabric/bin/fabricctl /Users/haewonkim/.codex-fabric/bin/receive-stdin /Users/haewonkim/.codex-fabric/bin/projectos-integrate-stdin /Users/haewonkim/.codex-fabric/libexec/projectos_integrate.py 2>/dev/null | sed -n '1,120p' && printf '\\\\n--- prior result summary ---\\\\n' && rtk sed -n '1,260p' /Users/haewonkim/.codex-fabric/results/CF-96cbcccf235c74e4726c3344/result.json && printf '\\\\n--- prior evidence manifest ---\\\\n' && rtk sed -n '1,260p' /Users/haewonkim/.codex-fabric/results/CF-96cbcccf235c74e4726c3344/evidence-manifest.json && printf '\\\\n--- job summary ---\\\\n' && rtk sed -n '1,260p' /Users/haewonkim/.codex-fabric/results/CF-96cbcccf235c74e4726c3344/job-summary.json\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"runtime_secret_values|_secret_values|secret_values=\\\" evals/opencode_runner.py evals/opencode_diagnostics.py src/k_slide/redaction.py && rtk sed -n '45,155p' src/k_slide/redaction.py && rtk sed -n '35,135p' evals/opencode_runner.py && rtk sed -n '200,235p' evals/opencode_runner.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m unittest -v tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_foundation'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m unittest -v tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_foundation'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,360p' evals/opencode_events.py && printf '\\\\n--- runner diff ---\\\\n' && rtk git diff --no-ext-diff -- src/k_slide/redaction.py evals/opencode_runner.py evals/opencode_diagnostics.py tests/test_chg16_accesskey_nonleakage.py && printf '\\\\n--- source scans for forbidden heuristics and broad runtime secret passing ---\\\\n' && rtk rg -n \\\"result\\\\.replace\\\\(|runtime_secret_values|_secret_values|secret_values=runtime|minimum|fingerprint|sha256\\\\(\\\" src/k_slide/redaction.py evals/opencode_runner.py evals/opencode_diagnostics.py tests/test_chg16_accesskey_nonleakage.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src rtk python - <<'PY'\nfrom k_slide.redaction import redact_text, safe_diagnostic_text_or_placeholder\nfor value in ('a', '.', ' ', '한글'):\n    print(repr(value), repr(redact_text(f'AccessKey={value}', secret_values=(value,))))\nprint(safe_diagnostic_text_or_placeholder('keep\\\\nraw a\\\\nlast', secret_values=('a',)))\nPY\nPYTHONPATH=src rtk python -m unittest -v tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_foundation\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m unittest -v tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_foundation'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,75p' tests/test_chg16_foundation.py && rtk rg -n \\\"sanitize_operational\\\\(payload|redact_json\\\\(payload|_provenance_secret_values\\\" tests src evals\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"_runtime_environment|_secret_values|runtime_secret_values|secret_values=runtime\\\" . --glob '\"'!/.git'\"' && printf '\\\\n--- diff stat/check ---\\\\n' && rtk git diff --stat && rtk git diff --check && printf '\\\\n--- py compile ---\\\\n' && PYTHONPATH=src rtk python -m compileall -q src evals tests\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,300p' src/k_slide/redaction.py && printf '\\\\n--- runner changed regions ---\\\\n' && rtk sed -n '35,155p' evals/opencode_runner.py && rtk sed -n '200,235p' evals/opencode_runner.py && rtk sed -n '325,435p' evals/opencode_runner.py && printf '\\\\n--- diff full ---\\\\n' && rtk git diff --no-ext-diff -- src/k_slide/redaction.py evals/opencode_runner.py evals/opencode_diagnostics.py tests/test_chg16_accesskey_nonleakage.py tests/test_chg16_foundation.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m unittest tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_host_integration -q && PYTHONPATH=src rtk python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --check && printf '\\\\n--- changed files ---\\\\n' && rtk git diff --name-status && printf '\\\\n--- diff stat ---\\\\n' && rtk git diff --stat && printf '\\\\n--- forbidden broad runtime provenance references ---\\\\n' && if rtk rg -n \\\"runtime_secret_values|_secret_values|secret_values=runtime|result\\\\.replace\\\\(secret\\\" src evals tests; then true; fi && printf '\\\\n--- status ---\\\\n' && rtk git status --short --branch && printf '\\\\n--- ancestry ---\\\\n' && rtk git merge-base --is-ancestor 96c351fc358e559819f858f5ba99d505853fa642 HEAD && rtk git merge-base --is-ancestor 84f63688b88bd2d903e0294ee8593065ba992eea && rtk git log --oneline --decorate -4\"",
+      "exit_code": 129,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git add evals/opencode_diagnostics.py evals/opencode_runner.py src/k_slide/redaction.py tests/test_chg16_accesskey_nonleakage.py tests/test_chg16_foundation.py && rtk git commit -m \\\"fix: bound KSA-15 credential redaction\\\" && printf '\\\\n--- committed head ---\\\\n' && rtk git log -1 --format=fuller && printf '\\\\n--- status ---\\\\n' && rtk git status --short --branch\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,220p' /Users/haewonkim/.codex-fabric/bin/fabricctl && printf '\\\\n--- publish function references ---\\\\n' && rtk rg -n -C 4 \\\"publish-evidence|def publish|audit-evidence|candidate_head|job_id\\\" /Users/haewonkim/.codex-fabric/libexec/fabric.py /Users/haewonkim/.codex-fabric/libexec/projectos_integrate.py /Users/haewonkim/.codex-fabric/bin 2>/dev/null | sed -n '1,360p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk file /Users/haewonkim/.codex-fabric/current/fabric.py 2>/dev/null || true && rtk rg -n -C 6 \\\"publish-evidence|def publish|audit-evidence|candidate_head|job_id\\\" /Users/haewonkim/.codex-fabric/current/fabric.py | sed -n '1,360p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '2450,2735p' /Users/haewonkim/.codex-fabric/current/fabric.py && printf '\\\\n--- command dispatch ---\\\\n' && rtk rg -n -C 8 \\\"publish-evidence|publish_pending|refresh-evidence\\\" /Users/haewonkim/.codex-fabric/current/fabric.py | tail -220\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '2740,2815p' /Users/haewonkim/.codex-fabric/current/fabric.py && printf '\\\\n--- current job state ---\\\\n' && rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-fd0e96081196e4784f4ed8c0 2>&1 | sed -n '1,240p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git merge-base --is-ancestor 96c351fc358e559819f858f5ba99d505853fa642 HEAD && rtk git merge-base --is-ancestor 84f63688b88bd2d903e0294ee8593065ba992eea HEAD && printf 'ancestry=PASS\\\\n' && rtk git diff --check 84f63688b88bd2d903e0294ee8593065ba992eea && printf 'diff-check=PASS\\\\n' && rtk git status --porcelain=v1 --untracked-files=all && printf 'worktree=clean\\\\n' && rtk git log --graph --oneline --decorate --max-count=8 && printf '\\\\n--- commit stat ---\\\\n' && rtk git show --stat --oneline --decorate HEAD\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git ls-remote --heads origin codex/k-slide-chg16-accesskey-nonleakage-01-fix02 && rtk /Users/haewonkim/.codex-fabric/bin/fabricctl publish-evidence CF-fd0e96081196e4784f4ed8c0 2>&1 | sed -n '1,220p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf 'branch=' && rtk git branch --show-current && printf 'head=' && rtk git rev-parse HEAD && printf 'base=' && rtk git rev-parse origin/main && printf 'predecessor_in_ancestry=' && (rtk git merge-base --is-ancestor 84f63688b88bd2d903e0294ee8593065ba992eea HEAD && echo yes) && printf 'base_in_ancestry=' && (rtk git merge-base --is-ancestor 96c351fc358e559819f858f5ba99d505853fa642 HEAD && echo yes) && printf 'worktree=' && if test -z \\\"\"'$(rtk git status --porcelain=v1 --untracked-files=all)\"; then echo clean; else rtk git status --short; fi && printf '\"'\\\\ncommit=\\\\n' && rtk git show -s --format='%H%n%P%n%s' HEAD && printf '\\\\nfabric_status=\\\\n' && rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-fd0e96081196e4784f4ed8c0\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.154.0",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 121,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.35,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 9820672,
+      "fresh_input_tokens": 267199,
+      "input_tokens": 10087871,
+      "non_reasoning_output_tokens": 17241,
+      "output_tokens": 49303,
+      "reasoning_output_tokens": 32062,
+      "total_processed_tokens": 10137174
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "59a42d10df43a0ec607fd7677f3f36b6598d08d9",
+      "subject": "fix: bound KSA-15 credential redaction"
+    },
+    {
+      "sha": "84f63688b88bd2d903e0294ee8593065ba992eea",
+      "subject": "fix: restore KSA-15 credential provenance boundary"
+    },
+    {
+      "sha": "6b3d038f3d29ace8909513d8bc52d946aba5f6cc",
+      "subject": "fix: harden KSA-15 AccessKey non-leakage"
+    }
+  ],
+  "diff": {
+    "additions": 756,
+    "changed_files": 39,
+    "commit_count": 3,
+    "deletions": 144
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 2,
+    "items": [
+      {
+        "bytes": 75247,
+        "path": "src/k_slide/evidence_adapters.py",
+        "sha256": "1fde2cda6dcf9d1db2fe99776d3b366cacabd5eb95d11d4923cdae0a69b49111"
+      },
+      {
+        "bytes": 32222,
+        "path": "src/k_slide/runtime_artifact.py",
+        "sha256": "00b7e31c726061942b6c35721a017fe6881c02bfbdd8000d61946e50623a8141"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-19T02:22:03Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "96c351fc358e559819f858f5ba99d505853fa642",
+    "branch": "codex/k-slide-chg16-accesskey-nonleakage-01-fix02",
+    "detached_verify": false,
+    "head_sha": "59a42d10df43a0ec607fd7677f3f36b6598d08d9",
+    "remote_exact_head": true,
+    "remote_head_sha": "59a42d10df43a0ec607fd7677f3f36b6598d08d9",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "96c351fc358e559819f858f5ba99d505853fa642",
+    "work_branch": "codex/k-slide-chg16-accesskey-nonleakage-01-fix02",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-fd0e96081196e4784f4ed8c0",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-accesskey-nonleakage-01-fix02",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-accesskey-nonleakage-01-fix02"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "44756118cd7fda0c45cd23ba1d31a48a3f4f2422d687df15264ba4406f40e1f2",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-accesskey-nonleakage-01-fix02",
+  "schema_version": 1,
+  "started_at": "2026-09-19T02:04:59Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1024,
+    "queue_seconds": 0,
+    "total_seconds": 1024
+  },
+  "transport": {
+    "bytes": 4773,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 4442,
+    "prompt_sha256": "d9b0540c47be6539eb167553416dcb9ed78a588894dda07b850a48ab7e37a03e",
+    "sha256": "fd0e96081196e4784f4ed8c060882ce9d16b8470386f11c6bb07d330f5a89797"
+  }
+}
