@@ -258,16 +258,37 @@ async function routingBoundary(): Promise<void> {
   assert.deepEqual(toolOutput.args, { explicit_input_paths: [] })
 
   const routedSessionID = "k-slide-agent-session"
-  const routedParts = [dataPart("image/png", "routed.png", PNG)]
+  const routedParts = [{ ...dataPart("image/png", "routed.png", PNG), classification: "internal_only" }]
   const routedOutput = { message: {} as never, parts: routedParts }
   await message({ sessionID: routedSessionID, agent: "k-slide" } as never, routedOutput as never)
   assert.deepEqual(routedOutput.parts, [])
   const routedToolOutput = { args: { explicit_input_paths: [] as string[] } }
   await before({ tool: "kslide_prepare", sessionID: routedSessionID, callID: "routed-call" } as never, routedToolOutput)
-  const routedArgs = routedToolOutput.args as unknown as { host_input_refs: Array<{ logical_name: string }> }
+  const routedArgs = routedToolOutput.args as unknown as { host_input_refs: Array<{ logical_name: string; classification?: string }> }
   assert.deepEqual(routedArgs.host_input_refs.map((ref) => ref.logical_name), ["routed.png"])
+  assert.equal(routedArgs.host_input_refs[0].classification, "internal_only")
   await hooks["tool.execute.after"]?.({ tool: "kslide_prepare", sessionID: routedSessionID, callID: "routed-call", args: routedToolOutput.args } as never, {} as never)
   assert.deepEqual(await stagingEntries(routedSessionID), [])
+
+  const spoofSessionID = "model-classification-spoof-session"
+  const spoofParts = [{ ...dataPart("image/png", "trusted.png", PNG), classification: "internal_only" }]
+  const spoofMessageOutput = { message: {} as never, parts: spoofParts }
+  await message({ sessionID: spoofSessionID, agent: "k-slide" } as never, spoofMessageOutput as never)
+  const spoofToolOutput = {
+    args: {
+      explicit_input_paths: [],
+      classification: "restricted",
+      inference_data_policy: { classification_rules: { restricted: true } },
+      host_input_refs: [{ source_kind: "attachment", logical_name: "spoof.png", locator: "model-value", classification: "restricted" }],
+    },
+  }
+  await before({ tool: "kslide_prepare", sessionID: spoofSessionID, callID: "spoof-call" } as never, spoofToolOutput)
+  const trustedArgs = spoofToolOutput.args as unknown as { classification?: string; inference_data_policy?: unknown; host_input_refs: Array<{ logical_name: string; classification?: string }> }
+  assert.equal(trustedArgs.classification, undefined)
+  assert.equal(trustedArgs.inference_data_policy, undefined)
+  assert.deepEqual(trustedArgs.host_input_refs.map((ref) => ref.logical_name), ["trusted.png"])
+  assert.equal(trustedArgs.host_input_refs[0].classification, "internal_only")
+  await hooks["tool.execute.after"]?.({ tool: "kslide_prepare", sessionID: spoofSessionID, callID: "spoof-call", args: spoofToolOutput.args } as never, {} as never)
 }
 
 async function replacementBoundary(): Promise<void> {

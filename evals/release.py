@@ -32,6 +32,7 @@ from k_slide.certification import (
     validate_cyclonedx_1_5,
 )
 from k_slide.model_policy import load_model_policy
+from k_slide.classification_policy import load_inference_data_use_policy, policy_completeness
 from k_slide.production import ReleaseState
 from k_slide.runtime import discover_runtime
 from k_slide.io import atomic_write_text
@@ -314,6 +315,24 @@ def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, 
         if champion is None or champion_blockers:
             blockers.extend(champion_blockers or ["champion evidence is missing"])
     if state == ReleaseState.PRODUCTION_CERTIFIED.value:
+        # KSA-16 is a separate runtime boundary.  Keep legacy synthetic
+        # fixture candidates usable for non-authoritative tests, while any
+        # candidate that declares the new route contract must bind the exact
+        # deployment policy file before certification can be materialized.
+        if "inference_route_identity" in (candidate_spec or {}) or "inference_data_use_policy" in (candidate_spec or {}):
+            raw_policy = (candidate_spec or {}).get("inference_data_use_policy")
+            ready, detail = policy_completeness(raw_policy)
+            if not ready:
+                blockers.append(f"authoritative inference data-use policy is unresolved: {detail}")
+            elif not isinstance(raw_policy, dict):
+                blockers.append("authoritative inference data-use policy is not a mapping")
+            else:
+                try:
+                    configured = load_inference_data_use_policy(root, route_identity=str((candidate_spec or {}).get("inference_route_identity")), policy=None)
+                    if configured.as_dict() != raw_policy:
+                        blockers.append("inference data-use policy does not match the deployment configuration")
+                except (KSlideError, ValueError, TypeError):
+                    blockers.append("authoritative inference data-use policy deployment configuration is missing or invalid")
         security_record = records.get("security")
         sbom = _evidence_source_path(security_record, "production_sbom")
         lock = _evidence_source_path(security_record, "production_lock")

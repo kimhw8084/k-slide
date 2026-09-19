@@ -11,6 +11,7 @@ type HostInputReference = {
   source_kind: "attachment" | "workspace_file"
   logical_name: string
   locator: string
+  classification?: string
 }
 
 type FilePart = Extract<Part, { type: "file" }>
@@ -184,7 +185,12 @@ function unavailableLocator(sessionID: string): string {
   return path.join(path.resolve(tmpdir()), `${stagingPrefix(sessionID)}unmaterialized-${randomBytes(18).toString("hex")}.missing`)
 }
 
-function rejectedReference(sessionID: string, index: number, mime: unknown, stagingDirectory?: string): HostInputReference {
+function hostClassificationForPart(part: FilePart): string | undefined {
+  const candidate = (part as unknown as { classification?: unknown }).classification
+  return typeof candidate === "string" ? candidate : undefined
+}
+
+function rejectedReference(sessionID: string, index: number, mime: unknown, stagingDirectory?: string, classification?: string): HostInputReference {
   const normalized = typeof mime === "string" ? mime.toLowerCase() : ""
   // Keep the rejection packet schema-valid even when the advertised MIME is
   // unsupported; the missing private locator makes prepare persist FAILED_INPUT.
@@ -196,32 +202,34 @@ function rejectedReference(sessionID: string, index: number, mime: unknown, stag
     source_kind: "attachment",
     logical_name: `attachment-${String(index).padStart(3, "0")}${extension}`,
     locator,
+    ...(classification === undefined ? {} : { classification }),
   }
 }
 
-async function materializeDataAttachment(part: FilePart, index: number, stagingDirectory: string): Promise<HostInputReference> {
+async function materializeDataAttachment(part: FilePart, index: number, stagingDirectory: string, classification?: string): Promise<HostInputReference> {
   const { mime, bytes } = decodedDataUrl(part)
   const logicalName = logicalNameForPart(part, index, mime)
   const destination = path.join(stagingDirectory, `attachment-${randomBytes(18).toString("hex")}${extensionByMime[mime]}`)
   await writeFile(destination, bytes, { flag: "wx", mode: 0o600 })
   await chmod(destination, 0o600)
-  return { source_kind: "attachment", logical_name: logicalName, locator: destination }
+  return { source_kind: "attachment", logical_name: logicalName, locator: destination, ...(classification === undefined ? {} : { classification }) }
 }
 
 async function referenceFromPart(part: FilePart, index: number, sessionID: string, worktree: string, stagingDirectory?: string): Promise<{ ref: HostInputReference; stagingDirectory?: string }> {
+  const classification = hostClassificationForPart(part)
   const sourcePath = sourcePathForPart(part)
-  if (sourcePath) return { ref: localReference(part, index, worktree, sourcePath), stagingDirectory }
+  if (sourcePath) return { ref: { ...localReference(part, index, worktree, sourcePath), ...(classification === undefined ? {} : { classification }) }, stagingDirectory }
 
   if (typeof part.url === "string" && part.url.startsWith("data:")) {
     const directory = stagingDirectory || await createStagingDirectory(sessionID)
     try {
-      return { ref: await materializeDataAttachment(part, index, directory), stagingDirectory: directory }
+      return { ref: await materializeDataAttachment(part, index, directory, classification), stagingDirectory: directory }
     } catch {
-      return { ref: rejectedReference(sessionID, index, part.mime, directory), stagingDirectory: directory }
+      return { ref: rejectedReference(sessionID, index, part.mime, directory, classification), stagingDirectory: directory }
     }
   }
 
-  return { ref: localReference(part, index, worktree), stagingDirectory }
+  return { ref: { ...localReference(part, index, worktree), ...(classification === undefined ? {} : { classification }) }, stagingDirectory }
 }
 
 const KSlideHostPlugin: Plugin = async ({ worktree }) => {
@@ -263,6 +271,12 @@ const KSlideHostPlugin: Plugin = async ({ worktree }) => {
       if (input.tool !== "kslide_prepare") return
       const args = output.args && typeof output.args === "object" ? { ...output.args } : {}
       delete (args as { host_input_refs?: unknown }).host_input_refs
+      delete (args as { classification?: unknown }).classification
+      delete (args as { classifications?: unknown }).classifications
+      delete (args as { classification_policy?: unknown }).classification_policy
+      delete (args as { inference_route_identity?: unknown }).inference_route_identity
+      delete (args as { inference_data_use_policy?: unknown }).inference_data_use_policy
+      delete (args as { inference_data_policy?: unknown }).inference_data_policy
       const references = currentMessageInputs.get(input.sessionID)?.refs || []
       if (Array.isArray((args as { explicit_input_paths?: unknown }).explicit_input_paths) && (args as { explicit_input_paths: unknown[] }).explicit_input_paths.length) {
         output.args = args

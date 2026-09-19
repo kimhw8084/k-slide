@@ -93,6 +93,8 @@ CANDIDATE_INPUT_FIELDS = (
     "termbase_version",
     "termbase_hash",
     "model_policy",
+    "inference_route_identity",
+    "inference_data_use_policy",
     "schema_versions",
     RETENTION_POLICY_FIELD,
     "tenant_isolation",
@@ -177,7 +179,7 @@ _BEHAVIOR_ALIASES = {
     "normalization": "normalization_behavior",
     "vision": "vision_settings",
 }
-_CANDIDATE_ALIASES = {"model": "requested_model", "model_id": "requested_model", **_BEHAVIOR_ALIASES}
+_CANDIDATE_ALIASES = {"model": "requested_model", "model_id": "requested_model", "inference_data_policy": "inference_data_use_policy", **_BEHAVIOR_ALIASES}
 
 _CANDIDATE_COMPLETENESS_FIELDS: dict[str, tuple[str, ...]] = {
     "RUNTIME_READY": ("subject_git_sha", "kslide_version", "opencode_version"),
@@ -762,6 +764,13 @@ def _normalize_candidate_mapping(value: dict[str, Any], *, strict: bool = False)
         from .model_policy import ModelPolicy
 
         normalized["model_policy"] = ModelPolicy.from_mapping(normalized["model_policy"]).as_dict()
+    if isinstance(normalized.get("inference_data_use_policy"), dict):
+        from .classification_policy import InferenceDataUsePolicy
+
+        data_policy = InferenceDataUsePolicy.from_mapping(normalized["inference_data_use_policy"])
+        if normalized.get("inference_route_identity") != data_policy.inference_route_identity:
+            raise EvidenceValidationError("candidate inference route and data-use policy disagree")
+        normalized["inference_data_use_policy"] = data_policy.as_dict()
     if isinstance(normalized.get("corpus_identity"), dict):
         normalized["corpus_identity"] = canonical_corpus_identity(normalized["corpus_identity"])
     return normalized

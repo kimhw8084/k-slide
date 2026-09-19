@@ -42,6 +42,8 @@ model_policy:
   target_variant: "instruction_tuned"
   approved_model_ids: ["google/gemma-4-31b-it"]
   approved_aliases: []
+inference_route_identity: UNSET
+inference_data_use_policy: UNSET
 schema_versions:
   evidence_ir: "1.0"
   translation_patch: "1.0"

@@ -96,6 +96,7 @@ class RunState:
     repair_attempts: int = 0
     revision: int = 0
     deletion_fence: str | None = None
+    classification_admission: dict[str, Any] | None = None
     schema_version: str = RUN_STATE_SCHEMA_VERSION
     created_at: str = field(default_factory=now_utc)
     updated_at: str = field(default_factory=now_utc)
@@ -143,6 +144,7 @@ class RunState:
             "repair_attempts": self.repair_attempts,
             "revision": self.revision,
             "deletion_fence": self.deletion_fence,
+            "classification_admission": self.classification_admission,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -169,6 +171,7 @@ class RunState:
                 repair_attempts=int(data.get("repair_attempts", 0)),
                 revision=int(data.get("revision", 0)),
                 deletion_fence=deletion_fence,
+                classification_admission=data.get("classification_admission") if isinstance(data.get("classification_admission"), dict) else None,
                 schema_version=str(data.get("schema_version", RUN_STATE_SCHEMA_VERSION)),
                 created_at=str(data.get("created_at", now_utc())),
                 updated_at=str(data.get("updated_at", now_utc())),

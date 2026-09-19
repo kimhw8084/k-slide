@@ -10,6 +10,13 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from . import SCHEMA_VERSION
+from .classification_policy import (
+    ClassificationAdmission,
+    DEFAULT_CLASSIFICATION,
+    InferenceDataUsePolicy,
+    admit_classifications,
+    load_inference_data_use_policy,
+)
 from .errors import ErrorCode, KSlideError
 from .environment import RunEnvironmentIdentity, resolve_effective_environment
 from .execution import ExecutionProfile, WorkspaceRunStore, new_execution_job, sync_workspace_execution
@@ -60,13 +67,16 @@ def _input_candidates(root: Path, explicit_paths: Iterable[str]) -> list[Path]:
     )
 
 
-def _artifact_manifest(artifacts: list[InputArtifact]) -> dict[str, Any]:
-    return {
+def _artifact_manifest(artifacts: list[InputArtifact], *, classification_admission: ClassificationAdmission | None = None) -> dict[str, Any]:
+    value = {
         "schema_version": SCHEMA_VERSION,
         "input_count": len(artifacts),
         "inputs": [{"snapshot_id": f"source-{index:03d}", **artifact.as_dict()} for index, artifact in enumerate(artifacts, start=1)],
         "snapshot_policy": "immutable_copy_hashed_at_prepare",
     }
+    if classification_admission is not None:
+        value["classification_admission"] = classification_admission.as_dict()
+    return value
 
 
 def _write_recovery(run_dir: Path, run_id: str) -> None:
@@ -80,17 +90,27 @@ def _write_recovery(run_dir: Path, run_id: str) -> None:
     )
 
 
-def _write_compatibility_artifacts(run_dir: Path, run_id: str, artifacts: list[InputArtifact], *, host_inputs: bool = False) -> None:
-    atomic_write_json(storage_path(run_dir, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json", create_parent=True), _artifact_manifest(artifacts), mode=0o600)
+def _write_compatibility_artifacts(
+    run_dir: Path,
+    run_id: str,
+    artifacts: list[InputArtifact],
+    *,
+    host_inputs: bool = False,
+    classification_admission: ClassificationAdmission | None = None,
+) -> None:
+    atomic_write_json(storage_path(run_dir, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json", create_parent=True), _artifact_manifest(artifacts, classification_admission=classification_admission), mode=0o600)
     inventory = {
         "schema_version": SCHEMA_VERSION,
         "status": "validated",
         "input_count": len(artifacts),
         "input_files": [artifact.source_name for artifact in artifacts],
         "input_sha256": [artifact.sha256 for artifact in artifacts],
+        "classifications": [artifact.classification for artifact in artifacts],
         "supported_extensions": sorted(SUPPORTED_EXTENSIONS),
         "attachments": {"supported": host_inputs, "reason": "validated local host references" if host_inputs else "No host references were supplied; using the local compatibility folder."},
     }
+    if classification_admission is not None:
+        inventory["classification_admission"] = classification_admission.as_dict()
     atomic_write_json(storage_path(run_dir, StorageArtifact.INPUT_INVENTORY, "00_input_inventory.json", create_parent=True), inventory, mode=0o600)
     lines = ["# K-Slide Run Manifest", "", f"Run ID: {run_id}", f"Input count: {len(artifacts)}", ""]
     lines.extend(f"- {artifact.source_name} ({artifact.kind}, sha256 `{artifact.sha256}`)" for artifact in artifacts)
@@ -118,6 +138,8 @@ def prepare_run(
     host_input_refs: Iterable[HostInputReference | dict[str, Any]] = (),
     approved_root: Path | None = None,
     environment_identity: RunEnvironmentIdentity | None = None,
+    inference_data_use_policy: InferenceDataUsePolicy | dict[str, Any] | None = None,
+    classification_policy: InferenceDataUsePolicy | dict[str, Any] | None = None,
 ) -> Path:
     """Create an immutable run, returning its directory even for failed input.
 
@@ -182,6 +204,76 @@ def prepare_run(
         atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), "# FAILED\n\nNo supported input files were found. Add a slide image, PDF, or PPTX and run `/k-slide` again.\n")
         return run_dir
 
+    # Classification admission is intentionally before source validation and
+    # immutable snapshot creation.  The labels are host metadata only; no
+    # document bytes, filename-derived values, or model/tool arguments enter
+    # this decision.
+    raw_policy = inference_data_use_policy if inference_data_use_policy is not None else classification_policy
+    classifications = tuple(reference.classification for reference in raw_host_refs) if raw_host_refs else tuple(DEFAULT_CLASSIFICATION for _candidate in candidates)
+    try:
+        policy = load_inference_data_use_policy(
+            root,
+            route_identity=bound_environment.inference_route_identity,
+            policy=raw_policy,
+            allow_reference_adapter=bound_environment.inference_route_identity == "reference",
+        )
+        if (
+            policy.policy_version != bound_environment.inference_data_policy_version
+            or policy.policy_hash != bound_environment.inference_data_policy_hash
+            or policy.policy_identity != bound_environment.inference_data_policy_identity
+        ):
+            raise KSlideError(
+                ErrorCode.CLASSIFICATION_POLICY_IDENTITY_MISMATCH,
+                "Inference data-use policy identity is incompatible with the configured run environment.",
+            )
+        admission = admit_classifications(classifications, policy)
+        state.classification_admission = admission.as_dict()
+        save_state(run_dir, state)
+        atomic_write_json(
+            storage_path(run_dir, StorageArtifact.ADMISSION_RECORD, "admission/CLASSIFICATION_ADMISSION.json", create_parent=True),
+            admission.as_dict(),
+            mode=0o600,
+        )
+    except KSlideError as exc:
+        state.classification_admission = {
+            "schema_version": "1.0",
+            "status": "REJECTED",
+            "classifications": [label if label is not None else DEFAULT_CLASSIFICATION for label in classifications],
+            "inference_route_identity": bound_environment.inference_route_identity,
+            "inference_data_policy_version": bound_environment.inference_data_policy_version,
+            "inference_data_policy_hash": bound_environment.inference_data_policy_hash,
+            "inference_data_policy_identity": bound_environment.inference_data_policy_identity,
+            "error_code": exc.code.value,
+        }
+        state.transition(
+            RunPhase.FAILED_INPUT,
+            next_action="Provide an approved classification policy and retry /k-slide.",
+            error_code=exc.code.value,
+            error_message=exc.message,
+        )
+        save_state(run_dir, state)
+        atomic_write_json(
+            storage_path(run_dir, StorageArtifact.ADMISSION_RECORD, "admission/CLASSIFICATION_ADMISSION.json", create_parent=True),
+            state.classification_admission,
+            mode=0o600,
+        )
+        atomic_write_json(
+            storage_path(run_dir, StorageArtifact.INPUT_INVENTORY, "00_input_inventory.json", create_parent=True),
+            {
+                "schema_version": SCHEMA_VERSION,
+                "status": "classification_admission_failed",
+                "input_count": len(classifications),
+                "classification_admission": state.classification_admission,
+            },
+            mode=0o600,
+        )
+        atomic_write_text(
+            storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True),
+            f"# FAILED\n\n{safe_diagnostic_text_or_placeholder(exc.message)}\n\nError code: `{exc.code.value}`\n",
+        )
+        sync_workspace_execution(run_dir, environment_identity=bound_environment)
+        return run_dir
+
     artifacts: list[InputArtifact] = []
     try:
         if raw_host_refs:
@@ -209,8 +301,8 @@ def prepare_run(
             atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), "# FAILED\n\nImmutable input snapshot hash verification failed.\n")
             return run_dir
 
-    atomic_write_json(storage_path(run_dir, StorageArtifact.SOURCE_MANIFEST, "inputs/checksums.json", create_parent=True), _artifact_manifest(artifacts), mode=0o600)
-    _write_compatibility_artifacts(run_dir, run_id, artifacts, host_inputs=host_inputs)
+    atomic_write_json(storage_path(run_dir, StorageArtifact.SOURCE_MANIFEST, "inputs/checksums.json", create_parent=True), _artifact_manifest(artifacts, classification_admission=admission), mode=0o600)
+    _write_compatibility_artifacts(run_dir, run_id, artifacts, host_inputs=host_inputs, classification_admission=admission)
     runtime = discover_runtime()
     atomic_write_json(storage_path(run_dir, StorageArtifact.RUNTIME_METADATA, "RUNTIME_METADATA.json", create_parent=True), runtime.as_dict(), mode=0o600)
     state.input_count = len(artifacts)

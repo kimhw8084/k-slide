@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .documents import NormalizationResult
+from .classification_policy import DEFAULT_CLASSIFICATION
 from .environment import RunEnvironmentIdentity
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import EvidenceIR, EvidenceRegion, EvidenceTable, EvidenceTableCell, save_evidence
@@ -167,6 +168,12 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None, ocr_p
         atomic_write_json(storage_path(run_dir, StorageArtifact.OCR_METADATA, "OCR_METADATA.json", create_parent=True), selection.as_dict(), mode=0o600)
         evidence_values: list[EvidenceIR] = []
         queue = load_queue(run_dir)
+        run_manifest = read_json(storage_path(run_dir, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json"))
+        input_classifications = {
+            str(item.get("snapshot_id")): str(item.get("classification", DEFAULT_CLASSIFICATION))
+            for item in (run_manifest.get("inputs", []) if isinstance(run_manifest, dict) else [])
+            if isinstance(item, dict) and item.get("snapshot_id")
+        }
         for document in normalized.documents:
             for unit in document.units:
                 native_items = _unit_native(run_dir, unit)
@@ -219,7 +226,7 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None, ocr_p
                         visual_values.append({"element_id": f"{native_item['source_id']}-chart", "kind": "chart", "source_id": native_item["source_id"], "chart": chart, "bbox_px": list(native_item.get("bbox_px", [0, 0, unit.width_px, unit.height_px])), "required": True})
                 visual_elements = tuple(visual_values)
                 required_source_ids.append(context_id)
-                source = {"input_id": unit.input_id, "document_id": document.document_id, "input_sha256": document.source_sha256, "page_or_slide_index": unit.source_index, "width_px": unit.width_px, "height_px": unit.height_px, "canonical_render_sha256": unit.render_sha256, "canonical_render_path": unit.canonical_render_path, "context_image_path": unit.canonical_render_path, "context_image_sha256": unit.render_sha256, "ocr_policy_requested": selection.requested, "ocr_provider_effective": selection.effective, "ocr_provider_version": selection.version}
+                source = {"input_id": unit.input_id, "document_id": document.document_id, "classification": input_classifications.get(unit.input_id, DEFAULT_CLASSIFICATION), "input_sha256": document.source_sha256, "page_or_slide_index": unit.source_index, "width_px": unit.width_px, "height_px": unit.height_px, "canonical_render_sha256": unit.render_sha256, "canonical_render_path": unit.canonical_render_path, "context_image_path": unit.canonical_render_path, "context_image_sha256": unit.render_sha256, "ocr_policy_requested": selection.requested, "ocr_provider_effective": selection.effective, "ocr_provider_version": selection.version}
                 evidence = EvidenceIR(document.document_id, unit.work_unit_id, source, tuple(regions), tables, tuple(facts), visual_elements, tuple(unit.native_evidence), tuple(required_source_ids)).with_revision()
                 save_evidence(run_dir, evidence)
                 evidence_values.append(evidence)

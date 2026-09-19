@@ -14,6 +14,7 @@ const hostInputReference = tool.schema.object({
   source_kind: tool.schema.enum(["attachment", "workspace_file"]),
   logical_name: tool.schema.string(),
   locator: tool.schema.string(),
+  classification: tool.schema.string().optional(),
 })
 
 const hangulRetention = tool.schema.object({
