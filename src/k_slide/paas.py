@@ -53,6 +53,8 @@ _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,255}$")
 _STRICT_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 _TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
 _FORBIDDEN = ("access", "secret", "token", "password", "credential", "source", "content", "prompt")
+_SCOPED_NOT_FOUND_MESSAGE = "Durable execution is unavailable."
+_AUTHORIZATION_REQUIRED_MESSAGE = "An authorized scope context is required."
 
 
 def authenticated_paas_service_call(
@@ -66,6 +68,16 @@ def authenticated_paas_service_call(
 
 def _invalid(message: str, *, code: ErrorCode = ErrorCode.EXECUTION_INVALID) -> KSlideError:
     return KSlideError(code, message)
+
+
+def _scoped_not_found() -> KSlideError:
+    """Return the source-free contract for every inaccessible scoped job."""
+
+    return KSlideError(ErrorCode.EXECUTION_NOT_FOUND, _SCOPED_NOT_FOUND_MESSAGE)
+
+
+def _authorization_required() -> KSlideError:
+    return KSlideError(ErrorCode.EXECUTION_AUTHORIZATION_REQUIRED, _AUTHORIZATION_REQUIRED_MESSAGE)
 
 
 def _safe_identity(value: Any, label: str) -> str:
@@ -573,7 +585,7 @@ class PaaSQueueStatus:
 class RunStoreResolver(Protocol):
     """Resolve an opaque store reference to the existing KSA-06 RunStore."""
 
-    def open_store(self, identity: DurableJobIdentity, *, scope_context: AuthorizedScopeContext | None = None) -> RunStore: ...
+    def open_store(self, identity: DurableJobIdentity, *, scope_context: AuthorizedScopeContext) -> RunStore: ...
 
 
 class PaaSJobService(Protocol):
@@ -581,21 +593,22 @@ class PaaSJobService(Protocol):
 
     The service owns job dispatch/lifetime and durable identity.  It does not
     receive source content, prompts, results, or AccessKey material.  Scoped
-    production calls must provide ``scope_context``; the optional form is kept
-    only for the pre-KSA-09 KSA-08 reference contract.
+    production calls must provide ``scope_context``. The reference filesystem
+    adapter may expose an explicit compatibility seam for the pre-KSA-09
+    contract.
     """
 
-    def submit(self, job: ExecutionJob, *, runtime_identity: RuntimeIdentity, scope_context: AuthorizedScopeContext | None = None) -> PaaSSubmissionReceipt: ...
+    def submit(self, job: ExecutionJob, *, runtime_identity: RuntimeIdentity, scope_context: AuthorizedScopeContext) -> PaaSSubmissionReceipt: ...
 
-    def inspect(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext | None = None) -> PaaSJobStatus: ...
+    def inspect(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext) -> PaaSJobStatus: ...
 
-    def request_cancellation(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext | None = None) -> PaaSJobStatus: ...
+    def request_cancellation(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext) -> PaaSJobStatus: ...
 
-    def claim(self, identity: DurableJobIdentity | str, *, worker_id: str, runtime_identity: RuntimeIdentity, scope_context: AuthorizedScopeContext | None = None) -> WorkerClaim: ...
+    def claim(self, identity: DurableJobIdentity | str, *, worker_id: str, runtime_identity: RuntimeIdentity, scope_context: AuthorizedScopeContext) -> WorkerClaim: ...
 
-    def claim_next(self, *, worker_id: str, runtime_identity: RuntimeIdentity, scope_context: AuthorizedScopeContext | None = None) -> WorkerClaim: ...
+    def claim_next(self, *, worker_id: str, runtime_identity: RuntimeIdentity, scope_context: AuthorizedScopeContext) -> WorkerClaim: ...
 
-    def open_store(self, identity: DurableJobIdentity, *, scope_context: AuthorizedScopeContext | None = None) -> RunStore: ...
+    def open_store(self, identity: DurableJobIdentity, *, scope_context: AuthorizedScopeContext) -> RunStore: ...
 
     def queue(self, *, scope_context: AuthorizedScopeContext) -> PaaSQueueStatus: ...
 
@@ -899,19 +912,31 @@ def _scoped_submission_fingerprint(job: ExecutionJob, runtime_identity: RuntimeI
 class ScopedPaaSRunStore(PaaSRunStore):
     """Least-privilege KSA-06 store view bound to one authorized job."""
 
-    def __init__(self, backend: RunStore, identity: DurableJobIdentity, on_terminal: Callable[[ExecutionJob], None] | None = None, mutation_guard: Callable[[], None] | None = None) -> None:
+    def __init__(
+        self,
+        backend: RunStore,
+        identity: DurableJobIdentity,
+        on_terminal: Callable[[ExecutionJob], None] | None = None,
+        mutation_guard: Callable[[], None] | None = None,
+        binding_guard: Callable[[], None] | None = None,
+    ) -> None:
         super().__init__(backend)
+        if binding_guard is None:
+            raise _authorization_required()
         self._identity = identity
         self._on_terminal = on_terminal
         self._mutation_guard = mutation_guard
+        self._binding_guard = binding_guard
 
     def _guard(self) -> None:
+        if self._binding_guard is not None:
+            self._binding_guard()
         if self._mutation_guard is not None:
             self._mutation_guard()
 
     def _bound(self, job_id: str) -> None:
         if job_id != self._identity.job_id:
-            raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Run-store access is outside the authorized job scope.", {"job_id": job_id})
+            raise _scoped_not_found()
 
     def _finish(self, result):
         if result.accepted and result.job.lifecycle in {OperationalLifecycle.COMPLETED, OperationalLifecycle.CANCELED, OperationalLifecycle.PROCESSING_FAILED} and self._on_terminal is not None:
@@ -928,7 +953,7 @@ class ScopedPaaSRunStore(PaaSRunStore):
         self._guard()
         job = self._backend.load(job_id)
         if DurableJobIdentity.from_job(job) != self._identity:
-            raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Run-store identity does not match the authorized job scope.", {"job_id": job_id})
+            raise _scoped_not_found()
         return job
 
     def load_checkpoint(self, job_id: str) -> RunCheckpoint:
@@ -1020,12 +1045,22 @@ class ReferencePaaSJobService(RunStoreResolver):
 
     It deliberately has no lease timeout: a new worker may reattach to an
     active job after a worker/controller process disappears.  Concurrent work
-    remains protected by the underlying RunStore CAS contract.  Calls carrying
-    ``AuthorizedScopeContext`` use the KSA-09 scoped admission backend; calls
-    without it retain the KSA-08 compatibility layout.
+    remains protected by the underlying RunStore CAS contract. Calls carrying
+    ``AuthorizedScopeContext`` use the KSA-09 scoped admission backend. The
+    KSA-08 compatibility layout is disabled unless the caller explicitly opts
+    into ``reference_compatibility``; production-facing interfaces never
+    infer that mode from a missing context.
     """
 
-    def __init__(self, service_root: Path, *, admission_policy: ScopedAdmissionPolicy | None = None, scope_context: AuthorizedScopeContext | None = None, authorization: AuthorizedScopeContext | None = None) -> None:
+    def __init__(
+        self,
+        service_root: Path,
+        *,
+        admission_policy: ScopedAdmissionPolicy | None = None,
+        scope_context: AuthorizedScopeContext | None = None,
+        authorization: AuthorizedScopeContext | None = None,
+        reference_compatibility: bool = False,
+    ) -> None:
         if scope_context is not None and authorization is not None and scope_context != authorization:
             raise _invalid("PaaS service authorization contexts disagree.")
         if scope_context is not None and not isinstance(scope_context, AuthorizedScopeContext):
@@ -1042,6 +1077,22 @@ class ReferencePaaSJobService(RunStoreResolver):
         self._scopes_root = self._storage.durable_root / "scopes"
         self.admission_policy = admission_policy or ScopedAdmissionPolicy()
         self.scope_context = scope_context or authorization
+        if not isinstance(reference_compatibility, bool):
+            raise _invalid("PaaS reference compatibility mode is invalid.")
+        self.reference_compatibility = reference_compatibility
+
+    def _effective_scope_context(self, scope_context: AuthorizedScopeContext | None) -> AuthorizedScopeContext | None:
+        if scope_context is not None and not isinstance(scope_context, AuthorizedScopeContext):
+            raise _authorization_required()
+        if self.scope_context is not None:
+            if scope_context is not None and scope_context != self.scope_context:
+                raise _scoped_not_found()
+            return self.scope_context
+        if scope_context is not None:
+            return scope_context
+        if self.reference_compatibility:
+            return None
+        raise _authorization_required()
 
     def _record_path(self, job_id: str) -> Path:
         _strict_identifier(job_id, "job ID")
@@ -1146,11 +1197,13 @@ class ReferencePaaSJobService(RunStoreResolver):
     def _read_scoped_record(self, scope_context: AuthorizedScopeContext, job_id: str) -> _ScopedJobRecord:
         path = self._scope_record_path(scope_context, job_id)
         if not path.is_file():
-            raise KSlideError(ErrorCode.EXECUTION_NOT_FOUND, "Durable PaaS job does not exist.", {"job_id": job_id})
+            raise _scoped_not_found()
         try:
             record = _scoped_record_from_dict(read_json(path))
             if record.identity.job_id != job_id:
                 raise _invalid("Scoped durable PaaS job record identity does not match its path.", code=ErrorCode.STATE_CORRUPT)
+            if record.scope_context != scope_context or record.references != self._scoped_references(record.identity, scope_context):
+                raise _invalid("Scoped durable PaaS job record is outside its authorized admission namespace.", code=ErrorCode.STATE_CORRUPT)
             return record
         except KSlideError as exc:
             if exc.code is ErrorCode.EXECUTION_UNSUPPORTED_VERSION:
@@ -1307,28 +1360,32 @@ class ReferencePaaSJobService(RunStoreResolver):
 
     def _resolve_scoped_identity(self, identity: DurableJobIdentity | str, scope_context: AuthorizedScopeContext) -> tuple[DurableJobIdentity, _ScopedJobRecord]:
         if isinstance(identity, DurableJobIdentity):
-            _validate_scoped_identity(identity)
+            try:
+                _validate_scoped_identity(identity)
+            except KSlideError as exc:
+                raise _scoped_not_found() from exc
             if identity.scope_ref != scope_context.scope_ref:
-                raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Authorized scope context does not match the requested job scope.")
+                raise _scoped_not_found()
             record = self._read_scoped_record(scope_context, identity.job_id)
             if record.identity != identity:
-                raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Durable job identity does not match the authorized scope record.")
+                raise _scoped_not_found()
             return identity, record
         if not isinstance(identity, str):
-            raise _invalid("Durable job identity is invalid.")
+            raise _scoped_not_found()
         record = self._read_scoped_record(scope_context, identity)
         return record.identity, record
 
     def _check_scoped_job(self, job: ExecutionJob, identity: DurableJobIdentity, record: _ScopedJobRecord) -> None:
         self._validate_scoped_job(job)
-        if DurableJobIdentity.from_job(job) != identity or record.identity != identity or record.scope_context.scope_ref != identity.scope_ref:
-            raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Durable job identity does not match the authorized scope record.")
+        if DurableJobIdentity.from_job(job) != identity or record.identity != identity or record.references != self._scoped_references(identity, record.scope_context):
+            raise _scoped_not_found()
         if job.environment_identity != record.environment_identity:
             raise KSlideError(
                 ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
                 "Durable job environment identity does not match the scope record.",
                 {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": ["run_environment_identity"]},
             )
+
 
     @staticmethod
     def _same_scoped_submission(existing: ExecutionJob, candidate: ExecutionJob, existing_record: _ScopedJobRecord, runtime_identity: RuntimeIdentity) -> bool:
@@ -1419,7 +1476,7 @@ class ReferencePaaSJobService(RunStoreResolver):
 
     def submit(self, job: ExecutionJob, *, runtime_identity: RuntimeIdentity, scope_context: AuthorizedScopeContext | None = None) -> PaaSSubmissionReceipt:
         job, environment_identity = self._bind_environment(job, runtime_identity)
-        scope_context = scope_context or self.scope_context
+        scope_context = self._effective_scope_context(scope_context)
         if scope_context is not None:
             return self._submit_scoped(job, runtime_identity=runtime_identity, scope_context=scope_context)
         if job.profile is not ExecutionProfile.DURABLE:
@@ -1535,7 +1592,7 @@ class ReferencePaaSJobService(RunStoreResolver):
             return PaaSSubmissionReceipt(stored.status, identity, references)
 
     def open_store(self, identity: DurableJobIdentity, *, scope_context: AuthorizedScopeContext | None = None) -> RunStore:
-        scope_context = scope_context or self.scope_context
+        scope_context = self._effective_scope_context(scope_context)
         if scope_context is not None:
             return self._open_scoped_store(identity, scope_context)
         self._identity(identity)
@@ -1546,15 +1603,22 @@ class ReferencePaaSJobService(RunStoreResolver):
         backend = self._scoped_store(scope_context)
         job = backend.load(resolved.job_id)
         self._check_scoped_job(job, resolved, record)
+
+        def binding_guard() -> None:
+            current = self._read_scoped_record(scope_context, resolved.job_id)
+            if current != record or current.identity != resolved or current.scope_context != scope_context:
+                raise _scoped_not_found()
+
         return ScopedPaaSRunStore(
             backend,
             resolved,
             on_terminal=lambda terminal: self._release_scoped_slot(terminal, scope_context),
             mutation_guard=lambda: self._deletion_fenced(scope_context, resolved.run_id),
+            binding_guard=binding_guard,
         )
 
     def inspect(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext | None = None) -> PaaSJobStatus:
-        scope_context = scope_context or self.scope_context
+        scope_context = self._effective_scope_context(scope_context)
         if scope_context is not None:
             resolved, record = self._resolve_scoped_identity(identity, scope_context)
             job = self._scoped_store(scope_context).load(resolved.job_id)
@@ -1566,7 +1630,7 @@ class ReferencePaaSJobService(RunStoreResolver):
         return PaaSJobStatus.from_job(job)
 
     def request_cancellation(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext | None = None) -> PaaSJobStatus:
-        scope_context = scope_context or self.scope_context
+        scope_context = self._effective_scope_context(scope_context)
         if scope_context is not None:
             return self._request_cancellation_scoped(identity, scope_context)
         resolved = self._identity(identity)
@@ -1617,7 +1681,7 @@ class ReferencePaaSJobService(RunStoreResolver):
         if not isinstance(runtime_identity, RuntimeIdentity):
             raise _invalid("Worker runtime identity is invalid.")
         runtime_identity.environment()
-        scope_context = scope_context or self.scope_context
+        scope_context = self._effective_scope_context(scope_context)
         if scope_context is not None:
             return self._claim_scoped(identity, worker_id=worker_id, runtime_identity=runtime_identity, scope_context=scope_context)
         worker_id = _strict_identifier(worker_id, "worker ID")
@@ -1693,7 +1757,7 @@ class ReferencePaaSJobService(RunStoreResolver):
             return WorkerClaim(resolved, job, claim_ref, record.references)
 
     def claim_next(self, *, worker_id: str, runtime_identity: RuntimeIdentity, scope_context: AuthorizedScopeContext | None = None) -> WorkerClaim:
-        scope_context = scope_context or self.scope_context
+        scope_context = self._effective_scope_context(scope_context)
         if scope_context is not None:
             return self._claim_next_scoped(worker_id=worker_id, runtime_identity=runtime_identity, scope_context=scope_context)
         if not self._records_root.is_dir():
@@ -1714,7 +1778,7 @@ class ReferencePaaSJobService(RunStoreResolver):
             raw_state = self._load_scoped_state(scope_context)
             state = self._normalize_scoped_state(raw_state)
             if state.active_job_id is None:
-                raise KSlideError(ErrorCode.EXECUTION_NOT_FOUND, "No durable PaaS jobs are queued in the authorized scope.")
+                raise _scoped_not_found()
             record = self._read_scoped_record(scope_context, state.active_job_id)
             job = self._scoped_store(scope_context).load(state.active_job_id)
             self._deletion_fenced(scope_context, record.identity.run_id)
@@ -1729,7 +1793,7 @@ class ReferencePaaSJobService(RunStoreResolver):
                         break
                 state = replace(state, revision=state.revision + 1, active_job_id=next_active)
                 if next_active is None:
-                    raise KSlideError(ErrorCode.EXECUTION_NOT_FOUND, "No durable PaaS jobs are queued in the authorized scope.")
+                    raise _scoped_not_found()
                 record = self._read_scoped_record(scope_context, next_active)
                 job = self._scoped_store(scope_context).load(next_active)
             raise_environment_mismatch(record.environment_identity, runtime_identity.environment())
@@ -1743,9 +1807,9 @@ class ReferencePaaSJobService(RunStoreResolver):
             return WorkerClaim(record.identity, job, claim_ref, record.references)
 
     def queue(self, *, scope_context: AuthorizedScopeContext | None = None) -> PaaSQueueStatus:
-        scope_context = scope_context or self.scope_context
+        scope_context = self._effective_scope_context(scope_context)
         if not isinstance(scope_context, AuthorizedScopeContext):
-            raise _invalid("PaaS authorization context is required for queue visibility.")
+            raise _authorization_required()
         with self._scope_lock(scope_context):
             raw_state = self._load_scoped_state(scope_context)
             state = self._normalize_scoped_state(raw_state)
@@ -1775,18 +1839,18 @@ class ReferencePaaSJobService(RunStoreResolver):
     list_queue = queue
 
     def resolve_references(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext | None = None) -> ScopedArtifactReferences:
-        scope_context = scope_context or self.scope_context
+        scope_context = self._effective_scope_context(scope_context)
         if not isinstance(scope_context, AuthorizedScopeContext):
-            raise _invalid("PaaS authorization context is required for reference resolution.")
+            raise _authorization_required()
         resolved, record = self._resolve_scoped_identity(identity, scope_context)
         job = self._scoped_store(scope_context).load(resolved.job_id)
         self._check_scoped_job(job, resolved, record)
         return record.references
 
     def resolve_store(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext | None = None) -> RunStore:
-        scope_context = scope_context or self.scope_context
+        scope_context = self._effective_scope_context(scope_context)
         if not isinstance(scope_context, AuthorizedScopeContext):
-            raise _invalid("PaaS authorization context is required for store resolution.")
+            raise _authorization_required()
         return self._open_scoped_store(identity, scope_context)
 
     def resolve_result(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext | None = None) -> str:
@@ -1798,10 +1862,12 @@ class ReferencePaaSJobService(RunStoreResolver):
     def content_layout(self, identity: DurableJobIdentity | str, *, scope_context: AuthorizedScopeContext | None = None) -> StorageLayout:
         """Resolve the exact scoped KSA-11 durable content namespace."""
 
-        scope_context = scope_context or self.scope_context
+        scope_context = self._effective_scope_context(scope_context)
         if not isinstance(scope_context, AuthorizedScopeContext):
-            raise _invalid("PaaS content resolution requires an authorized scope context.")
-        resolved, _record = self._resolve_scoped_identity(identity, scope_context)
+            raise _authorization_required()
+        resolved, record = self._resolve_scoped_identity(identity, scope_context)
+        job = self._scoped_store(scope_context).load(resolved.job_id)
+        self._check_scoped_job(job, resolved, record)
         scope_root = self._scope_root(scope_context)
         return StorageLayout.for_scoped_reference(
             service_root=self.root,
@@ -1818,9 +1884,9 @@ class ReferencePaaSJobService(RunStoreResolver):
 
         from .deletion import DeletionReason, delete_scoped_run
 
-        scope_context = scope_context or self.scope_context
+        scope_context = self._effective_scope_context(scope_context)
         if not isinstance(scope_context, AuthorizedScopeContext):
-            raise _invalid("PaaS deletion requires an authorized scope context.")
+            raise _authorization_required()
         return delete_scoped_run(
             self,
             identity=identity,
@@ -1836,20 +1902,43 @@ class ReferencePaaSJobService(RunStoreResolver):
     def cleanup_operational_metadata(self, *, scope_context: AuthorizedScopeContext | None = None, retention_policy: Any, hold_provider: Any | None = None, now: Any | None = None, dry_run: bool = False) -> dict[str, Any]:
         from .deletion import cleanup_scoped_operational_metadata
 
-        scope_context = scope_context or self.scope_context
+        scope_context = self._effective_scope_context(scope_context)
         if not isinstance(scope_context, AuthorizedScopeContext):
-            raise _invalid("Operational-metadata cleanup requires an authorized scope context.")
+            raise _authorization_required()
         return cleanup_scoped_operational_metadata(self, scope_context=scope_context, retention_policy=retention_policy, hold_provider=hold_provider, now=now, dry_run=dry_run)
 
 
 class PaaSController:
     """Interactive-host facade that never waits for worker completion."""
 
-    def __init__(self, service: PaaSJobService, *, scope_context: AuthorizedScopeContext | None = None, authorization: AuthorizedScopeContext | None = None) -> None:
+    def __init__(
+        self,
+        service: PaaSJobService,
+        *,
+        scope_context: AuthorizedScopeContext | None = None,
+        authorization: AuthorizedScopeContext | None = None,
+        reference_mode: bool = False,
+    ) -> None:
         self.service = service
         if scope_context is not None and authorization is not None and scope_context != authorization:
             raise _invalid("PaaS controller authorization contexts disagree.")
         self.scope_context = scope_context or authorization or getattr(service, "scope_context", None)
+        if not isinstance(reference_mode, bool):
+            raise _invalid("PaaS controller reference mode is invalid.")
+        self.reference_mode = reference_mode or bool(getattr(service, "reference_compatibility", False))
+
+    def _context(self, request_context: AuthorizedScopeContext | None = None) -> AuthorizedScopeContext | None:
+        if request_context is not None and not isinstance(request_context, AuthorizedScopeContext):
+            raise _authorization_required()
+        if self.scope_context is not None:
+            if request_context is not None and request_context != self.scope_context:
+                raise _scoped_not_found()
+            return self.scope_context
+        if request_context is not None and self.reference_mode:
+            return request_context
+        if self.reference_mode:
+            return None
+        raise _authorization_required()
 
     def submit(self, request: PaaSJobRequest | None = None, **kwargs: Any) -> PaaSSubmissionReceipt:
         if request is None:
@@ -1868,31 +1957,34 @@ class PaaSController:
             engine_state_revision=request.engine_state_revision,
             environment_identity=request.environment_identity,
         )
-        scope_context = request.scope_context or request.authorization or self.scope_context
+        scope_context = self._context(request.scope_context or request.authorization)
         if scope_context is None:
             return self.service.submit(job, runtime_identity=request.runtime_identity)
         return self.service.submit(job, runtime_identity=request.runtime_identity, scope_context=scope_context)
 
     def status(self, identity: DurableJobIdentity | str) -> PaaSJobStatus:
-        if self.scope_context is None:
+        scope_context = self._context()
+        if scope_context is None:
             return self.service.inspect(identity)
-        return self.service.inspect(identity, scope_context=self.scope_context)
+        return self.service.inspect(identity, scope_context=scope_context)
 
     def reconnect(self, identity: DurableJobIdentity | str) -> PaaSJobStatus:
         return self.status(identity)
 
     def cancel(self, identity: DurableJobIdentity | str) -> PaaSJobStatus:
-        if self.scope_context is None:
+        scope_context = self._context()
+        if scope_context is None:
             return self.service.request_cancellation(identity)
-        return self.service.request_cancellation(identity, scope_context=self.scope_context)
+        return self.service.request_cancellation(identity, scope_context=scope_context)
 
     def queue(self) -> PaaSQueueStatus:
         queue_method = getattr(self.service, "queue", None)
         if not callable(queue_method):
             raise _invalid("This PaaS adapter does not expose scoped queue visibility.")
-        if self.scope_context is None:
-            raise _invalid("PaaS controller authorization context is required for queue visibility.")
-        return queue_method(scope_context=self.scope_context)
+        scope_context = self._context()
+        if scope_context is None:
+            raise _authorization_required()
+        return queue_method(scope_context=scope_context)
 
 
 # Descriptive adapter aliases; these do not introduce a second orchestration
@@ -1913,7 +2005,17 @@ class WorkerEngine(Protocol):
 class PaaSWorker:
     """Restartable worker using the existing ExecutionController boundary."""
 
-    def __init__(self, service: PaaSJobService, *, worker_id: str, runtime_identity: RuntimeIdentity, engine: WorkerEngine | Any, scope_context: AuthorizedScopeContext | None = None, authorization: AuthorizedScopeContext | None = None) -> None:
+    def __init__(
+        self,
+        service: PaaSJobService,
+        *,
+        worker_id: str,
+        runtime_identity: RuntimeIdentity,
+        engine: WorkerEngine | Any,
+        scope_context: AuthorizedScopeContext | None = None,
+        authorization: AuthorizedScopeContext | None = None,
+        reference_mode: bool = False,
+    ) -> None:
         self.service = service
         self.worker_id = _strict_identifier(worker_id, "worker ID")
         if not isinstance(runtime_identity, RuntimeIdentity):
@@ -1924,6 +2026,11 @@ class PaaSWorker:
         if scope_context is not None and authorization is not None and scope_context != authorization:
             raise _invalid("PaaS worker authorization contexts disagree.")
         self.scope_context = scope_context or authorization or getattr(service, "scope_context", None)
+        if not isinstance(reference_mode, bool):
+            raise _invalid("PaaS worker reference mode is invalid.")
+        self.reference_mode = reference_mode or bool(getattr(service, "reference_compatibility", False))
+        if self.scope_context is None and not self.reference_mode:
+            raise _authorization_required()
 
     def _engine_operation_id(self, job: ExecutionJob) -> str:
         operation = getattr(self.engine, "operation_id", None)
@@ -1997,6 +2104,8 @@ class PaaSWorker:
         return WorkerResult(status, recorded.job, failure_class=failure_class, references=references)
 
     def run_once(self, identity: DurableJobIdentity | str | None = None) -> WorkerResult:
+        if self.scope_context is None and not self.reference_mode:
+            raise _authorization_required()
         if identity is None:
             claim_method = getattr(self.service, "claim_next", None)
             if not callable(claim_method):

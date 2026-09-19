@@ -182,7 +182,8 @@ class CHG16DeletionTests(unittest.TestCase):
             )
             with self.assertRaises(KSlideError) as mismatching_typed_identity:
                 service.delete_run(mismatching_identity, deletion_id="delete-replay", scope_context=context, hold_provider=provider)
-            self.assertEqual(mismatching_typed_identity.exception.code, ErrorCode.EXECUTION_CONFLICT)
+            self.assertEqual(mismatching_typed_identity.exception.code, ErrorCode.EXECUTION_NOT_FOUND)
+            self.assertEqual(mismatching_typed_identity.exception.details, {})
 
     def test_completed_scoped_replay_rejects_recreated_generation_without_touching_new_run(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

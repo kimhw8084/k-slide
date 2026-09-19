@@ -36,6 +36,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--user-ref", help="Deployment-authorized user reference for scoped mode")
     parser.add_argument("--workspace-ref", help="Deployment-authorized workspace reference for scoped mode")
     parser.add_argument("--scope-ref", help="Deployment-authorized opaque scope reference")
+    parser.add_argument(
+        "--reference-mode",
+        action="store_true",
+        help="Explicit non-production KSA-08 reference compatibility mode; excluded from production readiness",
+    )
     parser.add_argument("--engine-factory", help="Approved deployment adapter as module:factory; defaults to the deterministic reference adapter")
     parser.add_argument("--max-steps", type=int, default=None)
     parser.add_argument("--until-terminal", action="store_true", help="Continue through bounded retries until an operational or semantic terminal result")
@@ -77,14 +82,19 @@ def main(argv: list[str] | None = None) -> int:
         scope_args = (args.user_ref, args.workspace_ref, args.scope_ref)
         if any(value is not None for value in scope_args) and not all(value is not None for value in scope_args[:2]):
             raise KSlideError(ErrorCode.EXECUTION_INVALID, "Scoped worker mode requires user and workspace references.")
+        if args.reference_mode and any(value is not None for value in scope_args):
+            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Reference worker mode cannot be combined with an authorized scope.")
+        if not args.reference_mode and not all(value is not None for value in scope_args[:2]):
+            raise KSlideError(ErrorCode.EXECUTION_AUTHORIZATION_REQUIRED, "Managed durable worker execution requires an authorized user/workspace scope.")
         scope_context = AuthorizedScopeContext(args.user_ref, args.workspace_ref, args.scope_ref) if all(value is not None for value in scope_args[:2]) else None
-        service = ReferencePaaSJobService(args.service_root)
+        service = ReferencePaaSJobService(args.service_root, reference_compatibility=args.reference_mode)
         worker = PaaSWorker(
             service,
             worker_id=args.worker_id,
             runtime_identity=runtime_identity,
             engine=_load_engine(args.engine_factory),
             scope_context=scope_context,
+            reference_mode=args.reference_mode,
         )
         if args.until_terminal:
             result = worker.run_until_terminal(args.job_id, max_steps=100_000 if args.max_steps is None else args.max_steps)

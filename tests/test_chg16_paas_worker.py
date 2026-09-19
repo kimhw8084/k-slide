@@ -66,7 +66,7 @@ class _ReviewEngine:
 
 
 def _submit(service: ReferencePaaSJobService, *, run_id: str = "run-paas", total: int = 2, max_attempts: int = 3):
-    return PaaSController(service).submit(
+    return PaaSController(service, reference_mode=True).submit(
         PaaSJobRequest(
             run_id=run_id,
             scope_ref="opaque-scope",
@@ -99,6 +99,7 @@ def _worker_process(root: Path, job_id: str, *, until_terminal: bool = False) ->
         RUNTIME.termbase_identity,
         "--environment-identity-json",
         json.dumps(RUNTIME.environment_identity.as_dict()),
+        "--reference-mode",
     ]
     if until_terminal:
         command.append("--until-terminal")
@@ -110,7 +111,7 @@ class PaaSWorkerIntegrationTests(unittest.TestCase):
     def test_submission_is_prompt_and_reconnectable_without_worker_lifetime(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            service = ReferencePaaSJobService(root)
+            service = ReferencePaaSJobService(root, reference_compatibility=True)
             receipt = _submit(service)
             self.assertEqual(receipt.status, StoreWriteStatus.ACCEPTED)
             self.assertTrue(receipt.job_id)
@@ -128,7 +129,7 @@ class PaaSWorkerIntegrationTests(unittest.TestCase):
 
             # The original controller/browser is gone. A reconstructed
             # controller observes the same durable job and its progress.
-            reconstructed = PaaSController(ReferencePaaSJobService(root))
+            reconstructed = PaaSController(ReferencePaaSJobService(root, reference_compatibility=True), reference_mode=True)
             observed = reconstructed.reconnect(receipt.identity)
             self.assertEqual(observed.lifecycle, OperationalLifecycle.RUNNING)
             self.assertEqual(observed.progress["completed_work_units"], 1)
@@ -148,7 +149,7 @@ class PaaSWorkerIntegrationTests(unittest.TestCase):
     def test_worker_interruption_restarts_from_last_committed_checkpoint_without_duplicate_markers(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            service = ReferencePaaSJobService(root)
+            service = ReferencePaaSJobService(root, reference_compatibility=True)
             receipt = _submit(service, run_id="run-interrupt", total=2)
             interrupt_code = """
 from k_slide.paas import PaaSWorker, ReferencePaaSJobService, RuntimeIdentity
@@ -157,10 +158,10 @@ class Interrupting:
         return f'{job.execution_id}-interrupt-{job.checkpoint.revision + 1}'
     def step(self, checkpoint, operation_id):
         raise KeyboardInterrupt()
-service = ReferencePaaSJobService(__import__('pathlib').Path(__import__('sys').argv[1]))
+service = ReferencePaaSJobService(__import__('pathlib').Path(__import__('sys').argv[1]), reference_compatibility=True)
 from tests.reference_fixtures import reference_runtime
 runtime = reference_runtime()
-PaaSWorker(service, worker_id='interrupted-worker', runtime_identity=runtime, engine=Interrupting()).run_once(__import__('sys').argv[2])
+PaaSWorker(service, worker_id='interrupted-worker', runtime_identity=runtime, engine=Interrupting(), reference_mode=True).run_once(__import__('sys').argv[2])
 """
             environment = {**os.environ, "PYTHONPATH": str(ROOT / "src") + os.pathsep + str(ROOT)}
             interrupted = subprocess.run([sys.executable, "-c", interrupt_code, str(root), receipt.job_id], cwd=ROOT, env=environment, capture_output=True, text=True, check=False)
@@ -183,7 +184,7 @@ PaaSWorker(service, worker_id='interrupted-worker', runtime_identity=runtime, en
     def test_cancellation_crosses_controller_worker_process_boundary_and_is_acknowledged(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            service = ReferencePaaSJobService(root)
+            service = ReferencePaaSJobService(root, reference_compatibility=True)
             receipt = _submit(service, run_id="run-cancel", total=3)
             requested = PaaSController(service).cancel(receipt.identity)
             self.assertEqual(requested.cancellation["requested"], True)
@@ -191,7 +192,7 @@ PaaSWorker(service, worker_id='interrupted-worker', runtime_identity=runtime, en
             result = _worker_process(root, receipt.job_id)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(json.loads(result.stdout)["status"], "CANCELED")
-            reconstructed = ReferencePaaSJobService(root)
+            reconstructed = ReferencePaaSJobService(root, reference_compatibility=True)
             status = reconstructed.inspect(receipt.identity)
             self.assertEqual(status.lifecycle, OperationalLifecycle.CANCELED)
             self.assertEqual(status.terminal_outcome, TerminalOutcome.CANCELED)
@@ -200,7 +201,7 @@ PaaSWorker(service, worker_id='interrupted-worker', runtime_identity=runtime, en
     def test_retryable_failures_are_bounded_and_nonretryable_failures_are_processing_failed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            service = ReferencePaaSJobService(root)
+            service = ReferencePaaSJobService(root, reference_compatibility=True)
             receipt = _submit(service, run_id="run-retry", total=1, max_attempts=2)
             failing = _FailingEngine(ErrorCode.INTERNAL)
             result = PaaSWorker(service, worker_id="retry-worker", runtime_identity=RUNTIME, engine=failing).run_until_terminal(receipt.identity, max_steps=4)
@@ -218,7 +219,7 @@ PaaSWorker(service, worker_id='interrupted-worker', runtime_identity=runtime, en
     def test_semantic_review_and_semantic_failure_do_not_become_processing_failure(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            service = ReferencePaaSJobService(root)
+            service = ReferencePaaSJobService(root, reference_compatibility=True)
             review_receipt = _submit(service, run_id="run-review", total=1)
             review = PaaSWorker(service, worker_id="review-worker", runtime_identity=RUNTIME, engine=_ReviewEngine()).run_once(review_receipt.identity)
             self.assertEqual(review.status, "NEEDS_REVIEW")
@@ -234,7 +235,7 @@ PaaSWorker(service, worker_id='interrupted-worker', runtime_identity=runtime, en
     def test_runtime_binding_is_exact_and_mismatch_fails_closed_without_identity_switch(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            service = ReferencePaaSJobService(root)
+            service = ReferencePaaSJobService(root, reference_compatibility=True)
             receipt = _submit(service, run_id="run-binding")
             mismatched = RuntimeIdentity("runtime-other", RUNTIME.model_identity, RUNTIME.ocr_identity, RUNTIME.termbase_identity, environment_identity=RUNTIME.environment_identity)
             worker = PaaSWorker(service, worker_id="wrong-runtime", runtime_identity=mismatched, engine=ReferenceWorkerEngine())
@@ -246,7 +247,7 @@ PaaSWorker(service, worker_id='interrupted-worker', runtime_identity=runtime, en
     def test_recreated_paas_store_preserves_cas_stale_and_idempotent_results(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            service = ReferencePaaSJobService(root)
+            service = ReferencePaaSJobService(root, reference_compatibility=True)
             receipt = _submit(service, run_id="run-cas-paas", total=1)
             first_store = service.open_store(receipt.identity)
             second_store = ReferencePaaSRunStore(root / "job-service" / "run-store")
@@ -277,7 +278,7 @@ PaaSWorker(service, worker_id='interrupted-worker', runtime_identity=runtime, en
         secret = "AccessKey=synthetic-paas-secret"
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            service = ReferencePaaSJobService(root)
+            service = ReferencePaaSJobService(root, reference_compatibility=True)
             receipt = _submit(service, run_id="run-hygiene")
             serialized = "\n".join(path.read_text(encoding="utf-8") for path in root.rglob("*.json"))
             self.assertNotIn(secret, serialized)
