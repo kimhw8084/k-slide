@@ -1,0 +1,482 @@
+{
+  "accepted_at": "2026-09-20T15:14:29Z",
+  "changed_files": [
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 17,
+      "deletions": 0,
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 0,
+      "path": "deploy/README.md",
+      "status": "M"
+    },
+    {
+      "additions": 39,
+      "deletions": 5,
+      "path": "evals/build_certification_bundle.py",
+      "status": "M"
+    },
+    {
+      "additions": 28,
+      "deletions": 5,
+      "path": "evals/materialize_certification_bundle.py",
+      "status": "M"
+    },
+    {
+      "additions": 31,
+      "deletions": 23,
+      "path": "evals/opencode_runner.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 0,
+      "path": "evals/production-candidate.example.yaml",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 0,
+      "path": "evals/production-candidate.yaml",
+      "status": "M"
+    },
+    {
+      "additions": 51,
+      "deletions": 23,
+      "path": "src/k_slide/certification.py",
+      "status": "M"
+    },
+    {
+      "additions": 453,
+      "deletions": 0,
+      "path": "src/k_slide/governed_terminology.py",
+      "status": "A"
+    },
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": "src/k_slide/model.py",
+      "status": "M"
+    },
+    {
+      "additions": 5,
+      "deletions": 0,
+      "path": "src/k_slide/redaction.py",
+      "status": "M"
+    },
+    {
+      "additions": 43,
+      "deletions": 21,
+      "path": "src/k_slide/terminology.py",
+      "status": "M"
+    },
+    {
+      "additions": 21,
+      "deletions": 10,
+      "path": "src/k_slide/verify.py",
+      "status": "M"
+    },
+    {
+      "additions": 48,
+      "deletions": 26,
+      "path": "tests/test_certification_closure.py",
+      "status": "M"
+    },
+    {
+      "additions": 211,
+      "deletions": 0,
+      "path": "tests/test_ksa19_governed_termbase.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '92,130p' README.md && rtk sed -n '18,40p' deploy/README.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --stat && rtk git status --short'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3 -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff -- README.md deploy/README.md evals/build_certification_bundle.py evals/materialize_certification_bundle.py evals/opencode_runner.py src/k_slide/certification.py src/k_slide/model.py src/k_slide/redaction.py src/k_slide/terminology.py src/k_slide/verify.py | sed -n '1,980p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,460p' src/k_slide/governed_terminology.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"class EvidenceIR|class EvidenceRegion|class EvidenceTable\\\" src/k_slide/evidence_ir.py && rtk sed -n '20,130p' src/k_slide/evidence_ir.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python3 -c 'from k_slide.terminology import TermbaseGovernance; print(TermbaseGovernance.__name__)'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_ksa19_governed_termbase -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3 -m compileall -q src evals tests && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk tail -n 30 IMPLEMENTATION_STATUS.md'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,180p' IMPLEMENTATION_STATUS.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '132,154p' IMPLEMENTATION_STATUS.md && rtk git status --short --branch\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk PYTHONPATH=src:. python3 -m unittest discover -s tests -q'",
+      "exit_code": 127,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3 -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --stat && rtk git status --short --branch && rtk rg -n \"termbase.local|run_override|load_effective_termbase|binding_identity|termbase_governance|materialize_governed\" src evals tests README.md deploy/README.md | head -n 240'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,460p' src/k_slide/governed_terminology.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '240,325p' evals/opencode_runner.py && rtk sed -n '1,190p' evals/materialize_certification_bundle.py && rtk sed -n '1,145p' evals/build_certification_bundle.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '325,430p' evals/opencode_runner.py && rtk sed -n '430,530p' evals/opencode_runner.py && rtk sed -n '880,1015p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '555,660p' src/k_slide/certification.py && rtk sed -n '1,210p' tests/test_ksa19_governed_termbase.py && rtk sed -n '1,145p' src/k_slide/terminology.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"_governed_termbase_identity_resolved|termbase_identity\\\" src/k_slide/certification.py | head -n 40 && rtk sed -n '1080,1165p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"termbase_authority|governance_identity|termbase/overlays|termbase/core\" tests evals | head -n 220'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3 -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_ksa19_governed_termbase tests.test_certification_closure -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sh -c 'if command -v python3.12 >/dev/null 2>&1; then python3.12 -m compileall -q src evals tests; else exit 127; fi'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add IMPLEMENTATION_STATUS.md README.md deploy/README.md evals/build_certification_bundle.py evals/materialize_certification_bundle.py evals/opencode_runner.py evals/production-candidate.example.yaml evals/production-candidate.yaml src/k_slide/certification.py src/k_slide/governed_terminology.py src/k_slide/model.py src/k_slide/redaction.py src/k_slide/terminology.py src/k_slide/verify.py tests/test_certification_closure.py tests/test_ksa19_governed_termbase.py && rtk git diff --cached --check && rtk git diff --cached --stat && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --cached -- src/k_slide/certification.py src/k_slide/terminology.py src/k_slide/verify.py src/k_slide/model.py evals/opencode_runner.py evals/materialize_certification_bundle.py evals/build_certification_bundle.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"TERMBASE_BINDING|verify_run|LOCKED|termbase\" tests/test_chg16_environment_binding.py tests/test_certification_closure.py tests | head -n 180'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '120,152p' src/k_slide/verify.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3 -m compileall -q src evals tests && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_ksa19_governed_termbase tests.test_chg16_environment_binding tests.test_phase1 tests.test_certification_closure -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"materialize\\\\(|build_certification_bundle|termbase_overlay|certification-bundle\\\" tests/test_certification_closure.py | head -n 120 && rtk sed -n '1520,1665p' tests/test_certification_closure.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '980,1060p' tests/test_certification_closure.py && rtk sed -n '1238,1305p' tests/test_certification_closure.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '50,110p' src/k_slide/certification.py && rtk sed -n '195,230p' src/k_slide/certification.py && rtk rg -n \\\"termbase_governance\\\" src/k_slide/certification.py evals tests | head -n 80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"def _normalize_candidate_mapping|CANDIDATE_INPUT_FIELDS|unknown candidate\\\" src/k_slide/certification.py | head -n 40 && rtk sed -n '735,820p' src/k_slide/certification.py && rtk sed -n '1180,1235p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '700,742p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1230,1275p' src/k_slide/certification.py && rtk rg -n \\\"canonical_candidate_factors|CANDIDATE_INPUT_FIELDS\\\" src/k_slide/certification.py tests | head -n 80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3 -m compileall -q src evals tests && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_ksa19_governed_termbase tests.test_certification_closure -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add src/k_slide/certification.py src/k_slide/verify.py evals/build_certification_bundle.py evals/materialize_certification_bundle.py evals/opencode_runner.py tests/test_ksa19_governed_termbase.py && rtk git diff --cached --check && rtk git diff --cached --stat && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"build_work_packet\\\\(\\\" src | head -n 60 && rtk rg -n \\\"load_effective_termbase\\\\(\\\" src evals | head -n 80 && rtk rg -n \\\"resolve_candidate_spec\\\\(\\\" src evals | head -n 80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --cached --check && rtk git status --short'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sh -c 'if command -v python3.12 >/dev/null 2>&1; then python3.12 -m compileall -q src evals tests; else exit 127; fi'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git commit -m \"KSA-19: govern company termbase resolution\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rev-parse HEAD && rtk git rev-parse HEAD''^ && rtk git branch --show-current && rtk git status --short --branch && rtk git show --stat --oneline --decorate --no-renames HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.155.1",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 370,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.95,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 19224064,
+      "fresh_input_tokens": 401931,
+      "input_tokens": 19625995,
+      "non_reasoning_output_tokens": 55507,
+      "output_tokens": 95388,
+      "reasoning_output_tokens": 39881,
+      "total_processed_tokens": 19721383
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "c816768de0f20ea0dd00a3f8b200fd877a91404e",
+      "subject": "KSA-19: govern company termbase resolution"
+    }
+  ],
+  "diff": {
+    "additions": 964,
+    "changed_files": 16,
+    "commit_count": 1,
+    "deletions": 113
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 3,
+    "items": [
+      {
+        "bytes": 35214,
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "d91abc45bbe914db5d9ad0db0ba45c6c7f351185207d8c9a07371592b758f6b2"
+      },
+      {
+        "bytes": 12570,
+        "path": "README.md",
+        "sha256": "25c05e8273f57cb1c8b40a7f64f5bbdeb4836acec2fe4d84bf447ec7e13cdba6"
+      },
+      {
+        "bytes": 5673,
+        "path": "deploy/README.md",
+        "sha256": "17ae68c210d73ca36e40508125aa5cd3e2840b25fd19b96de87b262c04c86a73"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-20T15:50:56Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "08d55a66e23d9c2f76fd15ff9dee0e9332836e16",
+    "branch": "codex/k-slide-chg16-governed-termbase-01",
+    "detached_verify": false,
+    "head_sha": "c816768de0f20ea0dd00a3f8b200fd877a91404e",
+    "remote_exact_head": true,
+    "remote_head_sha": "c816768de0f20ea0dd00a3f8b200fd877a91404e",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "08d55a66e23d9c2f76fd15ff9dee0e9332836e16",
+    "work_branch": "codex/k-slide-chg16-governed-termbase-01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-6704fbbfc5fe24179eead1af",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-governed-termbase-01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-governed-termbase-01"
+  },
+  "operation": "BUILD",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "a642c9f63bab2cb555704bdb0b9d1f28222591f133f934c1d0f93cc5a25ab8a1",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-governed-termbase-01",
+  "schema_version": 1,
+  "started_at": "2026-09-20T15:14:30Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 2186,
+    "queue_seconds": 1,
+    "total_seconds": 2187
+  },
+  "transport": {
+    "bytes": 11297,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 10981,
+    "prompt_sha256": "a5cabca47f326a84abf2efb055027aea79dba2235b5052fcf9eeb4c35f0d7023",
+    "sha256": "6704fbbfc5fe24179eead1af6a026e89b7e0d7d1cc26f3576298ac3d5b8492c1"
+  }
+}
