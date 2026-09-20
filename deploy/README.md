@@ -59,10 +59,12 @@ managed data directory must not contain OpenCode or MCP auth state. Launch with
 `python -m k_slide.opencode_bootstrap --manifest .k-slide-config/opencode-bootstrap.json -- opencode web`
 (or the repository `scripts/launch_opencode_k_slide.py` seam). The launcher sets
 the OpenCode egress controls and puts the verified `rg` directory first in
-`PATH` before `exec`, rejects `OPENCODE_MODELS_URL` and ambient
-config/plugin overrides, and requires the provider credential through its
-existing environment seam. A doctor result after startup is evidence only; it
-does not replace this launcher contract.
+`PATH`, starts OpenCode in a managed process group, forwards termination and
+control signals, and waits for and reaps the child with bounded escalation when
+needed. It rejects `OPENCODE_MODELS_URL` and ambient config/plugin overrides,
+and requires the provider credential through its existing environment seam. A
+doctor result after startup is evidence only; it does not replace this launcher
+contract.
 
 For durable heavy jobs, the deployment adapter must supply an authorized
 user/workspace scope to the KSA-09 `ScopedPaaSJobService` boundary. Its

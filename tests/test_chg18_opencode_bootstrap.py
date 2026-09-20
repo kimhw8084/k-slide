@@ -3,11 +3,13 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import signal
 import stat
 import subprocess
 import sys
 import tempfile
 import textwrap
+import time
 import unittest
 from pathlib import Path
 
@@ -144,7 +146,211 @@ def _rewrite_artifact(manifest: Path, *, artifact: str, value: object) -> None:
     manifest.write_text(json.dumps(raw, indent=2) + "\n", encoding="utf-8")
 
 
+def _wait_for_file(path: Path, *, timeout: float = 5.0) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if path.exists():
+            return
+        time.sleep(0.01)
+    raise AssertionError(f"timed out waiting for {path.name}")
+
+
+def _process_is_running(pid: int) -> bool:
+    probe = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True, check=False)
+    state = probe.stdout.strip()
+    return bool(state) and not state.startswith("Z")
+
+
+def _wait_for_process_stop(pid: int, *, timeout: float = 5.0) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not _process_is_running(pid):
+            return
+        time.sleep(0.05)
+    raise AssertionError(f"process {pid} is still running")
+
+
+def _write_blocking_group_host(script: Path, state: Path) -> None:
+    ready = state / "ready"
+    child_exit = state / "child-exit"
+    descendant_ready = state / "descendant-ready"
+    descendant_exit = state / "descendant-exit"
+    descendant_code = textwrap.dedent(
+        f"""
+        import signal, time
+        from pathlib import Path
+
+        exit_marker = Path({str(descendant_exit)!r})
+        def stop(signum, _frame):
+            exit_marker.write_text(str(signum), encoding="utf-8")
+            raise SystemExit(0)
+        for signum in (signal.SIGTERM, signal.SIGINT, *(([signal.SIGHUP]) if hasattr(signal, "SIGHUP") else [])):
+            signal.signal(signum, stop)
+        Path({str(descendant_ready)!r}).write_text("ready", encoding="utf-8")
+        while True:
+            time.sleep(1)
+        """
+    )
+    script.write_text(
+        textwrap.dedent(
+            f"""
+            import signal, subprocess, sys, time
+            from pathlib import Path
+
+            child_exit = Path({str(child_exit)!r})
+            def stop(signum, _frame):
+                child_exit.write_text(str(signum), encoding="utf-8")
+                raise SystemExit(0)
+            for signum in (signal.SIGTERM, signal.SIGINT, *(([signal.SIGHUP]) if hasattr(signal, "SIGHUP") else [])):
+                signal.signal(signum, stop)
+            descendant = subprocess.Popen([sys.executable, "-c", {descendant_code!r}])
+            Path({str(ready)!r}).write_text(f"{{__import__('os').getpid()}} {{descendant.pid}}", encoding="utf-8")
+            while True:
+                time.sleep(1)
+            """
+        ),
+        encoding="utf-8",
+    )
+
+
 class OpenCodeBootstrapTests(unittest.TestCase):
+    def test_managed_child_normal_exit_status_is_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = _write_bootstrap(root)
+            environment = {
+                "PATH": os.environ.get("PATH", os.defpath),
+                "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
+                APPROVED_CREDENTIAL_ENV: "provider-key",
+            }
+            result = subprocess.run(
+                [sys.executable, "-m", "k_slide.opencode_bootstrap", "--manifest", str(manifest), "--", sys.executable, "-c", "raise SystemExit(37)"],
+                cwd=str(root),
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 37, result.stderr)
+            self.assertEqual(result.stderr, "")
+
+    def _run_managed_group_signal(self, signum: int) -> None:
+        if os.name != "posix":
+            self.skipTest("managed process-group signal contract is POSIX-only")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = root / "state"
+            state.mkdir()
+            manifest = _write_bootstrap(root)
+            script = root / "blocking-opencode-host.py"
+            _write_blocking_group_host(script, state)
+            environment = {
+                "PATH": os.environ.get("PATH", os.defpath),
+                "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
+                APPROVED_CREDENTIAL_ENV: "provider-key",
+            }
+            launcher = subprocess.Popen(
+                [sys.executable, "-m", "k_slide.opencode_bootstrap", "--manifest", str(manifest), "--", sys.executable, str(script)],
+                cwd=str(root),
+                env=environment,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            child_pid: int | None = None
+            descendant_pid: int | None = None
+            try:
+                _wait_for_file(state / "ready")
+                child_pid, descendant_pid = (int(item) for item in (state / "ready").read_text(encoding="utf-8").split())
+                self.assertEqual(os.getpgid(child_pid), child_pid)
+                _wait_for_file(state / "descendant-ready")
+                os.kill(launcher.pid, signum)
+                stdout, stderr = launcher.communicate(timeout=8)
+                self.assertEqual(launcher.returncode, 0, stderr)
+                self.assertEqual(stdout, "")
+                self.assertEqual(stderr, "")
+                _wait_for_file(state / "child-exit")
+                _wait_for_file(state / "descendant-exit")
+                self.assertEqual(int((state / "child-exit").read_text(encoding="utf-8")), signum)
+                self.assertEqual(int((state / "descendant-exit").read_text(encoding="utf-8")), signum)
+                _wait_for_process_stop(child_pid)
+                _wait_for_process_stop(descendant_pid)
+            finally:
+                if launcher.poll() is None:
+                    launcher.kill()
+                    launcher.wait()
+                if child_pid is not None and _process_is_running(child_pid):
+                    try:
+                        os.killpg(child_pid, signal.SIGKILL)
+                    except OSError:
+                        pass
+
+    def test_managed_group_forwards_sigterm_and_reaps_descendant(self) -> None:
+        self._run_managed_group_signal(signal.SIGTERM)
+
+    def test_managed_group_forwards_sigint_and_reaps_descendant(self) -> None:
+        self._run_managed_group_signal(signal.SIGINT)
+
+    @unittest.skipUnless(hasattr(signal, "SIGHUP"), "SIGHUP is unavailable")
+    def test_managed_group_forwards_sighup_and_reaps_descendant(self) -> None:
+        self._run_managed_group_signal(signal.SIGHUP)
+
+    def test_signal_during_access_key_handoff_terminates_group_without_secret_output(self) -> None:
+        if os.name != "posix":
+            self.skipTest("managed process-group signal contract is POSIX-only")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = root / "state"
+            state.mkdir()
+            manifest = _write_bootstrap(root)
+            ready = state / "ready"
+            script = root / "blocking-handoff-host.py"
+            script.write_text(
+                textwrap.dedent(
+                    f"""
+                    import os, time
+                    from pathlib import Path
+                    Path({str(ready)!r}).write_text(str(os.getpid()), encoding="utf-8")
+                    while True:
+                        time.sleep(1)
+                    """
+                ),
+                encoding="utf-8",
+            )
+            canary = "KSA18-HANDOFF-BLOCKED-OPAQUE::" + ("x" * 120_000)
+            environment = {
+                "PATH": os.environ.get("PATH", os.defpath),
+                "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
+                APPROVED_CREDENTIAL_ENV: "provider-key",
+                COMPANY_ACCESS_KEY_ENV: canary,
+            }
+            launcher = subprocess.Popen(
+                [sys.executable, "-m", "k_slide.opencode_bootstrap", "--manifest", str(manifest), "--", sys.executable, str(script)],
+                cwd=str(root),
+                env=environment,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            child_pid: int | None = None
+            try:
+                _wait_for_file(ready)
+                child_pid = int(ready.read_text(encoding="utf-8"))
+                os.kill(launcher.pid, signal.SIGTERM)
+                stdout, stderr = launcher.communicate(timeout=8)
+                self.assertNotIn(canary, stdout)
+                self.assertNotIn(canary, stderr)
+                _wait_for_process_stop(child_pid)
+            finally:
+                if launcher.poll() is None:
+                    launcher.kill()
+                    launcher.wait()
+                if child_pid is not None and _process_is_running(child_pid):
+                    try:
+                        os.killpg(child_pid, signal.SIGKILL)
+                    except OSError:
+                        pass
+
     def test_manifest_is_source_free_and_bootstrap_sets_controls_before_exec(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

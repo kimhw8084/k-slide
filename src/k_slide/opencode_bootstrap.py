@@ -2,7 +2,7 @@
 
 OpenCode reads several egress-affecting flags while importing modules.  This
 module is intentionally dependency-free so a deployment can run it before the
-OpenCode executable is imported and then replace itself with ``exec``.
+OpenCode executable is imported and supervise its managed process group.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ import stat
 import signal
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -696,6 +697,117 @@ def bootstrap_readiness(root: Path, *, expected_identity: str | None = None, exp
         return False, exc.message
 
 
+def _forwardable_signals() -> tuple[int, ...]:
+    values: list[int] = []
+    for name in ("SIGTERM", "SIGINT", "SIGHUP"):
+        value = getattr(signal, name, None)
+        if value is not None and int(value) not in values:
+            values.append(int(value))
+    return tuple(values)
+
+
+class _ManagedChildSignal(RuntimeError):
+    def __init__(self, signum: int):
+        self.signum = signum
+
+
+def _send_signal_to_child_group(process: subprocess.Popen[bytes], signum: int) -> None:
+    if os.name == "posix":
+        try:
+            os.killpg(process.pid, signum)
+            return
+        except ProcessLookupError:
+            return
+        except OSError:
+            pass
+    try:
+        process.send_signal(signum)
+    except (OSError, ValueError):
+        pass
+
+
+def _child_group_exists(pid: int) -> bool:
+    if os.name != "posix":
+        return False
+    try:
+        os.killpg(pid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
+class _ChildSignalForwarder:
+    def __init__(self) -> None:
+        self._handlers: dict[int, Any] = {}
+        self._pending: list[int] = []
+        self._process: subprocess.Popen[bytes] | None = None
+        self._terminating = False
+        self._active = False
+
+    def install(self) -> None:
+        self._active = True
+        try:
+            for signum in _forwardable_signals():
+                self._handlers[signum] = signal.signal(signum, self._handle)
+        except (OSError, ValueError):
+            self.close()
+            raise
+
+    def _handle(self, signum: int, _frame: Any) -> None:
+        self._pending.append(signum)
+        if self._process is not None and not self._terminating:
+            raise _ManagedChildSignal(signum)
+
+    def attach(self, process: subprocess.Popen[bytes]) -> None:
+        self._process = process
+        sent = self._forward_pending()
+        if sent:
+            raise _ManagedChildSignal(sent[-1])
+
+    def _forward_pending(self) -> tuple[int, ...]:
+        if self._process is None or not self._pending:
+            return ()
+        pending = self._pending
+        self._pending = []
+        for signum in pending:
+            _send_signal_to_child_group(self._process, signum)
+        return tuple(pending)
+
+    def wait(self, process: subprocess.Popen[bytes]) -> int:
+        while True:
+            self._forward_pending()
+            try:
+                result = process.wait(timeout=0.25)
+                if _child_group_exists(process.pid):
+                    self._terminating = True
+                    _terminate_child(process)
+                return result
+            except subprocess.TimeoutExpired:
+                continue
+
+    def terminate(self, process: subprocess.Popen[bytes], signum: int = signal.SIGTERM) -> None:
+        self._terminating = True
+        _terminate_child(process, signal_number=signum)
+
+    def detach(self) -> None:
+        self._process = None
+        self._pending.clear()
+
+    def close(self) -> None:
+        if not self._active:
+            return
+        self._active = False
+        handlers = self._handlers
+        self._handlers = {}
+        for signum, handler in handlers.items():
+            try:
+                signal.signal(signum, handler)
+            except (OSError, ValueError):
+                pass
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Launch OpenCode through the managed K-Slide production bootstrap.")
     parser.add_argument("--manifest", type=Path, required=True)
@@ -718,45 +830,58 @@ def main(argv: list[str] | None = None) -> int:
     environment.pop(COMPANY_ACCESS_KEY_ENV, None)
     handoff: AccessKeyHandoff | None = None
     process: subprocess.Popen[bytes] | None = None
+    signal_forwarder = _ChildSignalForwarder()
+    signal_forwarder.install()
     try:
         handoff = AccessKeyHandoff(access_key)
         process = subprocess.Popen(command, env=environment, pass_fds=handoff.pass_fds, start_new_session=True)
+        signal_forwarder.attach(process)
         handoff.send()
-        return process.wait()
+        result = signal_forwarder.wait(process)
+        signal_forwarder.detach()
+        return result
+    except _ManagedChildSignal as exc:
+        if process is not None:
+            signal_forwarder.terminate(process, exc.signum)
+            signal_forwarder.detach()
+            return process.wait()
+        raise
     except AccessKeyBoundaryError as exc:
-        if process is not None and process.poll() is None:
-            _terminate_child(process)
+        if process is not None:
+            signal_forwarder.terminate(process)
         print(f"KSLIDE_OPENCODE_BOOTSTRAP_HANDOFF_FAILED: {exc}", file=sys.stderr)
         return 78
     except (OSError, ValueError):
-        if process is not None and process.poll() is None:
-            _terminate_child(process)
+        if process is not None:
+            signal_forwarder.terminate(process)
         print("KSLIDE_OPENCODE_BOOTSTRAP_EXEC_FAILED", file=sys.stderr)
         return 127
     finally:
+        signal_forwarder.detach()
         if handoff is not None:
             handoff.close()
+        signal_forwarder.close()
 
 
-def _terminate_child(process: subprocess.Popen[bytes]) -> None:
-    try:
-        os.killpg(process.pid, signal.SIGTERM)
-    except OSError:
-        try:
-            process.terminate()
-        except OSError:
-            pass
-    try:
-        process.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except OSError:
+def _terminate_child(process: subprocess.Popen[bytes], *, signal_number: int = signal.SIGTERM) -> None:
+    _send_signal_to_child_group(process, signal_number)
+    deadline = time.monotonic() + 5
+    reaped = False
+    while time.monotonic() < deadline:
+        if not reaped:
             try:
-                process.kill()
-            except OSError:
+                process.wait(timeout=0.25)
+                reaped = True
+            except subprocess.TimeoutExpired:
                 pass
+        if reaped and not _child_group_exists(process.pid):
+            return
+    _send_signal_to_child_group(process, signal.SIGKILL)
+    if not reaped:
         process.wait()
+    group_deadline = time.monotonic() + 5
+    while _child_group_exists(process.pid) and time.monotonic() < group_deadline:
+        time.sleep(0.05)
 
 
 if __name__ == "__main__":  # pragma: no cover - exercised through subprocess tests
