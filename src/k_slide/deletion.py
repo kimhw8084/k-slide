@@ -520,6 +520,43 @@ def _safe_target(path: Path, root: Path) -> None:
             raise KSlideError(ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT, "Deletion refuses a symbolic-link or alias component.")
 
 
+def _delete_support_content(paths: tuple[Path, ...], *, support_dir: Path, target_root: Path, service_root: Path) -> None:
+    """Unlink support copies before recording source-free deletion facts."""
+
+    from .content_support import prepare_deleted_support_artifacts, record_deleted_support_artifacts
+
+    artifacts = prepare_deleted_support_artifacts(support_dir)
+    emitted: set[str] = set()
+    expected = {
+        artifact.artifact_ref: (support_dir / f"{artifact.artifact_ref}.zip", support_dir / f"{artifact.artifact_ref}.json")
+        for artifact in artifacts
+    }
+
+    def record_removed() -> None:
+        removed = tuple(
+            artifact for artifact in artifacts
+            if artifact.artifact_ref not in emitted
+            and all(not path.exists() for path in expected[artifact.artifact_ref])
+        )
+        if removed:
+            record_deleted_support_artifacts(removed, service_root=service_root)
+            emitted.update(item.artifact_ref for item in removed)
+
+    try:
+        # The bundle is removed first so a metadata-unlink failure leaves the
+        # source-free typed metadata available for a truthful retry.
+        ordered_paths = tuple(sorted(paths, key=lambda item: (item.suffix.casefold() != ".zip", item.as_posix())))
+        for path in ordered_paths:
+            _safe_target(path, target_root)
+            if path.exists():
+                path.unlink()
+            record_removed()
+    except (KSlideError, OSError):
+        record_removed()
+        raise
+    record_removed()
+
+
 def _class_for_relative(relative: str) -> DeletionArtifactClass:
     top = relative.split("/", 1)[0]
     name = Path(relative).name
@@ -744,9 +781,14 @@ class WorkspaceDeletionBackend:
 
     def delete_target(self, candidate: _Candidate) -> None:
         if candidate.artifact_class is DeletionArtifactClass.SUPPORT_CONTENT:
-            from .content_support import record_deleted_support_artifacts
-
-            record_deleted_support_artifacts(self.run_dir / "support-content", service_root=self.operational_root)
+            support_dir = self.run_dir / "support-content"
+            _delete_support_content(
+                self._paths_for_class(candidate.artifact_class),
+                support_dir=support_dir,
+                target_root=self.run_dir,
+                service_root=self.operational_root,
+            )
+            return
         for path in self._paths_for_class(candidate.artifact_class):
             target_root = self.run_dir if path.is_relative_to(self.run_dir) else self.root / ".k-slide-runs" / "_sessions"
             _safe_target(path, target_root)
@@ -1024,9 +1066,14 @@ class ScopedReferenceDeletionBackend:
             self._invalidate_control()
             return
         if candidate.artifact_class is DeletionArtifactClass.SUPPORT_CONTENT:
-            from .content_support import record_deleted_support_artifacts
-
-            record_deleted_support_artifacts(self._content_root() / "support-content", service_root=self.service._central_operational_root())
+            support_dir = self._content_root() / "support-content"
+            _delete_support_content(
+                self._paths_for_class(candidate.artifact_class),
+                support_dir=support_dir,
+                target_root=self._content_root(),
+                service_root=self.service.root,
+            )
+            return
         content_root = self._content_root()
         for path in self._paths_for_class(candidate.artifact_class):
             target_root = content_root if path.is_relative_to(content_root) else self.scope_root

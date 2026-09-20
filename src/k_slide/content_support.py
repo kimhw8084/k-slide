@@ -1092,14 +1092,25 @@ def cleanup_expired_support_content(
     return {"status": "PASS", "dry_run": dry_run, "removed": removed, "planned": planned, "retained": retained}
 
 
-def record_deleted_support_artifacts(support_dir: Path, *, service_root: Path) -> None:
-    """Record KSA-13 deletion facts before controlled copies are unlinked."""
+def _deleted_support_audit(artifact: ControlledSupportArtifact, *, occurred_at: datetime | None = None) -> SupportAccessAudit:
+    return SupportAccessAudit(
+        occurred_at=_iso(occurred_at or datetime.now(timezone.utc)), lifecycle=SupportAccessLifecycle.DELETED, result=SupportAccessResult.DELETED,
+        access_request_ref=artifact.access_request_ref, scope_context=artifact.scope_context, run_ref=artifact.run_ref,
+        support_subject_ref=artifact.support_subject_ref, support_role_ref=artifact.support_role_ref, support_capability_ref=artifact.support_capability_ref,
+        purpose=artifact.purpose, authority_ref=artifact.authority_ref, decision_ref=artifact.decision_ref, approvals=artifact.approvals,
+        allowed_artifact_classes=artifact.allowed_artifact_classes, selected_artifact_classes=artifact.selected_artifact_classes,
+        issued_at=artifact.created_at, not_before_at=artifact.created_at, expires_at=artifact.expires_at, support_artifact_ref=artifact.artifact_ref,
+    )
+
+
+def prepare_deleted_support_artifacts(support_dir: Path) -> tuple[ControlledSupportArtifact, ...]:
+    """Snapshot source-free support metadata before the controlled copies are unlinked."""
 
     if not support_dir.exists():
-        return
+        return ()
     if support_dir.is_symlink() or not support_dir.is_dir():
         raise _invalid("Controlled support deletion namespace is unsafe.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
-    writer = SupportAccessAuditWriter(service_root=service_root)
+    prepared: list[ControlledSupportArtifact] = []
     for metadata_path in sorted(support_dir.glob("*.json"), key=lambda item: item.name):
         if metadata_path.is_symlink():
             raise _invalid("Controlled support deletion metadata is unsafe.", code=ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT)
@@ -1107,16 +1118,25 @@ def record_deleted_support_artifacts(support_dir: Path, *, service_root: Path) -
             artifact = ControlledSupportArtifact.from_dict(json.loads(metadata_path.read_text(encoding="utf-8")))
         except (OSError, UnicodeError, json.JSONDecodeError, KSlideError) as exc:
             raise _invalid("Controlled support deletion metadata is corrupt.", code=ErrorCode.SUPPORT_AUDIT_FAILED) from exc
-        writer.write(
-            SupportAccessAudit(
-                occurred_at=_iso(datetime.now(timezone.utc)), lifecycle=SupportAccessLifecycle.DELETED, result=SupportAccessResult.DELETED,
-                access_request_ref=artifact.access_request_ref, scope_context=artifact.scope_context, run_ref=artifact.run_ref,
-                support_subject_ref=artifact.support_subject_ref, support_role_ref=artifact.support_role_ref, support_capability_ref=artifact.support_capability_ref,
-                purpose=artifact.purpose, authority_ref=artifact.authority_ref, decision_ref=artifact.decision_ref, approvals=artifact.approvals,
-                allowed_artifact_classes=artifact.allowed_artifact_classes, selected_artifact_classes=artifact.selected_artifact_classes,
-                issued_at=artifact.created_at, not_before_at=artifact.created_at, expires_at=artifact.expires_at, support_artifact_ref=artifact.artifact_ref,
-            )
-        )
+        if metadata_path.name != f"{artifact.artifact_ref}.json":
+            raise _invalid("Controlled support deletion metadata is not canonical.", code=ErrorCode.SUPPORT_AUDIT_FAILED)
+        prepared.append(artifact)
+    return tuple(prepared)
+
+
+def record_deleted_support_artifacts(
+    artifacts: Iterable[ControlledSupportArtifact],
+    *,
+    service_root: Path,
+) -> None:
+    """Record KSA-13 deletion facts after the corresponding copies are gone."""
+
+    prepared = tuple(artifacts)
+    if any(not isinstance(item, ControlledSupportArtifact) for item in prepared):
+        raise _invalid("Controlled support deletion audit metadata is invalid.", code=ErrorCode.SUPPORT_AUDIT_FAILED)
+    writer = SupportAccessAuditWriter(service_root=service_root)
+    for artifact in prepared:
+        writer.write(_deleted_support_audit(artifact))
 
 
 def cleanup_support_access_audit(
@@ -1179,5 +1199,5 @@ __all__ = [
     "SupportAccessLifecycle", "SupportAccessResult", "SupportApprovalEvidence", "SupportApprovalStatus", "SupportArtifactClass",
     "SupportAuthorizationDecision", "SupportAuthorizationProvider", "SupportContentSelection", "SupportDecisionStatus", "SupportPurpose",
     "cleanup_expired_support_content", "materialize_controlled_support_bundle", "read_controlled_support_bundle",
-    "cleanup_support_access_audit", "record_deleted_support_artifacts",
+    "cleanup_support_access_audit", "prepare_deleted_support_artifacts", "record_deleted_support_artifacts",
 ]

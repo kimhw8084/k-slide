@@ -8,12 +8,14 @@ import zipfile
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 from k_slide.cli import main
 from k_slide.content_support import (
     ControlledSupportRequest,
     ReferenceSupportAuthorizationProvider,
     SupportAccessAuditWriter,
+    SupportAccessLifecycle,
     SupportApprovalEvidence,
     SupportApprovalStatus,
     SupportArtifactClass,
@@ -25,9 +27,9 @@ from k_slide.content_support import (
     materialize_controlled_support_bundle,
     read_controlled_support_bundle,
 )
-from k_slide.deletion import DeletionOutcome, LegalHoldStatus, ReferenceLegalHoldProvider, cleanup_operational_metadata, delete_workspace_run
+from k_slide.deletion import DeletionOutcome, DeletionState, LegalHoldStatus, ReferenceLegalHoldProvider, cleanup_operational_metadata, delete_scoped_run, delete_workspace_run
 from k_slide.errors import ErrorCode, KSlideError
-from k_slide.paas import AuthorizedScopeContext, PaaSController, PaaSJobRequest, ReferencePaaSJobService
+from k_slide.paas import AuthorizedScopeContext, PaaSController, PaaSJobRequest, PaaSWorker, ReferencePaaSJobService, ReferenceWorkerEngine
 from k_slide.retention import cleanup_expired_runs
 from k_slide.retention_policy import RetentionPolicy
 from k_slide.storage import StorageArtifact, StorageLayout, StoragePlane
@@ -291,6 +293,7 @@ class KSA20ControlledContentSupportTests(unittest.TestCase):
         layout.write_text(StorageArtifact.REPORT, "05_final_report.md", "Korean 검토 AccessKey=secret")
         request, provider = self._request(layout, context)
         artifact = materialize_controlled_support_bundle(layout, request, authority=provider, audit_writer=writer, now=NOW)
+        self.assertFalse(any(item.lifecycle is SupportAccessLifecycle.DELETED for item in writer.records()))
         holds = ReferenceLegalHoldProvider()
         holds.set_release(scope_ref="workspace", run_ref=run.name)
         result = delete_workspace_run(root, run_ref=run.name, deletion_id="delete-ksa20", scope_context=context, hold_provider=holds, operational_root=operational)
@@ -307,6 +310,127 @@ class KSA20ControlledContentSupportTests(unittest.TestCase):
         self.assertNotIn("AccessKey", support_audit)
         self.assertNotIn("05_final_report", support_audit)
         self.assertFalse(Path(artifact.reference.relative_path).is_absolute())
+
+    def test_workspace_support_deletion_defers_audit_until_retry_and_replay_is_idempotent(self) -> None:
+        root, operational, run, layout, context, writer = self._setup()
+        layout.write_text(StorageArtifact.REPORT, "05_final_report.md", "Korean 검토 OCR translation AccessKey=secret")
+        request, provider = self._request(layout, context)
+        artifact = materialize_controlled_support_bundle(layout, request, authority=provider, audit_writer=writer, now=NOW)
+        bundle_path = layout.resolve(artifact.reference)
+        metadata_path = run / "support-content" / f"{artifact.artifact_ref}.json"
+        holds = ReferenceLegalHoldProvider()
+        holds.set_release(scope_ref="workspace", run_ref=run.name)
+        original_unlink = Path.unlink
+        injected = False
+
+        def fail_bundle_once(path: Path, missing_ok: bool = False) -> None:
+            nonlocal injected
+            if path == bundle_path and not injected:
+                injected = True
+                raise OSError("injected support-content unlink failure")
+            original_unlink(path, missing_ok=missing_ok)
+
+        with patch.object(Path, "unlink", new=fail_bundle_once):
+            partial = delete_workspace_run(
+                root, run_ref=run.name, deletion_id="delete-support-partial", scope_context=context,
+                hold_provider=holds, operational_root=operational,
+            )
+        self.assertEqual(partial.state, DeletionState.PARTIAL)
+        self.assertEqual(partial.error_code, "TARGET_DELETE_FAILED")
+        self.assertTrue(bundle_path.is_file())
+        self.assertTrue(metadata_path.is_file())
+        self.assertFalse(any(item.lifecycle is SupportAccessLifecycle.DELETED for item in writer.records()))
+
+        complete = delete_workspace_run(
+            root, run_ref=run.name, deletion_id="delete-support-partial", scope_context=context,
+            hold_provider=holds, operational_root=operational,
+        )
+        self.assertEqual(complete.outcome, DeletionOutcome.COMPLETE)
+        self.assertFalse(run.exists())
+        deleted = [item for item in writer.records() if item.lifecycle is SupportAccessLifecycle.DELETED]
+        self.assertEqual([item.support_artifact_ref for item in deleted], [artifact.artifact_ref])
+        audit_before_replay = writer.audit_path.read_bytes()
+        replay = delete_workspace_run(
+            root, run_ref=run.name, deletion_id="delete-support-partial", scope_context=context,
+            hold_provider=holds, operational_root=operational,
+        )
+        self.assertEqual(replay.outcome, DeletionOutcome.COMPLETE)
+        self.assertEqual(audit_before_replay, writer.audit_path.read_bytes())
+        support_audit = writer.audit_path.read_text(encoding="utf-8")
+        for canary in ("Korean", "OCR", "translation", "AccessKey", "secret", "05_final_report", str(root), "support-content"):
+            self.assertNotIn(canary, support_audit)
+
+    def test_scoped_support_deletion_defers_audit_until_retry_and_replay_is_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            context = AuthorizedScopeContext("user-support-delete", "workspace-support-delete", "scope-support-delete")
+            service = ReferencePaaSJobService(root)
+            receipt = PaaSController(service, scope_context=context).submit(
+                PaaSJobRequest("run-support-delete", "scope-support-delete", "store-support-delete", reference_runtime(), total_work_units=1)
+            )
+            PaaSWorker(
+                service, worker_id="worker-support-delete", runtime_identity=reference_runtime(),
+                engine=ReferenceWorkerEngine(), scope_context=context,
+            ).run_until_terminal(receipt.identity)
+            layout = service.content_layout(receipt.identity, scope_context=context)
+            layout.write_text(StorageArtifact.SOURCE_SNAPSHOT, "inputs/source.txt", "Korean OCR translation AccessKey=secret")
+            decision = SupportAuthorizationDecision(
+                "request-support-delete", context, receipt.identity.run_id, "subject-owner", "role-support", "capability-diagnostic",
+                SupportPurpose.DATA_OWNER_REVIEW, "authority-company-support", "decision-support-delete",
+                (SupportApprovalEvidence("approval-support-delete", SupportApprovalStatus.APPROVED),),
+                (SupportArtifactClass.SOURCE_SNAPSHOT,), (), _ts(0), _ts(0), _ts(23),
+            )
+            request = ControlledSupportRequest(
+                decision,
+                (SupportContentSelection(SupportArtifactClass.SOURCE_SNAPSHOT, layout.reference(StorageArtifact.SOURCE_SNAPSHOT, "inputs/source.txt")),),
+            )
+            provider = ReferenceSupportAuthorizationProvider()
+            provider.add(decision)
+            writer = SupportAccessAuditWriter(service_root=root)
+            artifact = materialize_controlled_support_bundle(layout, request, authority=provider, audit_writer=writer, now=NOW)
+            bundle_path = layout.resolve(artifact.reference)
+            metadata_path = bundle_path.with_suffix(".json")
+            holds = ReferenceLegalHoldProvider()
+            holds.set_release(scope_ref=context.scope_ref, run_ref=receipt.identity.run_id)
+            original_unlink = Path.unlink
+            injected = False
+
+            def fail_bundle_once(path: Path, missing_ok: bool = False) -> None:
+                nonlocal injected
+                if path == bundle_path and not injected:
+                    injected = True
+                    raise OSError("injected scoped support-content unlink failure")
+                original_unlink(path, missing_ok=missing_ok)
+
+            with patch.object(Path, "unlink", new=fail_bundle_once):
+                partial = delete_scoped_run(
+                    service, identity=receipt.identity, scope_context=context, deletion_id="delete-scoped-support-partial",
+                    hold_provider=holds,
+                )
+            self.assertEqual(partial.state, DeletionState.PARTIAL)
+            self.assertEqual(partial.error_code, "TARGET_DELETE_FAILED")
+            self.assertTrue(bundle_path.is_file())
+            self.assertTrue(metadata_path.is_file())
+            self.assertFalse(any(item.lifecycle is SupportAccessLifecycle.DELETED for item in writer.records()))
+
+            complete = delete_scoped_run(
+                service, identity=receipt.identity, scope_context=context, deletion_id="delete-scoped-support-partial",
+                hold_provider=holds,
+            )
+            self.assertEqual(complete.outcome, DeletionOutcome.COMPLETE, complete.as_dict())
+            self.assertFalse(layout.durable_root.exists())
+            deleted = [item for item in writer.records() if item.lifecycle is SupportAccessLifecycle.DELETED]
+            self.assertEqual([item.support_artifact_ref for item in deleted], [artifact.artifact_ref])
+            audit_before_replay = writer.audit_path.read_bytes()
+            replay = delete_scoped_run(
+                service, identity=receipt.identity, scope_context=context, deletion_id="delete-scoped-support-partial",
+                hold_provider=holds,
+            )
+            self.assertEqual(replay.outcome, DeletionOutcome.COMPLETE)
+            self.assertEqual(audit_before_replay, writer.audit_path.read_bytes())
+            support_audit = writer.audit_path.read_text(encoding="utf-8")
+            for canary in ("Korean", "OCR", "translation", "AccessKey", "secret", "inputs/source.txt", str(root), "support-content"):
+                self.assertNotIn(canary, support_audit)
 
     def test_cli_support_bundle_has_no_content_bearing_escape_hatch(self) -> None:
         parser = __import__("k_slide.cli", fromlist=["build_parser"]).build_parser()
