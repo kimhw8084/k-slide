@@ -134,6 +134,7 @@ class DeletionArtifactClass(str, Enum):
     METRICS = StorageArtifact.METRICS.value
     FAILURE_MARKER = StorageArtifact.FAILURE_MARKER.value
     COMPLETION_MARKER = StorageArtifact.COMPLETION_MARKER.value
+    SUPPORT_CONTENT = StorageArtifact.SUPPORT_CONTENT.value
     RUN_SCOPED_CONTENT = "run_scoped_content"
 
 
@@ -542,6 +543,8 @@ def _class_for_relative(relative: str) -> DeletionArtifactClass:
         return DeletionArtifactClass.CANONICAL_IR
     if top == "translations":
         return DeletionArtifactClass.TRANSLATION_PATCH
+    if top == "support-content":
+        return DeletionArtifactClass.SUPPORT_CONTENT
     if top == "verification" or name.startswith("06_"):
         return DeletionArtifactClass.VERIFICATION
     if name in {"00_run_manifest.md", "ARTIFACT_MANIFEST.json"}:
@@ -740,6 +743,10 @@ class WorkspaceDeletionBackend:
         )
 
     def delete_target(self, candidate: _Candidate) -> None:
+        if candidate.artifact_class is DeletionArtifactClass.SUPPORT_CONTENT:
+            from .content_support import record_deleted_support_artifacts
+
+            record_deleted_support_artifacts(self.run_dir / "support-content", service_root=self.operational_root)
         for path in self._paths_for_class(candidate.artifact_class):
             target_root = self.run_dir if path.is_relative_to(self.run_dir) else self.root / ".k-slide-runs" / "_sessions"
             _safe_target(path, target_root)
@@ -1016,6 +1023,10 @@ class ScopedReferenceDeletionBackend:
         if candidate.control:
             self._invalidate_control()
             return
+        if candidate.artifact_class is DeletionArtifactClass.SUPPORT_CONTENT:
+            from .content_support import record_deleted_support_artifacts
+
+            record_deleted_support_artifacts(self._content_root() / "support-content", service_root=self.service._central_operational_root())
         content_root = self._content_root()
         for path in self._paths_for_class(candidate.artifact_class):
             target_root = content_root if path.is_relative_to(content_root) else self.scope_root
@@ -1438,6 +1449,15 @@ def _cleanup_operational_metadata_at_root(
                 kept_lines.append(json.dumps(event.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")))
         if stream_expired and not dry_run:
             atomic_write_text(telemetry_path, "\n".join(kept_lines) + ("\n" if kept_lines else ""), mode=0o600)
+    from .content_support import cleanup_support_access_audit
+
+    support_audit = cleanup_support_access_audit(
+        operational_root,
+        scope_ref=scope_ref,
+        cutoff=cutoff,
+        hold_lookup=hold_provider.lookup,
+        dry_run=dry_run,
+    )
     return {
         "status": "PASS",
         "dry_run": dry_run,
@@ -1446,6 +1466,7 @@ def _cleanup_operational_metadata_at_root(
         "retained": retained,
         "expired_telemetry": telemetry_expired,
         "retained_telemetry": telemetry_retained,
+        "support_access_audit": support_audit,
         "cutoff": cutoff.isoformat(),
     }
 
