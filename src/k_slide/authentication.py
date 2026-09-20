@@ -219,6 +219,7 @@ def _authorize_egress(
     capability_class: str | None,
     purpose: str | None,
     route_identity: str | None,
+    endpoint_identity: str | None,
     service_identity: str | None,
     data_class: str | None,
     request: CompanyServiceRequest,
@@ -231,6 +232,7 @@ def _authorize_egress(
         capability_class,
         purpose,
         route_identity=route_identity,
+        endpoint_identity=endpoint_identity,
         service_identity=service_identity,
         data_class=data_class,
     )
@@ -246,6 +248,7 @@ def _company_service_call(
     capability_class: str | None = None,
     purpose: str | None = None,
     route_identity: str | None = None,
+    endpoint_identity: str | None = None,
     service_identity: str | None = None,
     data_class: str | None = None,
     require_egress: bool,
@@ -259,6 +262,7 @@ def _company_service_call(
             capability_class=capability_class,
             purpose=purpose,
             route_identity=route_identity,
+            endpoint_identity=endpoint_identity,
             service_identity=service_identity,
             data_class=data_class,
             request=ordinary_request,
@@ -301,6 +305,7 @@ def authenticated_company_service_call(
     capability_class: str | None = None,
     purpose: str | None = None,
     route_identity: str | None = None,
+    endpoint_identity: str | None = None,
     service_identity: str | None = None,
     data_class: str | None = None,
 ) -> object:
@@ -313,6 +318,7 @@ def authenticated_company_service_call(
         capability_class=capability_class,
         purpose=purpose,
         route_identity=route_identity,
+        endpoint_identity=endpoint_identity,
         service_identity=service_identity,
         data_class=data_class,
         require_egress=True,
@@ -336,6 +342,7 @@ def authorized_company_service_call(
     capability_class: str,
     purpose: str,
     route_identity: str | None = None,
+    endpoint_identity: str | None = None,
     service_identity: str | None = None,
     data_class: str | None = None,
 ) -> object:
@@ -350,6 +357,7 @@ def authorized_company_service_call(
         capability_class=capability_class,
         purpose=purpose,
         route_identity=route_identity,
+        endpoint_identity=endpoint_identity,
         service_identity=service_identity,
         data_class=data_class,
     )

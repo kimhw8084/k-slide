@@ -25,6 +25,8 @@ from k_slide.egress_policy import (
     egress_policy_hash_for_mapping,
     egress_policy_identity_for_mapping,
     load_egress_policy,
+    opencode_route_identity,
+    policy_completeness,
 )
 from k_slide.environment import ensure_configured_policy_matches_environment
 from k_slide.errors import ErrorCode, KSlideError
@@ -33,8 +35,15 @@ from tests.reference_fixtures import reference_environment
 
 
 def _policy_mapping(*, inference_route: str = "route-v1", service_suffix: str = "v1") -> dict[str, object]:
+    endpoint_identity = opencode_route_identity(
+        provider_id="google",
+        model_id="gemma-4-31b-it",
+        api_id="gemma-4-31b-it",
+        api_npm="@ai-sdk/google",
+        api_url="https://generativelanguage.googleapis.com/v1beta",
+    )
     capabilities = [
-        {"capability_class": EGRESS_CAPABILITY_INFERENCE_ROUTE, "purpose": EGRESS_PURPOSE_INFERENCE, "service_identity": f"inference-service-{service_suffix}", "route_identity": inference_route, "data_class": "source_content"},
+        {"capability_class": EGRESS_CAPABILITY_INFERENCE_ROUTE, "purpose": EGRESS_PURPOSE_INFERENCE, "service_identity": f"inference-service-{service_suffix}", "route_identity": inference_route, "endpoint_identity": endpoint_identity, "data_class": "source_content"},
         {"capability_class": EGRESS_CAPABILITY_DURABLE_JOB_CONTROL, "purpose": EGRESS_PURPOSE_JOB_CONTROL, "service_identity": f"job-service-{service_suffix}", "route_identity": None, "data_class": "operational_metadata"},
         {"capability_class": EGRESS_CAPABILITY_SCOPED_STORAGE, "purpose": EGRESS_PURPOSE_STORAGE, "service_identity": f"storage-service-{service_suffix}", "route_identity": None, "data_class": "source_content"},
         {"capability_class": EGRESS_CAPABILITY_NON_CONTENT_TELEMETRY, "purpose": EGRESS_PURPOSE_TELEMETRY, "service_identity": f"telemetry-service-{service_suffix}", "route_identity": None, "data_class": EGRESS_DATA_CLASS_NON_CONTENT},
@@ -61,6 +70,42 @@ class _Transport:
 
 
 class DefaultDenyEgressTests(unittest.TestCase):
+    def test_opencode_route_identity_is_cross_language_and_policy_bound(self) -> None:
+        route = {
+            "provider_id": "google",
+            "model_id": "gemma-4-31b-it",
+            "api_id": "gemma-4-31b-it",
+            "api_npm": "@ai-sdk/google",
+            "api_url": "https://generativelanguage.googleapis.com/v1beta",
+        }
+        identity = opencode_route_identity(**route)
+        self.assertEqual(len(identity), 64)
+        self.assertNotEqual(identity, opencode_route_identity(**{**route, "api_id": "other-model"}))
+        self.assertNotEqual(identity, opencode_route_identity(**{**route, "api_npm": "@ai-sdk/openai"}))
+        self.assertNotEqual(identity, opencode_route_identity(**{**route, "api_url": "https://attacker.invalid"}))
+        policy = _policy_mapping()
+        changed = json.loads(json.dumps(policy))
+        changed["capabilities"][0]["endpoint_identity"] = "a" * 64
+        changed["policy_hash"] = egress_policy_hash_for_mapping(policy_version=changed["policy_version"], capabilities=changed["capabilities"])
+        changed["policy_identity"] = egress_policy_identity_for_mapping(policy_version=changed["policy_version"], policy_hash=changed["policy_hash"])
+        self.assertNotEqual(policy["policy_hash"], changed["policy_hash"])
+        self.assertNotEqual(
+            candidate_deployment_fingerprint({"candidate_spec_version": "1.1", "inference_endpoint_identity": policy["capabilities"][0]["endpoint_identity"]}),
+            candidate_deployment_fingerprint({"candidate_spec_version": "1.1", "inference_endpoint_identity": changed["capabilities"][0]["endpoint_identity"]}),
+        )
+
+    def test_missing_or_malformed_endpoint_identity_blocks_policy_readiness(self) -> None:
+        missing = _policy_mapping()
+        del missing["capabilities"][0]["endpoint_identity"]
+        ready, detail = policy_completeness(missing)
+        self.assertFalse(ready)
+        self.assertIn("endpoint identity", detail.lower())
+        malformed = _policy_mapping()
+        malformed["capabilities"][0]["endpoint_identity"] = "not-a-sha256"
+        ready, detail = policy_completeness(malformed)
+        self.assertFalse(ready)
+        self.assertIn("endpoint identity", detail.lower())
+
     def test_missing_and_malformed_policy_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -96,7 +141,8 @@ class DefaultDenyEgressTests(unittest.TestCase):
 
     def test_all_four_explicit_capabilities_allow_only_their_closed_purpose(self) -> None:
         policy = EgressPolicy.from_mapping(_policy_mapping())
-        self.assertEqual(policy.authorize(EGRESS_CAPABILITY_INFERENCE_ROUTE, EGRESS_PURPOSE_INFERENCE, route_identity="route-v1", service_identity="inference-service-v1", data_class="source_content").service_identity, "inference-service-v1")
+        endpoint_identity = policy.capability(EGRESS_CAPABILITY_INFERENCE_ROUTE).endpoint_identity
+        self.assertEqual(policy.authorize(EGRESS_CAPABILITY_INFERENCE_ROUTE, EGRESS_PURPOSE_INFERENCE, route_identity="route-v1", endpoint_identity=endpoint_identity, service_identity="inference-service-v1", data_class="source_content").service_identity, "inference-service-v1")
         self.assertEqual(policy.authorize(EGRESS_CAPABILITY_DURABLE_JOB_CONTROL, EGRESS_PURPOSE_JOB_CONTROL, service_identity="job-service-v1", data_class="operational_metadata").service_identity, "job-service-v1")
         self.assertEqual(policy.authorize(EGRESS_CAPABILITY_SCOPED_STORAGE, EGRESS_PURPOSE_STORAGE, service_identity="storage-service-v1", data_class="source_content").service_identity, "storage-service-v1")
         self.assertEqual(policy.authorize(EGRESS_CAPABILITY_NON_CONTENT_TELEMETRY, EGRESS_PURPOSE_TELEMETRY, service_identity="telemetry-service-v1", data_class=EGRESS_DATA_CLASS_NON_CONTENT).service_identity, "telemetry-service-v1")
@@ -171,7 +217,7 @@ class DefaultDenyEgressTests(unittest.TestCase):
             store = WorkspaceRunStore(Path(directory) / "run")
             job = new_execution_job("run-egress-drift", profile=ExecutionProfile.WORKSPACE_LOCAL, scope_ref="workspace", store_ref="workspace-store", environment_identity=environment)
             store.create(job)
-            drifted = replace(environment, egress_policy_hash="a" * 64, egress_policy_identity="b" * 64)
+            drifted = replace(environment, inference_endpoint_identity="c" * 64, egress_policy_hash="a" * 64, egress_policy_identity="b" * 64)
             with self.assertRaises(KSlideError) as raised:
                 ExecutionController(store, environment_identity=drifted).run_step(job.job_id, operation_id="op-egress-drift", step=lambda checkpoint, operation_id: None)
             self.assertEqual(raised.exception.code, ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH)

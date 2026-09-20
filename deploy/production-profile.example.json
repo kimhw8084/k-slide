@@ -17,6 +17,7 @@
   },
   "tenant_isolation": "workspace_per_session",
   "network_egress": "default_deny",
+  "inference_endpoint_identity": "UNSET",
   "egress_policy_version": "UNSET",
   "egress_policy_hash": "UNSET",
   "egress_policy_identity": "UNSET",

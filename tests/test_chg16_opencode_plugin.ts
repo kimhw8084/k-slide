@@ -5,7 +5,7 @@ import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
-import KSlideHostPlugin from "../.opencode/plugin/k-slide-host.ts"
+import KSlideHostPlugin, { opencodeRouteIdentity } from "../.opencode/plugin/k-slide-host.ts"
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64")
@@ -354,26 +354,54 @@ async function modelPinBoundary(): Promise<void> {
   const hooks = await hooksFor(ROOT)
   const params = hooks["chat.params"]
   assert.ok(params)
+  const api = { id: "gemma-4-31b-it", npm: "@ai-sdk/google", url: "https://generativelanguage.googleapis.com/v1beta" }
+  const routeIdentity = opencodeRouteIdentity({ providerID: "google", modelID: "gemma-4-31b-it", apiID: api.id, apiNpm: api.npm, apiURL: api.url })
+  const previousRouteIdentity = process.env.KSLIDE_APPROVED_INFERENCE_ROUTE_IDENTITY
+  process.env.KSLIDE_APPROVED_INFERENCE_ROUTE_IDENTITY = routeIdentity
   const base = {
     sessionID: "model-pin-session",
     agent: "k-slide",
-    model: { id: "gemma-4-31b-it", providerID: "google", options: {} },
-    provider: { info: { id: "google", options: {} }, options: {} },
+    model: {
+      id: "gemma-4-31b-it",
+      providerID: "google",
+      api,
+      name: "Gemma 4 31B IT",
+      capabilities: { temperature: true, reasoning: false, attachment: true, toolcall: true, input: { text: true, audio: false, image: true, video: false, pdf: false }, output: { text: true, audio: false, image: false, video: false, pdf: false } },
+      cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+      limit: { context: 131072, output: 8192 },
+      status: "active",
+      options: {},
+      headers: {},
+    },
+    provider: { info: { id: "google", name: "Google", source: "config", env: [], options: {}, models: {} }, options: {} },
     message: { model: { providerID: "google", modelID: "gemma-4-31b-it" } },
   }
-  await params(base as never, { temperature: 0.1, topP: 1, topK: 0, options: {} } as never)
-  for (const mutation of [
-    { model: { id: "other-model", providerID: "google" } },
-    { model: { id: "gemma-4-31b-it", providerID: "other-provider" } },
-    { provider: { info: { id: "other-provider", options: {} }, options: {} } },
-    { provider: { info: { id: "google", options: { baseURL: "https://attacker.invalid" } }, options: {} } },
-    { provider: { info: { id: "google", options: {} }, options: { proxy: "http://attacker.invalid" } } },
-    { model: { id: "gemma-4-31b-it", providerID: "google", options: { endpoint: "https://attacker.invalid" } } },
-    { message: { model: { providerID: "other-provider", modelID: "other-model" } } },
-  ]) {
-    await assert.rejects(params({ ...base, ...mutation } as never, { temperature: 0.1, topP: 1, topK: 0, options: {} } as never))
+  try {
+    await params(base as never, { temperature: 0.1, topP: 1, topK: 0, options: {} } as never)
+    for (const mutation of [
+      { model: { ...base.model, id: "other-model" } },
+      { model: { ...base.model, providerID: "other-provider" } },
+      { model: { ...base.model, api: { ...api, id: "other-model" } } },
+      { model: { ...base.model, api: { ...api, npm: "@ai-sdk/openai" } } },
+      { model: { ...base.model, api: { ...api, url: "https://attacker.invalid" } } },
+      { model: { ...base.model, provider: { api: "https://attacker.invalid" } } },
+      { provider: { info: { ...base.provider.info, id: "other-provider" }, options: {} } },
+      { provider: { info: { ...base.provider.info, options: { baseURL: "https://attacker.invalid" } }, options: {} } },
+      { provider: { info: base.provider.info, options: { baseURL: "https://attacker.invalid" } } },
+      { model: { ...base.model, options: { endpoint: "https://attacker.invalid" } } },
+      { message: { model: { providerID: "other-provider", modelID: "other-model" } } },
+      { model: { ...base.model, api: { id: "other-model", npm: "@ai-sdk/openai", url: "https://attacker.invalid" } } },
+    ]) {
+      await assert.rejects(params({ ...base, ...mutation } as never, { temperature: 0.1, topP: 1, topK: 0, options: {} } as never))
+    }
+    delete process.env.KSLIDE_APPROVED_INFERENCE_ROUTE_IDENTITY
+    await assert.rejects(params(base as never, { temperature: 0.1, topP: 1, topK: 0, options: {} } as never))
+    process.env.KSLIDE_APPROVED_INFERENCE_ROUTE_IDENTITY = routeIdentity
+    await params({ ...base, agent: "general" } as never, { temperature: 0.1, topP: 1, topK: 0, options: {} } as never)
+  } finally {
+    if (previousRouteIdentity === undefined) delete process.env.KSLIDE_APPROVED_INFERENCE_ROUTE_IDENTITY
+    else process.env.KSLIDE_APPROVED_INFERENCE_ROUTE_IDENTITY = previousRouteIdentity
   }
-  await params({ ...base, agent: "general" } as never, { temperature: 0.1, topP: 1, topK: 0, options: {} } as never)
 }
 
 export async function openCodeV139PluginLoaderCompatibilityBoundary(): Promise<void> {

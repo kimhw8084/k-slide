@@ -28,6 +28,7 @@ from k_slide.egress_policy import (
     EgressPolicy,
     egress_policy_hash_for_mapping,
     egress_policy_identity_for_mapping,
+    opencode_route_identity,
 )
 from k_slide.errors import ErrorCode, KSlideError
 from k_slide.execution import (
@@ -46,12 +47,20 @@ from tests.reference_fixtures import reference_environment
 
 
 def _deployment_policy() -> EgressPolicy:
+    endpoint_identity = opencode_route_identity(
+        provider_id="google",
+        model_id="gemma-4-31b-it",
+        api_id="gemma-4-31b-it",
+        api_npm="@ai-sdk/google",
+        api_url="https://generativelanguage.googleapis.com/v1beta",
+    )
     capabilities = [
         {
             "capability_class": EGRESS_CAPABILITY_INFERENCE_ROUTE,
             "purpose": EGRESS_PURPOSE_INFERENCE,
             "service_identity": "inference-service-v1",
             "route_identity": "route-v1",
+            "endpoint_identity": endpoint_identity,
             "data_class": "source_content",
         },
         {

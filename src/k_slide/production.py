@@ -90,6 +90,7 @@ class ProductionProfile:
     egress_policy_version: str | None = None
     egress_policy_hash: str | None = None
     egress_policy_identity: str | None = None
+    inference_endpoint_identity: str | None = None
 
     @classmethod
     def from_mapping(cls, value: dict[str, Any], *, require_resolved_retention: bool = True) -> "ProductionProfile":
@@ -139,6 +140,7 @@ class ProductionProfile:
             egress_policy_version=str(value["egress_policy_version"]) if "egress_policy_version" in value else None,
             egress_policy_hash=str(value["egress_policy_hash"]) if "egress_policy_hash" in value else None,
             egress_policy_identity=str(value["egress_policy_identity"]) if "egress_policy_identity" in value else None,
+            inference_endpoint_identity=str(value["inference_endpoint_identity"]) if "inference_endpoint_identity" in value else None,
         )
 
     def as_dict(self) -> dict[str, Any]:
@@ -168,6 +170,7 @@ class ProductionProfile:
             **({"egress_policy_version": self.egress_policy_version} if self.egress_policy_version is not None else {}),
             **({"egress_policy_hash": self.egress_policy_hash} if self.egress_policy_hash is not None else {}),
             **({"egress_policy_identity": self.egress_policy_identity} if self.egress_policy_identity is not None else {}),
+            **({"inference_endpoint_identity": self.inference_endpoint_identity} if self.inference_endpoint_identity is not None else {}),
         }
 
 
@@ -620,7 +623,9 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
         candidate_route = candidate_egress.get("inference_route_identity")
         if candidate_route not in (None, "", "UNSET"):
             route_consistent = route_consistent and configured_egress.capability("inference_route").route_identity == candidate_route
-        egress_ready = egress_ready and bound and route_consistent
+        endpoint_identity = candidate_egress.get("inference_endpoint_identity")
+        endpoint_consistent = endpoint_identity not in (None, "", "UNSET") and endpoint_identity == configured_egress.capability("inference_route").endpoint_identity
+        egress_ready = egress_ready and bound and route_consistent and endpoint_consistent
         if not egress_ready:
             egress_detail = "deployment policy is not internally consistent with the candidate"
         else:

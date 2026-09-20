@@ -56,7 +56,8 @@ _FORBIDDEN_IDENTITY_MARKERS = (
     "token",
 )
 
-_CAPABILITY_FIELDS = frozenset({"capability_class", "purpose", "service_identity", "route_identity", "data_class"})
+_CAPABILITY_FIELDS = frozenset({"capability_class", "purpose", "service_identity", "route_identity", "endpoint_identity", "data_class"})
+_LEGACY_CAPABILITY_FIELDS = _CAPABILITY_FIELDS - {"endpoint_identity"}
 _POLICY_FIELDS = frozenset({"schema_version", "policy_version", "policy_hash", "policy_identity", "default_action", "capabilities"})
 
 
@@ -70,6 +71,32 @@ def _canonical_bytes(value: Any) -> bytes:
 
 def _hash(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def opencode_route_identity(*, provider_id: Any, model_id: Any, api_id: Any, api_npm: Any, api_url: Any) -> str:
+    """Hash one resolved OpenCode v1.3.9 API route without retaining its URL.
+
+    Canonicalization is intentionally language-neutral: UTF-8 encode each
+    non-empty scalar and serialize fields in this exact order as
+    ``label=<UTF-8 byte length>:<value>`` on separate LF-terminated lines,
+    preceded by ``k-slide-opencode-route-v1``.  The returned SHA-256 digest is
+    the only deployment/run-state representation of the route.
+    """
+
+    values = (
+        ("providerID", provider_id),
+        ("modelID", model_id),
+        ("api.id", api_id),
+        ("api.npm", api_npm),
+        ("api.url", api_url),
+    )
+    lines = ["k-slide-opencode-route-v1"]
+    for label, value in values:
+        if not isinstance(value, str) or not value or "\x00" in value or "\r" in value or "\n" in value:
+            raise _policy_error("OpenCode route material is malformed.")
+        encoded = value.encode("utf-8")
+        lines.append(f"{label}={len(encoded)}:" + value)
+    return _hash("\n".join(lines).encode("utf-8") + b"\n")
 
 
 def _identity(value: Any, label: str) -> str:
@@ -121,7 +148,7 @@ def _data_class(value: Any, capability_class: str) -> str:
 
 
 def _semantic_capability(value: Mapping[str, Any]) -> dict[str, str | None]:
-    if set(value) != _CAPABILITY_FIELDS:
+    if set(value) not in {_CAPABILITY_FIELDS, _LEGACY_CAPABILITY_FIELDS}:
         raise _policy_error("Egress policy capability has missing or unsupported fields.")
     capability_class = _capability_class(value.get("capability_class"))
     purpose = _purpose(value.get("purpose"), capability_class)
@@ -133,12 +160,22 @@ def _semantic_capability(value: Mapping[str, Any]) -> dict[str, str | None]:
         route_identity = None
     else:
         raise _policy_error("Only the inference capability may declare a route identity.")
+    endpoint_raw = value.get("endpoint_identity")
+    if capability_class == EGRESS_CAPABILITY_INFERENCE_ROUTE:
+        if not isinstance(endpoint_raw, str) or not _SHA256.fullmatch(endpoint_raw):
+            raise _policy_error("Egress policy endpoint identity is malformed.")
+        endpoint_identity = endpoint_raw
+    elif endpoint_raw is None:
+        endpoint_identity = None
+    else:
+        raise _policy_error("Only the inference capability may declare an endpoint identity.")
     data_class = _data_class(value.get("data_class"), capability_class)
     return {
         "capability_class": capability_class,
         "purpose": purpose,
         "service_identity": service_identity,
         "route_identity": route_identity,
+        "endpoint_identity": endpoint_identity,
         "data_class": data_class,
     }
 
@@ -177,6 +214,7 @@ class EgressCapability:
     purpose: str
     service_identity: str
     route_identity: str | None
+    endpoint_identity: str | None
     data_class: str
 
     @classmethod
@@ -189,6 +227,7 @@ class EgressCapability:
             purpose=str(normalized["purpose"]),
             service_identity=str(normalized["service_identity"]),
             route_identity=normalized["route_identity"],
+            endpoint_identity=normalized["endpoint_identity"],
             data_class=str(normalized["data_class"]),
         )
 
@@ -198,6 +237,7 @@ class EgressCapability:
             "purpose": self.purpose,
             "service_identity": self.service_identity,
             "route_identity": self.route_identity,
+            "endpoint_identity": self.endpoint_identity,
             "data_class": self.data_class,
         }
 
@@ -275,6 +315,13 @@ class EgressPolicy:
                 }[capability_class],
                 service_identity="reference-adapter",
                 route_identity="reference" if capability_class == EGRESS_CAPABILITY_INFERENCE_ROUTE else None,
+                endpoint_identity=opencode_route_identity(
+                    provider_id="reference",
+                    model_id="reference",
+                    api_id="reference",
+                    api_npm="reference",
+                    api_url="reference",
+                ) if capability_class == EGRESS_CAPABILITY_INFERENCE_ROUTE else None,
                 data_class={
                     EGRESS_CAPABILITY_INFERENCE_ROUTE: EGRESS_DATA_CLASS_SOURCE_CONTENT,
                     EGRESS_CAPABILITY_DURABLE_JOB_CONTROL: EGRESS_DATA_CLASS_OPERATIONAL_METADATA,
@@ -317,6 +364,7 @@ class EgressPolicy:
         purpose: str,
         *,
         route_identity: str | None = None,
+        endpoint_identity: str | None = None,
         service_identity: str | None = None,
         data_class: str | None = None,
     ) -> EgressCapability:
@@ -331,6 +379,10 @@ class EgressPolicy:
             raise _policy_error("Egress capability does not accept a route identity.", code=ErrorCode.EGRESS_ROUTE_MISMATCH)
         if capability.route_identity is not None and capability.route_identity != route_identity:
             raise _policy_error("Egress route identity is not allowlisted.", code=ErrorCode.EGRESS_ROUTE_MISMATCH)
+        if capability.endpoint_identity is None and endpoint_identity is not None:
+            raise _policy_error("Egress capability does not accept an endpoint identity.", code=ErrorCode.EGRESS_ROUTE_MISMATCH)
+        if capability.endpoint_identity is not None and capability.endpoint_identity != endpoint_identity:
+            raise _policy_error("Egress endpoint identity is not allowlisted.", code=ErrorCode.EGRESS_ROUTE_MISMATCH)
         if capability.service_identity != service_identity:
             raise _policy_error("Egress service identity is not allowlisted.", code=ErrorCode.EGRESS_ROUTE_MISMATCH)
         if capability.data_class != data_class:
@@ -387,6 +439,7 @@ __all__ = [
     "EgressCapability",
     "EgressPolicy",
     "REFERENCE_EGRESS_POLICY",
+    "opencode_route_identity",
     "egress_policy_hash_for_mapping",
     "egress_policy_identity_for_mapping",
     "load_egress_policy",

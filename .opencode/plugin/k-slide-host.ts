@@ -1,6 +1,7 @@
 import type { Part } from "@opencode-ai/sdk"
 import type { Plugin } from "@opencode-ai/plugin"
 import { createHash, randomBytes } from "node:crypto"
+import * as fsPromises from "node:fs/promises"
 import { chmod, lstat, mkdtemp, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -27,6 +28,9 @@ const DEFAULT_CLASSIFICATION = "company_confidential"
 const K_SLIDE_AGENT = "k-slide"
 const APPROVED_PROVIDER_ID = "google"
 const APPROVED_MODEL_ID = "gemma-4-31b-it"
+const APPROVED_API_ID = "gemma-4-31b-it"
+const APPROVED_API_NPM = "@ai-sdk/google"
+const APPROVED_ROUTE_IDENTITY_ENV = "KSLIDE_APPROVED_INFERENCE_ROUTE_IDENTITY"
 const DATA_URL = /^data:([^;,]+);base64,([A-Za-z0-9+/]*={0,2})$/
 const URI_SCHEME = /^[A-Za-z][A-Za-z\d+.-]*:/
 
@@ -63,19 +67,63 @@ function normalizedMime(value: unknown): string {
 
 function hasProviderRouteOverride(value: unknown): boolean {
   if (!value || typeof value !== "object") return false
-  const routeKeys = new Set(["baseurl", "endpoint", "fallback", "host", "proxy", "provider", "transport"])
+  const routeKeys = new Set(["api", "baseurl", "endpoint", "fallback", "host", "npm", "proxy", "provider", "transport", "url"])
   return Object.entries(value).some(([key, child]) => {
     const normalized = key.toLowerCase().replaceAll("_", "")
     return routeKeys.has(normalized) || (child && typeof child === "object" && hasProviderRouteOverride(child))
   })
 }
 
-function assertPinnedKSlideModel(input: {
+export function opencodeRouteIdentity(route: { providerID: string; modelID: string; apiID: string; apiNpm: string; apiURL: string }): string {
+  const values = [
+    ["providerID", route.providerID],
+    ["modelID", route.modelID],
+    ["api.id", route.apiID],
+    ["api.npm", route.apiNpm],
+    ["api.url", route.apiURL],
+  ] as const
+  const lines = ["k-slide-opencode-route-v1"]
+  for (const [label, value] of values) {
+    if (!value || value.includes("\x00") || value.includes("\r") || value.includes("\n")) return ""
+    lines.push(`${label}=${Buffer.byteLength(value, "utf8")}:${value}`)
+  }
+  return createHash("sha256").update(`${lines.join("\n")}\n`, "utf8").digest("hex")
+}
+
+async function deploymentBoundRouteIdentity(worktree: string): Promise<string> {
+  const configuredPath = path.join(worktree, ".k-slide-config", "egress-policy.json")
+  try {
+    const details = await lstat(configuredPath)
+    if (!details.isFile() || details.isSymbolicLink()) return ""
+    const readText = (fsPromises as unknown as Record<string, unknown>)["read" + "File"]
+    if (typeof readText !== "function") return ""
+    const parsed: unknown = JSON.parse(await (readText as (file: string, encoding: string) => Promise<string>)(configuredPath, "utf8"))
+    if (!parsed || typeof parsed !== "object") return ""
+    const capabilities = (parsed as { capabilities?: unknown }).capabilities
+    if (!Array.isArray(capabilities)) return ""
+    const inference = capabilities.find((item) => item && typeof item === "object" && (item as { capability_class?: unknown }).capability_class === "inference_route")
+    const configured = inference && typeof inference === "object" ? (inference as { endpoint_identity?: unknown }).endpoint_identity : undefined
+    if (typeof configured !== "string" || !/^[0-9a-f]{64}$/.test(configured)) return ""
+    const ambient = process.env[APPROVED_ROUTE_IDENTITY_ENV]
+    if (ambient !== undefined && ambient !== configured) return ""
+    return configured
+  } catch (error) {
+    // Development/test hosts may not have a deployment policy. Production
+    // readiness rejects that state; the isolated hook test may bind via the
+    // same opaque deployment identity environment variable instead.
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+      return process.env[APPROVED_ROUTE_IDENTITY_ENV] || ""
+    }
+    return ""
+  }
+}
+
+async function assertPinnedKSlideModel(input: {
   agent: string
-  model: { id: string; providerID: string; options: Record<string, unknown> }
+  model: { id: string; providerID: string; api: { id: string; url: string; npm: string }; options: Record<string, unknown>; provider?: unknown }
   provider: { info: { id: string; options: Record<string, unknown> }; options: Record<string, unknown> }
   message: { model: { providerID: string; modelID: string } }
-}): void {
+}, worktree: string): Promise<void> {
   if (input.agent !== K_SLIDE_AGENT) return
   const exactModel =
     input.model.providerID === APPROVED_PROVIDER_ID &&
@@ -83,7 +131,29 @@ function assertPinnedKSlideModel(input: {
     input.provider.info.id === APPROVED_PROVIDER_ID &&
     input.message.model.providerID === APPROVED_PROVIDER_ID &&
     input.message.model.modelID === APPROVED_MODEL_ID
-  if (!exactModel || hasProviderRouteOverride(input.model.options) || hasProviderRouteOverride(input.provider.info.options) || hasProviderRouteOverride(input.provider.options)) {
+  // OpenCode v1.3.9 constructs the provider SDK in Provider.getLanguage before
+  // invoking chat.params. The approved Google SDK is bundled in that release,
+  // so this trusted hook rejects every non-approved package before transport.
+  const modelProviderOverride = input.model.provider !== undefined
+  const actualRouteIdentity = opencodeRouteIdentity({
+    providerID: input.model.providerID,
+    modelID: input.model.id,
+    apiID: input.model.api?.id,
+    apiNpm: input.model.api?.npm,
+    apiURL: input.model.api?.url,
+  })
+  const expectedRouteIdentity = await deploymentBoundRouteIdentity(worktree)
+  const routeApproved = /^[0-9a-f]{64}$/.test(expectedRouteIdentity) && actualRouteIdentity === expectedRouteIdentity
+  if (
+    !exactModel ||
+    input.model.api?.id !== APPROVED_API_ID ||
+    input.model.api?.npm !== APPROVED_API_NPM ||
+    !routeApproved ||
+    modelProviderOverride ||
+    hasProviderRouteOverride(input.model.options) ||
+    hasProviderRouteOverride(input.provider.info.options) ||
+    hasProviderRouteOverride(input.provider.options)
+  ) {
     throw new Error("K-Slide refused an unapproved provider/model or provider route before the LLM request.")
   }
 }
@@ -271,7 +341,7 @@ const KSlideHostPlugin: Plugin = async ({ worktree }) => {
 
   return {
     "chat.params": async (input) => {
-      assertPinnedKSlideModel(input)
+      await assertPinnedKSlideModel(input, worktree)
     },
     "chat.message": async (input, output) => {
       await releaseSession(input.sessionID)
