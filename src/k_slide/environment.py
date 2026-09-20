@@ -555,7 +555,7 @@ def _read_runtime_manifest(path: "Path") -> dict[str, Any]:
     return manifest
 
 
-def _environment_source(root: "Path") -> tuple["Path", "Path"]:
+def _candidate_source(root: "Path") -> "Path":
     candidate_paths = (
         root / ".k-slide-config" / "resolved-candidate.json",
         root / ".k-slide-config" / "production-candidate.json",
@@ -563,18 +563,54 @@ def _environment_source(root: "Path") -> tuple["Path", "Path"]:
         root / "production-candidate.json",
         root / "evals" / "production-candidate.yaml",
     )
+    candidate = next((path for path in candidate_paths if path.is_file() and not path.is_symlink()), None)
+    if candidate is None:
+        raise _invalid("Approved KSA-10 environment identity is unavailable; no candidate subject was found.")
+    return candidate
+
+
+def _environment_source(root: "Path") -> tuple["Path", "Path"]:
+    candidate = _candidate_source(root)
     runtime_paths = (
         root / ".k-slide-config" / "runtime-manifest.json",
         root / ".k-slide-config" / "runtime" / "runtime-manifest.json",
         root / "runtime" / "runtime-manifest.json",
         root / "runtime-manifest.json",
     )
-    candidate = next((path for path in candidate_paths if path.is_file() and not path.is_symlink()), None)
     runtime = next((path for path in runtime_paths if path.is_file() and not path.is_symlink()), None)
-    if candidate is None:
-        raise _invalid("Approved KSA-10 environment identity is unavailable; no candidate subject was found.")
     if runtime is None:
         raise _invalid("Approved KSA-10 environment identity is unavailable; no runtime manifest subject was found.")
+    return candidate, runtime
+
+
+def _resolve_approved_candidate(root: "Path", *, require_sources: bool = True) -> dict[str, Any]:
+    from .certification import load_candidate_spec, resolve_candidate_spec
+
+    candidate_path = _candidate_source(root)
+    candidate = load_candidate_spec(candidate_path, root=root, require_identity=True, strict=True)
+    return resolve_candidate_spec(
+        candidate,
+        root=root,
+        subject_git_sha=candidate.get("subject_git_sha"),
+        require_sources=require_sources,
+    )
+
+
+def _resolve_approved_subjects(root: "Path") -> tuple[dict[str, Any], dict[str, Any]]:
+    """Reopen the approved candidate/runtime subjects through KSA-10 authorities."""
+
+    from .security import sha256_file
+
+    candidate, runtime_path = _resolve_approved_candidate(root), _environment_source(root)[1]
+    runtime = _read_runtime_manifest(runtime_path)
+    runtime_manifest_sha = sha256_file(runtime_path)
+    declared_manifest_sha = candidate.get("runtime_artifact_manifest_sha256")
+    if declared_manifest_sha not in (None, "", "UNSET") and declared_manifest_sha != runtime_manifest_sha:
+        raise _invalid("Approved candidate and runtime manifest identities disagree.")
+    runtime["runtime_manifest_sha256"] = runtime_manifest_sha
+    source_revision = _repository_revision(root)
+    if source_revision is not None and runtime.get("source_revision") != source_revision:
+        raise _invalid("Approved runtime manifest is not bound to the current K-Slide revision.")
     return candidate, runtime
 
 
@@ -592,27 +628,10 @@ def resolve_effective_environment(root: "Path", *, environment_identity: RunEnvi
         return environment_identity
 
     root = root.expanduser().resolve()
-    candidate_path, runtime_path = _environment_source(root)
     try:
-        from .certification import EvidenceValidationError, load_candidate_spec, resolve_candidate_spec
-        from .security import sha256_file
+        from .certification import EvidenceValidationError
 
-        candidate = load_candidate_spec(candidate_path, root=root, require_identity=True, strict=True)
-        candidate = resolve_candidate_spec(
-            candidate,
-            root=root,
-            subject_git_sha=candidate.get("subject_git_sha"),
-            require_sources=True,
-        )
-        runtime = _read_runtime_manifest(runtime_path)
-        runtime_manifest_sha = sha256_file(runtime_path)
-        declared_manifest_sha = candidate.get("runtime_artifact_manifest_sha256")
-        if declared_manifest_sha not in (None, "", "UNSET") and declared_manifest_sha != runtime_manifest_sha:
-            raise _invalid("Approved candidate and runtime manifest identities disagree.")
-        runtime["runtime_manifest_sha256"] = runtime_manifest_sha
-        source_revision = _repository_revision(root)
-        if source_revision is not None and runtime.get("source_revision") != source_revision:
-            raise _invalid("Approved runtime manifest is not bound to the current K-Slide revision.")
+        candidate, runtime = _resolve_approved_subjects(root)
         identity = RunEnvironmentIdentity.from_candidate_spec(candidate, runtime_manifest=runtime)
         from .classification_policy import load_inference_data_use_policy
         from .egress_policy import load_egress_policy
@@ -653,3 +672,58 @@ def resolve_effective_environment(root: "Path", *, environment_identity: RunEnvi
     except Exception as exc:
         raise _invalid("Approved KSA-10 candidate/runtime identity cannot be rederived.") from exc
     return identity
+
+
+def resolve_run_termbase(
+    root: "Path",
+    *,
+    environment_identity: RunEnvironmentIdentity | None = None,
+    termbase_authority: Any | None = None,
+):
+    """Resolve the governed termbase bound to one approved run environment.
+
+    The candidate/runtime subjects remain the durable authority boundary. Only
+    the source-free effective identity is compared with the KSA-10 binding;
+    source records are reopened from the current approved subject for use in a
+    single operation and are never persisted in the run environment record.
+    """
+
+    from .terminology import load_effective_termbase
+
+    root = root.expanduser().resolve()
+    effective_environment = resolve_effective_environment(root, environment_identity=environment_identity)
+    authority = termbase_authority
+    if authority is None:
+        from .certification import EvidenceValidationError
+
+        try:
+            candidate = _resolve_approved_candidate(root, require_sources=False)
+        except KSlideError:
+            # Legacy/reference adapters intentionally have no candidate
+            # subject. They retain the existing governed core-only behavior;
+            # every approved non-reference environment must reopen authority.
+            if environment_identity is None or effective_environment.ocr_provider != "reference":
+                raise
+        except EvidenceValidationError as exc:
+            raise KSlideError(
+                ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
+                "Run environment is incompatible; resume was refused.",
+                {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": ["termbase_authority"]},
+            ) from exc
+        else:
+            authority = candidate.get("termbase_governance")
+    termbase = load_effective_termbase(root, authority=authority)
+    if effective_environment.ocr_provider != "reference":
+        identity = termbase.binding_identity or {}
+        mismatch_fields = []
+        if identity.get("hash") != effective_environment.termbase_identity:
+            mismatch_fields.append("termbase_identity")
+        if identity.get("version") != effective_environment.termbase_version:
+            mismatch_fields.append("termbase_version")
+        if mismatch_fields:
+            raise KSlideError(
+                ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
+                "Run environment is incompatible; resume was refused.",
+                {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": mismatch_fields},
+            )
+    return termbase
