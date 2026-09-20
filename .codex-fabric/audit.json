@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "kind": "codex-fabric-audit-evidence",
+  "operation": "BUILD",
+  "status": "EXECUTED_CHANGE",
+  "project_id": "k-slide",
+  "request": "chg16-controlled-content-support-01-fix01",
+  "finished_at": "2026-09-20T21:19:04Z",
+  "git": {
+    "base_sha": "96172ecabd39ca6affa55306d965a03bc5dd3598",
+    "predecessor_sha": "3d19eb9240c36924de2862184109b3897a31a6e1",
+    "candidate_sha": "8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf",
+    "candidate_branch": "codex/k-slide-chg16-controlled-content-support-01-fix01",
+    "target_branch": "main",
+    "target_head_observed": "96172ecabd39ca6affa55306d965a03bc5dd3598",
+    "base_is_ancestor": true,
+    "predecessor_is_parent": true,
+    "main_unchanged": true,
+    "candidate_worktree_clean": true
+  },
+  "changed_files": [
+    {
+      "path": "src/k_slide/content_support.py",
+      "status": "M",
+      "additions": 35,
+      "deletions": 15,
+      "bytes": 67053,
+      "sha256": "1e8085465a4079225efa329d3d9547a355e082263cc863318d5b69111170c22f"
+    },
+    {
+      "path": "src/k_slide/deletion.py",
+      "status": "M",
+      "additions": 53,
+      "deletions": 6,
+      "bytes": 86530,
+      "sha256": "56c84d7666fd4ab47c3537f09004622dc07d5396a57ea647d140cf2f53c29690"
+    },
+    {
+      "path": "tests/test_ksa20_controlled_content_support.py",
+      "status": "M",
+      "additions": 126,
+      "deletions": 2,
+      "bytes": 30206,
+      "sha256": "bd11dc81a119652b9c420eef3a082c8da3a5fd59bae6887555fd446fcb2b36c4"
+    }
+  ],
+  "checks": [
+    {
+      "command": "rtk env PYTHONPATH=src python -m unittest tests.test_ksa20_controlled_content_support tests.test_chg16_deletion",
+      "result": "PASS: 32 tests"
+    },
+    {
+      "command": "rtk env PYTHONPATH=src python -m unittest tests.test_chg16_retention_policy tests.test_chg16_accesskey_nonleakage tests.test_chg17_run_scope_authorization tests.test_chg18_default_deny_egress tests.test_chg16_storage_planes",
+      "result": "PASS: 60 tests, 1 skip"
+    },
+    {
+      "command": "rtk env PYTHONPATH=src python -m unittest discover -s tests -p 'test_*.py'",
+      "result": "PASS: 401 tests, 3 skips"
+    },
+    {
+      "command": "rtk env PYTHONPATH=src python3.12 -m unittest tests.test_ksa20_controlled_content_support tests.test_chg16_deletion tests.test_chg16_retention_policy tests.test_chg16_accesskey_nonleakage tests.test_chg17_run_scope_authorization tests.test_chg18_default_deny_egress",
+      "result": "PASS: 73 tests"
+    },
+    {
+      "command": "rtk python -m compileall -q src tests && rtk python3.12 -m compileall -q src tests",
+      "result": "PASS"
+    },
+    {
+      "command": "rtk git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "limitations": [
+    "Python 3.12 storage-plane test requiring Pillow was not runnable because the local Python 3.12 environment lacks PIL; the full storage-plane suite passed under Python 3.11.",
+    "Company IAM, support-role directory, approval workflow and live content egress remain external integration gates."
+  ],
+  "evidence": {
+    "partial_failure_retry_tests": [
+      "KSA20ControlledContentSupportTests.test_workspace_support_deletion_defers_audit_until_retry_and_replay_is_idempotent",
+      "KSA20ControlledContentSupportTests.test_scoped_support_deletion_defers_audit_until_retry_and_replay_is_idempotent"
+    ],
+    "main_move": "not performed",
+    "merge_or_rebase": "not performed"
+  }
+}
