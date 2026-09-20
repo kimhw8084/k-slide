@@ -25,7 +25,23 @@ def _target_subject(*, target_subject_git_sha: str | None, subject_git_sha: str 
     return target.lower()
 
 
-def build(*, output: Path, target_subject_git_sha: str | None = None, candidate_profile: Path, production_dependency_lock: Path, termbase_overlay: Path | None = None, ocr_asset_manifest: Path | None = None, subject_git_sha: str | None = None) -> dict[str, Any]:
+def _governed_target(raw: Any, *, core: bool) -> Path:
+    if not isinstance(raw, str) or not raw.strip():
+        raise EvidenceValidationError("governed termbase target path is missing")
+    path = Path(raw)
+    if path.is_absolute() or ".." in path.parts or path == Path("."):
+        raise EvidenceValidationError("governed termbase target path is unsafe")
+    prefixes = (Path("termbase"), Path(".k-slide-engine/termbase"))
+    if not any(path == prefix or prefix in path.parents for prefix in prefixes):
+        raise EvidenceValidationError("governed termbase target path must be inside a termbase directory")
+    if core and (path.parts[-2:-1] == ("overlays",) or path.name == ""):
+        raise EvidenceValidationError("governed core target path is invalid")
+    if not core and path.parts[-2:-1] != ("overlays",):
+        raise EvidenceValidationError("governed overlay target path must be inside an overlays directory")
+    return path
+
+
+def build(*, output: Path, target_subject_git_sha: str | None = None, candidate_profile: Path, production_dependency_lock: Path, termbase_core: Path | None = None, termbase_overlays: tuple[Path, ...] = (), termbase_overlay: Path | None = None, ocr_asset_manifest: Path | None = None, subject_git_sha: str | None = None) -> dict[str, Any]:
     target_subject = _target_subject(target_subject_git_sha=target_subject_git_sha, subject_git_sha=subject_git_sha)
     output = output.expanduser().absolute()
     if output.is_symlink():
@@ -41,6 +57,20 @@ def build(*, output: Path, target_subject_git_sha: str | None = None, candidate_
         raise EvidenceValidationError("Paddle certification bundle requires the candidate-bound OCR asset manifest")
     if candidate.get("ocr_provider") != "paddle" and ocr_asset_manifest is not None:
         raise EvidenceValidationError("OCR assets may only be bundled for a Paddle candidate")
+    if termbase_overlay is not None:
+        raise EvidenceValidationError("generic .k-slide-config/termbase.local.json is not a governed certification input; provide termbase_core and termbase_overlays")
+    core_target = Path(".k-slide-engine/termbase/core.json")
+    overlay_targets = [Path(".k-slide-engine/termbase/overlays") / f"overlay-{index}.json" for index in range(len(termbase_overlays))]
+    governance = candidate.get("termbase_governance")
+    if isinstance(governance, dict):
+        core_descriptor = governance.get("core")
+        overlay_descriptors = governance.get("overlays", [])
+        if not isinstance(core_descriptor, dict) or not isinstance(overlay_descriptors, list):
+            raise EvidenceValidationError("candidate termbase governance materialization contract is invalid")
+        core_target = _governed_target(core_descriptor.get("path"), core=True)
+        if len(overlay_descriptors) != len(termbase_overlays):
+            raise EvidenceValidationError("candidate termbase governance and supplied overlay material disagree")
+        overlay_targets = [_governed_target(item.get("path"), core=False) if isinstance(item, dict) else _governed_target(None, core=False) for item in overlay_descriptors]
     entries: list[dict[str, str]] = []
 
     def copy_named(role: str, source: Path, target: Path) -> None:
@@ -55,8 +85,10 @@ def build(*, output: Path, target_subject_git_sha: str | None = None, candidate_
 
     copy_named("candidate_profile", candidate_profile, Path(".k-slide-config/production-candidate.json"))
     copy_named("production_dependency_lock", production_dependency_lock, Path(".k-slide-config/production-requirements.lock"))
-    if termbase_overlay is not None:
-        copy_named("termbase_overlay", termbase_overlay, Path(".k-slide-config/termbase.local.json"))
+    if termbase_core is not None:
+        copy_named("termbase_core", termbase_core, core_target)
+    for index, overlay in enumerate(termbase_overlays):
+        copy_named("termbase_overlay", overlay, overlay_targets[index])
     if ocr_asset_manifest is not None:
         manifest_source = ocr_asset_manifest.expanduser()
         identity = validate_ocr_asset_manifest(manifest_source)
@@ -82,11 +114,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--target-subject-sha", "--subject-sha", dest="target_subject_sha", required=True)
     parser.add_argument("--candidate-profile", type=Path, required=True)
     parser.add_argument("--production-dependency-lock", type=Path, required=True)
-    parser.add_argument("--termbase-overlay", type=Path)
+    parser.add_argument("--termbase-core", type=Path)
+    parser.add_argument("--termbase-overlay", type=Path, help="Deprecated generic local overlay; rejected")
+    parser.add_argument("--termbase-governed-overlay", dest="termbase_governed_overlays", type=Path, action="append", default=[])
     parser.add_argument("--ocr-asset-manifest", type=Path)
     args = parser.parse_args(argv)
     try:
-        result = build(output=args.output, target_subject_git_sha=args.target_subject_sha, candidate_profile=args.candidate_profile, production_dependency_lock=args.production_dependency_lock, termbase_overlay=args.termbase_overlay, ocr_asset_manifest=args.ocr_asset_manifest)
+        result = build(output=args.output, target_subject_git_sha=args.target_subject_sha, candidate_profile=args.candidate_profile, production_dependency_lock=args.production_dependency_lock, termbase_core=args.termbase_core, termbase_overlays=tuple(args.termbase_governed_overlays), termbase_overlay=args.termbase_overlay, ocr_asset_manifest=args.ocr_asset_manifest)
     except (EvidenceValidationError, OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
         print(json.dumps({"status": "BLOCKED", "reason": f"Certification bundle blocked ({type(exc).__name__})."}, ensure_ascii=False))
         return 2

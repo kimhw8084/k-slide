@@ -35,6 +35,7 @@ class Termbase:
     version: str
     records: tuple[TermRecord, ...] = ()
     origin: str = "core"
+    binding_identity: dict[str, Any] | None = None
 
     def resolve(self, source: str) -> TermRecord | None:
         candidates = [record for record in self.records if record.source == source]
@@ -67,7 +68,16 @@ def _parse_records(value: Any, *, origin: str) -> Termbase:
         status = str(item.get("status", "SUGGESTED")).upper()
         if status not in VALID_STATUSES:
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "Termbase status is invalid.", {"source": source, "status": status})
-        records.append(TermRecord(source, dict(preferred), status, tuple(item.get("scope", [])), tuple(item.get("avoid", [])), item.get("term_id")))
+        scope = item.get("scope", [])
+        avoid = item.get("avoid", [])
+        if not isinstance(scope, (list, tuple)) or any(not isinstance(entry, str) or not entry.strip() for entry in scope):
+            raise KSlideError(ErrorCode.SCHEMA_INVALID, "Termbase record scope metadata is invalid.", {"source": source})
+        if not isinstance(avoid, (list, tuple)) or any(not isinstance(entry, str) or not entry.strip() for entry in avoid):
+            raise KSlideError(ErrorCode.SCHEMA_INVALID, "Termbase record avoid metadata is invalid.", {"source": source})
+        term_id = item.get("term_id")
+        if term_id is not None and (not isinstance(term_id, str) or not term_id.strip()):
+            raise KSlideError(ErrorCode.SCHEMA_INVALID, "Termbase term_id metadata is invalid.", {"source": source})
+        records.append(TermRecord(source, dict(preferred), status, tuple(scope), tuple(avoid), term_id))
     return Termbase(str(value.get("version", "1.0")), tuple(records), origin)
 
 
@@ -91,27 +101,39 @@ def merge_termbases(*termbases: Termbase) -> Termbase:
     for termbase in termbases:
         for record in termbase.records:
             existing = merged.get(record.source)
-            if existing and existing.status == "LOCKED" and record.status == "LOCKED" and existing.default != record.default:
-                raise KSlideError(ErrorCode.SCHEMA_INVALID, "Conflicting locked terminology records.", {"source": record.source, "left": existing.default, "right": record.default})
+            if existing is not None:
+                if existing.as_dict() != record.as_dict():
+                    raise KSlideError(ErrorCode.SCHEMA_INVALID, "Conflicting terminology records require governed precedence.", {"source": record.source})
+                raise KSlideError(ErrorCode.SCHEMA_INVALID, "Duplicate terminology records are ambiguous.", {"source": record.source})
             merged[record.source] = record
     return Termbase("+".join(termbase.version for termbase in termbases if termbase.version) or "1.0", tuple(merged.values()), "merged")
 
 
-def load_effective_termbase(project_root: Path, *, run_override: Path | None = None) -> Termbase:
-    project_root = project_root.expanduser().resolve()
-    package_core = Path(__file__).resolve().parents[2] / "termbase" / "core.json"
-    core_candidates = (project_root / "termbase" / "core.json", project_root / ".k-slide-engine" / "termbase" / "core.json", package_core)
-    paths: list[Path] = []
-    for path in core_candidates:
-        if path.is_symlink():
-            raise KSlideError(ErrorCode.SCHEMA_INVALID, "Termbase core must not be symlinked.", {"path": str(path)})
-        if path.is_file() and not path.is_symlink() and path not in paths:
-            paths.append(path)
-            break
-    private = run_override or project_root / ".k-slide-config" / "termbase.local.json"
-    if private.is_symlink():
-        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Private termbase overlay must not be symlinked.", {"path": str(private)})
-    if private.is_file():
-        paths.append(private)
-    loaded = [load_termbase(path) for path in paths]
-    return merge_termbases(*loaded) if loaded else Termbase("1.0", (), "empty")
+def load_effective_termbase(
+    project_root: Path,
+    *,
+    authority: Any | None = None,
+    run_override: Path | None = None,
+    authoritative: bool = True,
+) -> Termbase:
+    """Resolve governed terminology; reference overrides must be explicit."""
+
+    from .governed_terminology import load_reference_termbase, resolve_governed_termbase
+
+    if not authoritative:
+        if run_override is None:
+            raise KSlideError(ErrorCode.SCHEMA_INVALID, "Non-authoritative termbase resolution requires an explicit reference overlay path.")
+        return load_reference_termbase(project_root, run_override=run_override)
+    if run_override is not None:
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Arbitrary run termbase overrides cannot be authoritative.")
+    return resolve_governed_termbase(project_root, authority=authority)
+
+
+def __getattr__(name: str) -> Any:
+    """Lazy compatibility exports for the governed terminology contract."""
+
+    if name in {"GovernedTermbaseSource", "TermbaseGovernance", "TermbaseGovernanceAdapter"}:
+        from . import governed_terminology
+
+        return getattr(governed_terminology, name)
+    raise AttributeError(name)

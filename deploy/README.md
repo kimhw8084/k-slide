@@ -29,6 +29,13 @@ exclude release outputs and ambient scanner/runner runtime. The release command
 materializes `.k-slide-config/production-profile.json` only after deriving the
 requested state, so the source candidate does not need to claim certification.
 
+The candidate's termbase identity must come from the governed core and any
+explicitly authorized BU/team overlays. Overlay authorization and membership
+are supplied by the deployment/workspace boundary through the
+`TermbaseGovernanceAdapter`; K-Slide does not provide a second company RBAC/IAM
+system. `.k-slide-config/termbase.local.json` is a non-authoritative fixture
+and is rejected by production/certification resolution.
+
 Copy `production-profile.example.json` to the deployment’s ignored
 `.k-slide-config/production-profile.json` and replace every `UNSET` value only
 after the corresponding certification evidence exists. The profile is checked

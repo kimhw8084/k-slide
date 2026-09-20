@@ -43,6 +43,7 @@ def build_work_packet(evidence: EvidenceIR, *, termbase: Termbase | None = None,
         "visual_elements": list(evidence.visual_elements),
         "required_output_ids": list(evidence.required_source_ids),
         "terminology": [record.as_dict() for record in (termbase.records if termbase else ())],
+        "termbase_identity": dict(termbase.binding_identity) if termbase and termbase.binding_identity else None,
         "deck_context": deck_context or {},
         "model_media_plan": media.as_dict(),
     }

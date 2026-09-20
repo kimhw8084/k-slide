@@ -17,18 +17,18 @@ import tempfile
 from typing import Any
 import zipfile
 
-from k_slide.certification import EvidenceValidationError, dependency_inventory_hash, load_candidate_spec, load_dependency_lock, safe_relative_path, safe_path_under, sha256_file, validate_ocr_asset_manifest
+from k_slide.certification import EvidenceValidationError, dependency_inventory_hash, effective_termbase_identity, load_candidate_spec, load_dependency_lock, safe_relative_path, safe_path_under, sha256_file, validate_ocr_asset_manifest
 from k_slide.io import atomic_write_bytes
 
 
 BUNDLE_SCHEMA_VERSION = "1.1"
-_ROLES = frozenset({"candidate_profile", "production_dependency_lock", "termbase_overlay", "ocr_asset_manifest", "ocr_asset"})
+_ROLES = frozenset({"candidate_profile", "production_dependency_lock", "termbase_core", "termbase_overlay", "ocr_asset_manifest", "ocr_asset"})
 _FIXED_TARGETS = {
     "candidate_profile": ".k-slide-config/production-candidate.json",
     "production_dependency_lock": ".k-slide-config/production-requirements.lock",
-    "termbase_overlay": ".k-slide-config/termbase.local.json",
+    "termbase_core": ".k-slide-engine/termbase/core.json",
 }
-_SINGLETON_ROLES = frozenset({"candidate_profile", "production_dependency_lock", "termbase_overlay", "ocr_asset_manifest"})
+_SINGLETON_ROLES = frozenset({"candidate_profile", "production_dependency_lock", "termbase_core", "ocr_asset_manifest"})
 
 
 def _safe_relative(raw: Any, label: str) -> Path:
@@ -42,10 +42,19 @@ def _safe_relative(raw: Any, label: str) -> Path:
 
 def _destination(root: Path, raw: Any, label: str) -> Path:
     path = _safe_relative(raw, label)
-    if label in _FIXED_TARGETS:
+    if label in {"candidate_profile", "production_dependency_lock"}:
         expected = Path(_FIXED_TARGETS[label])
         if path != expected:
             raise EvidenceValidationError(f"certification bundle {label} has an unexpected destination")
+    elif label == "termbase_core":
+        if path not in {Path("termbase/core.json"), Path(".k-slide-engine/termbase/core.json")} and not (
+            (path.parts[:1] == ("termbase",) or path.parts[:2] == (".k-slide-engine", "termbase"))
+            and path.parts[-2:-1] != ("overlays",)
+        ):
+            raise EvidenceValidationError("certification bundle governed core must live inside a termbase directory")
+    elif label == "termbase_overlay":
+        if not ((path.parts[:2] == ("termbase", "overlays") or path.parts[:3] == (".k-slide-engine", "termbase", "overlays")) and path.name):
+            raise EvidenceValidationError("certification bundle governed overlays must live under a controlled termbase overlays directory")
     elif label == "ocr_asset_manifest" and path != Path("ocr/manifest.json"):
         raise EvidenceValidationError("certification bundle OCR manifest must use ocr/manifest.json")
     elif not path.parts or path.parts[0] != "ocr":
@@ -75,6 +84,7 @@ def materialize(*, bundle_root: Path, manifest_path: Path, output_root: Path, ta
     if not isinstance(entries, list) or not entries:
         raise EvidenceValidationError("certification bundle has no files")
     seen_roles: set[str] = set()
+    role_counts: dict[str, int] = {}
     seen_targets: set[Path] = set()
     copied: dict[str, str] = {}
     copied_roles: set[str] = set()
@@ -85,6 +95,7 @@ def materialize(*, bundle_root: Path, manifest_path: Path, output_root: Path, ta
         if role in _SINGLETON_ROLES and role in seen_roles:
             raise EvidenceValidationError(f"certification bundle repeats role {role}")
         seen_roles.add(role)
+        role_counts[role] = role_counts.get(role, 0) + 1
         try:
             source_relative = _safe_relative(entry.get("path"), f"{role}.path")
             source = safe_relative_path(bundle_root, source_relative, label=f"certification bundle {role} source", require_file=True)
@@ -117,6 +128,18 @@ def materialize(*, bundle_root: Path, manifest_path: Path, output_root: Path, ta
     candidate = load_candidate_spec(candidate_path, root=output_root, require_identity=True, strict=True)
     if candidate.get("subject_git_sha") != target_subject:
         raise EvidenceValidationError("certification bundle candidate subject does not match the requested subject")
+    declared_termbase = candidate.get("termbase_identity")
+    if isinstance(declared_termbase, dict) and declared_termbase.get("governance_identity"):
+        if "termbase_core" not in seen_roles:
+            raise EvidenceValidationError("certification bundle is missing the governed core termbase")
+        expected_overlays = declared_termbase.get("overlays")
+        if isinstance(expected_overlays, list) and role_counts.get("termbase_overlay", 0) != len(expected_overlays):
+            raise EvidenceValidationError("certification bundle governed overlay material is incomplete")
+        if expected_overlays and not isinstance(candidate.get("termbase_governance"), dict):
+            raise EvidenceValidationError("certification bundle has overlays but no explicit governance materialization contract")
+        actual_termbase = effective_termbase_identity(output_root, termbase_authority=candidate.get("termbase_governance"))
+        if actual_termbase != declared_termbase:
+            raise EvidenceValidationError("certification bundle termbase material does not match the governed candidate identity")
     expected_dependency = str(candidate.get("resolved_dependency_set_sha256") or "").lower()
     if expected_dependency not in {"", "unset"} and dependency_inventory_hash(load_dependency_lock(lock_path)) != expected_dependency:
         raise EvidenceValidationError("certification bundle candidate does not match the production lock")

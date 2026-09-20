@@ -30,6 +30,8 @@ from .opencode_events import (
 )
 from .certification import load_model_policy
 from k_slide.certification import EvidenceValidationError, effective_termbase_identity
+from k_slide.governed_terminology import materialize_governed_termbase
+from k_slide.errors import KSlideError
 from .process_control import terminate_process_group
 from k_slide.access_key_handoff import ACCESS_KEY_HANDOFF_FD, AccessKeyBoundaryError, AccessKeyHandoff
 from k_slide.authentication import ACCESS_KEY_ENV
@@ -250,7 +252,7 @@ def _read_policy_violations(root: Path, normalized: tuple[Any, ...]) -> list[str
 class OpenCodeEvalRunner:
     """Run the actual OpenCode CLI slash-command surface in isolation."""
 
-    def __init__(self, *, model: str, timeout_seconds: int = 180, opencode: str | None = None, ocr_policy: str | None = None, policy: Any | None = None, policy_root: Path | None = None, candidate_spec: dict[str, Any] | None = None, candidate_root: Path | None = None):
+    def __init__(self, *, model: str, timeout_seconds: int = 180, opencode: str | None = None, ocr_policy: str | None = None, policy: Any | None = None, policy_root: Path | None = None, candidate_spec: dict[str, Any] | None = None, candidate_root: Path | None = None, termbase_authority: Any | None = None):
         self.model = model
         self.timeout_seconds = timeout_seconds
         self.opencode = opencode or shutil.which("opencode")
@@ -259,6 +261,8 @@ class OpenCodeEvalRunner:
         self.policy_root = policy_root.expanduser().resolve() if policy_root is not None else None
         self.candidate_spec = dict(candidate_spec) if candidate_spec is not None else None
         self.candidate_root = candidate_root.expanduser().resolve() if candidate_root is not None else self.policy_root
+        self.termbase_authority = termbase_authority
+        self._materialized_termbase_paths: tuple[Path, ...] = ()
 
     def _prepare_candidate_termbase(self, workspace: Path) -> Path | None:
         """Materialize and verify the candidate's effective termbase pre-inference."""
@@ -267,30 +271,35 @@ class OpenCodeEvalRunner:
             return None
         identity = self.candidate_spec.get("termbase_identity")
         expected = identity.get("hash") if isinstance(identity, dict) else self.candidate_spec.get("termbase_hash")
+        if not isinstance(identity, dict) or any(key not in identity for key in ("schema_version", "governance_identity", "policy_identity", "authorization_identity", "core", "overlays", "overlay_order", "hash", "effective_hash")):
+            raise EvidenceValidationError("certifying candidate termbase identity lacks governed provenance")
         if not isinstance(expected, str) or len(expected) != 64 or set(expected.lower()) - set("0123456789abcdef"):
             raise EvidenceValidationError("certifying candidate effective termbase identity is unresolved")
+        declared_hash = self.candidate_spec.get("termbase_hash")
+        if isinstance(declared_hash, str) and declared_hash.upper() != "UNSET" and declared_hash.lower() != expected.lower():
+            raise EvidenceValidationError("candidate termbase hash disagrees with governed termbase identity")
         candidate_root = (self.candidate_root or Path(__file__).resolve().parents[1]).expanduser().resolve()
-        source = candidate_root / ".k-slide-config" / "termbase.local.json"
-        if source.is_symlink():
-            raise EvidenceValidationError("candidate private termbase overlay must not be symlinked")
-        destination = workspace / ".k-slide-config" / "termbase.local.json"
-        if destination.exists() or destination.is_symlink():
-            raise EvidenceValidationError("isolated workspace contains an unexpected termbase overlay")
-        if source.is_file():
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(source.read_bytes())
-            destination.chmod(0o600)
-        actual = effective_termbase_identity(workspace)
+        if (candidate_root / ".k-slide-config" / "termbase.local.json").exists() or (candidate_root / ".k-slide-config" / "termbase.local.json").is_symlink():
+            raise EvidenceValidationError("generic local termbase overlay cannot be a certification input")
+        authority = self.termbase_authority or self.candidate_spec.get("termbase_governance")
+        if identity.get("overlays") and authority is None:
+            raise EvidenceValidationError("candidate overlays require an explicit governed authority adapter")
+        if authority is not None:
+            try:
+                self._materialized_termbase_paths = materialize_governed_termbase(candidate_root, workspace, authority)
+            except KSlideError as exc:
+                raise EvidenceValidationError("governed candidate termbase could not be materialized") from exc
+        actual = effective_termbase_identity(workspace, termbase_authority=authority)
         if actual is None or actual.get("hash") != expected:
-            if destination.exists():
-                destination.unlink()
+            for path in self._materialized_termbase_paths:
+                path.unlink(missing_ok=True)
             raise EvidenceValidationError("isolated workspace effective termbase does not match candidate identity")
         expected_version = identity.get("version") if isinstance(identity, dict) else self.candidate_spec.get("termbase_version")
         if isinstance(expected_version, str) and expected_version.upper() != "UNSET" and actual.get("version") != expected_version:
-            if destination.exists():
-                destination.unlink()
+            for path in self._materialized_termbase_paths:
+                path.unlink(missing_ok=True)
             raise EvidenceValidationError("isolated workspace termbase version does not match candidate identity")
-        return destination if destination.is_file() else None
+        return self._materialized_termbase_paths[0] if self._materialized_termbase_paths else None
 
     @property
     def runtime_version(self) -> str | None:
@@ -324,13 +333,12 @@ class OpenCodeEvalRunner:
             if root_context is not None:
                 root_context.cleanup()
             return OpenCodeRunResult("INSTALL_FAILED", mode, self.model, self.runtime_version, str(root), 0.0, (), (), (), None, None, reason=f"OpenCode project installation failed ({type(exc).__name__}).")
-        termbase_overlay: Path | None = None
         if self.candidate_spec is not None:
             try:
-                termbase_overlay = self._prepare_candidate_termbase(root)
+                self._prepare_candidate_termbase(root)
             except (EvidenceValidationError, OSError, UnicodeError, ValueError) as exc:
-                if termbase_overlay is not None and termbase_overlay.exists():
-                    termbase_overlay.unlink()
+                for path in self._materialized_termbase_paths:
+                    path.unlink(missing_ok=True)
                 if root_context is not None:
                     root_context.cleanup()
                 return OpenCodeRunResult("CANDIDATE_CONFIG_BLOCKED", mode, self.model, self.runtime_version, str(root), 0.0, (), (), (), None, None, reason=f"Candidate configuration could not be prepared ({type(exc).__name__}).", diagnostics={"candidate_termbase_verified": False})
@@ -446,7 +454,7 @@ class OpenCodeEvalRunner:
             return OpenCodeRunResult("AUTHENTICATION_BOUNDARY_BLOCKED", mode, self.model, self.runtime_version, str(root), time.monotonic() - started, (), (), (), None, None, reason="Trusted AccessKey handoff could not be established safely.")
         finally:
             handoff.close()
-            if termbase_overlay is not None and termbase_overlay.exists():
-                termbase_overlay.unlink()
+            for path in self._materialized_termbase_paths:
+                path.unlink(missing_ok=True)
             if root_context is not None:
                 root_context.cleanup()

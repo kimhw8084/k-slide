@@ -87,7 +87,7 @@ def _issue(result: VerificationResult, code: str, severity: Severity, message: s
         result.critical_count += 1
 
 
-def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult) -> None:
+def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult, *, expected_termbase_identity: RunEnvironmentIdentity | None = None, termbase_authority: Any | None = None) -> None:
     path = storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{work_unit_id}.json")
     try:
         value = read_json(path)
@@ -134,7 +134,18 @@ def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult
         for region in slide.regions:
             if region.translation and any("\uac00" <= char <= "\ud7a3" for char in region.translation):
                 _issue(result, "KSLIDE_RESIDUAL_HANGUL", Severity.CRITICAL, "Unexpected Hangul remains in translated output.", target=region.region_id, evidence_ids=[region.region_id])
-        termbase = load_effective_termbase(run_dir.parent.parent)
+        try:
+            termbase = load_effective_termbase(run_dir.parent.parent, authority=termbase_authority)
+        except (KSlideError, KeyError, TypeError, ValueError, json.JSONDecodeError, OSError):
+            if expected_termbase_identity is not None and expected_termbase_identity.ocr_provider != "reference":
+                _issue(result, "KSLIDE_TERMBASE_BINDING_MISMATCH", Severity.CRITICAL, "Bound governed terminology is unavailable or drifted.", target=work_unit_id, scope="RUN_LEVEL_POLICY_FAILURE")
+                return
+            raise
+        if expected_termbase_identity is not None and expected_termbase_identity.ocr_provider != "reference":
+            actual_identity = termbase.binding_identity or {}
+            if actual_identity.get("hash") != expected_termbase_identity.termbase_identity or actual_identity.get("version") != expected_termbase_identity.termbase_version:
+                _issue(result, "KSLIDE_TERMBASE_BINDING_MISMATCH", Severity.CRITICAL, "Current governed terminology does not match the immutable run binding.", target=work_unit_id, scope="RUN_LEVEL_POLICY_FAILURE")
+                return
         for source_region in evidence.regions:
             source_text = source_region.selected_literal_candidate or ""
             translated = region_text.get(source_region.region_id, "")
@@ -148,7 +159,7 @@ def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult
         _issue(result, "KSLIDE_SCHEMA_INVALID", Severity.CRITICAL, "Could not validate SlideIR safely.", target=work_unit_id)
 
 
-def _verify_unlocked(run_dir: Path) -> VerificationResult:
+def _verify_unlocked(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | None = None, termbase_authority: Any | None = None) -> VerificationResult:
     state = load_state(run_dir)
     result = VerificationResult(status="PASS", run_id=state.run_id)
     try:
@@ -172,7 +183,7 @@ def _verify_unlocked(run_dir: Path) -> VerificationResult:
             else:
                 if unit.canonical_ir_sha256 and sha256_file(storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json")) != unit.canonical_ir_sha256:
                     _issue(result, "KSLIDE_CANONICAL_IR_CHANGED", Severity.CRITICAL, "Canonical SlideIR changed after engine merge.", target=unit.work_unit_id, scope="WORK_UNIT_TRANSLATION_FAILURE")
-                _validate_slide(run_dir, unit.work_unit_id, result)
+                _validate_slide(run_dir, unit.work_unit_id, result, expected_termbase_identity=environment_identity, termbase_authority=termbase_authority)
             result.unit_status[unit.work_unit_id] = "PASS" if len(result.issues) == before else "FAIL_REPAIRABLE"
         else:
             result.unit_status[unit.work_unit_id] = "INCOMPLETE"
@@ -200,10 +211,10 @@ def _persist_verification(run_dir: Path, result: VerificationResult) -> None:
     atomic_write_text(storage_path(run_dir, StorageArtifact.VERIFICATION, "06_verification.md", create_parent=True), "\n".join(lines))
 
 
-def verify_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | None = None) -> VerificationResult:
+def verify_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | None = None, termbase_authority: Any | None = None) -> VerificationResult:
     from .execution import ensure_workspace_environment_compatible
 
-    ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
+    _, effective_environment = ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
     with run_lock(run_dir):
         state = load_state(run_dir)
         if state.phase == RunPhase.COMPLETE:
@@ -223,7 +234,7 @@ def verify_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | 
             return result
         if any(storage_path(run_dir, StorageArtifact.CANONICAL_IR, "ir").glob("*.json")):
             render_run(run_dir)
-        result = _verify_unlocked(run_dir)
+        result = _verify_unlocked(run_dir, environment_identity=effective_environment, termbase_authority=termbase_authority)
         try:
             queue = load_queue(run_dir)
             for unit in queue.work_units:
@@ -248,10 +259,10 @@ def verify_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | 
         return result
 
 
-def finalize_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | None = None) -> VerificationResult:
+def finalize_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | None = None, termbase_authority: Any | None = None) -> VerificationResult:
     from .execution import ensure_workspace_environment_compatible
 
-    ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
+    _, effective_environment = ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
     with run_lock(run_dir):
         state = load_state(run_dir)
         if state.phase == RunPhase.COMPLETE:
@@ -264,7 +275,7 @@ def finalize_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity 
             save_state(run_dir, state)
         if any(storage_path(run_dir, StorageArtifact.CANONICAL_IR, "ir").glob("*.json")):
             render_run(run_dir)
-        result = _verify_unlocked(run_dir)
+        result = _verify_unlocked(run_dir, environment_identity=effective_environment, termbase_authority=termbase_authority)
         _persist_verification(run_dir, result)
         if not result.passed:
             state = load_state(run_dir)

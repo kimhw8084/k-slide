@@ -27,6 +27,10 @@ python_version: UNSET
 paddle_version: UNSET
 paddleocr_version: UNSET
 libreoffice_version: UNSET
+# This identity is populated only by the governed core/overlay resolver. A
+# generic .k-slide-config/termbase.local.json is non-authoritative and cannot
+# qualify this candidate. Overlay authorization remains an external company
+# workspace/deployment gate; this public template does not claim that service.
 termbase_identity:
   version: "1.0"
   hash: UNSET
