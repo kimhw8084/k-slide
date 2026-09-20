@@ -41,6 +41,23 @@ deployment inputs; this repository does not define a duration default.
 Production requires one isolated workspace/container per user or session. Do
 not share a writable `.k-slide-runs/` directory between employees.
 
+OpenCode production starts only through the managed pre-start bootstrap. Copy
+`opencode-bootstrap.example.json` into the deployment manifest, materialize a
+read-only isolated `.opencode` directory containing the shipped local
+`k-slide-host.ts`, its shipped access-key helper, and pinned `opencode.json`,
+and record exact hashes for that config, plugin, helper, verified prebundled
+`rg`, and local or verified bundled model catalog. Precreate the isolated
+OpenCode XDG config/data/cache/state
+directories; the global config directory must be empty and read-only, and the
+managed data directory must not contain OpenCode or MCP auth state. Launch with
+`python -m k_slide.opencode_bootstrap --manifest .k-slide-config/opencode-bootstrap.json -- opencode web`
+(or the repository `scripts/launch_opencode_k_slide.py` seam). The launcher sets
+the OpenCode egress controls and puts the verified `rg` directory first in
+`PATH` before `exec`, rejects `OPENCODE_MODELS_URL` and ambient
+config/plugin overrides, and requires the provider credential through its
+existing environment seam. A doctor result after startup is evidence only; it
+does not replace this launcher contract.
+
 For durable heavy jobs, the deployment adapter must supply an authorized
 user/workspace scope to the KSA-09 `ScopedPaaSJobService` boundary. Its
 company persistence must provide the equivalent per-scope control, FIFO

@@ -109,6 +109,8 @@ CANDIDATE_INPUT_FIELDS = (
     "runtime_artifact_identity",
     "runtime_artifact_manifest_sha256",
     "runtime_sbom_sha256",
+    "opencode_bootstrap_identity",
+    "opencode_models_identity",
     "behavior_configuration",
 )
 
@@ -586,6 +588,8 @@ DEPLOYMENT_PROFILE_FIELDS = (
     "runtime_artifact_identity",
     "runtime_artifact_manifest_sha256",
     "runtime_sbom_sha256",
+    "opencode_bootstrap_identity",
+    "opencode_models_identity",
     "normalization_behavior",
     "repair_policy",
     "generation_settings",
@@ -1000,6 +1004,19 @@ def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subjec
         raise EvidenceValidationError("candidate egress policy is unavailable for verification")
     elif declared_egress and any(_is_unset(result.get(field)) for field in ("egress_policy_version", "egress_policy_hash", "egress_policy_identity", "inference_endpoint_identity")):
         raise EvidenceValidationError("candidate egress policy identity is incomplete")
+    bootstrap_path = root / ".k-slide-config" / "opencode-bootstrap.json"
+    declared_bootstrap = any(not _is_unset(result.get(field)) for field in ("opencode_bootstrap_identity", "opencode_models_identity"))
+    if bootstrap_path.is_file() and not bootstrap_path.is_symlink():
+        from .opencode_bootstrap import load_bootstrap_manifest
+
+        bootstrap = load_bootstrap_manifest(bootstrap_path)
+        models_identity = sha256_bytes(canonical_bytes(bootstrap.models_identity))
+        _bind_value(result, "opencode_bootstrap_identity", bootstrap.identity)
+        _bind_value(result, "opencode_models_identity", models_identity)
+    elif require_sources and declared_bootstrap:
+        raise EvidenceValidationError("candidate OpenCode bootstrap identity is unavailable for verification")
+    elif declared_bootstrap and any(_is_unset(result.get(field)) for field in ("opencode_bootstrap_identity", "opencode_models_identity")):
+        raise EvidenceValidationError("candidate OpenCode bootstrap identity is incomplete")
     if corpus is not None:
         actual_corpus = canonical_corpus_identity(corpus)
         current_corpus = result.get("corpus_identity")

@@ -91,6 +91,7 @@ class ProductionProfile:
     egress_policy_hash: str | None = None
     egress_policy_identity: str | None = None
     inference_endpoint_identity: str | None = None
+    opencode_bootstrap_manifest: str | None = None
 
     @classmethod
     def from_mapping(cls, value: dict[str, Any], *, require_resolved_retention: bool = True) -> "ProductionProfile":
@@ -141,6 +142,7 @@ class ProductionProfile:
             egress_policy_hash=str(value["egress_policy_hash"]) if "egress_policy_hash" in value else None,
             egress_policy_identity=str(value["egress_policy_identity"]) if "egress_policy_identity" in value else None,
             inference_endpoint_identity=str(value["inference_endpoint_identity"]) if "inference_endpoint_identity" in value else None,
+            opencode_bootstrap_manifest=str(value["opencode_bootstrap_manifest"]) if "opencode_bootstrap_manifest" in value else None,
         )
 
     def as_dict(self) -> dict[str, Any]:
@@ -171,6 +173,7 @@ class ProductionProfile:
             **({"egress_policy_hash": self.egress_policy_hash} if self.egress_policy_hash is not None else {}),
             **({"egress_policy_identity": self.egress_policy_identity} if self.egress_policy_identity is not None else {}),
             **({"inference_endpoint_identity": self.inference_endpoint_identity} if self.inference_endpoint_identity is not None else {}),
+            **({"opencode_bootstrap_manifest": self.opencode_bootstrap_manifest} if self.opencode_bootstrap_manifest is not None else {}),
         }
 
 
@@ -636,6 +639,20 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
     except (KSlideError, OSError, UnicodeError, json.JSONDecodeError, ValueError, TypeError) as exc:
         egress_detail = _safe_exception_detail(exc)
     checks.append(_check("Egress policy contract", egress_ready, egress_detail))
+    from .opencode_bootstrap import bootstrap_readiness
+
+    bootstrap_path = profile.opencode_bootstrap_manifest
+    if bootstrap_path:
+        bootstrap_root = _resolve_path(root, bootstrap_path).parent.parent if not Path(bootstrap_path).is_absolute() else Path(bootstrap_path).expanduser().resolve().parent.parent
+    else:
+        bootstrap_root = root
+    bootstrap_ok, bootstrap_detail = bootstrap_readiness(
+        bootstrap_root,
+        expected_identity=candidate.get("opencode_bootstrap_identity"),
+        expected_models_identity=candidate.get("opencode_models_identity"),
+        check_environment=True,
+    )
+    checks.append(_check("OpenCode pre-start bootstrap", bootstrap_ok, bootstrap_detail))
     checks.append({"label": "Live deployment network enforcement", "status": "WARN", "detail": "external production-certification gate; repository code does not prove company firewall, service-mesh, DNS, or network-layer enforcement"})
     checks.append(_check("Model data attestation", bool(profile.model_data_attestation and profile.model_data_attestation != "UNSET"), profile.model_data_attestation or "missing"))
     run_root = root.expanduser().resolve() / ".k-slide-runs"

@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "opencode_version": "1.3.9",
+  "required_environment": {
+    "OPENCODE_DISABLE_MODELS_FETCH": "1",
+    "OPENCODE_DISABLE_AUTOUPDATE": "1",
+    "OPENCODE_DISABLE_LSP_DOWNLOAD": "1",
+    "OPENCODE_DISABLE_PROJECT_CONFIG": "1"
+  },
+  "forbidden_environment": [
+    "OPENCODE_MODELS_URL",
+    "OPENCODE_CONFIG",
+    "OPENCODE_CONFIG_CONTENT",
+    "OPENCODE_PURE",
+    "OPENCODE_TEST_MANAGED_CONFIG_DIR"
+  ],
+  "home_dir": "/opt/k-slide/opencode-home",
+  "config_dir": "/opt/k-slide/opencode-home/.opencode",
+  "xdg_config_home": "/opt/k-slide/opencode-config",
+  "xdg_data_home": "/opt/k-slide/opencode-data",
+  "xdg_cache_home": "/opt/k-slide/opencode-cache",
+  "xdg_state_home": "/opt/k-slide/opencode-state",
+  "config_file": "/opt/k-slide/opencode-home/.opencode/opencode.json",
+  "config_sha256": "UNSET_UNTIL_MANAGED_CONFIG_HASH",
+  "plugin_file": "/opt/k-slide/opencode-home/.opencode/plugin/k-slide-host.ts",
+  "plugin_sha256": "UNSET_UNTIL_MANAGED_PLUGIN_HASH",
+  "access_key_helper_file": "/opt/k-slide/opencode-home/.opencode/internal/lib/k-slide-access-key.ts",
+  "access_key_helper_sha256": "UNSET_UNTIL_MANAGED_ACCESS_KEY_HELPER_HASH",
+  "ripgrep_path": "/opt/k-slide/bin/rg",
+  "ripgrep_sha256": "UNSET_UNTIL_MANAGED_RIPGREP_HASH",
+  "models_catalog": {
+    "mode": "local_path",
+    "path": "/opt/k-slide/opencode-home/.opencode/models.json",
+    "sha256": "UNSET_UNTIL_MANAGED_MODELS_HASH",
+    "version": "UNSET_UNTIL_MANAGED_MODELS_VERSION"
+  },
+  "credential_environment": [
+    "GOOGLE_GENERATIVE_AI_API_KEY"
+  ]
+}

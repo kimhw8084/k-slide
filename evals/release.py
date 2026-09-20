@@ -34,6 +34,7 @@ from k_slide.certification import (
 from k_slide.model_policy import load_model_policy
 from k_slide.classification_policy import load_inference_data_use_policy, policy_completeness
 from k_slide.egress_policy import load_egress_policy, policy_completeness as egress_policy_completeness
+from k_slide.opencode_bootstrap import bootstrap_readiness
 from k_slide.production import ReleaseState
 from k_slide.runtime import discover_runtime
 from k_slide.io import atomic_write_text
@@ -342,6 +343,14 @@ def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, 
                 blockers.append(f"authoritative default-deny egress policy is unresolved or inconsistent: {detail}")
         except (KSlideError, OSError, UnicodeError, json.JSONDecodeError, ValueError, TypeError):
             blockers.append("authoritative default-deny egress policy deployment configuration is missing or invalid")
+        bootstrap_ok, bootstrap_detail = bootstrap_readiness(
+            root,
+            expected_identity=(candidate_spec or {}).get("opencode_bootstrap_identity"),
+            expected_models_identity=(candidate_spec or {}).get("opencode_models_identity"),
+            check_environment=False,
+        )
+        if not bootstrap_ok:
+            blockers.append(f"managed OpenCode pre-start bootstrap is unresolved or inconsistent: {bootstrap_detail}")
         # KSA-16 is a separate runtime boundary.  Keep legacy synthetic
         # fixture candidates usable for non-authoritative tests, while any
         # candidate that declares the new route contract must bind the exact
@@ -591,6 +600,8 @@ def _certified_profile_mapping(root: Path, *, candidate_spec: dict[str, Any], ma
         "model_data_attestation": model_data_attestation,
         "candidate_spec": canonical_candidate_factors(candidate),
     })
+    if candidate.get("opencode_bootstrap_identity"):
+        profile["opencode_bootstrap_manifest"] = ".k-slide-config/opencode-bootstrap.json"
     # ProductionProfile.from_mapping is the final schema check before write.
     from k_slide.production import ProductionProfile
 
