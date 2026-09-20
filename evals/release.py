@@ -325,6 +325,7 @@ def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, 
                     ("egress_policy_version", egress.policy_version),
                     ("egress_policy_hash", egress.policy_hash),
                     ("egress_policy_identity", egress.policy_identity),
+                    ("inference_endpoint_identity", egress.capability("inference_route").endpoint_identity),
                 )
             )
             inference_policy = candidate_spec.get("inference_data_use_policy") if isinstance(candidate_spec, dict) else None
@@ -334,9 +335,10 @@ def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, 
             candidate_route = candidate_spec.get("inference_route_identity")
             if candidate_route not in (None, "", "UNSET"):
                 route_consistent = route_consistent and egress.capability("inference_route").route_identity == candidate_route
+            endpoint_consistent = candidate_spec.get("inference_endpoint_identity") == egress.capability("inference_route").endpoint_identity
             if candidate_spec.get("network_egress") != "default_deny":
                 blockers.append("candidate network_egress must declare default_deny")
-            if not (ready and bound and route_consistent):
+            if not (ready and bound and route_consistent and endpoint_consistent):
                 blockers.append(f"authoritative default-deny egress policy is unresolved or inconsistent: {detail}")
         except (KSlideError, OSError, UnicodeError, json.JSONDecodeError, ValueError, TypeError):
             blockers.append("authoritative default-deny egress policy deployment configuration is missing or invalid")
@@ -502,6 +504,7 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
             "policy_version": candidate.get("egress_policy_version"),
             "policy_hash": candidate.get("egress_policy_hash"),
             "policy_identity": candidate.get("egress_policy_identity"),
+            "inference_endpoint_identity": candidate.get("inference_endpoint_identity"),
             "default_action": "deny",
             "live_network_enforcement": "EXTERNAL_PRODUCTION_CERTIFICATION_GATE",
         },

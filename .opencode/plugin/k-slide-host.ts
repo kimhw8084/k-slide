@@ -1,7 +1,7 @@
 import type { Part } from "@opencode-ai/sdk"
 import type { Plugin } from "@opencode-ai/plugin"
 import { createHash, randomBytes } from "node:crypto"
-import { chmod, lstat, mkdtemp, readdir, rm, writeFile } from "node:fs/promises"
+import { chmod, lstat, mkdtemp, open, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -27,6 +27,12 @@ const DEFAULT_CLASSIFICATION = "company_confidential"
 const K_SLIDE_AGENT = "k-slide"
 const APPROVED_PROVIDER_ID = "google"
 const APPROVED_MODEL_ID = "gemma-4-31b-it"
+const APPROVED_API_ID = "gemma-4-31b-it"
+const APPROVED_API_NPM = "@ai-sdk/google"
+const EGRESS_POLICY_SCHEMA_VERSION = "1.0"
+const EGRESS_DEFAULT_ACTION = "deny"
+const EGRESS_CAPABILITY_CLASSES = new Set(["inference_route", "durable_job_control", "scoped_storage", "non_content_telemetry"])
+const EGRESS_CAPABILITY_FIELDS = new Set(["capability_class", "purpose", "service_identity", "route_identity", "endpoint_identity", "data_class"])
 const DATA_URL = /^data:([^;,]+);base64,([A-Za-z0-9+/]*={0,2})$/
 const URI_SCHEME = /^[A-Za-z][A-Za-z\d+.-]*:/
 
@@ -63,27 +69,201 @@ function normalizedMime(value: unknown): string {
 
 function hasProviderRouteOverride(value: unknown): boolean {
   if (!value || typeof value !== "object") return false
-  const routeKeys = new Set(["baseurl", "endpoint", "fallback", "host", "proxy", "provider", "transport"])
+  const routeKeys = new Set([
+    "api",
+    "apiid",
+    "apinpm",
+    "apiurl",
+    "baseurl",
+    "endpoint",
+    "fallback",
+    "host",
+    "model",
+    "npm",
+    "package",
+    "packagename",
+    "proxy",
+    "provider",
+    "route",
+    "transport",
+    "url",
+  ])
   return Object.entries(value).some(([key, child]) => {
-    const normalized = key.toLowerCase().replaceAll("_", "")
+    const normalized = key.toLowerCase().replaceAll("_", "").replaceAll("-", "")
     return routeKeys.has(normalized) || (child && typeof child === "object" && hasProviderRouteOverride(child))
   })
 }
 
-function assertPinnedKSlideModel(input: {
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item)).join(",")}]`
+  if (typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`)
+      .join(",")}}`
+  }
+  throw new Error("K-Slide deployment policy is malformed.")
+}
+
+function sha256Text(value: string): string {
+  return createHash("sha256").update(value, "utf8").digest("hex")
+}
+
+function isSha256(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{64}$/.test(value)
+}
+
+export function opencodeRouteIdentity(route: { providerID: string; modelID: string; apiID: string; apiNpm: string; apiURL: string }): string {
+  const values = [
+    ["providerID", route.providerID],
+    ["modelID", route.modelID],
+    ["api.id", route.apiID],
+    ["api.npm", route.apiNpm],
+    ["api.url", route.apiURL],
+  ] as const
+  const lines = ["k-slide-opencode-route-v1"]
+  for (const [label, value] of values) {
+    if (typeof value !== "string" || !value || value.includes("\x00") || value.includes("\r") || value.includes("\n")) return ""
+    lines.push(`${label}=${Buffer.byteLength(value, "utf8")}:${value}`)
+  }
+  return sha256Text(`${lines.join("\n")}\n`)
+}
+
+function providerInfo(provider: unknown): { id: unknown; options: unknown } {
+  if (!provider || typeof provider !== "object") return { id: undefined, options: undefined }
+  const value = provider as Record<string, unknown>
+  const info = value.info && typeof value.info === "object" ? value.info as Record<string, unknown> : value
+  return { id: info.id, options: [info.options, value.options] }
+}
+
+async function readUtf8(filePath: string): Promise<string> {
+  const handle = await open(filePath, "r")
+  try {
+    const details = await handle.stat()
+    if (!Number.isSafeInteger(details.size) || details.size < 0 || details.size > 4 * 1024 * 1024) throw new Error("K-Slide deployment policy is malformed.")
+    const buffer = Buffer.alloc(details.size)
+    let offset = 0
+    while (offset < buffer.length) {
+      const result = await handle.read(buffer, offset, buffer.length - offset, offset)
+      if (result.bytesRead === 0) throw new Error("K-Slide deployment policy is malformed.")
+      offset += result.bytesRead
+    }
+    return buffer.toString("utf8")
+  } finally {
+    await handle.close()
+  }
+}
+
+function assertPolicyShape(value: unknown): { endpointIdentity: string; policyVersion: string; policyHash: string; policyIdentity: string } {
+  if (!value || typeof value !== "object") throw new Error("K-Slide deployment policy is malformed.")
+  const policy = value as Record<string, unknown>
+  if (new Set(Object.keys(policy)).size !== 6 || !["schema_version", "policy_version", "policy_hash", "policy_identity", "default_action", "capabilities"].every((key) => key in policy)) {
+    throw new Error("K-Slide deployment policy is malformed.")
+  }
+  if (policy.schema_version !== EGRESS_POLICY_SCHEMA_VERSION || policy.default_action !== EGRESS_DEFAULT_ACTION || typeof policy.policy_version !== "string" || !policy.policy_version || !isSha256(policy.policy_hash) || !isSha256(policy.policy_identity) || !Array.isArray(policy.capabilities) || policy.capabilities.length !== 4) {
+    throw new Error("K-Slide deployment policy is malformed.")
+  }
+  const capabilities = policy.capabilities.map((item) => {
+    if (!item || typeof item !== "object") throw new Error("K-Slide deployment policy is malformed.")
+    const capability = item as Record<string, unknown>
+    if (new Set(Object.keys(capability)).size !== EGRESS_CAPABILITY_FIELDS.size || [...EGRESS_CAPABILITY_FIELDS].some((key) => !(key in capability))) {
+      throw new Error("K-Slide deployment policy is malformed.")
+    }
+    const capabilityClass = capability.capability_class
+    if (typeof capabilityClass !== "string" || !EGRESS_CAPABILITY_CLASSES.has(capabilityClass) || typeof capability.purpose !== "string" || typeof capability.service_identity !== "string") {
+      throw new Error("K-Slide deployment policy is malformed.")
+    }
+    const expectedPurpose: Record<string, string> = {
+      inference_route: "model_inference",
+      durable_job_control: "job_control",
+      scoped_storage: "scoped_storage",
+      non_content_telemetry: "non_content_telemetry",
+    }
+    const expectedDataClass: Record<string, string> = {
+      inference_route: "source_content",
+      durable_job_control: "operational_metadata",
+      scoped_storage: "source_content",
+      non_content_telemetry: "non_content",
+    }
+    if (capability.purpose !== expectedPurpose[capabilityClass] || capability.data_class !== expectedDataClass[capabilityClass]) throw new Error("K-Slide deployment policy is malformed.")
+    if (capabilityClass === "inference_route") {
+      if (typeof capability.route_identity !== "string" || !capability.route_identity || !isSha256(capability.endpoint_identity)) throw new Error("K-Slide deployment policy is malformed.")
+    } else if (capability.route_identity !== null || capability.endpoint_identity !== null) {
+      throw new Error("K-Slide deployment policy is malformed.")
+    }
+    return {
+      capability_class: capability.capability_class,
+      purpose: capability.purpose,
+      service_identity: capability.service_identity,
+      route_identity: capability.route_identity,
+      endpoint_identity: capability.endpoint_identity,
+      data_class: capability.data_class,
+    }
+  }).sort((left, right) => left.capability_class.localeCompare(right.capability_class))
+  if (new Set(capabilities.map((item) => item.capability_class)).size !== 4) throw new Error("K-Slide deployment policy is malformed.")
+  const expectedHash = sha256Text(canonicalJson({ schema_version: EGRESS_POLICY_SCHEMA_VERSION, policy_version: policy.policy_version, default_action: EGRESS_DEFAULT_ACTION, capabilities }))
+  const expectedIdentity = sha256Text(canonicalJson({ schema_version: EGRESS_POLICY_SCHEMA_VERSION, policy_version: policy.policy_version, policy_hash: expectedHash }))
+  if (policy.policy_hash !== expectedHash || policy.policy_identity !== expectedIdentity) throw new Error("K-Slide deployment policy is malformed.")
+  const inference = capabilities.find((item) => item.capability_class === "inference_route")
+  if (!inference || !isSha256(inference.endpoint_identity)) throw new Error("K-Slide deployment policy is malformed.")
+  return { endpointIdentity: inference.endpoint_identity, policyVersion: policy.policy_version, policyHash: policy.policy_hash, policyIdentity: policy.policy_identity }
+}
+
+async function deploymentBoundRouteIdentity(worktree: string): Promise<string> {
+  const policyPath = path.join(worktree, ".k-slide-config", "egress-policy.json")
+  try {
+    const details = await lstat(policyPath)
+    if (!details.isFile() || details.isSymbolicLink()) return ""
+    const binding = assertPolicyShape(JSON.parse(await readUtf8(policyPath)))
+    const candidatePath = path.join(worktree, ".k-slide-config", "production-candidate.json")
+    try {
+      const candidateDetails = await lstat(candidatePath)
+      if (!candidateDetails.isFile() || candidateDetails.isSymbolicLink()) return ""
+      const candidateValue = JSON.parse(await readUtf8(candidatePath)) as Record<string, unknown>
+      const candidate = candidateValue.candidate_spec && typeof candidateValue.candidate_spec === "object" ? candidateValue.candidate_spec as Record<string, unknown> : candidateValue
+      for (const [key, expected] of Object.entries({
+        egress_policy_version: binding.policyVersion,
+        egress_policy_hash: binding.policyHash,
+        egress_policy_identity: binding.policyIdentity,
+        inference_endpoint_identity: binding.endpointIdentity,
+      })) {
+        if (candidate[key] !== expected) return ""
+      }
+    } catch (error) {
+      if (!(error && typeof error === "object" && "code" in error && error.code === "ENOENT")) return ""
+    }
+    return binding.endpointIdentity
+  } catch {
+    return ""
+  }
+}
+
+async function assertPinnedKSlideModel(input: {
   agent: string
-  model: { id: string; providerID: string; options: Record<string, unknown> }
-  provider: { info: { id: string; options: Record<string, unknown> }; options: Record<string, unknown> }
+  model: { id: string; providerID: string; api: { id: string; url: string; npm: string }; options: Record<string, unknown>; provider?: unknown }
+  provider: unknown
   message: { model: { providerID: string; modelID: string } }
-}): void {
+}, worktree: string, output: unknown): Promise<void> {
   if (input.agent !== K_SLIDE_AGENT) return
+  const provider = providerInfo(input.provider)
   const exactModel =
     input.model.providerID === APPROVED_PROVIDER_ID &&
     input.model.id === APPROVED_MODEL_ID &&
-    input.provider.info.id === APPROVED_PROVIDER_ID &&
+    provider.id === APPROVED_PROVIDER_ID &&
     input.message.model.providerID === APPROVED_PROVIDER_ID &&
     input.message.model.modelID === APPROVED_MODEL_ID
-  if (!exactModel || hasProviderRouteOverride(input.model.options) || hasProviderRouteOverride(input.provider.info.options) || hasProviderRouteOverride(input.provider.options)) {
+  const actualRouteIdentity = opencodeRouteIdentity({
+    providerID: input.model.providerID,
+    modelID: input.model.id,
+    apiID: input.model.api?.id,
+    apiNpm: input.model.api?.npm,
+    apiURL: input.model.api?.url,
+  })
+  const expectedRouteIdentity = await deploymentBoundRouteIdentity(worktree)
+  const routeApproved = isSha256(expectedRouteIdentity) && actualRouteIdentity === expectedRouteIdentity
+  const outputOptions = output && typeof output === "object" && "options" in output ? (output as { options?: unknown }).options : undefined
+  if (!exactModel || input.model.api?.id !== APPROVED_API_ID || input.model.api?.npm !== APPROVED_API_NPM || !routeApproved || input.model.provider !== undefined || hasProviderRouteOverride(input.model.options) || hasProviderRouteOverride(provider.options) || hasProviderRouteOverride(outputOptions)) {
     throw new Error("K-Slide refused an unapproved provider/model or provider route before the LLM request.")
   }
 }
@@ -270,8 +450,8 @@ const KSlideHostPlugin: Plugin = async ({ worktree }) => {
   }
 
   return {
-    "chat.params": async (input) => {
-      assertPinnedKSlideModel(input)
+    "chat.params": async (input, output) => {
+      await assertPinnedKSlideModel(input, worktree, output)
     },
     "chat.message": async (input, output) => {
       await releaseSession(input.sessionID)

@@ -20,6 +20,7 @@
   "egress_policy_version": "UNSET",
   "egress_policy_hash": "UNSET",
   "egress_policy_identity": "UNSET",
+  "inference_endpoint_identity": "UNSET",
   "subject_git_sha": "UNSET",
   "deployment_fingerprint": "UNSET",
   "certification_fingerprint": "UNSET",

@@ -63,6 +63,7 @@ def authenticated_paas_service_call(
     request: CompanyServiceRequest | Mapping[str, Any],
     *,
     egress_policy: Any | None = None,
+    endpoint_identity: str | None = None,
     service_identity: str | None = None,
 ) -> object:
     """Use the common AccessKey boundary for durable/PaaS callers."""
@@ -73,6 +74,7 @@ def authenticated_paas_service_call(
         egress_policy=egress_policy,
         capability_class=EGRESS_CAPABILITY_DURABLE_JOB_CONTROL,
         purpose=EGRESS_PURPOSE_JOB_CONTROL,
+        endpoint_identity=endpoint_identity,
         service_identity=service_identity,
         data_class=EGRESS_DATA_CLASS_OPERATIONAL_METADATA,
     )

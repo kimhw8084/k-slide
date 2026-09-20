@@ -48,6 +48,7 @@ from k_slide.egress_policy import (
     EGRESS_DATA_CLASS_NON_CONTENT,
     egress_policy_hash_for_mapping,
     egress_policy_identity_for_mapping,
+    opencode_route_identity,
 )
 from k_slide.model_policy import load_model_policy
 from k_slide.production import ProductionProfile, _asset_manifest_status, _manifest_and_fingerprint_status
@@ -192,11 +193,12 @@ def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model
         "repair_policy": {"max_auto_repairs_per_unit": 2},
     }
     split = __import__("evals.scenarios", fromlist=["split_manifest"]).split_manifest()
+    endpoint_identity = opencode_route_identity(provider_id="google", model_id="gemma-4-31b-it", api_id="gemma-4-31b-it", api_npm="@ai-sdk/google", api_url="https://generativelanguage.googleapis.com/v1beta")
     egress_capabilities = [
-        {"capability_class": EGRESS_CAPABILITY_INFERENCE_ROUTE, "purpose": "model_inference", "service_identity": "test-inference-service", "route_identity": "test-inference-route", "data_class": "source_content"},
-        {"capability_class": EGRESS_CAPABILITY_DURABLE_JOB_CONTROL, "purpose": "job_control", "service_identity": "test-job-service", "route_identity": None, "data_class": "operational_metadata"},
-        {"capability_class": EGRESS_CAPABILITY_SCOPED_STORAGE, "purpose": "scoped_storage", "service_identity": "test-storage-service", "route_identity": None, "data_class": "source_content"},
-        {"capability_class": EGRESS_CAPABILITY_NON_CONTENT_TELEMETRY, "purpose": "non_content_telemetry", "service_identity": "test-telemetry-service", "route_identity": None, "data_class": EGRESS_DATA_CLASS_NON_CONTENT},
+        {"capability_class": EGRESS_CAPABILITY_INFERENCE_ROUTE, "purpose": "model_inference", "service_identity": "test-inference-service", "route_identity": "test-inference-route", "endpoint_identity": endpoint_identity, "data_class": "source_content"},
+        {"capability_class": EGRESS_CAPABILITY_DURABLE_JOB_CONTROL, "purpose": "job_control", "service_identity": "test-job-service", "route_identity": None, "endpoint_identity": None, "data_class": "operational_metadata"},
+        {"capability_class": EGRESS_CAPABILITY_SCOPED_STORAGE, "purpose": "scoped_storage", "service_identity": "test-storage-service", "route_identity": None, "endpoint_identity": None, "data_class": "source_content"},
+        {"capability_class": EGRESS_CAPABILITY_NON_CONTENT_TELEMETRY, "purpose": "non_content_telemetry", "service_identity": "test-telemetry-service", "route_identity": None, "endpoint_identity": None, "data_class": EGRESS_DATA_CLASS_NON_CONTENT},
     ]
     egress_version = "test-1"
     egress_hash = egress_policy_hash_for_mapping(policy_version=egress_version, capabilities=egress_capabilities)
@@ -253,6 +255,7 @@ def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model
             "egress_policy_version": egress_version,
             "egress_policy_hash": egress_hash,
             "egress_policy_identity": egress_policy["policy_identity"],
+            "inference_endpoint_identity": endpoint_identity,
         })
     return resolve_candidate_spec(candidate, root=root or Path.cwd(), subject_git_sha=subject, model_policy=load_model_policy(), corpus=candidate["corpus_identity"])  # type: ignore[arg-type]
 
@@ -374,6 +377,7 @@ class CertificationClosureTests(unittest.TestCase):
             "egress_policy_version": "test-1",
             "egress_policy_hash": "a" * 64,
             "egress_policy_identity": "b" * 64,
+            "inference_endpoint_identity": "c" * 64,
         })
         candidate["ocr_asset_manifest"] = "ocr/manifest.json"
         candidate["ocr_asset_manifest_sha256"] = "a" * 64

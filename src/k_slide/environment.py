@@ -91,6 +91,7 @@ class RunEnvironmentIdentity:
     ocr_provider: str
     termbase_identity: str
     termbase_version: str
+    inference_endpoint_identity: str = REFERENCE_EGRESS_POLICY.capability("inference_route").endpoint_identity or ""
     inference_route_identity: str = REFERENCE_ROUTE_IDENTITY
     inference_data_policy_version: str = REFERENCE_POLICY_VERSION
     inference_data_policy_hash: str = _REFERENCE_POLICY.policy_hash
@@ -121,6 +122,7 @@ class RunEnvironmentIdentity:
             (self.ocr_asset_identity, "OCR asset identity"),
             (self.ocr_config_identity, "OCR configuration identity"),
             (self.termbase_identity, "termbase identity"),
+            (self.inference_endpoint_identity, "inference endpoint identity"),
         ):
             _sha(value, label)
         if not isinstance(self.runtime_image_identity, str) or not _IMAGE.fullmatch(self.runtime_image_identity):
@@ -180,6 +182,7 @@ class RunEnvironmentIdentity:
             "ocr_provider": self.ocr_provider,
             "termbase_identity": self.termbase_identity,
             "termbase_version": self.termbase_version,
+            "inference_endpoint_identity": self.inference_endpoint_identity,
             "inference_route_identity": self.inference_route_identity,
             "inference_data_policy_version": self.inference_data_policy_version,
             "inference_data_policy_hash": self.inference_data_policy_hash,
@@ -229,9 +232,9 @@ class RunEnvironmentIdentity:
             "semantic_config_identity", "ocr_asset_identity", "ocr_config_identity", "ocr_provider", "termbase_identity",
             "termbase_version", "inference_route_identity", "inference_data_policy_version", "inference_data_policy_hash",
             "inference_data_policy_identity", "execution_contract_version", "run_store_schema_version", "evidence_ir_schema_version",
-            "translation_patch_schema_version", "slide_ir_schema_version", "egress_policy_version", "egress_policy_hash", "egress_policy_identity",
+            "translation_patch_schema_version", "slide_ir_schema_version", "inference_endpoint_identity", "egress_policy_version", "egress_policy_hash", "egress_policy_identity",
         }
-        legacy_optional = {"inference_route_identity", "inference_data_policy_version", "inference_data_policy_hash", "inference_data_policy_identity", "egress_policy_version", "egress_policy_hash", "egress_policy_identity"}
+        legacy_optional = {"inference_route_identity", "inference_endpoint_identity", "inference_data_policy_version", "inference_data_policy_hash", "inference_data_policy_identity", "egress_policy_version", "egress_policy_hash", "egress_policy_identity"}
         if not isinstance(value, Mapping) or set(value) not in (fields, fields - legacy_optional):
             raise _invalid("Run environment identity is incomplete.", code=ErrorCode.STATE_CORRUPT)
         try:
@@ -242,6 +245,7 @@ class RunEnvironmentIdentity:
                 raw.update(
                     {
                         "inference_route_identity": reference.inference_route_identity,
+                        "inference_endpoint_identity": REFERENCE_EGRESS_POLICY.capability("inference_route").endpoint_identity,
                         "inference_data_policy_version": reference.policy_version,
                         "inference_data_policy_hash": reference.policy_hash,
                         "inference_data_policy_identity": reference.policy_identity,
@@ -258,6 +262,8 @@ class RunEnvironmentIdentity:
                         "egress_policy_identity": REFERENCE_EGRESS_POLICY.policy_identity,
                     }
                 )
+            if "inference_endpoint_identity" not in raw:
+                raw["inference_endpoint_identity"] = REFERENCE_EGRESS_POLICY.capability("inference_route").endpoint_identity
             return cls(**raw)
         except (TypeError, ValueError) as exc:
             if isinstance(exc, KSlideError):
@@ -300,6 +306,7 @@ class RunEnvironmentIdentity:
             ocr_provider="reference",
             termbase_identity=_hash({"termbase": termbase_identity}),
             termbase_version="1.0",
+            inference_endpoint_identity=REFERENCE_EGRESS_POLICY.capability("inference_route").endpoint_identity or "",
             inference_route_identity=InferenceDataUsePolicy.reference().inference_route_identity,
             inference_data_policy_version=InferenceDataUsePolicy.reference().policy_version,
             inference_data_policy_hash=InferenceDataUsePolicy.reference().policy_hash,
@@ -332,12 +339,13 @@ class RunEnvironmentIdentity:
         policy = InferenceDataUsePolicy.from_mapping(raw_policy)
         if policy.inference_route_identity != route:
             raise _invalid("Run environment inference route/data-use policy identity is inconsistent.")
-        raw_egress = {key: candidate.get(key) for key in ("egress_policy_version", "egress_policy_hash", "egress_policy_identity")}
+        raw_egress = {key: candidate.get(key) for key in ("egress_policy_version", "egress_policy_hash", "egress_policy_identity", "inference_endpoint_identity")}
         if all(value in (None, "", "UNSET") for value in raw_egress.values()):
             egress_values = {
                 "egress_policy_version": REFERENCE_EGRESS_POLICY.policy_version,
                 "egress_policy_hash": REFERENCE_EGRESS_POLICY.policy_hash,
                 "egress_policy_identity": REFERENCE_EGRESS_POLICY.policy_identity,
+                "inference_endpoint_identity": REFERENCE_EGRESS_POLICY.capability("inference_route").endpoint_identity,
             }
         elif any(value in (None, "", "UNSET") for value in raw_egress.values()):
             raise _invalid("Run environment egress policy identity is incomplete.")
@@ -345,6 +353,7 @@ class RunEnvironmentIdentity:
             _text(raw_egress["egress_policy_version"], "egress policy version")
             _sha(raw_egress["egress_policy_hash"], "egress policy hash")
             _sha(raw_egress["egress_policy_identity"], "egress policy identity")
+            _sha(raw_egress["inference_endpoint_identity"], "inference endpoint identity")
             egress_values = {key: str(value) for key, value in raw_egress.items()}
         candidate_source = candidate.get("subject_git_sha")
         runtime_source = runtime.get("source_revision")
@@ -405,6 +414,7 @@ class RunEnvironmentIdentity:
             "termbase_identity": candidate.get("termbase_hash") or termbase,
             "termbase_version": candidate.get("termbase_version") or (termbase or {}).get("version") if isinstance(termbase, Mapping) else candidate.get("termbase_version"),
             "inference_route_identity": route,
+            "inference_endpoint_identity": egress_values["inference_endpoint_identity"],
             "inference_data_policy_version": policy.policy_version,
             "inference_data_policy_hash": policy.policy_hash,
             "inference_data_policy_identity": policy.policy_identity,
@@ -502,6 +512,8 @@ def ensure_configured_policy_matches_environment(root: "Path", environment: RunE
             egress_fields.append("egress_policy_hash")
         if configured_egress.policy_identity != environment.egress_policy_identity:
             egress_fields.append("egress_policy_identity")
+        if configured_egress.capability("inference_route").endpoint_identity != environment.inference_endpoint_identity:
+            egress_fields.append("inference_endpoint_identity")
         if egress_fields:
             raise KSlideError(
                 ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
@@ -624,6 +636,7 @@ def resolve_effective_environment(root: "Path", *, environment_identity: RunEnvi
             configured_egress.policy_version != identity.egress_policy_version
             or configured_egress.policy_hash != identity.egress_policy_hash
             or configured_egress.policy_identity != identity.egress_policy_identity
+            or configured_egress.capability("inference_route").endpoint_identity != identity.inference_endpoint_identity
         ):
             raise KSlideError(
                 ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,

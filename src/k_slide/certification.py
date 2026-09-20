@@ -94,6 +94,7 @@ CANDIDATE_INPUT_FIELDS = (
     "termbase_hash",
     "model_policy",
     "inference_route_identity",
+    "inference_endpoint_identity",
     "inference_data_use_policy",
     "egress_policy_version",
     "egress_policy_hash",
@@ -578,6 +579,7 @@ DEPLOYMENT_PROFILE_FIELDS = (
     RETENTION_POLICY_FIELD,
     "tenant_isolation",
     "network_egress",
+    "inference_endpoint_identity",
     "egress_policy_version",
     "egress_policy_hash",
     "egress_policy_identity",
@@ -972,7 +974,7 @@ def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subjec
         else:
             result["model_policy"] = current_policy
     egress_path = root / ".k-slide-config" / "egress-policy.json"
-    declared_egress = any(not _is_unset(result.get(field)) for field in ("egress_policy_version", "egress_policy_hash", "egress_policy_identity"))
+    declared_egress = any(not _is_unset(result.get(field)) for field in ("egress_policy_version", "egress_policy_hash", "egress_policy_identity", "inference_endpoint_identity"))
     if egress_path.is_file() and not egress_path.is_symlink():
         from .egress_policy import load_egress_policy
 
@@ -981,6 +983,7 @@ def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subjec
             ("egress_policy_version", egress_policy.policy_version),
             ("egress_policy_hash", egress_policy.policy_hash),
             ("egress_policy_identity", egress_policy.policy_identity),
+            ("inference_endpoint_identity", egress_policy.capability("inference_route").endpoint_identity),
         ):
             _bind_value(result, field, actual)
         data_policy = result.get("inference_data_use_policy")
@@ -995,7 +998,7 @@ def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subjec
                 raise EvidenceValidationError("candidate egress inference route disagrees with candidate route identity")
     elif require_sources and declared_egress:
         raise EvidenceValidationError("candidate egress policy is unavailable for verification")
-    elif declared_egress and any(_is_unset(result.get(field)) for field in ("egress_policy_version", "egress_policy_hash", "egress_policy_identity")):
+    elif declared_egress and any(_is_unset(result.get(field)) for field in ("egress_policy_version", "egress_policy_hash", "egress_policy_identity", "inference_endpoint_identity")):
         raise EvidenceValidationError("candidate egress policy identity is incomplete")
     if corpus is not None:
         actual_corpus = canonical_corpus_identity(corpus)
@@ -1174,6 +1177,8 @@ def candidate_completeness(candidate_spec: dict[str, Any], state: str) -> list[s
         for field in ("egress_policy_hash", "egress_policy_identity"):
             if not _hash_field_resolved(candidate_spec, field):
                 missing.append(field)
+        if not _hash_field_resolved(candidate_spec, "inference_endpoint_identity"):
+            missing.append("inference_endpoint_identity")
     return sorted(set(missing))
 
 

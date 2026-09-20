@@ -55,6 +55,7 @@ network_egress: "default_deny"
 egress_policy_version: UNSET
 egress_policy_hash: UNSET
 egress_policy_identity: UNSET
+inference_endpoint_identity: UNSET
 corpus_identity:
   version: "1.0"
   corpus_fingerprint: "698b471fa9dffe9f79af40a61c3546d6455889b90063a02bc2e270b90402f7ac"
