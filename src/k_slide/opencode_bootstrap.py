@@ -12,6 +12,8 @@ import hashlib
 import json
 import os
 import stat
+import signal
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,6 +21,7 @@ from typing import Any, Mapping
 
 from .egress_policy import opencode_route_identity
 from .errors import ErrorCode, KSlideError
+from .access_key_handoff import AccessKeyBoundaryError, AccessKeyHandoff
 
 
 BOOTSTRAP_SCHEMA_VERSION = "1.0"
@@ -703,21 +706,57 @@ def main(argv: list[str] | None = None) -> int:
         command = command[1:]
     if not command:
         parser.error("a managed OpenCode command is required after --")
+    access_key = os.environ.get(COMPANY_ACCESS_KEY_ENV)
     try:
         environment = bootstrap_environment(args.manifest)
     except KSlideError as exc:
         print(f"{exc.code.value}: {exc.message}", file=sys.stderr)
         return 78
-    # AccessKey remains available to the trusted K-Slide company-service
-    # boundary in the parent process, but is never inherited by OpenCode or
-    # its model/provider loaders.
+    # AccessKey remains available only to this trusted launcher long enough to
+    # cross the private host/tool boundary; it is never inherited in the
+    # OpenCode/model/provider environment.
     environment.pop(COMPANY_ACCESS_KEY_ENV, None)
+    handoff: AccessKeyHandoff | None = None
+    process: subprocess.Popen[bytes] | None = None
     try:
-        os.execvpe(command[0], command, environment)
-    except OSError as exc:
-        print(f"KSLIDE_OPENCODE_BOOTSTRAP_EXEC_FAILED: {type(exc).__name__}", file=sys.stderr)
+        handoff = AccessKeyHandoff(access_key)
+        process = subprocess.Popen(command, env=environment, pass_fds=handoff.pass_fds, start_new_session=True)
+        handoff.send()
+        return process.wait()
+    except AccessKeyBoundaryError as exc:
+        if process is not None and process.poll() is None:
+            _terminate_child(process)
+        print(f"KSLIDE_OPENCODE_BOOTSTRAP_HANDOFF_FAILED: {exc}", file=sys.stderr)
+        return 78
+    except (OSError, ValueError):
+        if process is not None and process.poll() is None:
+            _terminate_child(process)
+        print("KSLIDE_OPENCODE_BOOTSTRAP_EXEC_FAILED", file=sys.stderr)
         return 127
-    return 0
+    finally:
+        if handoff is not None:
+            handoff.close()
+
+
+def _terminate_child(process: subprocess.Popen[bytes]) -> None:
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except OSError:
+        try:
+            process.terminate()
+        except OSError:
+            pass
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except OSError:
+            try:
+                process.kill()
+            except OSError:
+                pass
+        process.wait()
 
 
 if __name__ == "__main__":  # pragma: no cover - exercised through subprocess tests
