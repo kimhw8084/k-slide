@@ -1,0 +1,524 @@
+{
+  "accepted_at": "2026-09-20T03:17:44Z",
+  "changed_files": [
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": ".opencode/agents/k-slide.md",
+      "status": "M"
+    },
+    {
+      "additions": 215,
+      "deletions": 2,
+      "path": ".opencode/plugin/k-slide-host.ts",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 5,
+      "deletions": 1,
+      "path": "deploy/production-profile.example.json",
+      "status": "M"
+    },
+    {
+      "additions": 5,
+      "deletions": 1,
+      "path": "evals/production-candidate.example.yaml",
+      "status": "M"
+    },
+    {
+      "additions": 5,
+      "deletions": 1,
+      "path": "evals/production-candidate.yaml",
+      "status": "M"
+    },
+    {
+      "additions": 35,
+      "deletions": 0,
+      "path": "evals/release.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "opencode.example.jsonc",
+      "status": "M"
+    },
+    {
+      "additions": 176,
+      "deletions": 9,
+      "path": "src/k_slide/authentication.py",
+      "status": "M"
+    },
+    {
+      "additions": 43,
+      "deletions": 1,
+      "path": "src/k_slide/certification.py",
+      "status": "M"
+    },
+    {
+      "additions": 449,
+      "deletions": 0,
+      "path": "src/k_slide/egress_policy.py",
+      "status": "A"
+    },
+    {
+      "additions": 115,
+      "deletions": 25,
+      "path": "src/k_slide/environment.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 18,
+      "deletions": 2,
+      "path": "src/k_slide/host_adapter.py",
+      "status": "M"
+    },
+    {
+      "additions": 16,
+      "deletions": 2,
+      "path": "src/k_slide/paas.py",
+      "status": "M"
+    },
+    {
+      "additions": 46,
+      "deletions": 1,
+      "path": "src/k_slide/production.py",
+      "status": "M"
+    },
+    {
+      "additions": 50,
+      "deletions": 3,
+      "path": "tests/test_certification_closure.py",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 4,
+      "path": "tests/test_chg16_accesskey_nonleakage.py",
+      "status": "M"
+    },
+    {
+      "additions": 139,
+      "deletions": 12,
+      "path": "tests/test_chg16_authentication_transport.py",
+      "status": "M"
+    },
+    {
+      "additions": 106,
+      "deletions": 2,
+      "path": "tests/test_chg16_opencode_plugin.ts",
+      "status": "M"
+    },
+    {
+      "additions": 253,
+      "deletions": 0,
+      "path": "tests/test_chg18_default_deny_egress.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"git diff -- src/k_slide/egress_policy.py src/k_slide/environment.py src/k_slide/certification.py src/k_slide/production.py evals/release.py src/k_slide/authentication.py src/k_slide/host_adapter.py src/k_slide/paas.py | sed -n '1,1000p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short && rtk git diff --check && rtk git diff --stat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff -- .opencode/plugin/k-slide-host.ts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff -- src/k_slide/authentication.py src/k_slide/host_adapter.py src/k_slide/paas.py src/k_slide/production.py evals/release.py deploy/production-profile.example.json evals/production-candidate.yaml evals/production-candidate.example.yaml'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff -- src/k_slide/egress_policy.py src/k_slide/environment.py src/k_slide/certification.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '80,270p' .opencode/plugin/k-slide-host.ts && rtk sed -n '270,455p' .opencode/plugin/k-slide-host.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,90p' .opencode/plugin/k-slide-host.ts && rtk sed -n '1,260p' tests/test_chg16_opencode_plugin.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"modelPinBoundary|openCodeV139|export|api:|provider:\\\" tests/test_chg16_opencode_plugin.ts && rtk sed -n '260,560p' tests/test_chg16_opencode_plugin.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"providerInfo|providerID|chat.params|Provider\\\\.getLanguage|Provider\\\\.getSDK|api\\\\.npm\\\" .opencode tests src | head -160\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff -- tests/test_chg18_default_deny_egress.py tests/test_chg16_authentication_transport.py tests/test_certification_closure.py tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,470p' src/k_slide/egress_policy.py && rtk sed -n '930,1010p' src/k_slide/certification.py && rtk sed -n '1160,1190p' src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '70,175p' src/k_slide/environment.py && rtk rg -n \\\"identity_sha256|deployment_fingerprint|candidate_deployment_fingerprint\\\" src tests/test_chg18_default_deny_egress.py tests/test_certification_closure.py | head -120\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '175,225p' src/k_slide/environment.py && rtk sed -n '208,240p' tests/test_chg18_default_deny_egress.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m unittest tests.test_chg18_default_deny_egress tests.test_chg16_authentication_transport tests.test_chg16_environment_binding tests.test_certification_closure'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src rtk python -m unittest discover -s tests -p 'test_*.py'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk npm exec --yes --package=bun@1.2.20 -- bun -e 'const t = await import(\\\"./tests/test_chg16_opencode_plugin.ts\\\"); const source = await import(\\\"./.opencode/plugin/k-slide-host.ts\\\"); await t.modelPinBoundary?.(); console.log(\\\"OpenCode route boundary passed\\\");'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk npm exec --yes --package=bun@1.2.20 -- bun -e 'const t = await import(\\\"./tests/test_chg16_opencode_plugin.ts\\\"); await t.openCodeV139PluginLoaderCompatibilityBoundary(); console.log(\\\"OpenCode v1.3.9 loader compatibility passed\\\");'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src rtk python -m unittest discover -s tests -p 'test_*.py' 2>&1 | tail -45\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk npm exec --yes --package=bun@1.2.20 -- bun -e 'const t = await import(\\\"./tests/test_chg16_opencode_plugin.ts\\\"); await t.modelPinBoundary(); console.log(\\\"OpenCode route mutation regressions passed\\\");'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3.11 --version; rtk python3.12 --version'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk npm exec --yes --package=bun@1.2.20 -- bun build .opencode/plugin/k-slide-host.ts --target bun --outdir /tmp/k-slide-bun-build-check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk npm exec --yes --package=bun@1.2.20 -- bun ./tests/test_chg16_opencode_plugin.ts 2>&1 | tail -35'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python3.12 -m unittest tests.test_chg18_default_deny_egress tests.test_chg16_authentication_transport tests.test_chg16_environment_binding tests.test_certification_closure'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files -g '*fabric*' -g '*evidence*' -g '*job*' -g '*publish*' -g '*.md' | head -120 && rtk rg -n \\\"RUN_COMPLETE|Fabric|CF-140157|CHG-16|KSA-18|publish.*evidence|candidate identity|job/request\\\" . --glob '\"'!tests/*.json'\"' --glob '\"'!tests/*.yaml'\"' --glob '\"'!*.lock'\"' | head -160\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk ls -la && rtk git log --oneline --decorate -8 && rtk git branch --show-current && rtk git merge-base --is-ancestor ad89e3ef608d423d90bfe4cd182406e846a3e36e HEAD; rtk git merge-base --is-ancestor a0226a2c99412d9ab4924ade6c6fec675d879d43 HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"CF-8d470fe7f88f58c42b5aa388|CHG-16|KSA-18|Fabric evidence|fabric evidence\\\" /Users/haewonkim/.codex-fabric --glob '\"'!worktrees/**/node_modules/**'\"' | head -120; rtk command -v fabric || true; rtk command -v codex || true; rtk git remote -v\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk command -v fabricctl || true; rtk fabricctl --help || true; rtk ls -la /Users/haewonkim/.codex-fabric/bin /Users/haewonkim/.codex-fabric/libexec /Users/haewonkim/.codex-fabric/evidence | head -140'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,120p' /Users/haewonkim/.codex-fabric/libexec/fabricctl && rtk sed -n '1,120p' /Users/haewonkim/.codex-fabric/libexec/projectos-integrate-stdin && rtk sed -n '1,100p' /Users/haewonkim/.codex-fabric/libexec/receive-stdin\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk ls -la /Users/haewonkim/.codex-fabric/bin; rtk ls -la /Users/haewonkim/.codex-fabric/libexec'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,160p' /Users/haewonkim/.codex-fabric/bin/fabricctl; rtk sed -n '1,160p' /Users/haewonkim/.codex-fabric/bin/projectos-integrate-stdin; rtk rg -n \\\"JOB_NOT_TERMINAL|evidence|audit.json|codex-fabric/evidence|receive-stdin|fabricctl\\\" /Users/haewonkim/.codex-fabric/libexec /Users/haewonkim/.codex-fabric/bin | head -180\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl --help'",
+      "exit_code": 2,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-8d470fe7f88f58c42b5aa388'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"publish-evidence|publish_evidence|JOB_NOT_TERMINAL|publish_pending|evidence\\\" /Users/haewonkim/.codex-fabric/current/fabric.py | head -120 && rtk sed -n '700,980p' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '2460,2770p' /Users/haewonkim/.codex-fabric/current/fabric.py && rtk sed -n '2780,2838p' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python3.12 -m unittest tests.test_chg18_default_deny_egress tests.test_chg16_authentication_transport tests.test_chg16_environment_binding'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git status --short && rtk git diff --stat && rtk rg -n \"export async function modelPinBoundary|readFile\" tests/test_chg16_opencode_plugin.ts .opencode/plugin/k-slide-host.ts || true'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '180,370p' src/k_slide/authentication.py && rtk rg -n \\\"allow_reference_adapter|authenticated_company_service_call|reference_company_service_call|authorized_company\\\" src/k_slide tests/test_chg16_authentication_transport.py | head -180\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add .opencode/plugin/k-slide-host.ts deploy/production-profile.example.json evals/production-candidate.example.yaml evals/production-candidate.yaml evals/release.py src/k_slide/authentication.py src/k_slide/certification.py src/k_slide/egress_policy.py src/k_slide/environment.py src/k_slide/host_adapter.py src/k_slide/paas.py src/k_slide/production.py tests/test_certification_closure.py tests/test_chg16_authentication_transport.py tests/test_chg16_opencode_plugin.ts tests/test_chg18_default_deny_egress.py && rtk git diff --cached --check && rtk git diff --cached --stat && rtk git diff --cached --name-only && rtk git ls-remote origin refs/heads/main'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git commit -m \"fix: bind complete OpenCode route to KSA-18 egress\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git push -u origin codex/k-slide-chg16-default-deny-egress-01-fix03'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-8d470fe7f88f58c42b5aa388; rtk /Users/haewonkim/.codex-fabric/bin/fabricctl publish-evidence CF-8d470fe7f88f58c42b5aa388'",
+      "exit_code": 2,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short; rtk git rev-parse HEAD; rtk git rev-parse origin/codex/k-slide-chg16-default-deny-egress-01-fix03; rtk git ls-remote origin refs/heads/codex/k-slide-chg16-default-deny-egress-01-fix03 refs/heads/main; rtk git merge-base --is-ancestor ad89e3ef608d423d90bfe4cd182406e846a3e36e HEAD && rtk git merge-base --is-ancestor a0226a2c99412d9ab4924ade6c6fec675d879d43 HEAD && rtk git show -s --format='%H%n%P%n%s' HEAD\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,160p' opencode.example.jsonc && rtk find .opencode -maxdepth 3 -type f | sort && rtk rg -n \\\"google|gemma-4-31b-it|npm|provider|baseURL|api\\\" .opencode opencode.example.jsonc README.md docs/adr/0005-opencode-compatibility.md | head -220\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,140p' .opencode/internal/lib/k-slide-access-key.ts && rtk sed -n '1,80p' .opencode/agents/k-slide.md && rtk git show 4800d04:.opencode/plugin/k-slide-host.ts | sed -n '1,120p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"CANDIDATE_INPUT_FIELDS|DEPLOYMENT_PROFILE_FIELDS|inference_endpoint_identity|network_egress\" src/k_slide/certification.py src/k_slide/production.py evals/release.py | head -220'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"production_checks|Live deployment network enforcement|Network egress|egress_ready|candidate egress|endpoint\" tests/test_certification_closure.py tests/test_chg18_default_deny_egress.py | head -220'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1710,1830p' tests/test_certification_closure.py && rtk sed -n '1830,1910p' tests/test_certification_closure.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '570,655p' src/k_slide/production.py && rtk rg -n \\\"production-profile.json|certified-profile-output|inference_endpoint_identity\\\" evals/release.py | head -100\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check HEAD''^ HEAD; rtk git status --porcelain=v1; rtk git log --graph --oneline --decorate -6; rtk git show --stat --oneline --summary HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.155.1",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 305,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.89,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 20818432,
+      "fresh_input_tokens": 448736,
+      "input_tokens": 21267168,
+      "non_reasoning_output_tokens": 36867,
+      "output_tokens": 62555,
+      "reasoning_output_tokens": 25688,
+      "total_processed_tokens": 21329723
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "ea12092769ec222750d9fca7ab0b07bb937f7452",
+      "subject": "fix: bind complete OpenCode route to KSA-18 egress"
+    },
+    {
+      "sha": "292d6fa3f17197a3268bff7dbb3e86592c1d3f77",
+      "subject": "Merge commit 'a0226a2c99412d9ab4924ade6c6fec675d879d43' into codex/k-slide-chg16-default-deny-egress-01-fix03"
+    },
+    {
+      "sha": "a0226a2c99412d9ab4924ade6c6fec675d879d43",
+      "subject": "fix: close KSA-18 outbound authentication bypass"
+    },
+    {
+      "sha": "4800d042d5f173158cecd08b39c3b208fa54ab92",
+      "subject": "KSA-18: enforce default-deny production egress"
+    }
+  ],
+  "diff": {
+    "additions": 1687,
+    "changed_files": 21,
+    "commit_count": 4,
+    "deletions": 67
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 3,
+    "items": [
+      {
+        "bytes": 2861,
+        "path": ".opencode/agents/k-slide.md",
+        "sha256": "6104c82dd0f2d45689a0be92192a37880cc06af0ae3f31a5ce7bed1746338e9d"
+      },
+      {
+        "bytes": 34442,
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "139129bd2e39735f1b848304ff09968a8f81254a8b8ad3a3baa5bfd1b56382bf"
+      },
+      {
+        "bytes": 1049,
+        "path": "deploy/production-profile.example.json",
+        "sha256": "7b03f8215eed8d1f412a43ddbfd6fa28d1af7e3c8e4fc5197bc279b0fe13368d"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-20T03:43:04Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "ad89e3ef608d423d90bfe4cd182406e846a3e36e",
+    "branch": "codex/k-slide-chg16-default-deny-egress-01-fix03",
+    "detached_verify": false,
+    "head_sha": "ea12092769ec222750d9fca7ab0b07bb937f7452",
+    "remote_exact_head": true,
+    "remote_head_sha": "ea12092769ec222750d9fca7ab0b07bb937f7452",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "ad89e3ef608d423d90bfe4cd182406e846a3e36e",
+    "work_branch": "codex/k-slide-chg16-default-deny-egress-01-fix03",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-8d470fe7f88f58c42b5aa388",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-default-deny-egress-01-fix03",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-default-deny-egress-01-fix03"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "a642c9f63bab2cb555704bdb0b9d1f28222591f133f934c1d0f93cc5a25ab8a1",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-default-deny-egress-01-fix03",
+  "schema_version": 1,
+  "started_at": "2026-09-20T03:17:45Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1519,
+    "queue_seconds": 1,
+    "total_seconds": 1520
+  },
+  "transport": {
+    "bytes": 5867,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 5538,
+    "prompt_sha256": "2ac88bfe23301d5073ad3afa895d441c23f20577723d9f1803f05c6c13f08ff6",
+    "sha256": "8d470fe7f88f58c42b5aa388ec38d39947de1c5a83640103d86c29e11ef7df0d"
+  }
+}
