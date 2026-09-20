@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "kind": "codex-fabric-audit-evidence",
+  "project_id": "k-slide",
+  "job_id": "CF-5729519b4e88a7e86d832200",
+  "request": "chg16-default-deny-egress-01-fix05",
+  "operation": "FIX",
+  "status": "EXECUTED_CHANGE",
+  "identity": {
+    "base_sha": "ad89e3ef608d423d90bfe4cd182406e846a3e36e",
+    "predecessor_candidate_sha": "b7d2c9613171c59fc92d6e7a683e5d580415661d",
+    "head_sha": "487bf18d755effa0c054f62385bea759c8271008",
+    "branch": "codex/k-slide-chg16-default-deny-egress-01-fix05",
+    "target_branch": "main"
+  },
+  "git": {
+    "base_is_ancestor": true,
+    "predecessor_is_ancestor": true,
+    "base_sha": "ad89e3ef608d423d90bfe4cd182406e846a3e36e",
+    "head_sha": "487bf18d755effa0c054f62385bea759c8271008",
+    "branch": "codex/k-slide-chg16-default-deny-egress-01-fix05",
+    "target_branch": "main",
+    "target_head_observed": "ad89e3ef608d423d90bfe4cd182406e846a3e36e",
+    "main_mutated": false,
+    "worktree_clean": true
+  },
+  "scope": {
+    "change": "CHG-16 / KSA-18 FIX05",
+    "bounded_repair": "F18-05 and adjacent OpenCode v1.3.9 pre-start background/download egress controls",
+    "excluded": [
+      "KSA-19+",
+      "company firewall/service-mesh/DNS implementation",
+      "live Gemma inference or certification",
+      "BUILD COMPLETE",
+      "release or production certification",
+      "Notion"
+    ]
+  },
+  "checks": [
+    {"name": "Python 3.11 full practical suite", "status": "PASS", "result": "355 tests, 3 skips"},
+    {"name": "OpenCode bootstrap and pre-module network trap", "status": "PASS", "result": "unmanaged refresh/update/package/LSP/rg call sites observed; managed bootstrap emitted zero requests"},
+    {"name": "KSA-18 egress/authentication/environment focused suite", "status": "PASS", "result": "45 tests"},
+    {"name": "Python 3.12 bootstrap/egress/authentication/environment suite", "status": "PASS", "result": "40 tests"},
+    {"name": "Python 3.11 and 3.12 compile checks", "status": "PASS", "result": "compileall"},
+    {"name": "OpenCode v1.3.9 TypeScript plugin loader boundary", "status": "PASS", "result": "targeted boundary"},
+    {"name": "OpenCode v1.3.9 TypeScript check", "status": "PASS", "result": "tsc --noEmit"},
+    {"name": "Git diff check", "status": "PASS", "result": "clean"},
+    {"name": "Python 3.12 image normalization classification test", "status": "ENVIRONMENT_BLOCKED", "result": "pre-existing Pillow unavailable"},
+    {"name": "Complete TypeScript fixture", "status": "PREEXISTING_BLOCKED", "result": "pre-existing KSA-10 CLI-success fixture lacks candidate/runtime subjects"}
+  ],
+  "evidence_manifest": {
+    "bootstrap_contract": "deploy/opencode-bootstrap.example.json",
+    "launcher": "scripts/launch_opencode_k_slide.py",
+    "implementation": "src/k_slide/opencode_bootstrap.py",
+    "regression": "tests/test_chg18_opencode_bootstrap.py",
+    "commit": "487bf18d755effa0c054f62385bea759c8271008"
+  },
+  "recovery": {
+    "retry_safe": true,
+    "worktree_retained": true,
+    "next_step": "Review the published fix05 code and evidence refs; no main mutation or merge performed."
+  }
+}
