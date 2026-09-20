@@ -29,6 +29,9 @@ python_version: UNSET
 paddle_version: UNSET
 paddleocr_version: UNSET
 libreoffice_version: UNSET
+# Populate only from the governed, versioned core plus explicitly authorized
+# BU/team overlays. Local/reference fixtures are never production authority;
+# company authorization remains an external workspace/deployment boundary.
 termbase_identity:
   version: "1.0"
   hash: UNSET

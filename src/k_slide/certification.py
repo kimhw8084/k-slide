@@ -90,6 +90,7 @@ CANDIDATE_INPUT_FIELDS = (
     "paddleocr_version",
     "libreoffice_version",
     "termbase_identity",
+    "termbase_governance",
     "termbase_version",
     "termbase_hash",
     "model_policy",
@@ -467,29 +468,19 @@ def _source_path(root: Path, relative: str) -> Path:
     return root / relative
 
 
-def effective_termbase_identity(root: Path) -> dict[str, Any] | None:
-    """Hash the normalized merged terminology configuration, not its paths."""
+def effective_termbase_identity(root: Path, *, termbase_authority: Any | None = None) -> dict[str, Any] | None:
+    """Return the source-free governed termbase identity, never its paths."""
 
     from .terminology import load_effective_termbase
 
     try:
-        termbase = load_effective_termbase(root)
+        termbase = load_effective_termbase(root, authority=termbase_authority)
     except Exception as exc:
         raise EvidenceValidationError(f"effective termbase could not be resolved ({type(exc).__name__})") from exc
-    if not termbase.records:
-        return None
-    records = []
-    for record in termbase.records:
-        records.append({
-            "source": record.source,
-            "preferred": {key: record.preferred[key] for key in sorted(record.preferred)},
-            "status": record.status,
-            "scope": sorted(record.scope),
-            "avoid": sorted(record.avoid),
-            "term_id": record.term_id,
-        })
-    payload = {"version": termbase.version, "records": sorted(records, key=lambda item: (item["source"], item["term_id"] or ""))}
-    return {"version": termbase.version, "hash": sha256_bytes(canonical_bytes(payload))}
+    identity = termbase.binding_identity
+    if not isinstance(identity, dict) or not identity.get("hash"):
+        raise EvidenceValidationError("effective termbase did not produce a governed identity")
+    return json.loads(json.dumps(identity, ensure_ascii=False, sort_keys=True))
 
 
 def _repository_termbase_version(root: Path) -> str | None:
@@ -891,7 +882,7 @@ def _bind_execution_mapping(result: dict[str, Any], field: str, actual: dict[str
     result[field] = dict(actual)
 
 
-def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subject_git_sha: str | None = None, model_policy: Any | None = None, corpus: dict[str, Any] | None = None, require_sources: bool = False) -> dict[str, Any]:
+def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subject_git_sha: str | None = None, model_policy: Any | None = None, corpus: dict[str, Any] | None = None, require_sources: bool = False, termbase_authority: Any | None = None) -> dict[str, Any]:
     """Resolve repository-owned candidate inputs once before certification.
 
     Explicit values are never overwritten.  When an immutable repository
@@ -940,7 +931,8 @@ def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subjec
     _bind_nested_hash(result, "prompt_identity", prompt_hash)
     if prompt_hash is not None:
         _bind_value(result, "prompt_hash", prompt_hash)
-    termbase_identity = effective_termbase_identity(root)
+    declared_authority = termbase_authority if termbase_authority is not None else result.get("termbase_governance")
+    termbase_identity = effective_termbase_identity(root, termbase_authority=declared_authority)
     termbase_hash = termbase_identity.get("hash") if termbase_identity else None
     if require_sources and termbase_hash is None and (not _is_unset(result.get("termbase_hash")) or _nested_hash(result.get("termbase_identity")) is not None):
         raise EvidenceValidationError("candidate termbase is unavailable for verification")
@@ -949,9 +941,9 @@ def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subjec
         if current_identity is not None and not _is_unset(current_identity) and not isinstance(current_identity, dict):
             raise EvidenceValidationError("candidate termbase_identity must be an object")
         if isinstance(current_identity, dict):
-            for key in ("version", "hash"):
+            for key in ("version", "hash", "schema_version", "governance_identity", "policy_identity", "authorization_identity", "order_identity", "core_identity", "core", "overlays", "overlay_order"):
                 declared = current_identity.get(key)
-                if not _is_unset(declared) and declared != termbase_identity[key]:
+                if not _is_unset(declared) and declared != termbase_identity.get(key):
                     raise EvidenceValidationError("candidate termbase_identity disagrees with effective terminology")
         result["termbase_identity"] = dict(termbase_identity)
     if termbase_hash is not None:
@@ -1120,6 +1112,42 @@ def _hash_field_resolved(candidate: dict[str, Any], field: str, nested_field: st
     return True
 
 
+def _governed_termbase_identity_resolved(value: Any) -> bool:
+    """Require governance provenance in addition to the effective hash."""
+
+    if not isinstance(value, dict):
+        return False
+    required = ("schema_version", "governance_identity", "policy_identity", "authorization_identity", "order_identity", "version", "hash", "effective_hash", "core", "overlays", "overlay_order")
+    if any(_is_unset(value.get(key)) for key in required):
+        return False
+    try:
+        _require_hex(str(value["hash"]), "termbase_identity.hash")
+        _require_hex(str(value["effective_hash"]), "termbase_identity.effective_hash")
+    except EvidenceValidationError:
+        return False
+    core = value.get("core")
+    if not isinstance(core, dict) or any(_is_unset(core.get(key)) for key in ("identity", "version", "sha256", "scope", "scope_ref")):
+        return False
+    try:
+        _require_hex(str(core["sha256"]), "termbase_identity.core.sha256")
+    except EvidenceValidationError:
+        return False
+    overlays = value.get("overlays")
+    order = value.get("overlay_order")
+    if not isinstance(overlays, list) or not isinstance(order, list):
+        return False
+    if len(overlays) != len(order):
+        return False
+    for overlay in overlays:
+        if not isinstance(overlay, dict) or any(_is_unset(overlay.get(key)) for key in ("identity", "version", "sha256", "scope", "scope_ref", "order", "authorization_identity")):
+            return False
+        try:
+            _require_hex(str(overlay["sha256"]), "termbase_identity.overlay.sha256")
+        except EvidenceValidationError:
+            return False
+    return True
+
+
 def _retention_policy_missing(candidate_spec: dict[str, Any]) -> list[str]:
     if "retention_days" in candidate_spec:
         return ["retention_policy.migration_required"]
@@ -1165,7 +1193,7 @@ def candidate_completeness(candidate_spec: dict[str, Any], state: str) -> list[s
         elif field in {"ocr_asset_manifest_sha256", "constraints_sha256", "termbase_hash", "resolved_dependency_set_sha256"}:
             valid = _hash_field_resolved(candidate_spec, field)
         elif field == "termbase_identity":
-            valid = _hash_field_resolved(candidate_spec, field, nested_field="hash")
+            valid = _governed_termbase_identity_resolved(candidate_spec.get(field))
         elif field in {"kslide_version", "opencode_version", "paddle_version", "paddleocr_version", "python_version", "libreoffice_version"}:
             try:
                 canonical_exact_version(candidate_spec.get(field), field)
@@ -1208,7 +1236,7 @@ def canonical_candidate_factors(candidate_spec: dict[str, Any]) -> dict[str, Any
     """Return the explicit, path/timestamp-free candidate identity factors."""
 
     normalized = _normalize_candidate_mapping(dict(candidate_spec), strict=True)
-    factors = {key: normalized.get(key) for key in CANDIDATE_INPUT_FIELDS if key in normalized and key not in {"ocr_asset_manifest", "ocr_asset_manifest_sha256"}}
+    factors = {key: normalized.get(key) for key in CANDIDATE_INPUT_FIELDS if key in normalized and key not in {"ocr_asset_manifest", "ocr_asset_manifest_sha256", "termbase_governance"}}
     factors["ocr_asset_manifest_sha256"] = normalized.get("ocr_asset_manifest_sha256")
     factors["candidate_spec_version"] = str(normalized.get("candidate_spec_version", candidate_spec.get("schema_version", CANDIDATE_SPEC_SCHEMA_VERSION)))
     return factors

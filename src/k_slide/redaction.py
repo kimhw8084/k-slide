@@ -55,6 +55,11 @@ def _secret_values(values: Iterable[str]) -> tuple[str, ...]:
 def _is_secret_key(key: str) -> bool:
     """Recognize secret-bearing field names without matching ordinary tokens."""
 
+    # Governed terminology identities are opaque, source-free deployment
+    # references. They are not credentials and must remain re-derivable in
+    # candidate/run metadata; the authority boundary is still external.
+    if key.lower() in {"authorization_identity", "governance_identity", "policy_identity", "order_identity", "core_identity"}:
+        return False
     return _SECRET_KEY.search(key) is not None
 
 

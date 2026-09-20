@@ -421,30 +421,45 @@ class CertificationClosureTests(unittest.TestCase):
             root = Path(directory)
             (root / "termbase").mkdir()
             _write(root / "termbase" / "core.json", core)
-            (root / ".k-slide-config").mkdir()
-            _write(root / ".k-slide-config" / "termbase.local.json", overlay)
-            first = effective_termbase_identity(root)
+            (root / "termbase" / "overlays").mkdir()
+            overlay_path = root / "termbase" / "overlays" / "corporate.json"
+            _write(overlay_path, overlay)
+            authority = {
+                "governance_identity": "test-governance-v1",
+                "policy_identity": "test-policy-v1",
+                "authorization_identity": "test-authority-v1",
+                "core": {"identity": "core-test-v1", "version": "1.0", "sha256": _sha(root / "termbase" / "core.json"), "path": "termbase/core.json"},
+                "overlays": [{"identity": "corporate-test-v1", "version": "1.0", "sha256": _sha(overlay_path), "path": "termbase/overlays/corporate.json", "scope": "BU", "scope_ref": "corporate", "authorization_identity": "corporate-authority-v1"}],
+                "overlay_order": ["corporate-test-v1"],
+                "order_identity": "single",
+            }
+            first = effective_termbase_identity(root, termbase_authority=authority)
             self.assertIsNotNone(first)
             moved = root / "moved"
             (moved / "termbase").mkdir(parents=True)
             _write(moved / "termbase" / "core.json", core)
-            (moved / ".k-slide-config").mkdir()
-            _write(moved / ".k-slide-config" / "termbase.local.json", overlay)
-            self.assertEqual(first, effective_termbase_identity(moved))
+            (moved / "termbase" / "overlays").mkdir()
+            _write(moved / "termbase" / "overlays" / "corporate.json", overlay)
+            self.assertEqual(first, effective_termbase_identity(moved, termbase_authority=authority))
             overlay["records"][0]["preferred"]["default"] = "upgrade"
-            _write(root / ".k-slide-config" / "termbase.local.json", overlay)
-            changed = effective_termbase_identity(root)
+            _write(overlay_path, overlay)
+            authority["overlays"][0]["sha256"] = _sha(overlay_path)
+            changed = effective_termbase_identity(root, termbase_authority=authority)
             self.assertNotEqual(first, changed)
             overlay["records"][0]["status"] = "PREFERRED"
-            _write(root / ".k-slide-config" / "termbase.local.json", overlay)
-            self.assertNotEqual(changed, effective_termbase_identity(root))
-            (root / ".k-slide-config" / "termbase.local.json").unlink()
-            self.assertNotEqual(first, effective_termbase_identity(root))
-            conflicting = {"version": "1.0", "records": [{"source": "검토", "preferred": {"default": "review"}, "status": "LOCKED"}]}
-            _write(root / ".k-slide-config" / "termbase.local.json", conflicting)
-            _write(root / "termbase" / "core.json", {**core, "records": [{**core["records"][0], "status": "LOCKED"}]})
+            _write(overlay_path, overlay)
+            authority["overlays"][0]["sha256"] = _sha(overlay_path)
+            self.assertNotEqual(changed, effective_termbase_identity(root, termbase_authority=authority))
+            overlay_path.unlink()
             with self.assertRaises(EvidenceValidationError):
-                effective_termbase_identity(root)
+                effective_termbase_identity(root, termbase_authority=authority)
+            conflicting = {"version": "1.0", "records": [{"source": "검토", "preferred": {"default": "review"}, "status": "LOCKED"}]}
+            _write(overlay_path, conflicting)
+            authority["overlays"][0]["sha256"] = _sha(overlay_path)
+            _write(root / "termbase" / "core.json", {**core, "records": [{**core["records"][0], "status": "LOCKED"}]})
+            authority["core"]["sha256"] = _sha(root / "termbase" / "core.json")
+            with self.assertRaises(EvidenceValidationError):
+                effective_termbase_identity(root, termbase_authority=authority)
 
     def test_effective_termbase_hash_is_bound_by_candidate_resolution(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -456,8 +471,8 @@ class CertificationClosureTests(unittest.TestCase):
             self.assertEqual(candidate["termbase_hash"], before["hash"])
             (root / ".k-slide-config").mkdir()
             _write(root / ".k-slide-config" / "termbase.local.json", {"version": "1.0", "records": [{"source": "비공개", "preferred": {"default": "private"}, "status": "PREFERRED"}]})
-            after = effective_termbase_identity(root)
-            self.assertNotEqual(before, after)
+            with self.assertRaises(EvidenceValidationError):
+                effective_termbase_identity(root)
             candidate["termbase_hash"] = "a" * 64
             with self.assertRaises(EvidenceValidationError):
                 resolve_candidate_spec(candidate, root=root, subject_git_sha="a" * 40, model_policy=load_model_policy(), corpus=candidate["corpus_identity"])
@@ -1024,19 +1039,23 @@ class CertificationClosureTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / ".k-slide-config").mkdir()
+            (root / "termbase").mkdir()
+            (root / "termbase" / "core.json").write_bytes((Path.cwd() / "termbase" / "core.json").read_bytes())
+            (root / "termbase" / "overlays").mkdir()
             overlay = {"version": "1.0", "records": [{"term_id": "private-1", "source": "사내어", "preferred": {"default": "internal term"}, "status": "LOCKED", "scope": ["corporate"]}]}
-            _write(root / ".k-slide-config" / "termbase.local.json", overlay)
-            identity = effective_termbase_identity(root)
+            overlay_path = root / "termbase" / "overlays" / "corporate.json"
+            _write(overlay_path, overlay)
+            authority = {"governance_identity": "test-governance-v1", "policy_identity": "test-policy-v1", "authorization_identity": "test-authority-v1", "core": {"identity": "core-test-v1", "version": "1.0", "sha256": _sha(root / "termbase" / "core.json"), "path": "termbase/core.json"}, "overlays": [{"identity": "corporate-test-v1", "version": "1.0", "sha256": _sha(overlay_path), "path": "termbase/overlays/corporate.json", "scope": "BU", "scope_ref": "corporate", "authorization_identity": "corporate-authority-v1"}], "overlay_order": ["corporate-test-v1"], "order_identity": "single"}
+            identity = effective_termbase_identity(root, termbase_authority=authority)
             self.assertIsNotNone(identity)
-            runner = OpenCodeEvalRunner(model="google/gemma-4-31b-it", candidate_spec={"termbase_identity": identity}, candidate_root=root, opencode="/missing/opencode")
+            runner = OpenCodeEvalRunner(model="google/gemma-4-31b-it", candidate_spec={"termbase_identity": identity}, candidate_root=root, termbase_authority=authority, opencode="/missing/opencode")
             workspace = root / "workspace"
             install(Path.cwd(), workspace, scope="project")
             copied = runner._prepare_candidate_termbase(workspace)
             self.assertIsNotNone(copied)
-            self.assertEqual(effective_termbase_identity(workspace), identity)
+            self.assertEqual(effective_termbase_identity(workspace, termbase_authority=authority), identity)
             copied.unlink()
-            _write(root / ".k-slide-config" / "termbase.local.json", {**overlay, "records": [{**overlay["records"][0], "preferred": {"default": "changed"}}]})
+            _write(overlay_path, {**overlay, "records": [{**overlay["records"][0], "preferred": {"default": "changed"}}]})
             with self.assertRaises(EvidenceValidationError):
                 runner._prepare_candidate_termbase(workspace)
 
@@ -1046,16 +1065,19 @@ class CertificationClosureTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / ".k-slide-config").mkdir()
+            (root / "termbase").mkdir()
+            (root / "termbase" / "core.json").write_bytes((Path.cwd() / "termbase" / "core.json").read_bytes())
+            (root / "termbase" / "overlays").mkdir()
             overlay = {"version": "1.0", "records": [{"term_id": "private-2", "source": "계약", "preferred": {"default": "agreement"}, "status": "PREFERRED"}]}
-            overlay_path = root / ".k-slide-config" / "termbase.local.json"
+            overlay_path = root / "termbase" / "overlays" / "corporate.json"
             _write(overlay_path, overlay)
-            identity = effective_termbase_identity(root)
+            authority = {"governance_identity": "test-governance-v1", "policy_identity": "test-policy-v1", "authorization_identity": "test-authority-v1", "core": {"identity": "core-test-v1", "version": "1.0", "sha256": _sha(root / "termbase" / "core.json"), "path": "termbase/core.json"}, "overlays": [{"identity": "corporate-test-v1", "version": "1.0", "sha256": _sha(overlay_path), "path": "termbase/overlays/corporate.json", "scope": "BU", "scope_ref": "corporate", "authorization_identity": "corporate-authority-v1"}], "overlay_order": ["corporate-test-v1"], "order_identity": "single"}
+            identity = effective_termbase_identity(root, termbase_authority=authority)
             _write(overlay_path, {**overlay, "records": [{**overlay["records"][0], "preferred": {"default": "contract"}}]})
             fake = root / "opencode"
             fake.write_text("#!/bin/sh\nprintf '1.3.9\\n'\n", encoding="utf-8")
             fake.chmod(0o755)
-            runner = OpenCodeEvalRunner(model="google/gemma-4-31b-it", opencode=str(fake), candidate_spec={"termbase_identity": identity}, candidate_root=root)
+            runner = OpenCodeEvalRunner(model="google/gemma-4-31b-it", opencode=str(fake), candidate_spec={"termbase_identity": identity}, candidate_root=root, termbase_authority=authority)
             workspace = root / "workspace"
             install(Path.cwd(), workspace, scope="project")
             with patch("k_slide.installer.install"), patch("evals.opencode_runner._version", return_value="1.3.9"), patch("evals.opencode_runner.subprocess.Popen") as popen:

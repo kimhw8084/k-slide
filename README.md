@@ -118,6 +118,23 @@ DEVELOPMENT template. Accordingly, the public security workflow publishes
 scanner reports but marks its result `NOT_CERTIFYING` until a complete private
 candidate is supplied.
 
+### Governed terminology
+
+The effective production termbase is the centrally governed `termbase/core.json`
+plus zero or more overlays returned by an injected deployment/workspace
+`TermbaseGovernanceAdapter`. Overlay authority must identify BU/team scope,
+authorization identity, version, content hash, and authorized order. The
+core/BU/team hierarchy is deterministic; same-precedence ambiguity and a
+lower-authority override of a higher `LOCKED` term fail closed. The complete
+source-free authority and semantic identity is bound into the candidate and
+existing KSA-10 run/environment identity.
+
+The repository does not implement a company membership directory, RBAC/IAM
+system, or live terminology service. Generic
+`.k-slide-config/termbase.local.json` and arbitrary run overrides are
+non-authoritative; explicit reference fixtures are development-only and cannot
+qualify certification or production.
+
 The canonical runtime artifact is built with
 `PYTHONPATH=src:. python scripts/build_runtime_artifact.py build`. It consumes
 the committed `deploy/runtime/production-requirements.lock` and
