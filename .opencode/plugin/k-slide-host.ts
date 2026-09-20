@@ -1,5 +1,5 @@
 import type { Part } from "@opencode-ai/sdk"
-import type { Plugin } from "@opencode-ai/plugin"
+import type { Config, Plugin } from "@opencode-ai/plugin"
 import { createHash, randomBytes } from "node:crypto"
 import { chmod, lstat, mkdtemp, open, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
@@ -29,12 +29,46 @@ const APPROVED_PROVIDER_ID = "google"
 const APPROVED_MODEL_ID = "gemma-4-31b-it"
 const APPROVED_API_ID = "gemma-4-31b-it"
 const APPROVED_API_NPM = "@ai-sdk/google"
+const APPROVED_API_URL = "https://generativelanguage.googleapis.com/v1beta"
 const EGRESS_POLICY_SCHEMA_VERSION = "1.0"
 const EGRESS_DEFAULT_ACTION = "deny"
 const EGRESS_CAPABILITY_CLASSES = new Set(["inference_route", "durable_job_control", "scoped_storage", "non_content_telemetry"])
 const EGRESS_CAPABILITY_FIELDS = new Set(["capability_class", "purpose", "service_identity", "route_identity", "endpoint_identity", "data_class"])
 const DATA_URL = /^data:([^;,]+);base64,([A-Za-z0-9+/]*={0,2})$/
 const URI_SCHEME = /^[A-Za-z][A-Za-z\d+.-]*:/
+const IDENTITY = /^[A-Za-z0-9][A-Za-z0-9_.:/@+-]{0,255}$/
+const POLICY_VERSION = /^[A-Za-z0-9][A-Za-z0-9_.:/@+-]{0,127}$/
+const FORBIDDEN_IDENTITY_MARKERS = ["access", "credential", "password", "prompt", "secret", "source_text", "token"]
+const CANDIDATE_SOURCES = [
+  [".k-slide-config", "resolved-candidate.json"],
+  [".k-slide-config", "production-candidate.json"],
+  ["resolved-candidate.json"],
+  ["production-candidate.json"],
+  ["evals", "production-candidate.yaml"],
+] as const
+const ROUTE_CONTROL_KEYS = new Set([
+  "api",
+  "apiid",
+  "apinpm",
+  "apiurl",
+  "backend",
+  "baseurl",
+  "endpoint",
+  "fallback",
+  "host",
+  "headers",
+  "model",
+  "npm",
+  "package",
+  "packagename",
+  "proxy",
+  "provider",
+  "route",
+  "transport",
+  "url",
+  "variants",
+])
+const PROVIDER_ROUTE_KEYS = new Set([...ROUTE_CONTROL_KEYS, "headers", "provider"])
 
 void trustedAccessKey
 
@@ -69,29 +103,110 @@ function normalizedMime(value: unknown): string {
 
 function hasProviderRouteOverride(value: unknown): boolean {
   if (!value || typeof value !== "object") return false
-  const routeKeys = new Set([
-    "api",
-    "apiid",
-    "apinpm",
-    "apiurl",
-    "baseurl",
-    "endpoint",
-    "fallback",
-    "host",
-    "model",
-    "npm",
-    "package",
-    "packagename",
-    "proxy",
-    "provider",
-    "route",
-    "transport",
-    "url",
-  ])
   return Object.entries(value).some(([key, child]) => {
     const normalized = key.toLowerCase().replaceAll("_", "").replaceAll("-", "")
-    return routeKeys.has(normalized) || (child && typeof child === "object" && hasProviderRouteOverride(child))
+    return ROUTE_CONTROL_KEYS.has(normalized) || (child && typeof child === "object" && hasProviderRouteOverride(child))
   })
+}
+
+function hasModelRouteOverride(value: unknown): boolean {
+  return hasUnsafeRouteOverride(value, true)
+}
+
+function hasProviderConfigRouteOverride(value: unknown): boolean {
+  if (!isRecord(value)) return false
+  return Object.entries(value).some(([key, child]) => key !== "models" && hasUnsafeRouteEntry(key, child, false))
+}
+
+function hasUnsafeRouteEntry(key: string, child: unknown, modelContext: boolean): boolean {
+  const normalized = key.toLowerCase().replaceAll("_", "").replaceAll("-", "")
+  if (normalized === "id") return modelContext && child !== APPROVED_API_ID
+  if (normalized === "provider") return !isRecord(child) || hasUnsafeRouteOverride(child, false)
+  if (normalized === "options") return hasUnsafeRouteOverride(child, true)
+  if (normalized === "headers") return true
+  if (!PROVIDER_ROUTE_KEYS.has(normalized) && !ROUTE_CONTROL_KEYS.has(normalized)) return isRecord(child) && hasUnsafeRouteOverride(child, modelContext)
+  if (normalized === "npm" || normalized === "apinpm") return child !== APPROVED_API_NPM
+  if (normalized === "apiid") return child !== APPROVED_API_ID
+  if (normalized === "api") return modelContext || child !== APPROVED_API_URL
+  if (normalized === "apiurl" || normalized === "baseurl" || normalized === "endpoint" || normalized === "host" || normalized === "url") return true
+  return true
+}
+
+function hasUnsafeRouteOverride(value: unknown, modelContext = false): boolean {
+  if (!value || typeof value !== "object") return false
+  return Object.entries(value).some(([key, child]) => hasUnsafeRouteEntry(key, child, modelContext))
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value))
+}
+
+function providerIDForModel(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined
+  const separator = value.indexOf("/")
+  if (separator <= 0) return undefined
+  return value.slice(0, separator)
+}
+
+function addDisabledProvider(config: Record<string, unknown>, providerID: string): void {
+  if (!providerID) return
+  const existing = Array.isArray(config.disabled_providers) ? config.disabled_providers.filter((value): value is string => typeof value === "string") : []
+  config.disabled_providers = [...new Set([...existing, providerID])]
+}
+
+function targetModelsFromConfig(config: Record<string, unknown>): string[] {
+  const targets: string[] = []
+  for (const section of [config.agent, config.mode]) {
+    if (!isRecord(section)) continue
+    const agent = section[K_SLIDE_AGENT]
+    if (isRecord(agent) && typeof agent.model === "string") targets.push(agent.model)
+  }
+  if (!targets.length && typeof config.model === "string") targets.push(config.model)
+  if (!targets.length) targets.push(`${APPROVED_PROVIDER_ID}/${APPROVED_MODEL_ID}`)
+  return targets
+}
+
+function targetProviderConfig(config: Record<string, unknown>, providerID: string, modelID: string): Record<string, unknown> | undefined {
+  const providers = isRecord(config.provider) ? config.provider : undefined
+  const provider = providers && isRecord(providers[providerID]) ? providers[providerID] : undefined
+  if (!provider) return undefined
+  if (hasProviderConfigRouteOverride(provider)) return provider
+  const models = isRecord(provider.models) ? provider.models : undefined
+  if (!models) return undefined
+  for (const [configuredID, value] of Object.entries(models)) {
+    if (!isRecord(value)) continue
+    if (configuredID === modelID || value.id === modelID) {
+      if (hasModelRouteOverride(value)) return value
+    }
+  }
+  return undefined
+}
+
+/**
+ * OpenCode v1.3.9 calls this config hook during bootstrap before any session
+ * can resolve Provider.getLanguage. Config-hook exceptions are swallowed by
+ * OpenCode, so this gate only mutates the merged config and never throws.
+ */
+export function protectKSlideProviderConfig(config: Record<string, unknown>): void {
+  const targets = targetModelsFromConfig(config)
+  for (const target of targets) {
+    const providerID = providerIDForModel(target)
+    const modelID = providerID ? target.slice(providerID.length + 1) : undefined
+    if (!providerID || !modelID) {
+      addDisabledProvider(config, APPROVED_PROVIDER_ID)
+      continue
+    }
+    if (providerID !== APPROVED_PROVIDER_ID || modelID !== APPROVED_MODEL_ID) {
+      addDisabledProvider(config, providerID)
+      continue
+    }
+    if (targetProviderConfig(config, providerID, modelID)) addDisabledProvider(config, providerID)
+    for (const section of [config.agent, config.mode]) {
+      if (!isRecord(section)) continue
+      const agent = section[K_SLIDE_AGENT]
+      if (isRecord(agent) && hasUnsafeRouteOverride(agent.options, true)) addDisabledProvider(config, providerID)
+    }
+  }
 }
 
 function canonicalJson(value: unknown): string {
@@ -99,7 +214,7 @@ function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item)).join(",")}]`
   if (typeof value === "object") {
     return `{${Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => left.localeCompare(right))
+      .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
       .map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`)
       .join(",")}}`
   }
@@ -112,6 +227,14 @@ function sha256Text(value: string): string {
 
 function isSha256(value: unknown): value is string {
   return typeof value === "string" && /^[0-9a-f]{64}$/.test(value)
+}
+
+function isIdentity(value: unknown): value is string {
+  return typeof value === "string" && IDENTITY.test(value) && !value.includes("://") && !value.startsWith("/") && !value.startsWith("\\") && !FORBIDDEN_IDENTITY_MARKERS.some((marker) => value.toLowerCase().includes(marker))
+}
+
+function isPolicyVersion(value: unknown): value is string {
+  return typeof value === "string" && POLICY_VERSION.test(value)
 }
 
 export function opencodeRouteIdentity(route: { providerID: string; modelID: string; apiID: string; apiNpm: string; apiURL: string }): string {
@@ -155,13 +278,13 @@ async function readUtf8(filePath: string): Promise<string> {
   }
 }
 
-function assertPolicyShape(value: unknown): { endpointIdentity: string; policyVersion: string; policyHash: string; policyIdentity: string } {
+function assertPolicyShape(value: unknown): { endpointIdentity: string; routeIdentity: string; policyVersion: string; policyHash: string; policyIdentity: string } {
   if (!value || typeof value !== "object") throw new Error("K-Slide deployment policy is malformed.")
   const policy = value as Record<string, unknown>
   if (new Set(Object.keys(policy)).size !== 6 || !["schema_version", "policy_version", "policy_hash", "policy_identity", "default_action", "capabilities"].every((key) => key in policy)) {
     throw new Error("K-Slide deployment policy is malformed.")
   }
-  if (policy.schema_version !== EGRESS_POLICY_SCHEMA_VERSION || policy.default_action !== EGRESS_DEFAULT_ACTION || typeof policy.policy_version !== "string" || !policy.policy_version || !isSha256(policy.policy_hash) || !isSha256(policy.policy_identity) || !Array.isArray(policy.capabilities) || policy.capabilities.length !== 4) {
+  if (policy.schema_version !== EGRESS_POLICY_SCHEMA_VERSION || policy.default_action !== EGRESS_DEFAULT_ACTION || !isPolicyVersion(policy.policy_version) || !isSha256(policy.policy_hash) || !isSha256(policy.policy_identity) || !Array.isArray(policy.capabilities) || policy.capabilities.length !== 4) {
     throw new Error("K-Slide deployment policy is malformed.")
   }
   const capabilities = policy.capabilities.map((item) => {
@@ -171,7 +294,7 @@ function assertPolicyShape(value: unknown): { endpointIdentity: string; policyVe
       throw new Error("K-Slide deployment policy is malformed.")
     }
     const capabilityClass = capability.capability_class
-    if (typeof capabilityClass !== "string" || !EGRESS_CAPABILITY_CLASSES.has(capabilityClass) || typeof capability.purpose !== "string" || typeof capability.service_identity !== "string") {
+    if (typeof capabilityClass !== "string" || !EGRESS_CAPABILITY_CLASSES.has(capabilityClass) || typeof capability.purpose !== "string" || !isIdentity(capability.service_identity)) {
       throw new Error("K-Slide deployment policy is malformed.")
     }
     const expectedPurpose: Record<string, string> = {
@@ -188,7 +311,7 @@ function assertPolicyShape(value: unknown): { endpointIdentity: string; policyVe
     }
     if (capability.purpose !== expectedPurpose[capabilityClass] || capability.data_class !== expectedDataClass[capabilityClass]) throw new Error("K-Slide deployment policy is malformed.")
     if (capabilityClass === "inference_route") {
-      if (typeof capability.route_identity !== "string" || !capability.route_identity || !isSha256(capability.endpoint_identity)) throw new Error("K-Slide deployment policy is malformed.")
+      if (!isIdentity(capability.route_identity) || !isSha256(capability.endpoint_identity)) throw new Error("K-Slide deployment policy is malformed.")
     } else if (capability.route_identity !== null || capability.endpoint_identity !== null) {
       throw new Error("K-Slide deployment policy is malformed.")
     }
@@ -200,38 +323,136 @@ function assertPolicyShape(value: unknown): { endpointIdentity: string; policyVe
       endpoint_identity: capability.endpoint_identity,
       data_class: capability.data_class,
     }
-  }).sort((left, right) => left.capability_class.localeCompare(right.capability_class))
+  }).sort((left, right) => left.capability_class < right.capability_class ? -1 : left.capability_class > right.capability_class ? 1 : 0)
   if (new Set(capabilities.map((item) => item.capability_class)).size !== 4) throw new Error("K-Slide deployment policy is malformed.")
   const expectedHash = sha256Text(canonicalJson({ schema_version: EGRESS_POLICY_SCHEMA_VERSION, policy_version: policy.policy_version, default_action: EGRESS_DEFAULT_ACTION, capabilities }))
   const expectedIdentity = sha256Text(canonicalJson({ schema_version: EGRESS_POLICY_SCHEMA_VERSION, policy_version: policy.policy_version, policy_hash: expectedHash }))
   if (policy.policy_hash !== expectedHash || policy.policy_identity !== expectedIdentity) throw new Error("K-Slide deployment policy is malformed.")
   const inference = capabilities.find((item) => item.capability_class === "inference_route")
   if (!inference || !isSha256(inference.endpoint_identity)) throw new Error("K-Slide deployment policy is malformed.")
-  return { endpointIdentity: inference.endpoint_identity, policyVersion: policy.policy_version, policyHash: policy.policy_hash, policyIdentity: policy.policy_identity }
+  return { endpointIdentity: inference.endpoint_identity as string, routeIdentity: inference.route_identity as string, policyVersion: policy.policy_version as string, policyHash: policy.policy_hash as string, policyIdentity: policy.policy_identity as string }
 }
 
-async function deploymentBoundRouteIdentity(worktree: string): Promise<string> {
+function candidateScalar(raw: string): unknown {
+  const value = raw.trim()
+  if (!value) return {}
+  if (value === "null" || value === "NULL" || value === "~") return null
+  if (value.toLowerCase() === "true") return true
+  if (value.toLowerCase() === "false") return false
+  try {
+    return JSON.parse(value)
+  } catch {
+    return value.replace(/^(?:"([\s\S]*)"|'([\s\S]*)')$/, (_match, doubleQuoted, singleQuoted) => doubleQuoted ?? singleQuoted)
+  }
+}
+
+function parseCandidateYaml(text: string): Record<string, unknown> {
+  const root: Record<string, unknown> = {}
+  const stack: Array<{ indent: number; value: Record<string, unknown> | unknown[] }> = [{ indent: -1, value: root }]
+  for (const raw of text.split(/\r?\n/)) {
+    if (!raw.trim() || raw.trimStart().startsWith("#")) continue
+    const indent = raw.length - raw.trimStart().length
+    const line = raw.trim()
+    while (stack.length && indent <= stack[stack.length - 1].indent) stack.pop()
+    const parent = stack[stack.length - 1]?.value
+    if (!parent) throw new Error("K-Slide deployment candidate is malformed.")
+    if (line.startsWith("- ")) {
+      if (!Array.isArray(parent)) throw new Error("K-Slide deployment candidate is malformed.")
+      parent.push(candidateScalar(line.slice(2)))
+      continue
+    }
+    const separator = line.indexOf(":")
+    if (separator <= 0 || !isRecord(parent)) throw new Error("K-Slide deployment candidate is malformed.")
+    const key = line.slice(0, separator).trim()
+    const rawValue = line.slice(separator + 1)
+    const value = rawValue.trim() ? candidateScalar(rawValue) : {}
+    parent[key] = value
+    if (!rawValue.trim()) stack.push({ indent, value: value as Record<string, unknown> })
+  }
+  return root
+}
+
+function normalizeCandidate(value: unknown): Record<string, unknown> {
+  if (!isRecord(value)) throw new Error("K-Slide deployment candidate is malformed.")
+  const nested = isRecord(value.candidate_spec) ? { ...value.candidate_spec } : {}
+  for (const [key, child] of Object.entries(value)) {
+    if (key !== "candidate_spec") nested[key] = child
+  }
+  return nested
+}
+
+async function readCandidate(filePath: string): Promise<Record<string, unknown>> {
+  const rawText = await readUtf8(filePath)
+  const parsed = path.extname(filePath).toLowerCase() === ".json" ? JSON.parse(rawText) : parseCandidateYaml(rawText)
+  return normalizeCandidate(parsed)
+}
+
+function candidateRouteBinding(value: Record<string, unknown>): Record<string, unknown> | undefined {
+  const fields = ["candidate_spec_version", "schema_version", "requested_model", "effective_model", "provider", "opencode_version", "network_egress", "inference_route_identity", "inference_endpoint_identity", "egress_policy_version", "egress_policy_hash", "egress_policy_identity"]
+  const binding = Object.fromEntries(fields.filter((field) => field in value).map((field) => [field, value[field]]))
+  const unresolved = ["requested_model", "effective_model", "provider", "opencode_version", "network_egress", "inference_route_identity", "inference_endpoint_identity", "egress_policy_version", "egress_policy_hash", "egress_policy_identity"].some((field) => {
+    const child = binding[field]
+    return child === undefined || child === null || child === "" || (typeof child === "string" && ["UNSET", "NOT_YET_CONFIGURED"].includes(child.toUpperCase()))
+  })
+  return unresolved ? undefined : binding
+}
+
+function assertCandidateBinding(value: Record<string, unknown>, policy: { endpointIdentity: string; routeIdentity: string; policyVersion: string; policyHash: string; policyIdentity: string }): void {
+  const schemaVersion = value.candidate_spec_version ?? value.schema_version
+  if (schemaVersion !== "1.1") throw new Error("K-Slide deployment candidate is unresolved or malformed.")
+  const expected: Record<string, unknown> = {
+    requested_model: `${APPROVED_PROVIDER_ID}/${APPROVED_MODEL_ID}`,
+    effective_model: `${APPROVED_PROVIDER_ID}/${APPROVED_MODEL_ID}`,
+    provider: APPROVED_PROVIDER_ID,
+    opencode_version: "1.3.9",
+    network_egress: "default_deny",
+    inference_route_identity: policy.routeIdentity,
+    inference_endpoint_identity: policy.endpointIdentity,
+    egress_policy_version: policy.policyVersion,
+    egress_policy_hash: policy.policyHash,
+    egress_policy_identity: policy.policyIdentity,
+  }
+  for (const [key, expectedValue] of Object.entries(expected)) {
+    const actual = value[key]
+    if (actual === undefined || actual === null || actual === "" || (typeof actual === "string" && ["UNSET", "NOT_YET_CONFIGURED"].includes(actual.toUpperCase())) || actual !== expectedValue) {
+      throw new Error("K-Slide deployment candidate is unresolved or inconsistent.")
+    }
+  }
+  if (!isIdentity(value.inference_route_identity) || !isSha256(value.inference_endpoint_identity) || !isSha256(value.egress_policy_hash) || !isSha256(value.egress_policy_identity)) {
+    throw new Error("K-Slide deployment candidate is malformed.")
+  }
+}
+
+async function candidateSourcePaths(worktree: string): Promise<string[]> {
+  const present: string[] = []
+  for (const parts of CANDIDATE_SOURCES) {
+    const candidatePath = path.join(worktree, ...parts)
+    try {
+      const details = await lstat(candidatePath)
+      if (details.isSymbolicLink() || !details.isFile()) throw new Error("K-Slide deployment candidate is missing or symlinked.")
+      present.push(candidatePath)
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") continue
+      throw error
+    }
+  }
+  if (!present.length) throw new Error("K-Slide deployment candidate is missing.")
+  return present
+}
+
+export async function deploymentBoundRouteIdentity(worktree: string): Promise<string> {
   const policyPath = path.join(worktree, ".k-slide-config", "egress-policy.json")
   try {
     const details = await lstat(policyPath)
     if (!details.isFile() || details.isSymbolicLink()) return ""
     const binding = assertPolicyShape(JSON.parse(await readUtf8(policyPath)))
-    const candidatePath = path.join(worktree, ".k-slide-config", "production-candidate.json")
-    try {
-      const candidateDetails = await lstat(candidatePath)
-      if (!candidateDetails.isFile() || candidateDetails.isSymbolicLink()) return ""
-      const candidateValue = JSON.parse(await readUtf8(candidatePath)) as Record<string, unknown>
-      const candidate = candidateValue.candidate_spec && typeof candidateValue.candidate_spec === "object" ? candidateValue.candidate_spec as Record<string, unknown> : candidateValue
-      for (const [key, expected] of Object.entries({
-        egress_policy_version: binding.policyVersion,
-        egress_policy_hash: binding.policyHash,
-        egress_policy_identity: binding.policyIdentity,
-        inference_endpoint_identity: binding.endpointIdentity,
-      })) {
-        if (candidate[key] !== expected) return ""
-      }
-    } catch (error) {
-      if (!(error && typeof error === "object" && "code" in error && error.code === "ENOENT")) return ""
+    const sources = await candidateSourcePaths(worktree)
+    const candidate = await readCandidate(sources[0])
+    assertCandidateBinding(candidate, binding)
+    for (const source of sources.slice(1)) {
+      const lower = await readCandidate(source)
+      const lowerBinding = candidateRouteBinding(lower)
+      if (lowerBinding && JSON.stringify(lowerBinding) !== JSON.stringify(candidateRouteBinding(candidate))) return ""
     }
     return binding.endpointIdentity
   } catch {
@@ -450,6 +671,9 @@ const KSlideHostPlugin: Plugin = async ({ worktree }) => {
   }
 
   return {
+    config: async (config: Config) => {
+      protectKSlideProviderConfig(config as unknown as Record<string, unknown>)
+    },
     "chat.params": async (input, output) => {
       await assertPinnedKSlideModel(input, worktree, output)
     },
