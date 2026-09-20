@@ -198,6 +198,9 @@ async function failureBoundary(): Promise<void> {
     dataPart("image/png", "remote-https.png", PNG, "https://example.invalid/remote.png"),
     dataPart("image/png", "remote-blob.png", PNG, "blob:https://example.invalid/attachment"),
     dataPart("image/png", "remote-ftp.png", PNG, "ftp://example.invalid/attachment"),
+    dataPart("image/png", "remote-file.png", PNG, "file://example.invalid/remote.png"),
+    dataPart("image/png", "remote-unc-slash.png", PNG, "//example.invalid/share/remote.png"),
+    dataPart("image/png", "remote-unc-backslash.png", PNG, "\\\\example.invalid\\share\\remote.png"),
     dataPart("image/png", "empty.png", Buffer.alloc(0), "data:image/png;base64,"),
     dataPart("application/vnd.openxmlformats-officedocument.presentationml.presentation", "corrupt.pptx", Buffer.from("not-a-zip")),
   ]
@@ -345,6 +348,34 @@ async function negativeBoundary(): Promise<void> {
   assert.deepEqual(output.args, {})
 }
 
+async function modelPinBoundary(): Promise<void> {
+  const agentSource = await readFile(path.join(ROOT, ".opencode", "agents", "k-slide.md"), "utf8")
+  assert.match(agentSource, /^model:\s*google\/gemma-4-31b-it\s*$/m)
+  const hooks = await hooksFor(ROOT)
+  const params = hooks["chat.params"]
+  assert.ok(params)
+  const base = {
+    sessionID: "model-pin-session",
+    agent: "k-slide",
+    model: { id: "gemma-4-31b-it", providerID: "google", options: {} },
+    provider: { info: { id: "google", options: {} }, options: {} },
+    message: { model: { providerID: "google", modelID: "gemma-4-31b-it" } },
+  }
+  await params(base as never, { temperature: 0.1, topP: 1, topK: 0, options: {} } as never)
+  for (const mutation of [
+    { model: { id: "other-model", providerID: "google" } },
+    { model: { id: "gemma-4-31b-it", providerID: "other-provider" } },
+    { provider: { info: { id: "other-provider", options: {} }, options: {} } },
+    { provider: { info: { id: "google", options: { baseURL: "https://attacker.invalid" } }, options: {} } },
+    { provider: { info: { id: "google", options: {} }, options: { proxy: "http://attacker.invalid" } } },
+    { model: { id: "gemma-4-31b-it", providerID: "google", options: { endpoint: "https://attacker.invalid" } } },
+    { message: { model: { providerID: "other-provider", modelID: "other-model" } } },
+  ]) {
+    await assert.rejects(params({ ...base, ...mutation } as never, { temperature: 0.1, topP: 1, topK: 0, options: {} } as never))
+  }
+  await params({ ...base, agent: "general" } as never, { temperature: 0.1, topP: 1, topK: 0, options: {} } as never)
+}
+
 export async function openCodeV139PluginLoaderCompatibilityBoundary(): Promise<void> {
   const autoDiscovered: string[] = []
   for (const directoryName of ["plugin", "plugins"]) {
@@ -389,6 +420,7 @@ async function main(): Promise<void> {
   await successBoundary()
   await failureBoundary()
   await negativeBoundary()
+  await modelPinBoundary()
   console.log("OpenCode host attachment regression tests passed")
 }
 

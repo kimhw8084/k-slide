@@ -33,6 +33,7 @@ from k_slide.certification import (
 )
 from k_slide.model_policy import load_model_policy
 from k_slide.classification_policy import load_inference_data_use_policy, policy_completeness
+from k_slide.egress_policy import load_egress_policy, policy_completeness as egress_policy_completeness
 from k_slide.production import ReleaseState
 from k_slide.runtime import discover_runtime
 from k_slide.io import atomic_write_text
@@ -315,6 +316,30 @@ def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, 
         if champion is None or champion_blockers:
             blockers.extend(champion_blockers or ["champion evidence is missing"])
     if state == ReleaseState.PRODUCTION_CERTIFIED.value:
+        try:
+            egress = load_egress_policy(root)
+            ready, detail = egress_policy_completeness(egress)
+            bound = all(
+                candidate_spec.get(field) == actual
+                for field, actual in (
+                    ("egress_policy_version", egress.policy_version),
+                    ("egress_policy_hash", egress.policy_hash),
+                    ("egress_policy_identity", egress.policy_identity),
+                )
+            )
+            inference_policy = candidate_spec.get("inference_data_use_policy") if isinstance(candidate_spec, dict) else None
+            route_consistent = True
+            if isinstance(inference_policy, dict):
+                route_consistent = egress.capability("inference_route").route_identity == inference_policy.get("inference_route_identity")
+            candidate_route = candidate_spec.get("inference_route_identity")
+            if candidate_route not in (None, "", "UNSET"):
+                route_consistent = route_consistent and egress.capability("inference_route").route_identity == candidate_route
+            if candidate_spec.get("network_egress") != "default_deny":
+                blockers.append("candidate network_egress must declare default_deny")
+            if not (ready and bound and route_consistent):
+                blockers.append(f"authoritative default-deny egress policy is unresolved or inconsistent: {detail}")
+        except (KSlideError, OSError, UnicodeError, json.JSONDecodeError, ValueError, TypeError):
+            blockers.append("authoritative default-deny egress policy deployment configuration is missing or invalid")
         # KSA-16 is a separate runtime boundary.  Keep legacy synthetic
         # fixture candidates usable for non-authoritative tests, while any
         # candidate that declares the new route contract must bind the exact
@@ -473,6 +498,13 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
         "runtime_provenance": {"opencode_version": runtime.opencode_version, "model": runtime.reported_model_id, "provider": runtime.provider, "vision_support": runtime.vision_support},
         "runtime": {"opencode_version": candidate.get("opencode_version"), "model": candidate.get("effective_model"), "provider": candidate.get("provider"), "vision_support": candidate.get("vision_settings")},
         "model_policy": policy.as_dict(),
+        "egress_policy": {
+            "policy_version": candidate.get("egress_policy_version"),
+            "policy_hash": candidate.get("egress_policy_hash"),
+            "policy_identity": candidate.get("egress_policy_identity"),
+            "default_action": "deny",
+            "live_network_enforcement": "EXTERNAL_PRODUCTION_CERTIFICATION_GATE",
+        },
         "ocr": {"provider": candidate.get("ocr_provider"), "asset_manifest": safe_relative(manifest_ocr_asset, "OCR asset manifest"), "asset_manifest_sha256": candidate.get("ocr_asset_manifest_sha256") or _sha256(manifest_ocr_asset)},
         "schemas": candidate.get("schema_versions") or repository_schema_versions(),
         "dataset": {"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]},

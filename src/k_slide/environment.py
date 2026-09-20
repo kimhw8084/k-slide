@@ -6,6 +6,7 @@ import json
 import re
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Mapping
 
 from . import (
@@ -23,6 +24,7 @@ from .classification_policy import (
     REFERENCE_POLICY_VERSION,
     REFERENCE_ROUTE_IDENTITY,
 )
+from .egress_policy import EGRESS_POLICY_SCHEMA_VERSION, REFERENCE_EGRESS_POLICY
 
 _REFERENCE_POLICY = InferenceDataUsePolicy.reference()
 
@@ -93,6 +95,9 @@ class RunEnvironmentIdentity:
     inference_data_policy_version: str = REFERENCE_POLICY_VERSION
     inference_data_policy_hash: str = _REFERENCE_POLICY.policy_hash
     inference_data_policy_identity: str = _REFERENCE_POLICY.policy_identity
+    egress_policy_version: str = EGRESS_POLICY_SCHEMA_VERSION
+    egress_policy_hash: str = REFERENCE_EGRESS_POLICY.policy_hash
+    egress_policy_identity: str = REFERENCE_EGRESS_POLICY.policy_identity
     execution_contract_version: str = EXECUTION_CONTRACT_VERSION
     run_store_schema_version: str = RUN_STORE_SCHEMA_VERSION
     evidence_ir_schema_version: str = EVIDENCE_IR_SCHEMA_VERSION
@@ -132,11 +137,14 @@ class RunEnvironmentIdentity:
             (self.ocr_provider, "OCR provider identity"),
             (self.inference_route_identity, "inference route identity"),
             (self.inference_data_policy_version, "inference data-use policy version"),
+            (self.egress_policy_version, "egress policy version"),
         ):
             _text(value, label)
         for value, label in (
             (self.inference_data_policy_hash, "inference data-use policy hash"),
             (self.inference_data_policy_identity, "inference data-use policy identity"),
+            (self.egress_policy_hash, "egress policy hash"),
+            (self.egress_policy_identity, "egress policy identity"),
         ):
             _sha(value, label)
         for value, label in (
@@ -176,6 +184,9 @@ class RunEnvironmentIdentity:
             "inference_data_policy_version": self.inference_data_policy_version,
             "inference_data_policy_hash": self.inference_data_policy_hash,
             "inference_data_policy_identity": self.inference_data_policy_identity,
+            "egress_policy_version": self.egress_policy_version,
+            "egress_policy_hash": self.egress_policy_hash,
+            "egress_policy_identity": self.egress_policy_identity,
             "execution_contract_version": self.execution_contract_version,
             "run_store_schema_version": self.run_store_schema_version,
             "evidence_ir_schema_version": self.evidence_ir_schema_version,
@@ -218,9 +229,10 @@ class RunEnvironmentIdentity:
             "semantic_config_identity", "ocr_asset_identity", "ocr_config_identity", "ocr_provider", "termbase_identity",
             "termbase_version", "inference_route_identity", "inference_data_policy_version", "inference_data_policy_hash",
             "inference_data_policy_identity", "execution_contract_version", "run_store_schema_version", "evidence_ir_schema_version",
-            "translation_patch_schema_version", "slide_ir_schema_version",
+            "translation_patch_schema_version", "slide_ir_schema_version", "egress_policy_version", "egress_policy_hash", "egress_policy_identity",
         }
-        if not isinstance(value, Mapping) or set(value) not in (fields, fields - {"inference_route_identity", "inference_data_policy_version", "inference_data_policy_hash", "inference_data_policy_identity"}):
+        legacy_optional = {"inference_route_identity", "inference_data_policy_version", "inference_data_policy_hash", "inference_data_policy_identity", "egress_policy_version", "egress_policy_hash", "egress_policy_identity"}
+        if not isinstance(value, Mapping) or set(value) not in (fields, fields - legacy_optional):
             raise _invalid("Run environment identity is incomplete.", code=ErrorCode.STATE_CORRUPT)
         try:
             raw = dict(value)
@@ -233,6 +245,17 @@ class RunEnvironmentIdentity:
                         "inference_data_policy_version": reference.policy_version,
                         "inference_data_policy_hash": reference.policy_hash,
                         "inference_data_policy_identity": reference.policy_identity,
+                        "egress_policy_version": REFERENCE_EGRESS_POLICY.policy_version,
+                        "egress_policy_hash": REFERENCE_EGRESS_POLICY.policy_hash,
+                        "egress_policy_identity": REFERENCE_EGRESS_POLICY.policy_identity,
+                    }
+                )
+            elif not all(key in raw for key in ("egress_policy_version", "egress_policy_hash", "egress_policy_identity")):
+                raw.update(
+                    {
+                        "egress_policy_version": REFERENCE_EGRESS_POLICY.policy_version,
+                        "egress_policy_hash": REFERENCE_EGRESS_POLICY.policy_hash,
+                        "egress_policy_identity": REFERENCE_EGRESS_POLICY.policy_identity,
                     }
                 )
             return cls(**raw)
@@ -309,6 +332,20 @@ class RunEnvironmentIdentity:
         policy = InferenceDataUsePolicy.from_mapping(raw_policy)
         if policy.inference_route_identity != route:
             raise _invalid("Run environment inference route/data-use policy identity is inconsistent.")
+        raw_egress = {key: candidate.get(key) for key in ("egress_policy_version", "egress_policy_hash", "egress_policy_identity")}
+        if all(value in (None, "", "UNSET") for value in raw_egress.values()):
+            egress_values = {
+                "egress_policy_version": REFERENCE_EGRESS_POLICY.policy_version,
+                "egress_policy_hash": REFERENCE_EGRESS_POLICY.policy_hash,
+                "egress_policy_identity": REFERENCE_EGRESS_POLICY.policy_identity,
+            }
+        elif any(value in (None, "", "UNSET") for value in raw_egress.values()):
+            raise _invalid("Run environment egress policy identity is incomplete.")
+        else:
+            _text(raw_egress["egress_policy_version"], "egress policy version")
+            _sha(raw_egress["egress_policy_hash"], "egress policy hash")
+            _sha(raw_egress["egress_policy_identity"], "egress policy identity")
+            egress_values = {key: str(value) for key, value in raw_egress.items()}
         candidate_source = candidate.get("subject_git_sha")
         runtime_source = runtime.get("source_revision")
         if runtime_source not in (None, "") and runtime_source != candidate_source:
@@ -371,6 +408,9 @@ class RunEnvironmentIdentity:
             "inference_data_policy_version": policy.policy_version,
             "inference_data_policy_hash": policy.policy_hash,
             "inference_data_policy_identity": policy.policy_identity,
+            "egress_policy_version": egress_values["egress_policy_version"],
+            "egress_policy_hash": egress_values["egress_policy_hash"],
+            "egress_policy_identity": egress_values["egress_policy_identity"],
             "execution_contract_version": candidate.get("execution_contract_version", EXECUTION_CONTRACT_VERSION),
             "run_store_schema_version": candidate.get("run_store_schema_version", RUN_STORE_SCHEMA_VERSION),
             "evidence_ir_schema_version": schema.get("evidence_ir"),
@@ -422,30 +462,52 @@ def ensure_configured_policy_matches_environment(root: "Path", environment: RunE
     """Re-check deployment policy drift before a resumable workspace mutation."""
 
     from .classification_policy import REFERENCE_ROUTE_IDENTITY, load_inference_data_use_policy
+    from .egress_policy import load_egress_policy
 
-    if environment.inference_route_identity == REFERENCE_ROUTE_IDENTITY:
-        return
-    try:
-        configured = load_inference_data_use_policy(root, route_identity=environment.inference_route_identity)
-    except KSlideError as exc:
-        raise KSlideError(
-            ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
-            "Run environment is incompatible; resume was refused.",
-            {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": ["inference_data_policy"]},
-        ) from exc
-    fields = []
-    if configured.policy_version != environment.inference_data_policy_version:
-        fields.append("inference_data_policy_version")
-    if configured.policy_hash != environment.inference_data_policy_hash:
-        fields.append("inference_data_policy_hash")
-    if configured.policy_identity != environment.inference_data_policy_identity:
-        fields.append("inference_data_policy_identity")
-    if fields:
-        raise KSlideError(
-            ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
-            "Run environment is incompatible; resume was refused.",
-            {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": fields},
-        )
+    if environment.inference_route_identity != REFERENCE_ROUTE_IDENTITY:
+        try:
+            configured = load_inference_data_use_policy(root, route_identity=environment.inference_route_identity)
+        except KSlideError as exc:
+            raise KSlideError(
+                ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
+                "Run environment is incompatible; resume was refused.",
+                {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": ["inference_data_policy"]},
+            ) from exc
+        fields = []
+        if configured.policy_version != environment.inference_data_policy_version:
+            fields.append("inference_data_policy_version")
+        if configured.policy_hash != environment.inference_data_policy_hash:
+            fields.append("inference_data_policy_hash")
+        if configured.policy_identity != environment.inference_data_policy_identity:
+            fields.append("inference_data_policy_identity")
+        if fields:
+            raise KSlideError(
+                ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
+                "Run environment is incompatible; resume was refused.",
+                {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": fields},
+            )
+    if environment.egress_policy_identity != REFERENCE_EGRESS_POLICY.policy_identity:
+        try:
+            configured_egress = load_egress_policy(root)
+        except KSlideError as exc:
+            raise KSlideError(
+                ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
+                "Run environment is incompatible; resume was refused.",
+                {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": ["egress_policy"]},
+            ) from exc
+        egress_fields = []
+        if configured_egress.policy_version != environment.egress_policy_version:
+            egress_fields.append("egress_policy_version")
+        if configured_egress.policy_hash != environment.egress_policy_hash:
+            egress_fields.append("egress_policy_hash")
+        if configured_egress.policy_identity != environment.egress_policy_identity:
+            egress_fields.append("egress_policy_identity")
+        if egress_fields:
+            raise KSlideError(
+                ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
+                "Run environment is incompatible; resume was refused.",
+                {"mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH", "mismatch_fields": egress_fields},
+            )
 
 
 def _repository_revision(root: "Path") -> str | None:
@@ -541,6 +603,7 @@ def resolve_effective_environment(root: "Path", *, environment_identity: RunEnvi
             raise _invalid("Approved runtime manifest is not bound to the current K-Slide revision.")
         identity = RunEnvironmentIdentity.from_candidate_spec(candidate, runtime_manifest=runtime)
         from .classification_policy import load_inference_data_use_policy
+        from .egress_policy import load_egress_policy
 
         configured_policy = load_inference_data_use_policy(root, route_identity=identity.inference_route_identity)
         if (
@@ -554,6 +617,20 @@ def resolve_effective_environment(root: "Path", *, environment_identity: RunEnvi
                 {
                     "mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH",
                     "mismatch_fields": ["inference_data_policy"],
+                },
+            )
+        configured_egress = load_egress_policy(root)
+        if (
+            configured_egress.policy_version != identity.egress_policy_version
+            or configured_egress.policy_hash != identity.egress_policy_hash
+            or configured_egress.policy_identity != identity.egress_policy_identity
+        ):
+            raise KSlideError(
+                ErrorCode.EXECUTION_ENVIRONMENT_MISMATCH,
+                "Run environment is incompatible; resume was refused.",
+                {
+                    "mismatch_code": "KSLIDE_RUN_ENVIRONMENT_MISMATCH",
+                    "mismatch_fields": ["egress_policy"],
                 },
             )
     except KSlideError:

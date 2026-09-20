@@ -16,6 +16,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from .egress_policy import EGRESS_CAPABILITY_NON_CONTENT_TELEMETRY, EgressPolicy
 from .errors import ErrorCode, KSlideError
 
 
@@ -45,6 +46,51 @@ _RESERVED_REQUEST_FIELDS = frozenset(
         "port",
         "scheme",
         "transport",
+        "provider",
+        "proxy",
+        "fallback",
+        "model",
+        "model_id",
+        "route",
+        "route_identity",
+        "service_identity",
+        "capability",
+        "purpose",
+    }
+)
+_TELEMETRY_FORBIDDEN_FIELDS = frozenset(
+    {
+        "source",
+        "source_text",
+        "content",
+        "prompt",
+        "media",
+        "image",
+        "audio",
+        "pdf",
+        "credential",
+        "secret",
+        "token",
+        "password",
+        "accesskey",
+        "authorization",
+        "url",
+        "uri",
+        "endpoint",
+        "destination",
+        "redirect",
+        "base_url",
+        "host",
+        "port",
+        "scheme",
+        "transport",
+        "provider",
+        "proxy",
+        "fallback",
+        "model",
+        "model_id",
+        "text",
+        "bytes",
     }
 )
 
@@ -109,6 +155,21 @@ def _normalize_request_value(value: Any) -> Any:
     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Company-service request must contain only serializable values.")
 
 
+def _assert_non_content_telemetry(value: Any) -> None:
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            normalized = key.casefold().replace("-", "_").replace(" ", "_") if isinstance(key, str) else ""
+            if normalized in _TELEMETRY_FORBIDDEN_FIELDS or normalized.endswith("_url") or any(
+                normalized.startswith(prefix)
+                for prefix in ("source_", "content_", "prompt_", "media_", "credential_", "secret_", "token_")
+            ):
+                raise KSlideError(ErrorCode.EGRESS_CAPABILITY_DENIED, "Non-content telemetry cannot carry source content or route controls.")
+            _assert_non_content_telemetry(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            _assert_non_content_telemetry(item)
+
+
 @dataclass(frozen=True)
 class CompanyServiceRequest:
     """Serializable ordinary data for one approved company-service call.
@@ -152,20 +213,56 @@ def _authentication_failure(reason: str) -> KSlideError:
     )
 
 
-def authenticated_company_service_call(
+def _authorize_egress(
+    *,
+    egress_policy: Any | None,
+    capability_class: str | None,
+    purpose: str | None,
+    route_identity: str | None,
+    service_identity: str | None,
+    data_class: str | None,
+    request: CompanyServiceRequest,
+) -> None:
+    if not isinstance(egress_policy, EgressPolicy) or egress_policy.reference_adapter:
+        raise KSlideError(ErrorCode.EGRESS_POLICY_INVALID, "The deployment egress policy is unavailable.")
+    if capability_class is None or purpose is None:
+        raise KSlideError(ErrorCode.EGRESS_CAPABILITY_DENIED, "An engine-selected egress capability is required.")
+    egress_policy.authorize(
+        capability_class,
+        purpose,
+        route_identity=route_identity,
+        service_identity=service_identity,
+        data_class=data_class,
+    )
+    if capability_class == EGRESS_CAPABILITY_NON_CONTENT_TELEMETRY:
+        _assert_non_content_telemetry(request.payload)
+
+
+def _company_service_call(
     transport: ApprovedCompanyServiceTransport,
     request: CompanyServiceRequest | Mapping[str, Any],
+    *,
+    egress_policy: Any | None = None,
+    capability_class: str | None = None,
+    purpose: str | None = None,
+    route_identity: str | None = None,
+    service_identity: str | None = None,
+    data_class: str | None = None,
+    require_egress: bool,
 ) -> object:
-    """Call an injected approved service with an ephemeral process AccessKey.
-
-    ``require_access_key()`` is intentionally called only after request and
-    transport validation, immediately before the authenticated call. The
-    process environment is the only production credential authority; the
-    optional mapping seam on ``require_access_key`` remains for its existing
-    deterministic unit tests and is not exposed here.
-    """
+    """Run the shared credential transport after its selected admission step."""
 
     ordinary_request = request if isinstance(request, CompanyServiceRequest) else CompanyServiceRequest.from_mapping(request)
+    if require_egress:
+        _authorize_egress(
+            egress_policy=egress_policy,
+            capability_class=capability_class,
+            purpose=purpose,
+            route_identity=route_identity,
+            service_identity=service_identity,
+            data_class=data_class,
+            request=ordinary_request,
+        )
     call = getattr(transport, "call", None)
     if not callable(call):
         raise _authentication_failure("transport_unavailable")
@@ -194,6 +291,68 @@ def authenticated_company_service_call(
     finally:
         # Keep the raw value's lifetime bounded to the actual service call.
         del access_key
+
+
+def authenticated_company_service_call(
+    transport: ApprovedCompanyServiceTransport,
+    request: CompanyServiceRequest | Mapping[str, Any],
+    *,
+    egress_policy: Any | None = None,
+    capability_class: str | None = None,
+    purpose: str | None = None,
+    route_identity: str | None = None,
+    service_identity: str | None = None,
+    data_class: str | None = None,
+) -> object:
+    """Call an application-owned service only after deployment egress admission."""
+
+    return _company_service_call(
+        transport,
+        request,
+        egress_policy=egress_policy,
+        capability_class=capability_class,
+        purpose=purpose,
+        route_identity=route_identity,
+        service_identity=service_identity,
+        data_class=data_class,
+        require_egress=True,
+    )
+
+
+def reference_company_service_call(
+    transport: ApprovedCompanyServiceTransport,
+    request: CompanyServiceRequest | Mapping[str, Any],
+) -> object:
+    """Use the explicit KSA-14 reference adapter seam for deterministic tests only."""
+
+    return _company_service_call(transport, request, require_egress=False)
+
+
+def authorized_company_service_call(
+    transport: ApprovedCompanyServiceTransport,
+    request: CompanyServiceRequest | Mapping[str, Any],
+    *,
+    egress_policy: Any,
+    capability_class: str,
+    purpose: str,
+    route_identity: str | None = None,
+    service_identity: str | None = None,
+    data_class: str | None = None,
+) -> object:
+    """Require policy admission for an application-owned outbound call."""
+
+    if egress_policy is None:
+        raise KSlideError(ErrorCode.EGRESS_POLICY_INVALID, "The deployment egress policy is unavailable.")
+    return authenticated_company_service_call(
+        transport,
+        request,
+        egress_policy=egress_policy,
+        capability_class=capability_class,
+        purpose=purpose,
+        route_identity=route_identity,
+        service_identity=service_identity,
+        data_class=data_class,
+    )
 
 
 def authentication_readiness(environment: Mapping[str, object] | None = None) -> AuthenticationReadiness:

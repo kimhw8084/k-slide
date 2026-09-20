@@ -95,6 +95,9 @@ CANDIDATE_INPUT_FIELDS = (
     "model_policy",
     "inference_route_identity",
     "inference_data_use_policy",
+    "egress_policy_version",
+    "egress_policy_hash",
+    "egress_policy_identity",
     "schema_versions",
     RETENTION_POLICY_FIELD,
     "tenant_isolation",
@@ -575,6 +578,9 @@ DEPLOYMENT_PROFILE_FIELDS = (
     RETENTION_POLICY_FIELD,
     "tenant_isolation",
     "network_egress",
+    "egress_policy_version",
+    "egress_policy_hash",
+    "egress_policy_identity",
     "runtime_artifact_identity",
     "runtime_artifact_manifest_sha256",
     "runtime_sbom_sha256",
@@ -965,6 +971,32 @@ def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subjec
             raise EvidenceValidationError("candidate model_policy disagrees with authoritative policy")
         else:
             result["model_policy"] = current_policy
+    egress_path = root / ".k-slide-config" / "egress-policy.json"
+    declared_egress = any(not _is_unset(result.get(field)) for field in ("egress_policy_version", "egress_policy_hash", "egress_policy_identity"))
+    if egress_path.is_file() and not egress_path.is_symlink():
+        from .egress_policy import load_egress_policy
+
+        egress_policy = load_egress_policy(root)
+        for field, actual in (
+            ("egress_policy_version", egress_policy.policy_version),
+            ("egress_policy_hash", egress_policy.policy_hash),
+            ("egress_policy_identity", egress_policy.policy_identity),
+        ):
+            _bind_value(result, field, actual)
+        data_policy = result.get("inference_data_use_policy")
+        if isinstance(data_policy, dict):
+            inference = egress_policy.capability("inference_route")
+            if inference.route_identity != data_policy.get("inference_route_identity"):
+                raise EvidenceValidationError("candidate egress inference route disagrees with inference data-use policy")
+            if not _is_unset(result.get("inference_route_identity")) and inference.route_identity != result.get("inference_route_identity"):
+                raise EvidenceValidationError("candidate egress inference route disagrees with candidate route identity")
+        elif not _is_unset(result.get("inference_route_identity")):
+            if egress_policy.capability("inference_route").route_identity != result.get("inference_route_identity"):
+                raise EvidenceValidationError("candidate egress inference route disagrees with candidate route identity")
+    elif require_sources and declared_egress:
+        raise EvidenceValidationError("candidate egress policy is unavailable for verification")
+    elif declared_egress and any(_is_unset(result.get(field)) for field in ("egress_policy_version", "egress_policy_hash", "egress_policy_identity")):
+        raise EvidenceValidationError("candidate egress policy identity is incomplete")
     if corpus is not None:
         actual_corpus = canonical_corpus_identity(corpus)
         current_corpus = result.get("corpus_identity")
@@ -1135,8 +1167,13 @@ def candidate_completeness(candidate_spec: dict[str, Any], state: str) -> list[s
     if state == "PRODUCTION_CERTIFIED":
         if candidate_spec.get("tenant_isolation") != "workspace_per_session":
             missing.append("tenant_isolation")
-        if candidate_spec.get("network_egress") != "approved_inference_only":
+        if candidate_spec.get("network_egress") != "default_deny":
             missing.append("network_egress")
+        if not _resolved_value(candidate_spec.get("egress_policy_version"), field="egress_policy_version"):
+            missing.append("egress_policy_version")
+        for field in ("egress_policy_hash", "egress_policy_identity"):
+            if not _hash_field_resolved(candidate_spec, field):
+                missing.append(field)
     return sorted(set(missing))
 
 

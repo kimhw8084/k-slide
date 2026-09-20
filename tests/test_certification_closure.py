@@ -40,6 +40,15 @@ from k_slide.certification import (
     write_evidence,
 )
 from k_slide.evidence_adapters import AdapterError, build_machine_evidence, enforce_security_scanners
+from k_slide.egress_policy import (
+    EGRESS_CAPABILITY_DURABLE_JOB_CONTROL,
+    EGRESS_CAPABILITY_INFERENCE_ROUTE,
+    EGRESS_CAPABILITY_NON_CONTENT_TELEMETRY,
+    EGRESS_CAPABILITY_SCOPED_STORAGE,
+    EGRESS_DATA_CLASS_NON_CONTENT,
+    egress_policy_hash_for_mapping,
+    egress_policy_identity_for_mapping,
+)
 from k_slide.model_policy import load_model_policy
 from k_slide.production import ProductionProfile, _asset_manifest_status, _manifest_and_fingerprint_status
 
@@ -183,6 +192,25 @@ def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model
         "repair_policy": {"max_auto_repairs_per_unit": 2},
     }
     split = __import__("evals.scenarios", fromlist=["split_manifest"]).split_manifest()
+    egress_capabilities = [
+        {"capability_class": EGRESS_CAPABILITY_INFERENCE_ROUTE, "purpose": "model_inference", "service_identity": "test-inference-service", "route_identity": "test-inference-route", "data_class": "source_content"},
+        {"capability_class": EGRESS_CAPABILITY_DURABLE_JOB_CONTROL, "purpose": "job_control", "service_identity": "test-job-service", "route_identity": None, "data_class": "operational_metadata"},
+        {"capability_class": EGRESS_CAPABILITY_SCOPED_STORAGE, "purpose": "scoped_storage", "service_identity": "test-storage-service", "route_identity": None, "data_class": "source_content"},
+        {"capability_class": EGRESS_CAPABILITY_NON_CONTENT_TELEMETRY, "purpose": "non_content_telemetry", "service_identity": "test-telemetry-service", "route_identity": None, "data_class": EGRESS_DATA_CLASS_NON_CONTENT},
+    ]
+    egress_version = "test-1"
+    egress_hash = egress_policy_hash_for_mapping(policy_version=egress_version, capabilities=egress_capabilities)
+    egress_policy = {
+        "schema_version": "1.0",
+        "policy_version": egress_version,
+        "policy_hash": egress_hash,
+        "policy_identity": egress_policy_identity_for_mapping(policy_version=egress_version, policy_hash=egress_hash),
+        "default_action": "deny",
+        "capabilities": egress_capabilities,
+    }
+    if root is not None and (root / ".k-slide-config").is_dir():
+        config = root / ".k-slide-config"
+        _write(config / "egress-policy.json", egress_policy)
     candidate = {
         "candidate_spec_version": "1.1",
         "subject_git_sha": subject,
@@ -215,11 +243,17 @@ def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model
         "schema_versions": {"evidence_ir": "1.0", "translation_patch": "1.0", "slide_ir": "1.0"},
         "retention_policy": {"schema_version": "1.0", "content_retention_days": 30, "operational_metadata_retention_days": 60},
         "tenant_isolation": "workspace_per_session",
-        "network_egress": "approved_inference_only",
+        "network_egress": "default_deny",
         "corpus_identity": {"version": "1.0", "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]},
         "constraints_sha256": "UNSET",
         "behavior_configuration": behavior,
     }
+    if root is not None:
+        candidate.update({
+            "egress_policy_version": egress_version,
+            "egress_policy_hash": egress_hash,
+            "egress_policy_identity": egress_policy["policy_identity"],
+        })
     return resolve_candidate_spec(candidate, root=root or Path.cwd(), subject_git_sha=subject, model_policy=load_model_policy(), corpus=candidate["corpus_identity"])  # type: ignore[arg-type]
 
 
@@ -336,6 +370,11 @@ class CertificationClosureTests(unittest.TestCase):
 
     def test_production_completeness_rejects_unset_fields_even_with_valid_shape(self):
         candidate = _candidate_spec("a" * 40, ocr_provider="paddle")
+        candidate.update({
+            "egress_policy_version": "test-1",
+            "egress_policy_hash": "a" * 64,
+            "egress_policy_identity": "b" * 64,
+        })
         candidate["ocr_asset_manifest"] = "ocr/manifest.json"
         candidate["ocr_asset_manifest_sha256"] = "a" * 64
         candidate["resolved_dependency_set_sha256"] = "b" * 64
@@ -1710,7 +1749,11 @@ class CertificationClosureTests(unittest.TestCase):
             with patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"AccessKey": "synthetic-doctor-key", "KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
                 runtime = discover_runtime(root)
                 doctor_result = diagnose(root, production=True)
-            self.assertEqual(doctor_result["overall"], "PASS", msg=json.dumps([item for item in doctor_result["checks"] if item["status"] != "PASS"], indent=2))
+            self.assertEqual(doctor_result["overall"], "WARN", msg=json.dumps([item for item in doctor_result["checks"] if item["status"] != "PASS"], indent=2))
+            self.assertEqual(
+                [item["label"] for item in doctor_result["checks"] if item["status"] == "WARN"],
+                ["Live deployment network enforcement"],
+            )
             alternate_config = asset_dir / "alternate.yaml"
             with patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1", "KSLIDE_PADDLEX_CONFIG": str(alternate_config)}):
                 mismatched_config_doctor = diagnose(root, production=True)
@@ -1843,7 +1886,7 @@ class CertificationClosureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / ".k-slide-config").mkdir()
-            _write(root / ".k-slide-config" / "production-profile.json", {"schema_version": "1.1", "release_state": "PRODUCTION_CERTIFIED", "opencode_version": "1.3.9", "requested_model": "approved:internal", "effective_model": "approved:internal", "ocr_provider": "paddle", "ocr_asset_manifest": "manifest.json", "python_version": "3.11", "paddle_version": "3.0.0", "paddleocr_version": "3.0.3", "libreoffice_version": "25", "retention_policy": {"schema_version": "1.0", "content_retention_days": 30, "operational_metadata_retention_days": 60}, "tenant_isolation": "workspace_per_session", "network_egress": "approved_inference_only", "subject_git_sha": "a" * 40, "deployment_fingerprint": "b" * 64, "certification_fingerprint": "c" * 64, "release_manifest": "manifest.json", "release_manifest_sha256": "d" * 64, "model_data_attestation": "attestation-1"})
+            _write(root / ".k-slide-config" / "production-profile.json", {"schema_version": "1.1", "release_state": "PRODUCTION_CERTIFIED", "opencode_version": "1.3.9", "requested_model": "approved:internal", "effective_model": "approved:internal", "ocr_provider": "paddle", "ocr_asset_manifest": "manifest.json", "python_version": "3.11", "paddle_version": "3.0.0", "paddleocr_version": "3.0.3", "libreoffice_version": "25", "retention_policy": {"schema_version": "1.0", "content_retention_days": 30, "operational_metadata_retention_days": 60}, "tenant_isolation": "workspace_per_session", "network_egress": "default_deny", "subject_git_sha": "a" * 40, "deployment_fingerprint": "b" * 64, "certification_fingerprint": "c" * 64, "release_manifest": "manifest.json", "release_manifest_sha256": "d" * 64, "model_data_attestation": "attestation-1"})
             runtime = RuntimeMetadata(kslide_version="0.3.5", opencode_version="1.3.9", opencode_path=None, opencode_config_path=None, provider="internal", reported_model_id="approved:internal", model_family=None, model_size=None, instruction_tuned_status="unknown", vision_support=True, thinking_support=None, provider_backend=None, quantization_or_dtype=None, context_configuration={}, image_preprocessing_settings={}, model_compatibility="production_candidate", discovery_warnings=[])
             policy_check = next(item for item in production_checks(root, runtime) if item["label"] == "Requested/effective model policy")
             self.assertEqual(policy_check["status"], "FAIL")

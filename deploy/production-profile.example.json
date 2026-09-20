@@ -16,7 +16,10 @@
     "operational_metadata_retention_days": "UNSET"
   },
   "tenant_isolation": "workspace_per_session",
-  "network_egress": "approved_inference_only",
+  "network_egress": "default_deny",
+  "egress_policy_version": "UNSET",
+  "egress_policy_hash": "UNSET",
+  "egress_policy_identity": "UNSET",
   "subject_git_sha": "UNSET",
   "deployment_fingerprint": "UNSET",
   "certification_fingerprint": "UNSET",

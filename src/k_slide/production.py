@@ -43,6 +43,7 @@ from .errors import ErrorCode, KSlideError
 from .authentication import authentication_readiness
 from .model_policy import load_model_policy
 from .classification_policy import load_inference_data_use_policy, policy_completeness
+from .egress_policy import load_egress_policy, policy_completeness as egress_policy_completeness
 from .ocr.policy import OCRProviderPolicy, create_ocr_provider
 from .runtime import RuntimeMetadata
 from .retention_policy import RetentionPolicy, RETENTION_POLICY_FIELD, CONTENT_RETENTION_FIELD, OPERATIONAL_METADATA_RETENTION_FIELD
@@ -86,6 +87,9 @@ class ProductionProfile:
     model_data_attestation: str
     behavior_configuration: dict[str, Any] | None = None
     candidate_spec: dict[str, Any] | None = None
+    egress_policy_version: str | None = None
+    egress_policy_hash: str | None = None
+    egress_policy_identity: str | None = None
 
     @classmethod
     def from_mapping(cls, value: dict[str, Any], *, require_resolved_retention: bool = True) -> "ProductionProfile":
@@ -132,6 +136,9 @@ class ProductionProfile:
             model_data_attestation=str(value["model_data_attestation"]),
             behavior_configuration=value.get("behavior_configuration") if isinstance(value.get("behavior_configuration"), dict) else None,
             candidate_spec={**(value.get("candidate_spec") if isinstance(value.get("candidate_spec"), dict) else {}), **{key: value[key] for key in CANDIDATE_INPUT_FIELDS if key in value}},
+            egress_policy_version=str(value["egress_policy_version"]) if "egress_policy_version" in value else None,
+            egress_policy_hash=str(value["egress_policy_hash"]) if "egress_policy_hash" in value else None,
+            egress_policy_identity=str(value["egress_policy_identity"]) if "egress_policy_identity" in value else None,
         )
 
     def as_dict(self) -> dict[str, Any]:
@@ -158,6 +165,9 @@ class ProductionProfile:
             "model_data_attestation": self.model_data_attestation,
             **({"behavior_configuration": self.behavior_configuration} if self.behavior_configuration is not None else {}),
             **({"candidate_spec": self.candidate_spec} if self.candidate_spec is not None else {}),
+            **({"egress_policy_version": self.egress_policy_version} if self.egress_policy_version is not None else {}),
+            **({"egress_policy_hash": self.egress_policy_hash} if self.egress_policy_hash is not None else {}),
+            **({"egress_policy_identity": self.egress_policy_identity} if self.egress_policy_identity is not None else {}),
         }
 
 
@@ -591,7 +601,34 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
         checks.append(_check("OCR selected configuration", False, _safe_exception_detail(exc)))
     checks.extend(_retention_policy_checks(profile.retention_policy))
     checks.append(_check("Tenant isolation", profile.tenant_isolation == "workspace_per_session", profile.tenant_isolation))
-    checks.append(_check("Network egress", profile.network_egress == "approved_inference_only", profile.network_egress))
+    checks.append(_check("Network egress mode", profile.network_egress == "default_deny", profile.network_egress))
+    candidate_egress = candidate
+    egress_ready = False
+    egress_detail = "missing"
+    try:
+        configured_egress = load_egress_policy(root)
+        egress_ready, egress_detail = egress_policy_completeness(configured_egress)
+        bound = (
+            candidate_egress.get("egress_policy_version") == configured_egress.policy_version
+            and candidate_egress.get("egress_policy_hash") == configured_egress.policy_hash
+            and candidate_egress.get("egress_policy_identity") == configured_egress.policy_identity
+        )
+        inference_data = candidate_egress.get("inference_data_use_policy")
+        route_consistent = True
+        if isinstance(inference_data, dict):
+            route_consistent = configured_egress.capability("inference_route").route_identity == inference_data.get("inference_route_identity")
+        candidate_route = candidate_egress.get("inference_route_identity")
+        if candidate_route not in (None, "", "UNSET"):
+            route_consistent = route_consistent and configured_egress.capability("inference_route").route_identity == candidate_route
+        egress_ready = egress_ready and bound and route_consistent
+        if not egress_ready:
+            egress_detail = "deployment policy is not internally consistent with the candidate"
+        else:
+            egress_detail = "resolved default-deny policy; capability identities are deployment-owned"
+    except (KSlideError, OSError, UnicodeError, json.JSONDecodeError, ValueError, TypeError) as exc:
+        egress_detail = _safe_exception_detail(exc)
+    checks.append(_check("Egress policy contract", egress_ready, egress_detail))
+    checks.append({"label": "Live deployment network enforcement", "status": "WARN", "detail": "external production-certification gate; repository code does not prove company firewall, service-mesh, DNS, or network-layer enforcement"})
     checks.append(_check("Model data attestation", bool(profile.model_data_attestation and profile.model_data_attestation != "UNSET"), profile.model_data_attestation or "missing"))
     run_root = root.expanduser().resolve() / ".k-slide-runs"
     mode_ok = run_root.is_dir() and (run_root.stat().st_mode & 0o077) == 0

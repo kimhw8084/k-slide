@@ -9,7 +9,8 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 from urllib.parse import unquote, urlparse
 
-from .authentication import ApprovedCompanyServiceTransport, CompanyServiceRequest, authenticated_company_service_call
+from .authentication import ApprovedCompanyServiceTransport, CompanyServiceRequest, authorized_company_service_call
+from .egress_policy import EGRESS_CAPABILITY_SCOPED_STORAGE, EGRESS_DATA_CLASS_SOURCE_CONTENT, EGRESS_PURPOSE_STORAGE
 from .classification_policy import DEFAULT_CLASSIFICATION, validate_classification_label
 from .errors import ErrorCode, KSlideError
 from .queue import WorkQueue, WorkUnitStatus
@@ -26,10 +27,21 @@ HOST_INPUT_KINDS = frozenset({"attachment", "workspace_file"})
 def authenticated_host_service_call(
     transport: ApprovedCompanyServiceTransport,
     request: CompanyServiceRequest | Mapping[str, Any],
+    *,
+    egress_policy: Any | None = None,
+    service_identity: str | None = None,
 ) -> object:
     """Use the common AccessKey boundary for host-neutral callers."""
 
-    return authenticated_company_service_call(transport, request)
+    return authorized_company_service_call(
+        transport,
+        request,
+        egress_policy=egress_policy,
+        capability_class=EGRESS_CAPABILITY_SCOPED_STORAGE,
+        purpose=EGRESS_PURPOSE_STORAGE,
+        service_identity=service_identity,
+        data_class=EGRESS_DATA_CLASS_SOURCE_CONTENT,
+    )
 
 
 class OperationalState(str, Enum):
@@ -155,6 +167,8 @@ class HostInvocation:
 
 
 def _local_path(reference: HostInputReference, *, approved_root: Path) -> Path:
+    if reference.locator.startswith(("\\\\", "//")):
+        raise KSlideError(ErrorCode.INPUT_UNSUPPORTED, "Host input reference must use a local file path or file URI.")
     parsed = urlparse(reference.locator)
     if parsed.scheme:
         if parsed.scheme.lower() != "file" or parsed.netloc not in {"", "localhost"}:
