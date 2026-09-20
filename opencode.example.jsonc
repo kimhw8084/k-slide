@@ -1,3 +1,10 @@
 {
-  // K-Slide pins google/gemma-4-31b-it in .opencode/agents/k-slide.md.
+  "plugin": ["./plugin/k-slide-host.ts"],
+  "agent": {"k-slide": {"model": "google/gemma-4-31b-it"}},
+  "autoupdate": false,
+  "lsp": false,
+  "enabled_providers": ["google"],
+  "provider": {
+    "google": {"whitelist": ["gemma-4-31b-it"]}
+  }
 }

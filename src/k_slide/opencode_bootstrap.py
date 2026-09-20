@@ -17,14 +17,21 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+from .egress_policy import opencode_route_identity
 from .errors import ErrorCode, KSlideError
 
 
 BOOTSTRAP_SCHEMA_VERSION = "1.0"
 OPENCODE_VERSION = "1.3.9"
 APPROVED_MODEL = "google/gemma-4-31b-it"
+APPROVED_PROVIDER_ID = "google"
+APPROVED_MODEL_ID = "gemma-4-31b-it"
+APPROVED_API_ID = "gemma-4-31b-it"
+APPROVED_API_NPM = "@ai-sdk/google"
+APPROVED_API_URL = "https://generativelanguage.googleapis.com/v1beta"
 APPROVED_PLUGIN = "./plugin/k-slide-host.ts"
 APPROVED_CREDENTIAL_ENV = "GOOGLE_GENERATIVE_AI_API_KEY"
+COMPANY_ACCESS_KEY_ENV = "AccessKey"
 REQUIRED_ENVIRONMENT = {
     "OPENCODE_DISABLE_MODELS_FETCH": "1",
     "OPENCODE_DISABLE_AUTOUPDATE": "1",
@@ -38,7 +45,121 @@ FORBIDDEN_ENVIRONMENT = (
     "OPENCODE_PURE",
     "OPENCODE_TEST_MANAGED_CONFIG_DIR",
 )
+PROXY_ENVIRONMENT = (
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "all_proxy",
+)
+_PROVIDER_ENVIRONMENT_NAMES = frozenset({
+    "GITLAB_TOKEN",
+    "GITLAB_INSTANCE_URL",
+    "GITLAB_HOST",
+    "GITLAB_TOKEN_OPENCODE",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_SESSION_TOKEN",
+    "AWS_PROFILE",
+    "AWS_WEB_IDENTITY_TOKEN_FILE",
+    "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
+    "AWS_CONTAINER_CREDENTIALS_FULL_URI",
+    "AWS_BEARER_TOKEN_BEDROCK",
+    "AWS_REGION",
+    "AWS_DEFAULT_REGION",
+    "AWS_ROLE_ARN",
+    "AWS_ROLE_SESSION_NAME",
+    "AWS_SDK_LOAD_CONFIG",
+    "AWS_SHARED_CREDENTIALS_FILE",
+    "AWS_CONFIG_FILE",
+    "AWS_CA_BUNDLE",
+    "AWS_EC2_METADATA_SERVICE_ENDPOINT",
+    "AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE",
+    "AWS_EC2_METADATA_DISABLED",
+    "AWS_ENDPOINT_URL",
+    "AWS_ENDPOINT_URL_S3",
+    "AWS_STS_ENDPOINT",
+    "AWS_USE_FIPS_ENDPOINT",
+    "GOOGLE_API_KEY",
+    "GEMINI_API_KEY",
+    "GOOGLE_APPLICATION_CREDENTIALS",
+    "GOOGLE_APPLICATION_CREDENTIALS_JSON",
+    "GOOGLE_AUTHENTICATION_CREDENTIALS",
+    "GOOGLE_CLOUD_PROJECT",
+    "GOOGLE_CLOUD_LOCATION",
+    "GOOGLE_CLOUD_QUOTA_PROJECT",
+    "GCP_PROJECT",
+    "GCLOUD_PROJECT",
+    "GOOGLE_VERTEX_PROJECT",
+    "GOOGLE_VERTEX_LOCATION",
+    "GOOGLE_VERTEX_ENDPOINT",
+    "VERTEX_LOCATION",
+    "OPENAI_API_KEY",
+    "OPENAI_BASE_URL",
+    "OPENAI_API_BASE",
+    "OPENAI_ORG_ID",
+    "OPENAI_PROJECT_ID",
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "ANTHROPIC_BASE_URL",
+    "ANTHROPIC_API_URL",
+    "CLOUDFLARE_ACCOUNT_ID",
+    "CLOUDFLARE_API_KEY",
+    "CLOUDFLARE_API_TOKEN",
+    "CLOUDFLARE_GATEWAY_ID",
+    "CF_AIG_TOKEN",
+    "AICORE_SERVICE_KEY",
+    "AICORE_AUTH_URL",
+    "AICORE_CLIENT_ID",
+    "AICORE_CLIENT_SECRET",
+    "AICORE_BASE_URL",
+    "AICORE_DEPLOYMENT_ID",
+    "AICORE_RESOURCE_GROUP",
+    "AICORE_URL",
+})
+_PROVIDER_ENVIRONMENT_PREFIXES = (
+    "AWS_",
+    "GITLAB_",
+    "CLOUDFLARE_",
+    "AICORE_",
+    "OPENAI_",
+    "ANTHROPIC_",
+    "GOOGLE_",
+    "GEMINI_",
+    "GOOGLE_VERTEX_",
+    "GOOGLE_CLOUD_",
+    "GOOGLE_APPLICATION_",
+    "GOOGLE_AUTHENTICATION_",
+    "GCP_",
+    "GCLOUD_",
+    "VERTEX_",
+)
+_CATALOG_ROUTE_KEYS = frozenset({
+    "api",
+    "api_url",
+    "base_url",
+    "endpoint",
+    "headers",
+    "npm",
+    "options",
+    "package",
+    "provider",
+    "proxy",
+    "url",
+})
+_NORMALIZED_CATALOG_ROUTE_KEYS = frozenset(item.replace("_", "") for item in _CATALOG_ROUTE_KEYS)
+_CATALOG_CREDENTIAL_KEYS = frozenset({"auth", "apikey", "credential", "credentials", "env", "key", "token"})
 _SHA256 = set("0123456789abcdef")
+
+
+APPROVED_ROUTE_IDENTITY = opencode_route_identity(
+    provider_id=APPROVED_PROVIDER_ID,
+    model_id=APPROVED_MODEL_ID,
+    api_id=APPROVED_API_ID,
+    api_npm=APPROVED_API_NPM,
+    api_url=APPROVED_API_URL,
+)
 
 
 def _invalid(message: str, **details: Any) -> KSlideError:
@@ -155,9 +276,22 @@ def _config_identity(config: Mapping[str, Any]) -> dict[str, Any]:
         raise _invalid("Managed OpenCode config must pin the K-Slide agent model.")
     if set(kslide) != {"model"} or set(agent) != {"k-slide"}:
         raise _invalid("Managed OpenCode config contains unapproved agent settings.")
+    if config.get("enabled_providers") != [APPROVED_PROVIDER_ID]:
+        raise _invalid("Managed OpenCode config must allowlist only the approved Google provider.")
+    provider = config.get("provider")
+    if not isinstance(provider, dict) or set(provider) != {APPROVED_PROVIDER_ID}:
+        raise _invalid("Managed OpenCode config must declare only the approved Google provider.")
+    google = provider.get(APPROVED_PROVIDER_ID)
+    if not isinstance(google, dict) or set(google) != {"whitelist"} or google.get("whitelist") != [APPROVED_MODEL_ID]:
+        raise _invalid("Managed OpenCode config must whitelist only the approved Gemma model.")
+    disabled = config.get("disabled_providers", [])
+    if not isinstance(disabled, list) or any(not isinstance(item, str) for item in disabled) or len(set(disabled)) != len(disabled):
+        raise _invalid("Managed OpenCode config disabled provider policy is malformed.")
+    if APPROVED_PROVIDER_ID in disabled:
+        raise _invalid("Managed OpenCode config cannot disable the approved Google provider.")
     if config.get("autoupdate") is not False or config.get("lsp") is not False:
         raise _invalid("Managed OpenCode config must disable update and LSP activation.")
-    allowed_keys = {"plugin", "agent", "autoupdate", "lsp"}
+    allowed_keys = {"plugin", "agent", "autoupdate", "lsp", "enabled_providers", "disabled_providers", "provider"}
     if set(config) - allowed_keys:
         raise _invalid("Managed OpenCode config contains unapproved ambient settings.")
     return {
@@ -165,10 +299,76 @@ def _config_identity(config: Mapping[str, Any]) -> dict[str, Any]:
         "agent_model": APPROVED_MODEL,
         "autoupdate": False,
         "lsp": False,
+        "enabled_providers": [APPROVED_PROVIDER_ID],
+        "disabled_providers": list(disabled),
+        "provider_google_whitelist": [APPROVED_MODEL_ID],
     }
 
 
-def _models_identity(value: Mapping[str, Any]) -> tuple[dict[str, str], str | None]:
+def _catalog_environment_names(catalog: Mapping[str, Any]) -> tuple[str, ...]:
+    names: set[str] = set()
+    for provider in catalog.values():
+        if not isinstance(provider, Mapping):
+            continue
+        environment = provider.get("env")
+        if isinstance(environment, list):
+            names.update(item for item in environment if isinstance(item, str) and item)
+    return tuple(sorted(names))
+
+
+def _validate_models_catalog(catalog: Any) -> tuple[dict[str, str], tuple[str, ...]]:
+    if not isinstance(catalog, Mapping):
+        raise _invalid("OpenCode model catalog must be a JSON object.")
+    provider = catalog.get(APPROVED_PROVIDER_ID)
+    if not isinstance(provider, Mapping):
+        raise _invalid("OpenCode model catalog is missing the approved Google provider.")
+    if set(provider) - {"id", "name", "env", "npm", "api", "models"}:
+        raise _invalid("OpenCode model catalog Google provider contains unsupported authority fields.")
+    if provider.get("id") != APPROVED_PROVIDER_ID:
+        raise _invalid("OpenCode model catalog Google provider identity is not exact.")
+    if provider.get("env") != [APPROVED_CREDENTIAL_ENV]:
+        raise _invalid("OpenCode model catalog Google credential route is not the approved seam.")
+    if provider.get("npm") != APPROVED_API_NPM or provider.get("api") != APPROVED_API_URL:
+        raise _invalid("OpenCode model catalog Google API/package/endpoint route is not exact.")
+    models = provider.get("models")
+    if not isinstance(models, Mapping):
+        raise _invalid("OpenCode model catalog Google models are unresolved.")
+    model = models.get(APPROVED_MODEL_ID)
+    if not isinstance(model, Mapping) or model.get("id") != APPROVED_API_ID:
+        raise _invalid("OpenCode model catalog is missing the exact approved Gemma model.")
+    model_provider = model.get("provider")
+    if model_provider is not None:
+        if not isinstance(model_provider, Mapping) or set(model_provider) - {"npm", "api"}:
+            raise _invalid("OpenCode model catalog approved model provider metadata is unsupported.")
+        if model_provider.get("npm", APPROVED_API_NPM) != APPROVED_API_NPM or model_provider.get("api", APPROVED_API_URL) != APPROVED_API_URL:
+            raise _invalid("OpenCode model catalog approved model route metadata is not exact.")
+    for key in model:
+        normalized = str(key).casefold().replace("-", "_").replace("_", "")
+        if normalized in _NORMALIZED_CATALOG_ROUTE_KEYS and key not in {"provider"}:
+            raise _invalid("OpenCode model catalog approved model contains alternate route authority.")
+        if normalized in _CATALOG_CREDENTIAL_KEYS:
+            raise _invalid("OpenCode model catalog approved model contains alternate route authority.")
+    route_identity = opencode_route_identity(
+        provider_id=APPROVED_PROVIDER_ID,
+        model_id=APPROVED_MODEL_ID,
+        api_id=APPROVED_API_ID,
+        api_npm=APPROVED_API_NPM,
+        api_url=APPROVED_API_URL,
+    )
+    return (
+        {
+            "provider": APPROVED_PROVIDER_ID,
+            "model": APPROVED_MODEL_ID,
+            "api_id": APPROVED_API_ID,
+            "api_npm": APPROVED_API_NPM,
+            "credential_environment": APPROVED_CREDENTIAL_ENV,
+            "route_identity": route_identity,
+        },
+        _catalog_environment_names(catalog),
+    )
+
+
+def _models_identity(value: Mapping[str, Any]) -> tuple[dict[str, Any], str | None, tuple[str, ...]]:
     if not isinstance(value, Mapping):
         raise _invalid("OpenCode model catalog identity must be an object.")
     allowed = {"mode", "path", "sha256", "version"}
@@ -182,17 +382,29 @@ def _models_identity(value: Mapping[str, Any]) -> tuple[dict[str, str], str | No
     if not _is_sha256(digest) or not isinstance(version, str) or not version.strip() or "://" in version:
         raise _invalid("OpenCode model catalog requires a source-free hash and version.")
     path_value: str | None = None
+    catalog_path: Path
     if mode == "local_path":
-        path = _resolved_path(value.get("path"), label="models catalog path")
-        actual = _require_file(path, label="models catalog", expected_hash=str(digest))
-        path_value = str(path)
+        catalog_path = _resolved_path(value.get("path"), label="models catalog path")
+        actual = _require_file(catalog_path, label="models catalog", expected_hash=str(digest))
+        path_value = str(catalog_path)
         if actual != str(digest).lower():
             raise _invalid("OpenCode model catalog hash drifted.")
     else:
-        snapshot = _resolved_path(value.get("path"), label="bundled model snapshot")
-        _require_file(snapshot, label="bundled model snapshot", expected_hash=str(digest))
-    identity = {"mode": str(mode), "sha256": str(digest).lower(), "version": version}
-    return identity, path_value
+        catalog_path = _resolved_path(value.get("path"), label="bundled model snapshot")
+        _require_file(catalog_path, label="bundled model snapshot", expected_hash=str(digest))
+    try:
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise _invalid("OpenCode model catalog is unreadable or malformed.") from exc
+    route_identity, catalog_environment = _validate_models_catalog(catalog)
+    identity = {
+        "mode": str(mode),
+        "sha256": str(digest).lower(),
+        "version": version,
+        **route_identity,
+        "catalog_environment": ",".join(catalog_environment),
+    }
+    return identity, path_value, catalog_environment
 
 
 @dataclass(frozen=True)
@@ -212,8 +424,9 @@ class OpenCodeBootstrap:
     access_key_helper_sha256: str
     ripgrep_path: Path
     ripgrep_sha256: str
-    models_identity: dict[str, str]
+    models_identity: dict[str, Any]
     models_path: str | None
+    catalog_environment: tuple[str, ...]
     credential_environment: tuple[str, ...]
     identity: str
 
@@ -316,7 +529,7 @@ def load_bootstrap_manifest(path: Path) -> OpenCodeBootstrap:
     if not isinstance(config, dict):
         raise _invalid("Managed OpenCode config must be an object.")
     config_identity = _config_identity(config)
-    models_identity, models_path = _models_identity(raw["models_catalog"])
+    models_identity, models_path, catalog_environment = _models_identity(raw["models_catalog"])
 
     identity_payload = {
         "schema_version": BOOTSTRAP_SCHEMA_VERSION,
@@ -329,6 +542,7 @@ def load_bootstrap_manifest(path: Path) -> OpenCodeBootstrap:
         "ripgrep_sha256": ripgrep_sha256,
         "config_identity": config_identity,
         "models_catalog": models_identity,
+        "catalog_environment": list(catalog_environment),
         "credential_environment": list(credential_environment),
     }
     return OpenCodeBootstrap(
@@ -349,9 +563,30 @@ def load_bootstrap_manifest(path: Path) -> OpenCodeBootstrap:
         ripgrep_sha256=ripgrep_sha256,
         models_identity=models_identity,
         models_path=models_path,
+        catalog_environment=catalog_environment,
         credential_environment=tuple(credential_environment),
         identity=_sha256_bytes(_canonical(identity_payload)),
     )
+
+
+def _is_provider_environment_name(name: str, catalog_environment: tuple[str, ...] = ()) -> bool:
+    if name in {APPROVED_CREDENTIAL_ENV, COMPANY_ACCESS_KEY_ENV}:
+        return False
+    if name in catalog_environment or name in _PROVIDER_ENVIRONMENT_NAMES:
+        return True
+    if any(name.startswith(prefix) for prefix in _PROVIDER_ENVIRONMENT_PREFIXES):
+        return True
+    return name.startswith("GOOGLE_GENERATIVE_AI_")
+
+
+def _ambient_provider_environment(current: Mapping[str, str], catalog_environment: tuple[str, ...]) -> list[str]:
+    return sorted(name for name in current if _is_provider_environment_name(name, catalog_environment))
+
+
+def _reject_proxy_environment(current: Mapping[str, str]) -> None:
+    present = [name for name in PROXY_ENVIRONMENT if name in current]
+    if present:
+        raise _invalid("Managed OpenCode bootstrap rejects ambient proxy route overrides.", fields=present)
 
 
 def validate_bootstrap_environment(
@@ -361,8 +596,10 @@ def validate_bootstrap_environment(
     require_credentials: bool = True,
     require_bootstrap_flags: bool = True,
     require_managed_paths: bool = True,
+    reject_ambient_provider_state: bool = True,
 ) -> None:
     current = dict(os.environ if environ is None else environ)
+    _reject_proxy_environment(current)
     forbidden = [name for name in FORBIDDEN_ENVIRONMENT if name in current]
     if forbidden:
         raise _invalid("OpenCode bootstrap rejects ambient config/plugin overrides.", fields=forbidden)
@@ -388,6 +625,10 @@ def validate_bootstrap_environment(
             raise _invalid("Managed OpenCode PATH does not pin the verified ripgrep binary.")
     if current.get("OPENCODE_MODELS_PATH") not in (None, contract.models_path):
         raise _invalid("OpenCode model catalog path is inconsistent with the managed bootstrap.")
+    if reject_ambient_provider_state:
+        ambient = _ambient_provider_environment(current, contract.catalog_environment)
+        if ambient:
+            raise _invalid("Managed OpenCode environment contains unapproved provider credentials or selectors.", fields=ambient)
     if require_credentials:
         missing = [name for name in contract.credential_environment if not current.get(name)]
         if missing:
@@ -402,8 +643,11 @@ def bootstrap_environment(path: Path, environ: Mapping[str, str] | None = None, 
         require_credentials=require_credentials,
         require_bootstrap_flags=False,
         require_managed_paths=False,
+        reject_ambient_provider_state=False,
     )
     result = dict(os.environ if environ is None else environ)
+    for name in _ambient_provider_environment(result, contract.catalog_environment):
+        result.pop(name, None)
     result.update(REQUIRED_ENVIRONMENT)
     result.update({
         "HOME": str(contract.home_dir),
@@ -421,6 +665,14 @@ def bootstrap_environment(path: Path, environ: Mapping[str, str] | None = None, 
         result["OPENCODE_MODELS_PATH"] = contract.models_path
     else:
         result.pop("OPENCODE_MODELS_PATH", None)
+    validate_bootstrap_environment(
+        contract,
+        result,
+        require_credentials=require_credentials,
+        require_bootstrap_flags=True,
+        require_managed_paths=True,
+        reject_ambient_provider_state=True,
+    )
     return result
 
 
@@ -456,6 +708,10 @@ def main(argv: list[str] | None = None) -> int:
     except KSlideError as exc:
         print(f"{exc.code.value}: {exc.message}", file=sys.stderr)
         return 78
+    # AccessKey remains available to the trusted K-Slide company-service
+    # boundary in the parent process, but is never inherited by OpenCode or
+    # its model/provider loaders.
+    environment.pop(COMPANY_ACCESS_KEY_ENV, None)
     try:
         os.execvpe(command[0], command, environment)
     except OSError as exc:

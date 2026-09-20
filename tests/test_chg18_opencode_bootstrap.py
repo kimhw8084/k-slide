@@ -14,8 +14,16 @@ from pathlib import Path
 from k_slide.errors import ErrorCode, KSlideError
 from k_slide.opencode_bootstrap import (
     APPROVED_CREDENTIAL_ENV,
+    APPROVED_API_ID,
+    APPROVED_API_NPM,
+    APPROVED_API_URL,
+    APPROVED_ROUTE_IDENTITY,
     APPROVED_MODEL,
+    APPROVED_MODEL_ID,
+    APPROVED_PROVIDER_ID,
+    COMPANY_ACCESS_KEY_ENV,
     FORBIDDEN_ENVIRONMENT,
+    PROXY_ENVIRONMENT,
     REQUIRED_ENVIRONMENT,
     bootstrap_environment,
     load_bootstrap_manifest,
@@ -48,6 +56,8 @@ def _write_bootstrap(root: Path) -> Path:
                 "agent": {"k-slide": {"model": APPROVED_MODEL}},
                 "autoupdate": False,
                 "lsp": False,
+                "enabled_providers": [APPROVED_PROVIDER_ID],
+                "provider": {APPROVED_PROVIDER_ID: {"whitelist": [APPROVED_MODEL_ID]}},
             },
             separators=(",", ":"),
         )
@@ -55,7 +65,21 @@ def _write_bootstrap(root: Path) -> Path:
         encoding="utf-8",
     )
     models = config / "models.json"
-    models.write_text(json.dumps({"google": {"models": {"gemma-4-31b-it": {}}}}) + "\n", encoding="utf-8")
+    models.write_text(
+        json.dumps(
+            {
+                APPROVED_PROVIDER_ID: {
+                    "id": APPROVED_PROVIDER_ID,
+                    "env": [APPROVED_CREDENTIAL_ENV],
+                    "npm": APPROVED_API_NPM,
+                    "api": APPROVED_API_URL,
+                    "models": {APPROVED_MODEL_ID: {"id": APPROVED_API_ID}},
+                }
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     ripgrep = root / "managed-bin" / "rg"
     ripgrep.parent.mkdir()
     ripgrep.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
@@ -99,6 +123,27 @@ def _write_bootstrap(root: Path) -> Path:
     return manifest
 
 
+def _rewrite_artifact(manifest: Path, *, artifact: str, value: object) -> None:
+    raw = json.loads(manifest.read_text(encoding="utf-8"))
+    path_key, hash_key = {
+        "config": ("config_file", "config_sha256"),
+        "models": ("models_catalog", None),
+    }[artifact]
+    if artifact == "config":
+        target = Path(raw[path_key])
+        target.chmod(0o644)
+        target.write_text(json.dumps(value, separators=(",", ":")) + "\n", encoding="utf-8")
+        target.chmod(0o444)
+        raw[hash_key] = _sha(target)
+    else:
+        target = Path(raw["models_catalog"]["path"])
+        target.chmod(0o644)
+        target.write_text(json.dumps(value, separators=(",", ":")) + "\n", encoding="utf-8")
+        target.chmod(0o444)
+        raw["models_catalog"]["sha256"] = _sha(target)
+    manifest.write_text(json.dumps(raw, indent=2) + "\n", encoding="utf-8")
+
+
 class OpenCodeBootstrapTests(unittest.TestCase):
     def test_manifest_is_source_free_and_bootstrap_sets_controls_before_exec(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -121,6 +166,157 @@ class OpenCodeBootstrapTests(unittest.TestCase):
                 bootstrap_environment(manifest, {APPROVED_CREDENTIAL_ENV: "provider-key", "OPENCODE_MODELS_URL": "https://models.dev"})
             with self.assertRaises(KSlideError):
                 validate_bootstrap_environment(contract, {APPROVED_CREDENTIAL_ENV: "provider-key"})
+
+    def test_provider_surface_catalog_route_and_environment_sanitization(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = _write_bootstrap(root)
+            catalog = json.loads((root / "managed-home/.opencode/models.json").read_text(encoding="utf-8"))
+            catalog["gitlab"] = {"id": "gitlab", "env": ["GITLAB_TOKEN"], "models": {"duo-workflow": {"id": "duo-workflow"}}}
+            _rewrite_artifact(manifest, artifact="models", value=catalog)
+            contract = load_bootstrap_manifest(manifest)
+            self.assertEqual(contract.models_identity["provider"], APPROVED_PROVIDER_ID)
+            self.assertEqual(contract.models_identity["model"], APPROVED_MODEL_ID)
+            self.assertEqual(contract.models_identity["api_id"], APPROVED_API_ID)
+            self.assertEqual(contract.models_identity["api_npm"], APPROVED_API_NPM)
+            self.assertEqual(contract.models_identity["credential_environment"], APPROVED_CREDENTIAL_ENV)
+            self.assertEqual(contract.models_identity["route_identity"], APPROVED_ROUTE_IDENTITY)
+            self.assertIn("GITLAB_TOKEN", contract.catalog_environment)
+
+            ambient = {
+                APPROVED_CREDENTIAL_ENV: "google-key",
+                COMPANY_ACCESS_KEY_ENV: "company-key",
+                "ordinary_host_setting": "retained",
+                "GITLAB_TOKEN": "gitlab-token",
+                "AWS_ACCESS_KEY_ID": "aws-id",
+                "AWS_SECRET_ACCESS_KEY": "aws-secret",
+                "AWS_PROFILE": "developer",
+                "GOOGLE_CLOUD_PROJECT": "vertex-project",
+                "GOOGLE_VERTEX_LOCATION": "global",
+                "CLOUDFLARE_API_TOKEN": "cloudflare-token",
+                "CLOUDFLARE_ACCOUNT_ID": "cloudflare-account",
+                "AICORE_SERVICE_KEY": "sap-key",
+                "AICORE_DEPLOYMENT_ID": "sap-deployment",
+                "OPENAI_API_KEY": "openai-key",
+                "ANTHROPIC_API_KEY": "anthropic-key",
+            }
+            sanitized = bootstrap_environment(manifest, ambient)
+            self.assertEqual(sanitized[APPROVED_CREDENTIAL_ENV], "google-key")
+            self.assertEqual(sanitized[COMPANY_ACCESS_KEY_ENV], "company-key")
+            self.assertEqual(sanitized["ordinary_host_setting"], "retained")
+            for name in ambient:
+                if name not in {APPROVED_CREDENTIAL_ENV, COMPANY_ACCESS_KEY_ENV, "ordinary_host_setting"}:
+                    self.assertNotIn(name, sanitized)
+            validate_bootstrap_environment(contract, sanitized)
+            with self.assertRaises(KSlideError):
+                validate_bootstrap_environment(contract, {**sanitized, "GITLAB_TOKEN": "ambient"})
+
+    def test_managed_child_does_not_inherit_company_access_key_or_provider_credentials(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = _write_bootstrap(root)
+            node = subprocess.run(["which", "node"], capture_output=True, text=True, check=False).stdout.strip()
+            if not node:
+                self.skipTest("Node is unavailable for the provider-state boundary harness")
+            child = """
+                const fs = require("node:fs");
+                const config = JSON.parse(fs.readFileSync(`${process.env.OPENCODE_CONFIG_DIR}/opencode.json`, "utf8"));
+                const catalog = JSON.parse(fs.readFileSync(process.env.OPENCODE_MODELS_PATH, "utf8"));
+                const discoveryCalls = [];
+                const alternateNetworkCalls = [];
+                const customLoaders = {
+                  gitlab: () => { if (process.env.GITLAB_TOKEN) discoveryCalls.push("gitlab.discoverWorkflowModels"); },
+                  "google-vertex": () => { if (process.env.GOOGLE_CLOUD_PROJECT) alternateNetworkCalls.push("google-vertex"); },
+                  "cloudflare-workers-ai": () => { if (process.env.CLOUDFLARE_API_TOKEN) alternateNetworkCalls.push("cloudflare"); },
+                  openai: () => { if (process.env.OPENAI_API_KEY) alternateNetworkCalls.push("openai"); },
+                  anthropic: () => { if (process.env.ANTHROPIC_API_KEY) alternateNetworkCalls.push("anthropic"); },
+                };
+                for (const [providerID, loader] of Object.entries(customLoaders)) {
+                  if (!config.enabled_providers.includes(providerID)) continue;
+                  loader();
+                }
+                const providers = config.enabled_providers.filter((providerID) => Object.hasOwn(catalog, providerID));
+                const models = config.provider.google.whitelist.filter((modelID) => Object.hasOwn(catalog.google.models, modelID));
+                const route = catalog.google.api === "https://generativelanguage.googleapis.com/v1beta" && catalog.google.npm === "@ai-sdk/google" && models.length === 1 && models[0] === "gemma-4-31b-it";
+                process.stdout.write(JSON.stringify({ providers, models, discoveryCalls, alternateNetworkCalls, googleCredential: Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY), route, accessKey: process.env.AccessKey ?? null, gitlabToken: process.env.GITLAB_TOKEN ?? null, awsKey: process.env.AWS_ACCESS_KEY_ID ?? null, openaiKey: process.env.OPENAI_API_KEY ?? null }));
+            """
+            launch_env = {
+                APPROVED_CREDENTIAL_ENV: "google-key",
+                COMPANY_ACCESS_KEY_ENV: "company-key",
+                "GITLAB_TOKEN": "gitlab-token",
+                "AWS_ACCESS_KEY_ID": "aws-id",
+                "GOOGLE_CLOUD_PROJECT": "vertex-project",
+                "CLOUDFLARE_API_TOKEN": "cloudflare-token",
+                "OPENAI_API_KEY": "openai-key",
+                "ANTHROPIC_API_KEY": "anthropic-key",
+                "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
+                "PATH": os.environ.get("PATH", os.defpath),
+            }
+            managed = subprocess.run(
+                [sys.executable, "-m", "k_slide.opencode_bootstrap", "--manifest", str(manifest), "--", node, "-e", child],
+                cwd=str(root),
+                env=launch_env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(managed.returncode, 0, managed.stderr)
+            observed = json.loads(managed.stdout)
+            self.assertEqual(observed["providers"], ["google"])
+            self.assertEqual(observed["models"], ["gemma-4-31b-it"])
+            self.assertEqual(observed["discoveryCalls"], [])
+            self.assertEqual(observed["alternateNetworkCalls"], [])
+            self.assertTrue(observed["googleCredential"])
+            self.assertTrue(observed["route"])
+            self.assertIsNone(observed["accessKey"])
+            self.assertIsNone(observed["gitlabToken"])
+            self.assertIsNone(observed["awsKey"])
+            self.assertIsNone(observed["openaiKey"])
+
+    def test_config_provider_surface_and_catalog_route_fail_closed(self) -> None:
+        config_cases = []
+        config_cases.append(lambda config: config.pop("enabled_providers"))
+        config_cases.append(lambda config: config.__setitem__("enabled_providers", ["google", "openai"]))
+        config_cases.append(lambda config: config.__setitem__("provider", {"google": {"whitelist": ["gemma-4-31b-it", "gemini-2.5-pro"]}}))
+        config_cases.append(lambda config: config.__setitem__("disabled_providers", ["google"]))
+        for mutate in config_cases:
+            with self.subTest(kind="config"):
+                with tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    manifest = _write_bootstrap(root)
+                    config = json.loads((root / "managed-home/.opencode/opencode.json").read_text(encoding="utf-8"))
+                    mutate(config)
+                    _rewrite_artifact(manifest, artifact="config", value=config)
+                    with self.assertRaises(KSlideError):
+                        load_bootstrap_manifest(manifest)
+
+        catalog_cases = []
+        catalog_cases.append(lambda catalog: catalog[APPROVED_PROVIDER_ID].__setitem__("id", "google-vertex"))
+        catalog_cases.append(lambda catalog: catalog[APPROVED_PROVIDER_ID].__setitem__("env", ["GOOGLE_API_KEY"]))
+        catalog_cases.append(lambda catalog: catalog[APPROVED_PROVIDER_ID].__setitem__("api", "https://attacker.invalid"))
+        catalog_cases.append(lambda catalog: catalog[APPROVED_PROVIDER_ID].__setitem__("npm", "@ai-sdk/openai"))
+        catalog_cases.append(lambda catalog: catalog[APPROVED_PROVIDER_ID].__setitem__("options", {"apiKey": "alternate"}))
+        catalog_cases.append(lambda catalog: catalog[APPROVED_PROVIDER_ID]["models"][APPROVED_MODEL_ID].__setitem__("provider", {"npm": "@ai-sdk/openai", "api": "https://attacker.invalid"}))
+        catalog_cases.append(lambda catalog: catalog[APPROVED_PROVIDER_ID]["models"][APPROVED_MODEL_ID].__setitem__("api", "https://attacker.invalid"))
+        catalog_cases.append(lambda catalog: catalog[APPROVED_PROVIDER_ID]["models"][APPROVED_MODEL_ID].__setitem__("env", ["GOOGLE_API_KEY"]))
+        for mutate in catalog_cases:
+            with self.subTest(kind="catalog"):
+                with tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    manifest = _write_bootstrap(root)
+                    catalog = json.loads((root / "managed-home/.opencode/models.json").read_text(encoding="utf-8"))
+                    mutate(catalog)
+                    _rewrite_artifact(manifest, artifact="models", value=catalog)
+                    with self.assertRaises(KSlideError):
+                        load_bootstrap_manifest(manifest)
+
+    def test_proxy_environment_is_rejected_before_managed_launch(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = _write_bootstrap(root)
+            for name in PROXY_ENVIRONMENT:
+                with self.subTest(name=name), self.assertRaises(KSlideError):
+                    bootstrap_environment(manifest, {APPROVED_CREDENTIAL_ENV: "provider-key", name: "http://proxy.invalid"})
 
     def test_pre_module_network_trap_proves_unmanaged_refresh_and_managed_suppression(self) -> None:
         node = subprocess.run(["which", "node"], capture_output=True, text=True, check=False).stdout.strip()

@@ -45,8 +45,14 @@ OpenCode production starts only through the managed pre-start bootstrap. Copy
 `opencode-bootstrap.example.json` into the deployment manifest, materialize a
 read-only isolated `.opencode` directory containing the shipped local
 `k-slide-host.ts`, its shipped access-key helper, and pinned `opencode.json`,
-and record exact hashes for that config, plugin, helper, verified prebundled
-`rg`, and local or verified bundled model catalog. Precreate the isolated
+whose provider surface must contain exactly `enabled_providers: ["google"]`
+and `provider.google.whitelist: ["gemma-4-31b-it"]`, with no
+`disabled_providers` entry that includes `google`. The deployment-owned model
+catalog must resolve that exact Google/Gemma model,
+`GOOGLE_GENERATIVE_AI_API_KEY`, `@ai-sdk/google`, and the approved
+Generative Language endpoint before its hash is recorded. Record exact hashes
+for that config, plugin, helper, verified prebundled `rg`, and local or
+verified bundled model catalog. Precreate the isolated
 OpenCode XDG config/data/cache/state
 directories; the global config directory must be empty and read-only, and the
 managed data directory must not contain OpenCode or MCP auth state. Launch with

@@ -71,7 +71,12 @@ def _write_opencode_bootstrap(root: Path) -> Path:
     """Materialize the managed production OpenCode contract for certification fixtures."""
     from k_slide.opencode_bootstrap import (
         APPROVED_CREDENTIAL_ENV,
+        APPROVED_API_ID,
+        APPROVED_API_NPM,
+        APPROVED_API_URL,
         APPROVED_MODEL,
+        APPROVED_MODEL_ID,
+        APPROVED_PROVIDER_ID,
         APPROVED_PLUGIN,
         BOOTSTRAP_SCHEMA_VERSION,
         FORBIDDEN_ENVIRONMENT,
@@ -89,7 +94,14 @@ def _write_opencode_bootstrap(root: Path) -> Path:
     for directory in (plugin_dir, xdg_config, xdg_config / "opencode", xdg_data, xdg_data / "opencode", xdg_cache, xdg_cache / "opencode", xdg_state, xdg_state / "opencode"):
         directory.mkdir(parents=True, exist_ok=True)
     config_file = config_dir / "opencode.json"
-    _write(config_file, {"plugin": [APPROVED_PLUGIN], "agent": {"k-slide": {"model": APPROVED_MODEL}}, "autoupdate": False, "lsp": False})
+    _write(config_file, {
+        "plugin": [APPROVED_PLUGIN],
+        "agent": {"k-slide": {"model": APPROVED_MODEL}},
+        "autoupdate": False,
+        "lsp": False,
+        "enabled_providers": [APPROVED_PROVIDER_ID],
+        "provider": {APPROVED_PROVIDER_ID: {"whitelist": [APPROVED_MODEL_ID]}},
+    })
     plugin_file = plugin_dir / "k-slide-host.ts"
     plugin_file.write_bytes((Path.cwd() / ".opencode" / "plugin" / "k-slide-host.ts").read_bytes())
     helper_dir = config_dir / "internal" / "lib"
@@ -97,7 +109,15 @@ def _write_opencode_bootstrap(root: Path) -> Path:
     helper_file = helper_dir / "k-slide-access-key.ts"
     helper_file.write_bytes((Path.cwd() / ".opencode" / "internal" / "lib" / "k-slide-access-key.ts").read_bytes())
     models_file = root / "managed-models.json"
-    _write(models_file, {})
+    _write(models_file, {
+        APPROVED_PROVIDER_ID: {
+            "id": APPROVED_PROVIDER_ID,
+            "env": [APPROVED_CREDENTIAL_ENV],
+            "npm": APPROVED_API_NPM,
+            "api": APPROVED_API_URL,
+            "models": {APPROVED_MODEL_ID: {"id": APPROVED_API_ID}},
+        }
+    })
     ripgrep_file = root / "managed-bin" / "rg"
     ripgrep_file.parent.mkdir()
     ripgrep_file.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")

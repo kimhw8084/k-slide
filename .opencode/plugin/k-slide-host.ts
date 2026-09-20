@@ -182,12 +182,26 @@ function targetProviderConfig(config: Record<string, unknown>, providerID: strin
   return undefined
 }
 
+function hasExactKSlideProviderSurface(config: Record<string, unknown>): boolean {
+  if (!Array.isArray(config.enabled_providers) || config.enabled_providers.length !== 1 || config.enabled_providers[0] !== APPROVED_PROVIDER_ID) return false
+  const providers = isRecord(config.provider) ? config.provider : undefined
+  if (!providers || Object.keys(providers).length !== 1 || !isRecord(providers[APPROVED_PROVIDER_ID])) return false
+  const google = providers[APPROVED_PROVIDER_ID] as Record<string, unknown>
+  if (Object.keys(google).length !== 1 || !Array.isArray(google.whitelist) || google.whitelist.length !== 1 || google.whitelist[0] !== APPROVED_MODEL_ID) return false
+  const disabled = Array.isArray(config.disabled_providers) ? config.disabled_providers : []
+  return !disabled.includes(APPROVED_PROVIDER_ID)
+}
+
 /**
  * OpenCode v1.3.9 calls this config hook during bootstrap before any session
  * can resolve Provider.getLanguage. Config-hook exceptions are swallowed by
  * OpenCode, so this gate only mutates the merged config and never throws.
  */
 export function protectKSlideProviderConfig(config: Record<string, unknown>): void {
+  if (!hasExactKSlideProviderSurface(config)) {
+    addDisabledProvider(config, APPROVED_PROVIDER_ID)
+    config.enabled_providers = []
+  }
   const targets = targetModelsFromConfig(config)
   for (const target of targets) {
     const providerID = providerIDForModel(target)

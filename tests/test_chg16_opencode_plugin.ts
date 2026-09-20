@@ -520,7 +520,10 @@ export async function v139ProviderOrderingBoundary(): Promise<void> {
       assert.deepEqual(ordering, { providerConstruction: 0, dynamicInstall: 0, chatParams: 0, llmRequest: 0 })
     }
 
-    const approvedConfig: Record<string, unknown> = { provider: { google: { options: { apiKey: "key-is-not-a-route" } } } }
+    const approvedConfig: Record<string, unknown> = {
+      enabled_providers: ["google"],
+      provider: { google: { whitelist: ["gemma-4-31b-it"] } },
+    }
     const ordering = { providerConstruction: 0, dynamicInstall: 0, chatParams: 0, llmRequest: 0 }
     await streamV139(approvedConfig, ordering)
     assert.deepEqual(ordering, { providerConstruction: 1, dynamicInstall: 0, chatParams: 1, llmRequest: 1 })
