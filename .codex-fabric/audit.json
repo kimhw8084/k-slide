@@ -1,0 +1,447 @@
+{
+  "accepted_at": "2026-09-20T21:30:11Z",
+  "changed_files": [
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "additions": 1203,
+      "deletions": 0,
+      "path": "src/k_slide/content_support.py",
+      "status": "A"
+    },
+    {
+      "additions": 68,
+      "deletions": 0,
+      "path": "src/k_slide/deletion.py",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 10,
+      "deletions": 0,
+      "path": "src/k_slide/retention.py",
+      "status": "M"
+    },
+    {
+      "additions": 8,
+      "deletions": 0,
+      "path": "src/k_slide/storage.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": "tests/test_chg16_storage_planes.py",
+      "status": "M"
+    },
+    {
+      "additions": 442,
+      "deletions": 0,
+      "path": "tests/test_ksa20_controlled_content_support.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc 'rtk find /Users/haewonkim/.codex-fabric/current /Users/haewonkim/.codex-fabric/libexec -maxdepth 2 -type f -print | sort | head -120'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk cat /Users/haewonkim/.codex-fabric/config/projects.normalized.v11.json 2>/dev/null || true; rtk cat /Users/haewonkim/.codex-fabric/state/projects.normalized.json | head -100'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'fabric2-envelope|prompt-bytes|prompt-sha256|work-branch|receive-stdin' /Users/haewonkim/.codex-fabric /Users/haewonkim/.codex 2>/dev/null | head -180\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '4090,4175p' /Users/haewonkim/.codex-fabric/current/fabric.py && rtk sed -n '3880,3975p' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1760,1845p' /Users/haewonkim/.codex-fabric/current/fabric.py && rtk sed -n '2740,2935p' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '900,1055p' /Users/haewonkim/.codex-fabric/current/fabric.py && rtk sed -n '2050,2280p' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk cat /Users/haewonkim/.codex-fabric/current/execution.toml.qualified && rtk sed -n '1,120p' /Users/haewonkim/.codex-fabric/current/holdouts.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git show d59139a045b69803f5ad420b2d3689609c0acb0d:.codex-fabric/audit.json && rtk git show --stat --oneline d59139a045b69803f5ad420b2d3689609c0acb0d && rtk git branch -r --contains 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1980,2180p' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '2800,3075p' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'operation.*VERIFY|VERIFY.*operation|candidate_sha|predecessor_sha|main_unchanged|base_sha|worktree_clean|head_sha' /Users/haewonkim/.codex-fabric/current /Users/haewonkim/.codex-fabric/libexec/projectos_integrate.py | head -240\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '3470,3645p' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '2660,2785p' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '3010,3135p' /Users/haewonkim/.codex-fabric/current/fabric.py && rtk sed -n '4335,4370p' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'def push_and_verify|def push_durability_fast_forward|def capture_completed_model_changes|def build_job_summary|def public_audit_bundle' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,380p' /Users/haewonkim/.codex-fabric/libexec/projectos_integrate.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1235,1355p' /Users/haewonkim/.codex-fabric/current/fabric.py && rtk sed -n '1990,2055p' /Users/haewonkim/.codex-fabric/current/fabric.py && rtk sed -n '2580,2670p' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1435,1515p' /Users/haewonkim/.codex-fabric/current/fabric.py && rtk sed -n '2350,2445p' /Users/haewonkim/.codex-fabric/current/fabric.py && rtk sed -n '2480,2585p' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide show-ref --verify --quiet refs/heads/codex/k-slide-chg16-controlled-content-support-01-fix01-verify01; printf 'local_branch_rc=%s\\\\n' \\\"\"'$?\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status k-slide 2>/dev/null || rtk /Users/haewonkim/.codex-fabric/current/fabric.py status k-slide'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl health 2>/dev/null || rtk /Users/haewonkim/.codex-fabric/current/fabric.py health'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide ls-remote --heads origin 'codex/k-slide-chg16-controlled-content-support-01-fix01-verify01-native' 'codex/k-slide-chg16-controlled-content-support-01-fix01-verify01' 'codex/k-slide-chg16-controlled-content-support-01-fix01' main\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/current/fabric.py status'",
+      "exit_code": 127,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3 /Users/haewonkim/.codex-fabric/releases/1.2.0/fabric2-envelope.py --help'",
+      "exit_code": 2,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide show-ref --verify --quiet refs/heads/codex/k-slide-chg16-controlled-content-support-01-fix01-verify01-fabric; printf 'local_branch_rc=%s\\\\n' \\\"\"'$?\"; rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide ls-remote --exit-code --heads origin codex/k-slide-chg16-controlled-content-support-01-fix01-verify01-fabric >/dev/null 2>&1; printf '\"'remote_branch_rc=%s\\\\n' \\\"\"'$?\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3 -c \\\"import hashlib,sys\\\\nproject,operation,request,base,branch=sys.argv[1:6]\\\\nbody=sys.stdin.buffer.read()\\\\nheader=(f\\\\\\\"FABRIC/2\\\\\\\\nproject: {project}\\\\\\\\noperation: {operation}\\\\\\\\nrequest: {request}\\\\\\\\nbase: {base}\\\\\\\\nwork-branch: {branch}\\\\\\\\n\\\\\\\"\\\\n        f\\\\\\\"prompt-bytes: {len(body)}\\\\\\\\nprompt-sha256: {hashlib.sha256(body).hexdigest()}\\\\\\\\nEND FABRIC\\\\\\\\n\\\\\\\\n\\\\\\\").encode()\\\\nsys.stdout.buffer.write(header+body+b\\\\\\\"\\\\\\\\n__CODEX_FABRIC_END_v2__\\\\\\\\n\\\\\\\")\\\" k-slide VERIFY chg16-controlled-content-support-01-fix01-verify01 96172ecabd39ca6affa55306d965a03bc5dd3598 codex/k-slide-chg16-controlled-content-support-01-fix01-verify01-fabric <<'KSLIDE_VERIFY_PROMPT' | rtk /Users/haewonkim/.codex-fabric/bin/receive-stdin\nExecute an evidence-only VERIFY for Project K-Slide (k-slide), Change CHG-16, KSA-20 FIX01.\n\nAuthoritative Git facts:\n- Fresh target/main base: 96172ecabd39ca6affa55306d965a03bc5dd3598\n- Exact source subject to verify: candidate 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf\n- Candidate is exactly one commit ahead of KSA-20 BUILD predecessor 3d19eb9240c36924de2862184109b3897a31a6e1\n- Candidate parent must remain exact; do not rewrite it.\n- This VERIFY uses Fabric work branch codex/k-slide-chg16-controlled-content-support-01-fix01-verify01-fabric. Fabric will publish that branch and its native evidence; do not push anything yourself.\n\nCritical execution protocol:\n1. Confirm the current worktree starts from accepted base 96172ecabd39ca6affa55306d965a03bc5dd3598, then verify the exact candidate exists and has parent 3d19eb9240c36924de2862184109b3897a31a6e1. Fetch only the existing candidate ref if the object is not local; never move or modify main.\n2. Switch this Fabric worktree to detached HEAD at exactly 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf. Keep it clean. Do not merge, rebase, amend, cherry-pick, reset the candidate, create any product/source/test/configuration commit, or edit .codex-fabric evidence metadata. Do not run setup scripts that mutate product source. Do not push; Fabric owns publication after the model turn.\n3. Inspect the exact candidate implementation and its diff from predecessor, especially:\n   - src/k_slide/content_support.py\n   - src/k_slide/deletion.py\n   - tests/test_ksa20_controlled_content_support.py\n   - relevant KSA-13 deletion/legal-hold code and tests.\n4. Independently verify whether exact candidate 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf closes defect F20-01 without introducing another code/configuration defect. F20-01: KSA-20 BUILD emitted controlled-support DELETED audit records before support-content files were actually unlinked. FIX01 intends truthful workspace and durable/scoped KSA-13 deletion audit through partial unlink failure, retry, and replay.\n5. Verify all of these requirements:\n   - controlled-support DELETED/SUCCESS audit only after the corresponding controlled support copy is actually absent;\n   - source-free metadata may be snapshotted before unlink, but business content is not retained for audit;\n   - support-content unlink failure makes KSA-13 report PARTIAL/failure and records no DELETED success for content that still exists;\n   - retry removes remaining support content and only then records truthful final DELETED lifecycle;\n   - successful-deletion replay is idempotent and does not append misleading duplicate deletion-success records;\n   - workspace and durable/scoped deletion backends obey the same law;\n   - support-access audit is source-free and contains no source/OCR/translation/report content, filenames, absolute paths, AccessKey, or credentials;\n   - predecessor KSA-20 controls remain intact: ordinary support source-free; controlled access externally authorized, exact-run/scope bound, typed, expiring/revocable, secret-safe, and unavailable through hidden standalone CLI/admin bypass;\n   - KSA-12 retention/legal-hold semantics and KSA-15/KSA-17/KSA-18 security/isolation boundaries remain intact.\n6. Run at minimum the decisive checks against the exact detached candidate:\n   - focused KSA-20 controlled-content suite, including workspace partial support deletion -> no premature DELETED audit -> successful retry -> one truthful final deletion event -> idempotent replay;\n   - equivalent durable/scoped partial-failure/retry/replay test;\n   - successful normal KSA-20 deletion and source-free audit assertions;\n   - KSA-13 deletion/legal-hold regressions;\n   - KSA-12 retention regressions;\n   - KSA-15 AccessKey non-leakage;\n   - KSA-17 run-scope authorization/isolation;\n   - KSA-18 default-deny egress;\n   - storage-plane tests;\n   - full unittest discovery;\n   - Python 3.11/3.12-compatible focused checks available locally;\n   - compile checks and git diff checks.\nUse the repository's required rtk command prefix for shell commands when available. Prefer the exact test commands and discovery patterns from the repository; do not alter tests to make evidence pass. Record decisive command results in your final report.\n7. Inspect for any independently established code/configuration defect in the exact candidate. If one is established, do not patch it under VERIFY: report the defect and failing evidence. If no defect is established, report verification pass.\n8. Before finishing, prove source equivalence and clean state:\n   - git rev-parse HEAD == 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf\n   - git status --porcelain is empty\n   - git diff --check passes\n   - no product files, tests, or configuration were changed.\n9. Final response must be concise but include PASS/FAIL or NEEDS_REVIEW, exact candidate/base/predecessor, decisive checks and results, any limitation, and explicit confirmation that merge/rebase/force-push/direct-push to main were not performed. Do not claim release or production certification.\n\nThis is evidence recovery, not an implementation rewrite. Leave the product source tree identical to the exact candidate.\nKSLIDE_VERIFY_PROMPT\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3 -c 'import hashlib,sys\nproject,operation,request,base,branch=sys.argv[1:6]\nbody=sys.stdin.buffer.read()\nheader=(f\\\"FABRIC/2\nproject: {project}\noperation: {operation}\nrequest: {request}\nbase: {base}\nwork-branch: {branch}\n\\\"\n        f\\\"prompt-bytes: {len(body)}\nprompt-sha256: {hashlib.sha256(body).hexdigest()}\nEND FABRIC\n\n\\\").encode()\nsys.stdout.buffer.write(header+body+b\\\"\n__CODEX_FABRIC_END_v2__\n\\\")' k-slide VERIFY chg16-controlled-content-support-01-fix01-verify01 96172ecabd39ca6affa55306d965a03bc5dd3598 codex/k-slide-chg16-controlled-content-support-01-fix01-verify01-fabric <<'KSLIDE_VERIFY_PROMPT' | rtk /Users/haewonkim/.codex-fabric/bin/receive-stdin\nExecute an evidence-only VERIFY for Project K-Slide (k-slide), Change CHG-16, KSA-20 FIX01.\n\nAuthoritative Git facts:\n- Fresh target/main base: 96172ecabd39ca6affa55306d965a03bc5dd3598\n- Exact source subject to verify: candidate 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf\n- Candidate is exactly one commit ahead of KSA-20 BUILD predecessor 3d19eb9240c36924de2862184109b3897a31a6e1\n- Candidate parent must remain exact; do not rewrite it.\n- This VERIFY uses Fabric work branch codex/k-slide-chg16-controlled-content-support-01-fix01-verify01-fabric. Fabric will publish that branch and its native evidence; do not push anything yourself.\n\nCritical execution protocol:\n1. Confirm the current worktree starts from accepted base 96172ecabd39ca6affa55306d965a03bc5dd3598, then verify the exact candidate exists and has parent 3d19eb9240c36924de2862184109b3897a31a6e1. Fetch only the existing candidate ref if the object is not local; never move or modify main.\n2. Switch this Fabric worktree to detached HEAD at exactly 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf. Keep it clean. Do not merge, rebase, amend, cherry-pick, reset the candidate, create any product/source/test/configuration commit, or edit .codex-fabric evidence metadata. Do not run setup scripts that mutate product source. Do not push; Fabric owns publication after the model turn.\n3. Inspect the exact candidate implementation and its diff from predecessor, especially:\n   - src/k_slide/content_support.py\n   - src/k_slide/deletion.py\n   - tests/test_ksa20_controlled_content_support.py\n   - relevant KSA-13 deletion/legal-hold code and tests.\n4. Independently verify whether exact candidate 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf closes defect F20-01 without introducing another code/configuration defect. F20-01: KSA-20 BUILD emitted controlled-support DELETED audit records before support-content files were actually unlinked. FIX01 intends truthful workspace and durable/scoped KSA-13 deletion audit through partial unlink failure, retry, and replay.\n5. Verify all of these requirements:\n   - controlled-support DELETED/SUCCESS audit only after the corresponding controlled support copy is actually absent;\n   - source-free metadata may be snapshotted before unlink, but business content is not retained for audit;\n   - support-content unlink failure makes KSA-13 report PARTIAL/failure and records no DELETED success for content that still exists;\n   - retry removes remaining support content and only then records truthful final DELETED lifecycle;\n   - successful-deletion replay is idempotent and does not append misleading duplicate deletion-success records;\n   - workspace and durable/scoped deletion backends obey the same law;\n   - support-access audit is source-free and contains no source/OCR/translation/report content, filenames, absolute paths, AccessKey, or credentials;\n   - predecessor KSA-20 controls remain intact: ordinary support source-free; controlled access externally authorized, exact-run/scope bound, typed, expiring/revocable, secret-safe, and unavailable through hidden standalone CLI/admin bypass;\n   - KSA-12 retention/legal-hold semantics and KSA-15/KSA-17/KSA-18 security/isolation boundaries remain intact.\n6. Run at minimum the decisive checks against the exact detached candidate:\n   - focused KSA-20 controlled-content suite, including workspace partial support deletion -> no premature DELETED audit -> successful retry -> one truthful final deletion event -> idempotent replay;\n   - equivalent durable/scoped partial-failure/retry/replay test;\n   - successful normal KSA-20 deletion and source-free audit assertions;\n   - KSA-13 deletion/legal-hold regressions;\n   - KSA-12 retention regressions;\n   - KSA-15 AccessKey non-leakage;\n   - KSA-17 run-scope authorization/isolation;\n   - KSA-18 default-deny egress;\n   - storage-plane tests;\n   - full unittest discovery;\n   - Python 3.11/3.12-compatible focused checks available locally;\n   - compile checks and git diff checks.\nUse the repository's required rtk command prefix for shell commands when available. Prefer the exact test commands and discovery patterns from the repository; do not alter tests to make evidence pass. Record decisive command results in your final report.\n7. Inspect for any independently established code/configuration defect in the exact candidate. If one is established, do not patch it under VERIFY: report the defect and failing evidence. If no defect is established, report verification pass.\n8. Before finishing, prove source equivalence and clean state:\n   - git rev-parse HEAD == 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf\n   - git status --porcelain is empty\n   - git diff --check passes\n   - no product files, tests, or configuration were changed.\n9. Final response must be concise but include PASS/FAIL or NEEDS_REVIEW, exact candidate/base/predecessor, decisive checks and results, any limitation, and explicit confirmation that merge/rebase/force-push/direct-push to main were not performed. Do not claim release or production certification.\n\nThis is evidence recovery, not an implementation rewrite. Leave the product source tree identical to the exact candidate.\nKSLIDE_VERIFY_PROMPT\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3 -c 'import hashlib,sys\nproject,operation,request,base,branch=sys.argv[1:6]\nbody=sys.stdin.buffer.read()\nheader=(f\\\"FABRIC/2\\\\nproject: {project}\\\\noperation: {operation}\\\\nrequest: {request}\\\\nbase: {base}\\\\nwork-branch: {branch}\\\\n\\\"\n        f\\\"prompt-bytes: {len(body)}\\\\nprompt-sha256: {hashlib.sha256(body).hexdigest()}\\\\nEND FABRIC\\\\n\\\\n\\\").encode()\nsys.stdout.buffer.write(header+body+b\\\"\\\\n__CODEX_FABRIC_END_v2__\\\\n\\\")' k-slide VERIFY chg16-controlled-content-support-01-fix01-verify01 96172ecabd39ca6affa55306d965a03bc5dd3598 codex/k-slide-chg16-controlled-content-support-01-fix01-verify01-fabric <<'KSLIDE_VERIFY_PROMPT' | rtk /Users/haewonkim/.codex-fabric/bin/receive-stdin\nExecute an evidence-only VERIFY for Project K-Slide (k-slide), Change CHG-16, KSA-20 FIX01.\n\nAuthoritative Git facts:\n- Fresh target/main base: 96172ecabd39ca6affa55306d965a03bc5dd3598\n- Exact source subject to verify: candidate 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf\n- Candidate is exactly one commit ahead of KSA-20 BUILD predecessor 3d19eb9240c36924de2862184109b3897a31a6e1\n- Candidate parent must remain exact; do not rewrite it.\n- This VERIFY uses Fabric work branch codex/k-slide-chg16-controlled-content-support-01-fix01-verify01-fabric. Fabric will publish that branch and its native evidence; do not push anything yourself.\n\nCritical execution protocol:\n1. Confirm the current worktree starts from accepted base 96172ecabd39ca6affa55306d965a03bc5dd3598, then verify the exact candidate exists and has parent 3d19eb9240c36924de2862184109b3897a31a6e1. Fetch only the existing candidate ref if the object is not local; never move or modify main.\n2. Switch this Fabric worktree to detached HEAD at exactly 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf. Keep it clean. Do not merge, rebase, amend, cherry-pick, reset the candidate, create any product/source/test/configuration commit, or edit .codex-fabric evidence metadata. Do not run setup scripts that mutate product source. Do not push; Fabric owns publication after the model turn.\n3. Inspect the exact candidate implementation and its diff from predecessor, especially:\n   - src/k_slide/content_support.py\n   - src/k_slide/deletion.py\n   - tests/test_ksa20_controlled_content_support.py\n   - relevant KSA-13 deletion/legal-hold code and tests.\n4. Independently verify whether exact candidate 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf closes defect F20-01 without introducing another code/configuration defect. F20-01: KSA-20 BUILD emitted controlled-support DELETED audit records before support-content files were actually unlinked. FIX01 intends truthful workspace and durable/scoped KSA-13 deletion audit through partial unlink failure, retry, and replay.\n5. Verify all of these requirements:\n   - controlled-support DELETED/SUCCESS audit only after the corresponding controlled support copy is actually absent;\n   - source-free metadata may be snapshotted before unlink, but business content is not retained for audit;\n   - support-content unlink failure makes KSA-13 report PARTIAL/failure and records no DELETED success for content that still exists;\n   - retry removes remaining support content and only then records truthful final DELETED lifecycle;\n   - successful-deletion replay is idempotent and does not append misleading duplicate deletion-success records;\n   - workspace and durable/scoped deletion backends obey the same law;\n   - support-access audit is source-free and contains no source/OCR/translation/report content, filenames, absolute paths, AccessKey, or credentials;\n   - predecessor KSA-20 controls remain intact: ordinary support source-free; controlled access externally authorized, exact-run/scope bound, typed, expiring/revocable, secret-safe, and unavailable through hidden standalone CLI/admin bypass;\n   - KSA-12 retention/legal-hold semantics and KSA-15/KSA-17/KSA-18 security/isolation boundaries remain intact.\n6. Run at minimum the decisive checks against the exact detached candidate:\n   - focused KSA-20 controlled-content suite, including workspace partial support deletion -> no premature DELETED audit -> successful retry -> one truthful final deletion event -> idempotent replay;\n   - equivalent durable/scoped partial-failure/retry/replay test;\n   - successful normal KSA-20 deletion and source-free audit assertions;\n   - KSA-13 deletion/legal-hold regressions;\n   - KSA-12 retention regressions;\n   - KSA-15 AccessKey non-leakage;\n   - KSA-17 run-scope authorization/isolation;\n   - KSA-18 default-deny egress;\n   - storage-plane tests;\n   - full unittest discovery;\n   - Python 3.11/3.12-compatible focused checks available locally;\n   - compile checks and git diff checks.\nUse the repository's required rtk command prefix for shell commands when available. Prefer the exact test commands and discovery patterns from the repository; do not alter tests to make evidence pass. Record decisive command results in your final report.\n7. Inspect for any independently established code/configuration defect in the exact candidate. If one is established, do not patch it under VERIFY: report the defect and failing evidence. If no defect is established, report verification pass.\n8. Before finishing, prove source equivalence and clean state:\n   - git rev-parse HEAD == 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf\n   - git status --porcelain is empty\n   - git diff --check passes\n   - no product files, tests, or configuration were changed.\n9. Final response must be concise but include PASS/FAIL or NEEDS_REVIEW, exact candidate/base/predecessor, decisive checks and results, any limitation, and explicit confirmation that merge/rebase/force-push/direct-push to main were not performed. Do not claim release or production certification.\n\nThis is evidence recovery, not an implementation rewrite. Leave the product source tree identical to the exact candidate.\nKSLIDE_VERIFY_PROMPT\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'def check_logical_request|logical request' /Users/haewonkim/.codex-fabric/current/fabric.py | head -20 && rtk sed -n '850,930p' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n --glob 'job.json' --glob 'result.json' --glob 'job-summary.json' 'chg16-controlled-content-support-01-fix01-verify01' /Users/haewonkim/.codex-fabric/jobs /Users/haewonkim/.codex-fabric/results 2>/dev/null | head -80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /opt/anaconda3/bin/python3.11 /Users/haewonkim/.codex-fabric/current/fabric.py status'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -l 'chg16-controlled-content-support-01-fix01-verify01' /Users/haewonkim/.codex-fabric/jobs /Users/haewonkim/.codex-fabric/results 2>/dev/null | head -40\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,110p' /Users/haewonkim/.codex-fabric/jobs/CF-9bee8d83ed062e5105600422.running/job.json\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,80p' /Users/haewonkim/.codex-fabric/jobs/CF-9bee8d83ed062e5105600422.running/prompt.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git checkout --detach 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf && rtk git rev-parse HEAD && rtk git show -s --format='%H%n%P%n%s' HEAD && rtk git status --short --branch\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'python3\\\\.12|unittest discover|compileall|pytest|test_ksa20|test_chg16' README.md DEVELOPMENT_NOTES.md AGENTS.md pyproject.toml setup.cfg tox.ini Makefile scripts tests 2>/dev/null | head -200\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 138,
+        "output_sha256": "9690911732f00f233f8b5781462229fa016b263fc8c7f7e89c14fdec09f86edc",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'record_deleted_support_artifacts|prepare_deleted_support_artifacts|_delete_support_content|SupportAccessLifecycle.DELETED|PARTIAL|partial|replay|legal.hold|AccessKey|egress' src/k_slide/content_support.py src/k_slide/deletion.py tests/test_ksa20_controlled_content_support.py tests/test_chg16_deletion.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n '\"'^class |''^    def test_|''^def test_'\"' tests/test_ksa20_controlled_content_support.py tests/test_chg16_deletion.py tests/test_chg16_retention_policy.py tests/test_chg16_accesskey_nonleakage.py tests/test_chg17_run_scope_authorization.py tests/test_chg18_default_deny_egress.py tests/test_chg16_storage_planes.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check 3d19eb9240c36924de2862184109b3897a31a6e1 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf && rtk python --version && (rtk python3.12 --version || true) && rtk git diff --stat 3d19eb9240c36924de2862184109b3897a31a6e1 HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_ksa20_controlled_content_support tests.test_chg16_deletion'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_chg16_retention_policy tests.test_chg16_accesskey_nonleakage tests.test_chg17_run_scope_authorization tests.test_chg18_default_deny_egress tests.test_chg16_storage_planes'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3.12 -m unittest tests.test_ksa20_controlled_content_support tests.test_chg16_deletion tests.test_chg16_retention_policy tests.test_chg16_accesskey_nonleakage tests.test_chg17_run_scope_authorization tests.test_chg18_default_deny_egress'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --no-ext-diff --unified=35 3d19eb9240c36924de2862184109b3897a31a6e1 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf -- src/k_slide/content_support.py src/k_slide/deletion.py tests/test_ksa20_controlled_content_support.py | head -420'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git diff --check 3d19eb9240c36924de2862184109b3897a31a6e1 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf && rtk git status --porcelain=v1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m compileall -q src tests && rtk python3.12 -m compileall -q src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python -m unittest discover -s tests -p 'test_*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --numstat 3d19eb9240c36924de2862184109b3897a31a6e1 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf && rtk git diff --name-status 3d19eb9240c36924de2862184109b3897a31a6e1 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --porcelain=v1 && rtk git diff --check && rtk git diff --quiet 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf -- && rtk git branch --show-current'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git rev-parse HEAD && rtk git show -s --format='%H%n%P%n%s' HEAD && rtk git merge-base --is-ancestor 96172ecabd39ca6affa55306d965a03bc5dd3598 HEAD && rtk git merge-base --is-ancestor 3d19eb9240c36924de2862184109b3897a31a6e1 HEAD && rtk git rev-list --count 3d19eb9240c36924de2862184109b3897a31a6e1..HEAD\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide ls-remote origin refs/heads/main refs/heads/codex/k-slide-chg16-controlled-content-support-01-fix01 refs/heads/codex-fabric/evidence/k-slide/chg16-controlled-content-support-01-fix01-verify01'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.155.1",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 154,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 94.1,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 2504960,
+      "fresh_input_tokens": 156948,
+      "input_tokens": 2661908,
+      "non_reasoning_output_tokens": 14522,
+      "output_tokens": 24321,
+      "reasoning_output_tokens": 9799,
+      "total_processed_tokens": 2686229
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf",
+      "subject": "Fix controlled-support deletion audit ordering"
+    },
+    {
+      "sha": "3d19eb9240c36924de2862184109b3897a31a6e1",
+      "subject": "Implement KSA-20 controlled content support"
+    }
+  ],
+  "diff": {
+    "additions": 1742,
+    "changed_files": 9,
+    "commit_count": 2,
+    "deletions": 0
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 2,
+    "items": [
+      {
+        "bytes": 35694,
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "90b4c71e4f5d0fe0c45e57f29bdf8d68a8f2f825e82a171dd3db20f6f0aa2b50"
+      },
+      {
+        "bytes": 13286,
+        "path": "README.md",
+        "sha256": "f30242e0d41618f69501dc1324898f2a58f6ad8d2dddb0fccc6c32b0ef3e0b1d"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-20T21:39:48Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "96172ecabd39ca6affa55306d965a03bc5dd3598",
+    "branch": "codex/k-slide-chg16-controlled-content-support-01-fix01-verify01",
+    "detached_verify": true,
+    "head_sha": "8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf",
+    "remote_exact_head": true,
+    "remote_head_sha": "8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "96172ecabd39ca6affa55306d965a03bc5dd3598",
+    "work_branch": "codex/k-slide-chg16-controlled-content-support-01-fix01-verify01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-9bee8d83ed062e5105600422",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-controlled-content-support-01-fix01-verify01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-controlled-content-support-01-fix01-verify01"
+  },
+  "operation": "VERIFY",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "a642c9f63bab2cb555704bdb0b9d1f28222591f133f934c1d0f93cc5a25ab8a1",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-controlled-content-support-01-fix01-verify01",
+  "schema_version": 1,
+  "started_at": "2026-09-20T21:30:12Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 576,
+    "queue_seconds": 1,
+    "total_seconds": 577
+  },
+  "transport": {
+    "bytes": 5818,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 5454,
+    "prompt_sha256": "1e19161e5b8d26820139fab0de5738d8bf553728c9dc788dc674ca51942fa72c",
+    "sha256": "9bee8d83ed062e51056004222eeda8a39dee3fb39f12dbbc9038ff8303dcece8"
+  }
+}
