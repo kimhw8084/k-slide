@@ -1,0 +1,435 @@
+{
+  "accepted_at": "2026-09-20T19:28:44Z",
+  "changed_files": [
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "additions": 1183,
+      "deletions": 0,
+      "path": "src/k_slide/content_support.py",
+      "status": "A"
+    },
+    {
+      "additions": 21,
+      "deletions": 0,
+      "path": "src/k_slide/deletion.py",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 10,
+      "deletions": 0,
+      "path": "src/k_slide/retention.py",
+      "status": "M"
+    },
+    {
+      "additions": 8,
+      "deletions": 0,
+      "path": "src/k_slide/storage.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": "tests/test_chg16_storage_planes.py",
+      "status": "M"
+    },
+    {
+      "additions": 318,
+      "deletions": 0,
+      "path": "tests/test_ksa20_controlled_content_support.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba tests/test_ksa20_controlled_content_support.py | sed -n '136,152p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_ksa20_controlled_content_support -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_deletion tests.test_chg16_retention_policy tests.test_chg16_accesskey_nonleakage tests.test_chg17_run_scope_authorization tests.test_chg18_default_deny_egress tests.test_phase35 tests.test_chg16_host_integration -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n -C 5 \\\"def from_dict\\\\(cls, value: Any\\\\) -> \\\\\\\"SupportAccessAudit|def _selection_matches|for index, selection|def read_controlled|names.count|resolved = layout\\\" src/k_slide/content_support.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_ksa20_controlled_content_support -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n -C 4 \"def _central_operational_root|self.operational|class ScopedReferenceDeletionBackend\" src/k_slide/paas.py src/k_slide/deletion.py | head -n 180'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m compileall -q src/k_slide tests/test_ksa20_controlled_content_support.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_ksa20_controlled_content_support -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m compileall -q src/k_slide tests/test_ksa20_controlled_content_support.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_ksa20_controlled_content_support tests.test_chg16_deletion tests.test_chg16_retention_policy -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest discover -s tests -q'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,85p' tests/test_chg16_storage_planes.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"StorageArtifact\\\\.(SOURCE_SNAPSHOT|NORMALIZED_RENDER|NATIVE_EXTRACTION|REGION_CROP|OCR_METADATA|EVIDENCE_IR|TRANSLATION_PATCH|CANONICAL_IR|REPORT)\\\" src/k_slide | head -n 200\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_ksa20_controlled_content_support tests.test_chg16_storage_planes -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk wc -l src/k_slide/content_support.py tests/test_ksa20_controlled_content_support.py && rtk rg -n \"TODO|pass$|except Exception\" src/k_slide/content_support.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff -- src/k_slide/errors.py src/k_slide/storage.py src/k_slide/deletion.py src/k_slide/retention.py README.md IMPLEMENTATION_STATUS.md tests/test_chg16_storage_planes.py | sed -n '1,360p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git status --short && rtk git diff --stat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '520,820p' src/k_slide/content_support.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,240p' src/k_slide/content_support.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '240,520p' src/k_slide/content_support.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '820,1140p' src/k_slide/content_support.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"ControlledSupportArtifact\\\\(\\\" src tests | head -n 80 && rtk rg -n \\\"_path_matches_class|relative_path.*REPORT\\\" src/k_slide/content_support.py tests/test_ksa20_controlled_content_support.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sh -c 'if command -v python3.12 >/dev/null 2>&1; then python3.12 -m compileall -q src evals tests; else echo python3.12-unavailable; fi'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk command -v python3.12 || true'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3.12 -m unittest tests.test_ksa20_controlled_content_support tests.test_chg16_deletion tests.test_chg16_accesskey_nonleakage tests.test_chg17_run_scope_authorization tests.test_chg18_default_deny_egress -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '700,860p' src/k_slide/content_support.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '420,700p' src/k_slide/content_support.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '960,1140p' src/k_slide/content_support.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_ksa20_controlled_content_support -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_ksa20_controlled_content_support -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_ksa20_controlled_content_support -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n -C 5 \"authorized user reference|support capability reference\" src/k_slide/content_support.py | head -n 120'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_ksa20_controlled_content_support -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_ksa20_controlled_content_support -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk find . -maxdepth 3 -type f \\\\( -iname '*evidence*' -o -iname '*fabric*' -o -iname 'RUN_COMPLETE.md' -o -iname '*status*' \\\\) -print | sort | head -n 160\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk find . -maxdepth 3 -type f | rtk rg -i 'evidence|fabric|run_complete|status' | head -n 160\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3.12 -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add IMPLEMENTATION_STATUS.md README.md src/k_slide/content_support.py src/k_slide/deletion.py src/k_slide/errors.py src/k_slide/retention.py src/k_slide/storage.py tests/test_chg16_storage_planes.py tests/test_ksa20_controlled_content_support.py && rtk git diff --cached --check && rtk git diff --cached --stat && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git commit -m \"Implement KSA-20 controlled content support\" && rtk git rev-parse HEAD && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git show --stat --oneline --decorate HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rev-parse HEAD''^ && rtk git rev-parse HEAD && rtk git status --porcelain=v1 --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check 96172ecabd39ca6affa55306d965a03bc5dd3598..HEAD && rtk git diff --name-status 96172ecabd39ca6affa55306d965a03bc5dd3598..HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3.12 -m unittest tests.test_ksa20_controlled_content_support -q && rtk git status --porcelain=v1 --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.155.1",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 326,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 98.59,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 20113152,
+      "fresh_input_tokens": 287532,
+      "input_tokens": 20400684,
+      "non_reasoning_output_tokens": 45195,
+      "output_tokens": 80953,
+      "reasoning_output_tokens": 35758,
+      "total_processed_tokens": 20481637
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "3d19eb9240c36924de2862184109b3897a31a6e1",
+      "subject": "Implement KSA-20 controlled content support"
+    }
+  ],
+  "diff": {
+    "additions": 1551,
+    "changed_files": 9,
+    "commit_count": 1,
+    "deletions": 0
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 2,
+    "items": [
+      {
+        "bytes": 35694,
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "90b4c71e4f5d0fe0c45e57f29bdf8d68a8f2f825e82a171dd3db20f6f0aa2b50"
+      },
+      {
+        "bytes": 13286,
+        "path": "README.md",
+        "sha256": "f30242e0d41618f69501dc1324898f2a58f6ad8d2dddb0fccc6c32b0ef3e0b1d"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-20T19:57:04Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "96172ecabd39ca6affa55306d965a03bc5dd3598",
+    "branch": "codex/k-slide-chg16-controlled-content-support-01",
+    "detached_verify": false,
+    "head_sha": "3d19eb9240c36924de2862184109b3897a31a6e1",
+    "remote_exact_head": true,
+    "remote_head_sha": "3d19eb9240c36924de2862184109b3897a31a6e1",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "96172ecabd39ca6affa55306d965a03bc5dd3598",
+    "work_branch": "codex/k-slide-chg16-controlled-content-support-01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-5aad23a3a67fa059901b9c0e",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-controlled-content-support-01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-controlled-content-support-01"
+  },
+  "operation": "BUILD",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "a642c9f63bab2cb555704bdb0b9d1f28222591f133f934c1d0f93cc5a25ab8a1",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-controlled-content-support-01",
+  "schema_version": 1,
+  "started_at": "2026-09-20T19:28:45Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1699,
+    "queue_seconds": 1,
+    "total_seconds": 1700
+  },
+  "transport": {
+    "bytes": 14630,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 14296,
+    "prompt_sha256": "b8769a23d1b2c85e1457a6e76fd2f86f2b7535c0bf5557f948829212da4871db",
+    "sha256": "5aad23a3a67fa059901b9c0e86804e5edba665facad41a953613c780b05ac77c"
+  }
+}
