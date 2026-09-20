@@ -1,6 +1,7 @@
 ---
 description: K-Slide single-agent production workflow with typed lifecycle tools and deterministic completion.
 mode: primary
+model: google/gemma-4-31b-it
 temperature: 0.1
 permission:
   "*": deny

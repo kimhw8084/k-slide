@@ -1,11 +1,11 @@
 import assert from "node:assert/strict"
 import { createHash } from "node:crypto"
 import { spawnSync } from "node:child_process"
-import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
-import KSlideHostPlugin from "../.opencode/plugin/k-slide-host.ts"
+import KSlideHostPlugin, { deploymentBoundRouteIdentity, opencodeRouteIdentity } from "../.opencode/plugin/k-slide-host.ts"
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64")
@@ -48,6 +48,60 @@ function dataPart(mime: string, filename: string, bytes: Buffer, url = `data:${m
 
 function sha256(bytes: Buffer): string {
   return createHash("sha256").update(bytes).digest("hex")
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item)).join(",")}]`
+  return `{${Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right)).map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`).join(",")}}`
+}
+
+function routePolicy(endpointIdentity: string): Record<string, unknown> {
+  const capabilities = [
+    { capability_class: "inference_route", purpose: "model_inference", service_identity: "inference-service-v1", route_identity: "route-v1", endpoint_identity: endpointIdentity, data_class: "source_content" },
+    { capability_class: "durable_job_control", purpose: "job_control", service_identity: "job-service-v1", route_identity: null, endpoint_identity: null, data_class: "operational_metadata" },
+    { capability_class: "scoped_storage", purpose: "scoped_storage", service_identity: "storage-service-v1", route_identity: null, endpoint_identity: null, data_class: "source_content" },
+    { capability_class: "non_content_telemetry", purpose: "non_content_telemetry", service_identity: "telemetry-service-v1", route_identity: null, endpoint_identity: null, data_class: "non_content" },
+  ].sort((left, right) => left.capability_class.localeCompare(right.capability_class))
+  const policyHash = sha256(Buffer.from(canonicalJson({ schema_version: "1.0", policy_version: "2026.09.19", default_action: "deny", capabilities })))
+  const policyIdentity = sha256(Buffer.from(canonicalJson({ schema_version: "1.0", policy_version: "2026.09.19", policy_hash: policyHash })))
+  return { schema_version: "1.0", policy_version: "2026.09.19", policy_hash: policyHash, policy_identity: policyIdentity, default_action: "deny", capabilities }
+}
+
+async function writeRoutePolicy(worktree: string, endpointIdentity: string, mutate?: (policy: Record<string, unknown>) => Record<string, unknown>): Promise<void> {
+  const config = path.join(worktree, ".k-slide-config")
+  await mkdir(config, { recursive: true })
+  const policy = mutate ? mutate(routePolicy(endpointIdentity)) : routePolicy(endpointIdentity)
+  await writeFile(path.join(config, "egress-policy.json"), JSON.stringify(policy), "utf8")
+}
+
+function routeCandidate(endpointIdentity: string, policy = routePolicy(endpointIdentity)): Record<string, unknown> {
+  return {
+    schema_version: "1.1",
+    candidate_spec_version: "1.1",
+    requested_model: "google/gemma-4-31b-it",
+    effective_model: "google/gemma-4-31b-it",
+    provider: "google",
+    opencode_version: "1.3.9",
+    network_egress: "default_deny",
+    inference_route_identity: "route-v1",
+    inference_endpoint_identity: endpointIdentity,
+    egress_policy_version: policy.policy_version,
+    egress_policy_hash: policy.policy_hash,
+    egress_policy_identity: policy.policy_identity,
+  }
+}
+
+async function writeRouteCandidate(worktree: string, endpointIdentity: string, relative = ".k-slide-config/production-candidate.json", mutate?: (candidate: Record<string, unknown>) => Record<string, unknown>): Promise<string> {
+  const candidatePath = path.join(worktree, relative)
+  await mkdir(path.dirname(candidatePath), { recursive: true })
+  const candidate = mutate ? mutate(routeCandidate(endpointIdentity)) : routeCandidate(endpointIdentity)
+  if (path.extname(candidatePath) === ".yaml") {
+    await writeFile(candidatePath, Object.entries(candidate).map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join("\n") + "\n", "utf8")
+  } else {
+    await writeFile(candidatePath, JSON.stringify(candidate), "utf8")
+  }
+  return candidatePath
 }
 
 async function hooksFor(worktree: string) {
@@ -198,6 +252,9 @@ async function failureBoundary(): Promise<void> {
     dataPart("image/png", "remote-https.png", PNG, "https://example.invalid/remote.png"),
     dataPart("image/png", "remote-blob.png", PNG, "blob:https://example.invalid/attachment"),
     dataPart("image/png", "remote-ftp.png", PNG, "ftp://example.invalid/attachment"),
+    dataPart("image/png", "remote-file.png", PNG, "file://example.invalid/remote.png"),
+    dataPart("image/png", "remote-unc-slash.png", PNG, "//example.invalid/share/remote.png"),
+    dataPart("image/png", "remote-unc-backslash.png", PNG, "\\\\example.invalid\\share\\remote.png"),
     dataPart("image/png", "empty.png", Buffer.alloc(0), "data:image/png;base64,"),
     dataPart("application/vnd.openxmlformats-officedocument.presentationml.presentation", "corrupt.pptx", Buffer.from("not-a-zip")),
   ]
@@ -345,6 +402,200 @@ async function negativeBoundary(): Promise<void> {
   assert.deepEqual(output.args, {})
 }
 
+export async function modelPinBoundary(): Promise<void> {
+  const agentSource = await readFile(path.join(ROOT, ".opencode", "agents", "k-slide.md"), "utf8")
+  assert.match(agentSource, /^model:\s*google\/gemma-4-31b-it\s*$/m)
+  const worktree = await mkdtemp(path.join(path.resolve(tmpdir()), "k-slide-route-policy-"))
+  const api = { id: "gemma-4-31b-it", npm: "@ai-sdk/google", url: "https://generativelanguage.googleapis.com/v1beta" }
+  const endpointIdentity = opencodeRouteIdentity({ providerID: "google", modelID: "gemma-4-31b-it", apiID: api.id, apiNpm: api.npm, apiURL: api.url })
+  assert.equal(endpointIdentity, "ee228eb59b413294128d01a917aba9a5841fb1f3fb26322c6c39ddc4c28f94e7")
+  await writeRoutePolicy(worktree, endpointIdentity)
+  await writeRouteCandidate(worktree, endpointIdentity)
+  try {
+    const hooks = await hooksFor(worktree)
+    const params = hooks["chat.params"]
+    assert.ok(params)
+    const base = {
+      sessionID: "model-pin-session",
+      agent: "k-slide",
+      model: {
+        id: "gemma-4-31b-it",
+        providerID: "google",
+        api,
+        name: "Gemma 4 31B IT",
+        capabilities: { temperature: true, reasoning: false, attachment: true, toolcall: true, input: { text: true, audio: false, image: true, video: false, pdf: false }, output: { text: true, audio: false, image: false, video: false, pdf: false } },
+        cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+        limit: { context: 131072, output: 8192 },
+        status: "active",
+        options: {},
+        headers: {},
+      },
+      provider: { info: { id: "google", name: "Google", source: "config", env: [], options: {}, models: {} }, options: {} },
+      message: { model: { providerID: "google", modelID: "gemma-4-31b-it" } },
+    }
+    const paramsOutput = { temperature: 0.1, topP: 1, topK: 0, options: {} }
+    await params(base as never, paramsOutput as never)
+    for (const mutation of [
+      { model: { ...base.model, id: "other-model" } },
+      { model: { ...base.model, providerID: "other-provider" } },
+      { model: { ...base.model, api: { ...api, id: "other-model" } } },
+      { model: { ...base.model, api: { ...api, npm: "@ai-sdk/openai" } } },
+      { model: { ...base.model, api: { ...api, url: "https://attacker.invalid" } } },
+      { model: { ...base.model, provider: { endpoint: "https://attacker.invalid" } } },
+      { provider: { info: { ...base.provider.info, id: "other-provider" }, options: {} } },
+      { provider: { info: { ...base.provider.info, options: { baseURL: "https://attacker.invalid" } }, options: {} } },
+      { provider: { info: base.provider.info, options: { proxy: "http://attacker.invalid" } } },
+      { model: { ...base.model, options: { endpoint: "https://attacker.invalid" } } },
+      { model: { ...base.model, options: { fallback: "other-route" } } },
+      { model: { ...base.model, options: { api: "other-route" } } },
+      { model: { ...base.model, options: { npm: "@ai-sdk/openai" } } },
+      { message: { model: { providerID: "other-provider", modelID: "other-model" } } },
+    ]) {
+      await assert.rejects(params({ ...base, ...mutation } as never, paramsOutput as never))
+    }
+    await assert.rejects(params(base as never, { ...paramsOutput, options: { baseURL: "https://attacker.invalid" } } as never))
+    await writeRoutePolicy(worktree, endpointIdentity, (policy) => {
+      const capabilities = policy.capabilities as Array<Record<string, unknown>>
+      delete capabilities.find((item) => item.capability_class === "inference_route")?.endpoint_identity
+      return policy
+    })
+    await assert.rejects(params(base as never, paramsOutput as never))
+    await writeRoutePolicy(worktree, endpointIdentity, (policy) => {
+      const capabilities = policy.capabilities as Array<Record<string, unknown>>
+      const inference = capabilities.find((item) => item.capability_class === "inference_route")
+      if (inference) inference.endpoint_identity = "malformed"
+      return policy
+    })
+    await assert.rejects(params(base as never, paramsOutput as never))
+    await writeRoutePolicy(worktree, "a".repeat(64))
+    await assert.rejects(params(base as never, paramsOutput as never))
+    await writeRoutePolicy(worktree, endpointIdentity)
+    await params({ ...base, agent: "general" } as never, paramsOutput as never)
+    const flatProvider = { ...base, provider: { id: "google", options: {} } }
+    await params(flatProvider as never, paramsOutput as never)
+  } finally {
+    await rm(worktree, { recursive: true, force: true })
+  }
+}
+
+export async function v139ProviderOrderingBoundary(): Promise<void> {
+  const worktree = await mkdtemp(path.join(path.resolve(tmpdir()), "k-slide-provider-order-"))
+  const api = { id: "gemma-4-31b-it", npm: "@ai-sdk/google", url: "https://generativelanguage.googleapis.com/v1beta" }
+  const endpointIdentity = opencodeRouteIdentity({ providerID: "google", modelID: "gemma-4-31b-it", apiID: api.id, apiNpm: api.npm, apiURL: api.url })
+  await writeRoutePolicy(worktree, endpointIdentity)
+  await writeRouteCandidate(worktree, endpointIdentity)
+  try {
+    const hooks = await hooksFor(worktree)
+    const configHook = hooks.config
+    const chatParams = hooks["chat.params"]
+    assert.ok(configHook && chatParams)
+    const baseModel = { id: "gemma-4-31b-it", providerID: "google", api, options: {} }
+    const streamV139 = async (config: Record<string, unknown>, ordering: { providerConstruction: number; dynamicInstall: number; chatParams: number; llmRequest: number }, model = baseModel): Promise<void> => {
+      await configHook(config as never)
+      const disabled = new Set(Array.isArray(config.disabled_providers) ? config.disabled_providers : [])
+      if (disabled.has(model.providerID)) throw new Error("provider unavailable")
+
+      // Exact v1.3.9 SessionLLM.stream order: getLanguage/getSDK precedes chat.params.
+      ordering.providerConstruction += 1
+      if (model.api.npm !== "@ai-sdk/google") ordering.dynamicInstall += 1
+      ordering.chatParams += 1
+      await chatParams({ agent: "k-slide", model, provider: { info: { id: "google", options: {} }, options: {} }, message: { model: { providerID: "google", modelID: "gemma-4-31b-it" } } } as never, { options: {} } as never)
+      ordering.llmRequest += 1
+    }
+    const unsafeConfigs = [
+      { provider: { google: { models: { "gemma-4-31b-it": { provider: { npm: "evil/unbundled-provider" } } } } } },
+      { provider: { google: { models: { "gemma-4-31b-it": { id: "attacker-api-id" } } } } },
+      { provider: { google: { models: { "gemma-4-31b-it": { provider: { api: "https://attacker.invalid" } } } } } },
+      { provider: { google: { options: { baseURL: "https://attacker.invalid" } } } },
+      { agent: { "k-slide": { model: "google/gemma-4-31b-it", options: { fallback: "attacker-route" } } } },
+      { agent: { "k-slide": { model: "attacker/provider" } } },
+    ]
+    for (const config of unsafeConfigs) {
+      const ordering = { providerConstruction: 0, dynamicInstall: 0, chatParams: 0, llmRequest: 0 }
+      const configuredModel = (config.agent as Record<string, unknown> | undefined)?.["k-slide"] as Record<string, unknown> | undefined
+      const selectedModel = configuredModel?.model === "attacker/provider"
+        ? { ...baseModel, providerID: "attacker", id: "provider", api: { ...api, npm: "evil/unbundled-provider" } }
+        : baseModel
+      await assert.rejects(streamV139(config, ordering, selectedModel))
+      assert.deepEqual(ordering, { providerConstruction: 0, dynamicInstall: 0, chatParams: 0, llmRequest: 0 })
+    }
+
+    const approvedConfig: Record<string, unknown> = {
+      enabled_providers: ["google"],
+      provider: { google: { whitelist: ["gemma-4-31b-it"] } },
+    }
+    const ordering = { providerConstruction: 0, dynamicInstall: 0, chatParams: 0, llmRequest: 0 }
+    await streamV139(approvedConfig, ordering)
+    assert.deepEqual(ordering, { providerConstruction: 1, dynamicInstall: 0, chatParams: 1, llmRequest: 1 })
+    assert.deepEqual(approvedConfig.disabled_providers, undefined)
+  } finally {
+    await rm(worktree, { recursive: true, force: true })
+  }
+}
+
+export async function candidateBindingBoundary(): Promise<void> {
+  const api = { id: "gemma-4-31b-it", npm: "@ai-sdk/google", url: "https://generativelanguage.googleapis.com/v1beta" }
+  const endpointIdentity = opencodeRouteIdentity({ providerID: "google", modelID: "gemma-4-31b-it", apiID: api.id, apiNpm: api.npm, apiURL: api.url })
+  const locations = [
+    ".k-slide-config/resolved-candidate.json",
+    ".k-slide-config/production-candidate.json",
+    "resolved-candidate.json",
+    "production-candidate.json",
+    "evals/production-candidate.yaml",
+  ]
+  for (const location of locations) {
+    const worktree = await mkdtemp(path.join(path.resolve(tmpdir()), "k-slide-candidate-source-"))
+    try {
+      await writeRoutePolicy(worktree, endpointIdentity)
+      await writeRouteCandidate(worktree, endpointIdentity, location)
+      assert.equal(await deploymentBoundRouteIdentity(worktree), endpointIdentity, location)
+    } finally {
+      await rm(worktree, { recursive: true, force: true })
+    }
+  }
+
+  const worktree = await mkdtemp(path.join(path.resolve(tmpdir()), "k-slide-candidate-negative-"))
+  try {
+    await writeRoutePolicy(worktree, endpointIdentity)
+    assert.equal(await deploymentBoundRouteIdentity(worktree), "")
+
+    await writeRouteCandidate(worktree, endpointIdentity, ".k-slide-config/production-candidate.json", (candidate) => ({ ...candidate, requested_model: "UNSET" }))
+    assert.equal(await deploymentBoundRouteIdentity(worktree), "")
+
+    await rm(path.join(worktree, ".k-slide-config/production-candidate.json"), { force: true })
+    await writeRouteCandidate(worktree, endpointIdentity, ".k-slide-config/resolved-candidate.json")
+    await writeRouteCandidate(worktree, endpointIdentity, ".k-slide-config/production-candidate.json", (candidate) => ({ ...candidate, effective_model: "google/other-model" }))
+    assert.equal(await deploymentBoundRouteIdentity(worktree), "")
+
+    await rm(path.join(worktree, ".k-slide-config", "production-candidate.json"), { force: true })
+    await writeRouteCandidate(worktree, endpointIdentity, ".k-slide-config/production-candidate.json")
+    assert.equal(await deploymentBoundRouteIdentity(worktree), endpointIdentity)
+
+    await rm(path.join(worktree, ".k-slide-config/production-candidate.json"), { force: true })
+    const candidateTarget = await writeRouteCandidate(worktree, endpointIdentity, "candidate-target.json")
+    await symlink(candidateTarget, path.join(worktree, ".k-slide-config", "production-candidate.json"))
+    assert.equal(await deploymentBoundRouteIdentity(worktree), "")
+
+    await rm(path.join(worktree, ".k-slide-config", "production-candidate.json"), { force: true })
+    await writeRouteCandidate(worktree, endpointIdentity)
+    const policyTarget = path.join(worktree, "egress-policy-target.json")
+    await writeFile(policyTarget, await readFile(path.join(worktree, ".k-slide-config", "egress-policy.json")))
+    await rm(path.join(worktree, ".k-slide-config", "egress-policy.json"), { force: true })
+    await symlink(policyTarget, path.join(worktree, ".k-slide-config", "egress-policy.json"))
+    assert.equal(await deploymentBoundRouteIdentity(worktree), "")
+
+    await rm(path.join(worktree, ".k-slide-config", "egress-policy.json"), { force: true })
+    await writeRoutePolicy(worktree, endpointIdentity, (policy) => ({ ...policy, default_action: "allow" }))
+    assert.equal(await deploymentBoundRouteIdentity(worktree), "")
+
+    await writeRoutePolicy(worktree, endpointIdentity)
+    await writeRouteCandidate(worktree, "a".repeat(64))
+    assert.equal(await deploymentBoundRouteIdentity(worktree), "")
+  } finally {
+    await rm(worktree, { recursive: true, force: true })
+  }
+}
+
 export async function openCodeV139PluginLoaderCompatibilityBoundary(): Promise<void> {
   const autoDiscovered: string[] = []
   for (const directoryName of ["plugin", "plugins"]) {
@@ -389,6 +640,9 @@ async function main(): Promise<void> {
   await successBoundary()
   await failureBoundary()
   await negativeBoundary()
+  await v139ProviderOrderingBoundary()
+  await candidateBindingBoundary()
+  await modelPinBoundary()
   console.log("OpenCode host attachment regression tests passed")
 }
 

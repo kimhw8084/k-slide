@@ -1,3 +1,10 @@
 {
-  // Optional. K-Slide v6 does not hardcode a model ID.
+  "plugin": ["./plugin/k-slide-host.ts"],
+  "agent": {"k-slide": {"model": "google/gemma-4-31b-it"}},
+  "autoupdate": false,
+  "lsp": false,
+  "enabled_providers": ["google"],
+  "provider": {
+    "google": {"whitelist": ["gemma-4-31b-it"]}
+  }
 }

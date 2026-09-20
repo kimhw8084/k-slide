@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 from evals.opencode_diagnostics import _persist_diagnostics, _persist_level
 from evals.opencode_runner import OpenCodeEvalRunner, OpenCodeRunResult, _persist_json, _persist_jsonl, _persist_text, _process_environment, _runtime_environment
-from k_slide.authentication import ACCESS_KEY_ENV, authenticated_company_service_call
+from k_slide.authentication import ACCESS_KEY_ENV, reference_company_service_call
 from k_slide.cli import main
 from k_slide.evidence_ir import EvidenceIR, EvidenceRegion, save_evidence
 from k_slide.errors import ErrorCode, KSlideError
@@ -110,7 +110,7 @@ class AccessKeyNonLeakageTests(unittest.TestCase):
 
         with patch.dict(os.environ, {ACCESS_KEY_ENV: self.CANARY}, clear=True):
             with self.assertRaises(KSlideError) as raised:
-                authenticated_company_service_call(FailingTransport(), {"operation": "approved.lookup", "payload": {}})
+                reference_company_service_call(FailingTransport(), {"operation": "approved.lookup", "payload": {}})
             self.assertNotIn(self.CANARY, json.dumps(raised.exception.as_dict(), ensure_ascii=False))
 
         output = io.StringIO()
@@ -285,7 +285,7 @@ if trusted_key is not None:
     core_environment["AccessKey"] = trusted_key
 core_code = (
     "import json, os\\n"
-    "from k_slide.authentication import CompanyServiceRequest, authenticated_company_service_call\\n"
+    "from k_slide.authentication import CompanyServiceRequest, reference_company_service_call\\n"
     "observed = {}\\n"
     "class Transport:\\n"
     "    def call(self, request, *, access_key):\\n"
@@ -293,7 +293,7 @@ core_code = (
     "        observed['request_has_credential_field'] = 'accesskey' in json.dumps(request.as_dict()).lower()\\n"
     "        observed['nonempty'] = access_key != ''\\n"
     "        return {'status': 'ok'}\\n"
-    "response = authenticated_company_service_call(Transport(), CompanyServiceRequest('approved.lookup', {'ordinary': 'business'})); "
+    "response = reference_company_service_call(Transport(), CompanyServiceRequest('approved.lookup', {'ordinary': 'business'})); "
     "print(json.dumps({'response_ok': response == {'status': 'ok'}, **observed}))"
 )
 core = subprocess.run([sys.executable, "-c", core_code], env=core_environment, capture_output=True, text=True, check=False)

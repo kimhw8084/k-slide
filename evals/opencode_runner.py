@@ -31,6 +31,7 @@ from .opencode_events import (
 from .certification import load_model_policy
 from k_slide.certification import EvidenceValidationError, effective_termbase_identity
 from .process_control import terminate_process_group
+from k_slide.access_key_handoff import ACCESS_KEY_HANDOFF_FD, AccessKeyBoundaryError, AccessKeyHandoff
 from k_slide.authentication import ACCESS_KEY_ENV
 from k_slide.redaction import CredentialExposureError, safe_credential_json, safe_diagnostic_text, safe_diagnostic_text_or_placeholder, sanitize_operational
 
@@ -108,77 +109,7 @@ def _process_environment() -> dict[str, str]:
     return environment
 
 
-ACCESS_KEY_HANDOFF_FD = 198
-
-
-class AccessKeyBoundaryError(RuntimeError):
-    """Raised when the trusted host/tool handoff cannot be established."""
-
-
-class _AccessKeyHandoff:
-    """One-shot in-memory handoff from the trusted runner to the host plugin."""
-
-    def __init__(self, access_key: str | None):
-        self._write_fd: int | None = None
-        self._child_fd: int | None = None
-        self._access_key = b""
-        try:
-            os.fstat(ACCESS_KEY_HANDOFF_FD)
-        except OSError:
-            pass
-        else:
-            raise AccessKeyBoundaryError("AccessKey handoff descriptor is already occupied.")
-        read_fd: int | None = None
-        write_fd: int | None = None
-        try:
-            read_fd, write_fd = os.pipe()
-            os.dup2(read_fd, ACCESS_KEY_HANDOFF_FD, inheritable=True)
-            os.close(read_fd)
-            read_fd = None
-            self._write_fd = write_fd
-            write_fd = None
-            self._child_fd = ACCESS_KEY_HANDOFF_FD
-            self._access_key = (access_key or "").encode("utf-8")
-        except (OSError, UnicodeError) as exc:
-            if read_fd is not None:
-                os.close(read_fd)
-            if write_fd is not None:
-                os.close(write_fd)
-            self.close()
-            raise AccessKeyBoundaryError("AccessKey handoff could not be established safely.") from exc
-
-    @property
-    def pass_fds(self) -> tuple[int, ...]:
-        return (self._child_fd,) if self._child_fd is not None else ()
-
-    def send(self) -> None:
-        if self._write_fd is None:
-            return
-        try:
-            remaining = memoryview(self._access_key)
-            while remaining:
-                written = os.write(self._write_fd, remaining)
-                remaining = remaining[written:]
-        except OSError as exc:
-            raise AccessKeyBoundaryError("AccessKey handoff was not consumed by the trusted host boundary.") from exc
-        finally:
-            os.close(self._write_fd)
-            self._write_fd = None
-            self._access_key = b""
-
-    def close(self) -> None:
-        if self._write_fd is not None:
-            try:
-                os.close(self._write_fd)
-            except OSError:
-                pass
-            self._write_fd = None
-        if self._child_fd is not None:
-            try:
-                os.close(self._child_fd)
-            except OSError:
-                pass
-            self._child_fd = None
+_AccessKeyHandoff = AccessKeyHandoff
 
 
 def _runtime_environment() -> tuple[dict[str, str], str | None]:

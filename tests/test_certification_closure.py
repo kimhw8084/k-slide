@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import platform
 import shutil
 import subprocess
@@ -40,6 +41,16 @@ from k_slide.certification import (
     write_evidence,
 )
 from k_slide.evidence_adapters import AdapterError, build_machine_evidence, enforce_security_scanners
+from k_slide.egress_policy import (
+    EGRESS_CAPABILITY_DURABLE_JOB_CONTROL,
+    EGRESS_CAPABILITY_INFERENCE_ROUTE,
+    EGRESS_CAPABILITY_NON_CONTENT_TELEMETRY,
+    EGRESS_CAPABILITY_SCOPED_STORAGE,
+    EGRESS_DATA_CLASS_NON_CONTENT,
+    egress_policy_hash_for_mapping,
+    egress_policy_identity_for_mapping,
+    opencode_route_identity,
+)
 from k_slide.model_policy import load_model_policy
 from k_slide.production import ProductionProfile, _asset_manifest_status, _manifest_and_fingerprint_status
 
@@ -54,6 +65,96 @@ TEST_PYTHON_VERSION = platform.python_version()
 def _write(path: Path, value: object) -> Path:
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return path
+
+
+def _write_opencode_bootstrap(root: Path) -> Path:
+    """Materialize the managed production OpenCode contract for certification fixtures."""
+    from k_slide.opencode_bootstrap import (
+        APPROVED_CREDENTIAL_ENV,
+        APPROVED_API_ID,
+        APPROVED_API_NPM,
+        APPROVED_API_URL,
+        APPROVED_MODEL,
+        APPROVED_MODEL_ID,
+        APPROVED_PROVIDER_ID,
+        APPROVED_PLUGIN,
+        BOOTSTRAP_SCHEMA_VERSION,
+        FORBIDDEN_ENVIRONMENT,
+        OPENCODE_VERSION,
+        REQUIRED_ENVIRONMENT,
+    )
+
+    managed_home = root / "managed-opencode-home"
+    config_dir = managed_home / ".opencode"
+    plugin_dir = config_dir / "plugin"
+    xdg_config = root / "managed-xdg-config"
+    xdg_data = root / "managed-xdg-data"
+    xdg_cache = root / "managed-xdg-cache"
+    xdg_state = root / "managed-xdg-state"
+    for directory in (plugin_dir, xdg_config, xdg_config / "opencode", xdg_data, xdg_data / "opencode", xdg_cache, xdg_cache / "opencode", xdg_state, xdg_state / "opencode"):
+        directory.mkdir(parents=True, exist_ok=True)
+    config_file = config_dir / "opencode.json"
+    _write(config_file, {
+        "plugin": [APPROVED_PLUGIN],
+        "agent": {"k-slide": {"model": APPROVED_MODEL}},
+        "autoupdate": False,
+        "lsp": False,
+        "enabled_providers": [APPROVED_PROVIDER_ID],
+        "provider": {APPROVED_PROVIDER_ID: {"whitelist": [APPROVED_MODEL_ID]}},
+    })
+    plugin_file = plugin_dir / "k-slide-host.ts"
+    plugin_file.write_bytes((Path.cwd() / ".opencode" / "plugin" / "k-slide-host.ts").read_bytes())
+    helper_dir = config_dir / "internal" / "lib"
+    helper_dir.mkdir(parents=True, exist_ok=True)
+    helper_file = helper_dir / "k-slide-access-key.ts"
+    helper_file.write_bytes((Path.cwd() / ".opencode" / "internal" / "lib" / "k-slide-access-key.ts").read_bytes())
+    models_file = root / "managed-models.json"
+    _write(models_file, {
+        APPROVED_PROVIDER_ID: {
+            "id": APPROVED_PROVIDER_ID,
+            "env": [APPROVED_CREDENTIAL_ENV],
+            "npm": APPROVED_API_NPM,
+            "api": APPROVED_API_URL,
+            "models": {APPROVED_MODEL_ID: {"id": APPROVED_API_ID}},
+        }
+    })
+    ripgrep_file = root / "managed-bin" / "rg"
+    ripgrep_file.parent.mkdir()
+    ripgrep_file.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    ripgrep_file.chmod(0o555)
+    for file_path in (config_file, plugin_file, helper_file, models_file):
+        file_path.chmod(0o444)
+    config_dir.chmod(0o555)
+    plugin_dir.chmod(0o555)
+    (config_dir / "internal").chmod(0o555)
+    helper_dir.chmod(0o555)
+    xdg_config.chmod(0o555)
+    (xdg_config / "opencode").chmod(0o555)
+
+    manifest = root / ".k-slide-config" / "opencode-bootstrap.json"
+    _write(manifest, {
+        "schema_version": BOOTSTRAP_SCHEMA_VERSION,
+        "opencode_version": OPENCODE_VERSION,
+        "required_environment": REQUIRED_ENVIRONMENT,
+        "forbidden_environment": list(FORBIDDEN_ENVIRONMENT),
+        "home_dir": str(managed_home),
+        "config_dir": str(config_dir),
+        "xdg_config_home": str(xdg_config),
+        "xdg_data_home": str(xdg_data),
+        "xdg_cache_home": str(xdg_cache),
+        "xdg_state_home": str(xdg_state),
+        "config_file": str(config_file),
+        "config_sha256": _sha(config_file),
+        "plugin_file": str(plugin_file),
+        "plugin_sha256": _sha(plugin_file),
+        "access_key_helper_file": str(helper_file),
+        "access_key_helper_sha256": _sha(helper_file),
+        "ripgrep_path": str(ripgrep_file),
+        "ripgrep_sha256": _sha(ripgrep_file),
+        "models_catalog": {"mode": "local_path", "path": str(models_file), "sha256": _sha(models_file), "version": "test-local-1"},
+        "credential_environment": [APPROVED_CREDENTIAL_ENV],
+    })
+    return manifest
 
 
 def _runtime_sources(root: Path, *, provider: str = "google", ocr_provider: str = "none") -> dict[str, Path]:
@@ -183,6 +284,26 @@ def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model
         "repair_policy": {"max_auto_repairs_per_unit": 2},
     }
     split = __import__("evals.scenarios", fromlist=["split_manifest"]).split_manifest()
+    endpoint_identity = opencode_route_identity(provider_id="google", model_id="gemma-4-31b-it", api_id="gemma-4-31b-it", api_npm="@ai-sdk/google", api_url="https://generativelanguage.googleapis.com/v1beta")
+    egress_capabilities = [
+        {"capability_class": EGRESS_CAPABILITY_INFERENCE_ROUTE, "purpose": "model_inference", "service_identity": "test-inference-service", "route_identity": "test-inference-route", "endpoint_identity": endpoint_identity, "data_class": "source_content"},
+        {"capability_class": EGRESS_CAPABILITY_DURABLE_JOB_CONTROL, "purpose": "job_control", "service_identity": "test-job-service", "route_identity": None, "endpoint_identity": None, "data_class": "operational_metadata"},
+        {"capability_class": EGRESS_CAPABILITY_SCOPED_STORAGE, "purpose": "scoped_storage", "service_identity": "test-storage-service", "route_identity": None, "endpoint_identity": None, "data_class": "source_content"},
+        {"capability_class": EGRESS_CAPABILITY_NON_CONTENT_TELEMETRY, "purpose": "non_content_telemetry", "service_identity": "test-telemetry-service", "route_identity": None, "endpoint_identity": None, "data_class": EGRESS_DATA_CLASS_NON_CONTENT},
+    ]
+    egress_version = "test-1"
+    egress_hash = egress_policy_hash_for_mapping(policy_version=egress_version, capabilities=egress_capabilities)
+    egress_policy = {
+        "schema_version": "1.0",
+        "policy_version": egress_version,
+        "policy_hash": egress_hash,
+        "policy_identity": egress_policy_identity_for_mapping(policy_version=egress_version, policy_hash=egress_hash),
+        "default_action": "deny",
+        "capabilities": egress_capabilities,
+    }
+    if root is not None and (root / ".k-slide-config").is_dir():
+        config = root / ".k-slide-config"
+        _write(config / "egress-policy.json", egress_policy)
     candidate = {
         "candidate_spec_version": "1.1",
         "subject_git_sha": subject,
@@ -215,11 +336,18 @@ def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model
         "schema_versions": {"evidence_ir": "1.0", "translation_patch": "1.0", "slide_ir": "1.0"},
         "retention_policy": {"schema_version": "1.0", "content_retention_days": 30, "operational_metadata_retention_days": 60},
         "tenant_isolation": "workspace_per_session",
-        "network_egress": "approved_inference_only",
+        "network_egress": "default_deny",
         "corpus_identity": {"version": "1.0", "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]},
         "constraints_sha256": "UNSET",
         "behavior_configuration": behavior,
     }
+    if root is not None:
+        candidate.update({
+            "egress_policy_version": egress_version,
+            "egress_policy_hash": egress_hash,
+            "egress_policy_identity": egress_policy["policy_identity"],
+            "inference_endpoint_identity": endpoint_identity,
+        })
     return resolve_candidate_spec(candidate, root=root or Path.cwd(), subject_git_sha=subject, model_policy=load_model_policy(), corpus=candidate["corpus_identity"])  # type: ignore[arg-type]
 
 
@@ -336,6 +464,12 @@ class CertificationClosureTests(unittest.TestCase):
 
     def test_production_completeness_rejects_unset_fields_even_with_valid_shape(self):
         candidate = _candidate_spec("a" * 40, ocr_provider="paddle")
+        candidate.update({
+            "egress_policy_version": "test-1",
+            "egress_policy_hash": "a" * 64,
+            "egress_policy_identity": "b" * 64,
+            "inference_endpoint_identity": "c" * 64,
+        })
         candidate["ocr_asset_manifest"] = "ocr/manifest.json"
         candidate["ocr_asset_manifest_sha256"] = "a" * 64
         candidate["resolved_dependency_set_sha256"] = "b" * 64
@@ -1615,6 +1749,7 @@ class CertificationClosureTests(unittest.TestCase):
             (root / "constraints-production.txt").write_bytes((Path.cwd() / "constraints-production.txt").read_bytes())
             inventory = canonical_dependency_inventory([{"name": name, "version": "1.0"} for name in ("Pillow", "PyMuPDF", "python-pptx", "paddlepaddle", "paddleocr")])
             (root / ".k-slide-config").mkdir()
+            _write_opencode_bootstrap(root)
             _write(root / ".k-slide-config" / "production-dependency-inventory.json", inventory)
             candidate = _candidate_spec(subject, ocr_provider="paddle", asset_manifest="ocr/manifest.json", asset_hash=_sha(asset_manifest), root=root)
             candidate_dir = root / ".k-slide-config"
@@ -1702,15 +1837,37 @@ class CertificationClosureTests(unittest.TestCase):
             from k_slide.runtime import discover_runtime
             from k_slide.doctor import diagnose
             from k_slide.production import production_checks
+            from k_slide.opencode_bootstrap import load_bootstrap_manifest
             package_versions = {"paddlepaddle": "3.0.0", "paddleocr": "3.0.3"}
             production_inventory = canonical_dependency_inventory([{"name": name, "version": version} for name, version in {"Pillow": "1.0", "PyMuPDF": "1.0", "python-pptx": "1.0", "paddlepaddle": "1.0", "paddleocr": "1.0"}.items()])
+            bootstrap = load_bootstrap_manifest(root / ".k-slide-config" / "opencode-bootstrap.json")
+            bootstrap_environment = {
+                "GOOGLE_GENERATIVE_AI_API_KEY": "synthetic-google-key",
+                "OPENCODE_DISABLE_MODELS_FETCH": "1",
+                "OPENCODE_DISABLE_AUTOUPDATE": "1",
+                "OPENCODE_DISABLE_LSP_DOWNLOAD": "1",
+                "OPENCODE_DISABLE_PROJECT_CONFIG": "1",
+                "OPENCODE_MODELS_PATH": bootstrap.models_path,
+                "HOME": str(bootstrap.home_dir),
+                "USERPROFILE": str(bootstrap.home_dir),
+                "XDG_CONFIG_HOME": str(bootstrap.xdg_config_home),
+                "XDG_DATA_HOME": str(bootstrap.xdg_data_home),
+                "XDG_CACHE_HOME": str(bootstrap.xdg_cache_home),
+                "XDG_STATE_HOME": str(bootstrap.xdg_state_home),
+                "OPENCODE_CONFIG_DIR": str(bootstrap.config_dir),
+                "PATH": str(bootstrap.ripgrep_path.parent) + os.pathsep + os.environ.get("PATH", ""),
+            }
             inventory_patch = patch("k_slide.production.installed_dependency_inventory", return_value=production_inventory)
             inventory_patch.start()
             self.addCleanup(inventory_patch.stop)
-            with patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"AccessKey": "synthetic-doctor-key", "KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1"}):
+            with patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"AccessKey": "synthetic-doctor-key", "KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1", **bootstrap_environment}):
                 runtime = discover_runtime(root)
                 doctor_result = diagnose(root, production=True)
-            self.assertEqual(doctor_result["overall"], "PASS", msg=json.dumps([item for item in doctor_result["checks"] if item["status"] != "PASS"], indent=2))
+            self.assertEqual(doctor_result["overall"], "WARN", msg=json.dumps([item for item in doctor_result["checks"] if item["status"] != "PASS"], indent=2))
+            self.assertEqual(
+                [item["label"] for item in doctor_result["checks"] if item["status"] == "WARN"],
+                ["Live deployment network enforcement"],
+            )
             alternate_config = asset_dir / "alternate.yaml"
             with patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1", "KSLIDE_PADDLEX_CONFIG": str(alternate_config)}):
                 mismatched_config_doctor = diagnose(root, production=True)
@@ -1843,7 +2000,7 @@ class CertificationClosureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / ".k-slide-config").mkdir()
-            _write(root / ".k-slide-config" / "production-profile.json", {"schema_version": "1.1", "release_state": "PRODUCTION_CERTIFIED", "opencode_version": "1.3.9", "requested_model": "approved:internal", "effective_model": "approved:internal", "ocr_provider": "paddle", "ocr_asset_manifest": "manifest.json", "python_version": "3.11", "paddle_version": "3.0.0", "paddleocr_version": "3.0.3", "libreoffice_version": "25", "retention_policy": {"schema_version": "1.0", "content_retention_days": 30, "operational_metadata_retention_days": 60}, "tenant_isolation": "workspace_per_session", "network_egress": "approved_inference_only", "subject_git_sha": "a" * 40, "deployment_fingerprint": "b" * 64, "certification_fingerprint": "c" * 64, "release_manifest": "manifest.json", "release_manifest_sha256": "d" * 64, "model_data_attestation": "attestation-1"})
+            _write(root / ".k-slide-config" / "production-profile.json", {"schema_version": "1.1", "release_state": "PRODUCTION_CERTIFIED", "opencode_version": "1.3.9", "requested_model": "approved:internal", "effective_model": "approved:internal", "ocr_provider": "paddle", "ocr_asset_manifest": "manifest.json", "python_version": "3.11", "paddle_version": "3.0.0", "paddleocr_version": "3.0.3", "libreoffice_version": "25", "retention_policy": {"schema_version": "1.0", "content_retention_days": 30, "operational_metadata_retention_days": 60}, "tenant_isolation": "workspace_per_session", "network_egress": "default_deny", "subject_git_sha": "a" * 40, "deployment_fingerprint": "b" * 64, "certification_fingerprint": "c" * 64, "release_manifest": "manifest.json", "release_manifest_sha256": "d" * 64, "model_data_attestation": "attestation-1"})
             runtime = RuntimeMetadata(kslide_version="0.3.5", opencode_version="1.3.9", opencode_path=None, opencode_config_path=None, provider="internal", reported_model_id="approved:internal", model_family=None, model_size=None, instruction_tuned_status="unknown", vision_support=True, thinking_support=None, provider_backend=None, quantization_or_dtype=None, context_configuration={}, image_preprocessing_settings={}, model_compatibility="production_candidate", discovery_warnings=[])
             policy_check = next(item for item in production_checks(root, runtime) if item["label"] == "Requested/effective model policy")
             self.assertEqual(policy_check["status"], "FAIL")
