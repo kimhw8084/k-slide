@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
 from typing import Any, Iterable
@@ -277,11 +277,14 @@ class AuthorityEvidenceReference:
         revision = value.get("evidence_revision")
         if not isinstance(revision, str) or not re.fullmatch(r"[a-f0-9]{64}", revision):
             raise _error("Supersession authority evidence revision is invalid.", code=ErrorCode.SCHEMA_INVALID)
+        evidence_ids = _string_tuple(value.get("evidence_ids"), "authority evidence_ids")
+        if len(evidence_ids) != len(set(evidence_ids)):
+            raise _error("Supersession authority evidence IDs must be distinct.", code=ErrorCode.SCHEMA_INVALID)
         return cls(
             document_id=_identifier(value.get("document_id"), "document_id"),
             work_unit_id=_identifier(value.get("work_unit_id"), "work_unit_id"),
             evidence_revision=revision,
-            evidence_ids=_string_tuple(value.get("evidence_ids"), "authority evidence_ids"),
+            evidence_ids=evidence_ids,
             location=dict(value["location"]),
             source_context=dict(value["source_context"]),
         )
@@ -731,7 +734,9 @@ def build_authority_evidence_reference(run_dir: Path, work_unit_id: str, evidenc
     evidence = load_evidence(run_dir, work_unit_id)
     if unit.evidence_revision and unit.evidence_revision != evidence.evidence_revision:
         raise _error("Authority evidence work-unit binding is stale.", code=ErrorCode.STALE_EVIDENCE)
-    ids = tuple(evidence_ids)
+    ids = tuple(_identifier(item, "evidence_id") for item in evidence_ids)
+    if len(ids) != len(set(ids)):
+        raise _error("Authority evidence IDs must be distinct.", code=ErrorCode.SCHEMA_INVALID)
     valid_ids = _all_evidence_ids(evidence)
     if not ids or any(item not in valid_ids for item in ids):
         raise _error("Authority evidence references unknown EvidenceIR objects.", code=ErrorCode.CONFLICT_REFERENCE_INVALID)
@@ -779,6 +784,7 @@ def conflict_contract_required(run_dir: Path) -> bool:
 
 _SELECTOR_FIELDS = {"document_id", "work_unit_id", "semantic_kind", "source_index"}
 _AUTHORITY_RULE_FIELDS = {"authority_config_id", "priority", "winner_selector", "loser_selector"}
+_AUTHORITY_TARGET = re.compile(r"AUTHORITY_SUPERSEDES\s*[:=]\s*(assertion-[A-Za-z0-9._:-]{1,127})\b", re.IGNORECASE)
 
 
 def conflict_authority_policy(run_dir: Path) -> dict[str, Any]:
@@ -880,7 +886,7 @@ def _validate_explicit_authority_relation(supersession: Supersession, conflict: 
     if relation["authority_evidence_ids"] != expected_authority_ids:
         raise _error("Supersession authority relation does not bind the exact current authority evidence.", code=ErrorCode.SUPERSESSION_INVALID)
     authority_text = " ".join(str(item.source_context.get("text", "")) for item in supersession.authority_evidence)
-    targets = re.findall(r"AUTHORITY_SUPERSEDES\s*[:=]\s*(assertion-[A-Za-z0-9._:-]{1,127})\b", authority_text, re.IGNORECASE)
+    targets = _AUTHORITY_TARGET.findall(authority_text)
     if len(targets) != 1:
         raise _error(
             "Explicit authority evidence must contain exactly one engine-verifiable AUTHORITY_SUPERSEDES target.",
@@ -888,6 +894,196 @@ def _validate_explicit_authority_relation(supersession: Supersession, conflict: 
         )
     if targets[0] != winner.assertion_id:
         raise _error("Explicit authority evidence names a different superseding assertion.", code=ErrorCode.SUPERSESSION_INVALID)
+
+
+def _configured_relationships(policy: dict[str, Any], conflict: Conflict) -> list[tuple[int, str, str, str]]:
+    """Return every policy-directed participant relationship that currently matches."""
+
+    matches: list[tuple[int, str, str, str]] = []
+    participants = tuple(sorted(conflict.participants, key=lambda item: item.assertion_id))
+    for rule in policy.get("rules", []):
+        for winner in participants:
+            for loser in participants:
+                if winner.assertion_id == loser.assertion_id:
+                    continue
+                if _selector_matches(rule["winner_selector"], winner) and _selector_matches(rule["loser_selector"], loser):
+                    matches.append((rule["priority"], rule["authority_config_id"], winner.assertion_id, loser.assertion_id))
+    return matches
+
+
+def _configured_supersession(policy: dict[str, Any], conflict: Conflict) -> Supersession | None:
+    """Derive one configured winner only when policy direction is unambiguous."""
+
+    matches = _configured_relationships(policy, conflict)
+    if not matches:
+        return None
+    directions = {(winner, loser) for _, _, winner, loser in matches}
+    if len(directions) != 1:
+        # This includes both directions matching, even when priorities differ.
+        return None
+    highest_priority = max(priority for priority, _, _, _ in matches)
+    highest = {
+        (config_id, winner, loser)
+        for priority, config_id, winner, loser in matches
+        if priority == highest_priority
+    }
+    if len(highest) != 1:
+        return None
+    config_id, winner, loser = next(iter(highest))
+    revision = authority_policy_revision(policy)
+    supersession_id = supersession_id_for(
+        conflict.conflict_id,
+        winner,
+        loser,
+        SupersessionAuthorityBasis.CONFIGURED_AUTHORITY.value,
+        (),
+        config_id,
+        None,
+        revision,
+    )
+    return Supersession(
+        supersession_id,
+        conflict.conflict_id,
+        winner,
+        loser,
+        authority_basis=SupersessionAuthorityBasis.CONFIGURED_AUTHORITY.value,
+        authority_config_id=config_id,
+        authority_config_revision=revision,
+    )
+
+
+def _authority_evidence_inputs(value: Any) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    """Validate the caller's closed authority-evidence identity input."""
+
+    if not isinstance(value, list):
+        raise _error("Authority evidence must contain only current EvidenceIR identities.", code=ErrorCode.SCHEMA_INVALID)
+    inputs: list[tuple[str, tuple[str, ...]]] = []
+    seen_work_units: set[str] = set()
+    seen_pairs: set[tuple[str, str]] = set()
+    for item in value:
+        if not isinstance(item, dict) or set(item) != {"work_unit_id", "evidence_ids"}:
+            raise _error("Authority evidence inputs may contain only work_unit_id and evidence_ids.", code=ErrorCode.SCHEMA_INVALID)
+        work_unit_id = _identifier(item.get("work_unit_id"), "work_unit_id")
+        if work_unit_id in seen_work_units:
+            raise _error("Authority evidence may reference each work unit only once.", code=ErrorCode.SCHEMA_INVALID)
+        raw_ids = item.get("evidence_ids")
+        ids = _string_tuple(raw_ids, "authority evidence_ids")
+        ids = tuple(_identifier(evidence_id, "evidence_id") for evidence_id in ids)
+        if len(ids) != len(set(ids)):
+            raise _error("Authority evidence IDs must be distinct.", code=ErrorCode.SCHEMA_INVALID)
+        if any((work_unit_id, evidence_id) in seen_pairs for evidence_id in ids):
+            raise _error("Authority evidence identities must be distinct.", code=ErrorCode.SCHEMA_INVALID)
+        seen_work_units.add(work_unit_id)
+        seen_pairs.update((work_unit_id, evidence_id) for evidence_id in ids)
+        inputs.append((work_unit_id, ids))
+    return tuple(inputs)
+
+
+def _explicit_supersession(run_dir: Path, conflict: Conflict, value: Any) -> Supersession:
+    inputs = _authority_evidence_inputs(value)
+    if not inputs:
+        raise _error("Explicit authority requires current authority evidence.", code=ErrorCode.SUPERSESSION_INVALID)
+    authority_evidence = tuple(
+        build_authority_evidence_reference(run_dir, work_unit_id, evidence_ids)
+        for work_unit_id, evidence_ids in sorted(inputs)
+    )
+    authority_text = " ".join(str(item.source_context.get("text", "")) for item in authority_evidence)
+    targets = _AUTHORITY_TARGET.findall(authority_text)
+    if len(targets) != 1:
+        raise _error(
+            "Explicit authority evidence must contain exactly one engine-verifiable AUTHORITY_SUPERSEDES target.",
+            code=ErrorCode.SUPERSESSION_INVALID,
+        )
+    participants = {item.assertion_id: item for item in conflict.participants}
+    winner_id = targets[0]
+    if winner_id not in participants:
+        raise _error("Explicit authority target is not a participant in the referenced conflict.", code=ErrorCode.SUPERSESSION_INVALID)
+    if len(participants) != 2:
+        raise _error("Explicit authority cannot derive one loser from a multi-participant conflict.", code=ErrorCode.SUPERSESSION_INVALID)
+    loser_id = next(assertion_id for assertion_id in participants if assertion_id != winner_id)
+    winner = participants[winner_id]
+    loser = participants[loser_id]
+    relation = {
+        "relation_type": "supersedes",
+        "superseding_assertion_id": winner.assertion_id,
+        "superseded_assertion_id": loser.assertion_id,
+        "superseding_evidence_ids": sorted(set(winner.provenance_evidence_ids)),
+        "superseded_evidence_ids": sorted(set(loser.provenance_evidence_ids)),
+        "authority_evidence_ids": sorted({evidence_id for item in authority_evidence for evidence_id in item.evidence_ids}),
+    }
+    supersession_id = supersession_id_for(
+        conflict.conflict_id,
+        winner.assertion_id,
+        loser.assertion_id,
+        SupersessionAuthorityBasis.EXPLICIT_EVIDENCE.value,
+        (item.as_dict() for item in authority_evidence),
+        None,
+        relation,
+    )
+    return Supersession(
+        supersession_id,
+        conflict.conflict_id,
+        winner.assertion_id,
+        loser.assertion_id,
+        authority_basis=SupersessionAuthorityBasis.EXPLICIT_EVIDENCE.value,
+        authority_evidence=authority_evidence,
+        authority_relation=relation,
+    )
+
+
+def resolve_authoritative_conflict(run_dir: Path, conflict_id: str, *, authority_evidence: Any = None) -> ConflictRegistry:
+    """Resolve one existing conflict from engine-verified configured or explicit authority.
+
+    ``authority_evidence=None`` selects configured authority.  Supplying the
+    closed list of current EvidenceIR identities selects explicit authority;
+    the evidence text and directional relation are always rebuilt here.
+    """
+
+    conflict_id = _identifier(conflict_id, "conflict_id")
+    current = load_conflict_registry(run_dir)
+    if current is None:
+        raise _error("The requested conflict does not exist in the current registry.", code=ErrorCode.CONFLICT_INVALID)
+    policy = conflict_authority_policy(run_dir)
+    current.validate_against_run(
+        run_dir,
+        configured_authority_ids=configured_authority_ids(run_dir),
+        authority_policy=policy,
+        strict_authority=conflict_contract_required(run_dir),
+    )
+    conflict = next((item for item in current.conflicts if item.conflict_id == conflict_id), None)
+    if conflict is None:
+        raise _error("The requested conflict does not exist in the current registry.", code=ErrorCode.CONFLICT_INVALID, details={"conflict_id": conflict_id})
+    candidate = _configured_supersession(policy, conflict) if authority_evidence is None else _explicit_supersession(run_dir, conflict, authority_evidence)
+    if candidate is None:
+        if conflict.resolution_state != ConflictResolutionState.UNRESOLVED.value:
+            raise _error("An existing authoritative supersession cannot be replaced or overridden.", code=ErrorCode.SUPERSESSION_INVALID)
+        # Insufficient configured authority is a safe no-op and remains a
+        # deterministic blocker for verification/finalization.
+        return current
+    existing = tuple(item for item in current.supersessions if item.conflict_id == conflict.conflict_id)
+    if conflict.resolution_state != ConflictResolutionState.UNRESOLVED.value:
+        if len(existing) == 1 and existing[0].as_dict() == candidate.as_dict() and tuple(conflict.supersession_ids) == (candidate.supersession_id,):
+            return current
+        raise _error("An existing authoritative supersession cannot be replaced or overridden.", code=ErrorCode.SUPERSESSION_INVALID)
+    if existing:
+        raise _error("An unresolved conflict already has an authoritative supersession.", code=ErrorCode.SUPERSESSION_INVALID)
+    resolved = replace(
+        conflict,
+        resolution_state=ConflictResolutionState.RESOLVED_BY_AUTHORITATIVE_SUPERSESSION.value,
+        supersession_ids=(candidate.supersession_id,),
+    )
+    registry = finalize_registry(
+        ConflictRegistry(
+            run_id=current.run_id,
+            conflicts=tuple(resolved if item.conflict_id == conflict_id else item for item in current.conflicts),
+            supersessions=tuple(current.supersessions) + (candidate,),
+        )
+    )
+    save_conflict_registry(run_dir, registry)
+    return registry
+
+
+resolve_conflict = resolve_authoritative_conflict
 
 
 def _validate_assertion_provenance(
@@ -1213,6 +1409,6 @@ __all__ = [
     "ConflictRegistry", "ConflictResolutionState", "ConflictState", "CONFLICT_REGISTRY_FILE", "CONFLICT_REGISTRY_SCHEMA_VERSION", "CONFLICT_SCHEMA_VERSION",
     "Supersession", "SupersessionIR", "SupersessionAuthorityBasis", "SupersessionState",
     "assertion_id_for", "assess_conflicts", "authority_policy_revision", "build_assertion_reference", "build_authority_evidence_reference", "conflict_authority_policy", "conflict_contract_required", "conflict_id_for",
-    "conflict_assessment_status", "conflict_registry_path", "finalize_registry", "load_conflict_registry", "save_conflict_registry",
+    "conflict_assessment_status", "conflict_registry_path", "finalize_registry", "load_conflict_registry", "resolve_authoritative_conflict", "resolve_conflict", "save_conflict_registry",
     "supersession_id_for",
 ]

@@ -34,7 +34,7 @@ from .translation import merge_evidence_patch, parse_translation_patch
 from .rendering import render_run
 from .terminology import load_effective_termbase
 from .verify import finalize_run, verify_run
-from .conflicts import assess_conflicts, conflict_assessment_status, conflict_registry_path
+from .conflicts import assess_conflicts, conflict_assessment_status, conflict_registry_path, resolve_authoritative_conflict
 
 
 def _run_root(root: Path) -> Path:
@@ -164,6 +164,41 @@ def _conflict_assess(
         "run_id": registry.run_id,
         "conflict_count": len(registry.conflicts),
         "unresolved_conflict_ids": [item.conflict_id for item in registry.conflicts if item.resolution_state == "unresolved"],
+        "stored": str(conflict_registry_path(run_dir).relative_to(root.resolve())),
+    }
+
+
+def _conflict_resolve(
+    root: Path,
+    run_id: str,
+    payload_json: str,
+    session_id: str | None,
+    environment_identity: RunEnvironmentIdentity | None = None,
+) -> dict[str, Any]:
+    run_dir = _find_run(root, run_id, session_id)
+    ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
+    try:
+        payload = json.loads(payload_json)
+    except json.JSONDecodeError as exc:
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Conflict resolution payload is not valid JSON.") from exc
+    if not isinstance(payload, dict) or set(payload) - {"schema_version", "conflict_id", "authority_evidence"} or payload.get("schema_version") != "1.0":
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Conflict resolution payload schema is unsupported.")
+    if not isinstance(payload.get("conflict_id"), str) or not payload["conflict_id"].strip():
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Conflict resolution requires an existing conflict_id.")
+    with run_lock(run_dir):
+        bind_session(_run_root(root), session_id, run_dir.name)
+        registry = resolve_authoritative_conflict(
+            run_dir,
+            payload["conflict_id"],
+            authority_evidence=payload.get("authority_evidence") if "authority_evidence" in payload else None,
+        )
+    conflict = next(item for item in registry.conflicts if item.conflict_id == payload["conflict_id"])
+    return {
+        "status": "RESOLVED" if conflict.resolution_state == "resolved_by_authoritative_supersession" else "UNRESOLVED",
+        "run_id": registry.run_id,
+        "conflict_id": conflict.conflict_id,
+        "resolution_state": conflict.resolution_state,
+        "supersession_ids": list(conflict.supersession_ids),
         "stored": str(conflict_registry_path(run_dir).relative_to(root.resolve())),
     }
 
@@ -453,6 +488,12 @@ def build_parser() -> argparse.ArgumentParser:
     conflicts.add_argument("--payload-json", required=True)
     conflicts.add_argument("--session-id")
     conflicts.add_argument("--json", action="store_true")
+    resolve = sub.add_parser("conflict-resolve")
+    resolve.add_argument("--root", type=Path, default=Path.cwd())
+    resolve.add_argument("--run", required=True)
+    resolve.add_argument("--payload-json", required=True)
+    resolve.add_argument("--session-id")
+    resolve.add_argument("--json", action="store_true")
     verify = sub.add_parser("verify")
     verify.add_argument("--root", type=Path, default=Path.cwd())
     verify.add_argument("--run", required=True)
@@ -528,6 +569,8 @@ def main(argv: list[str] | None = None) -> int:
             value = _submit(args.root, args.run, args.payload_json, args.session_id)
         elif args.command == "conflict-assess":
             value = _conflict_assess(args.root, args.run, args.payload_json, args.session_id)
+        elif args.command == "conflict-resolve":
+            value = _conflict_resolve(args.root, args.run, args.payload_json, args.session_id)
         elif args.command == "verify":
             value = verify_run(_find_run(args.root, args.run, args.session_id)).as_dict()
         elif args.command == "finalize":
@@ -548,7 +591,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             raise KSlideError(ErrorCode.INTERNAL, "Unknown K-Slide command.")
         if args.command != "evidence":
-            if args.command in {"prepare", "normalize", "extract", "submit", "conflict-assess", "verify", "finalize", "status", "next"}:
+            if args.command in {"prepare", "normalize", "extract", "submit", "conflict-assess", "conflict-resolve", "verify", "finalize", "status", "next"}:
                 value = _attach_run_contract(getattr(args, "root", Path.cwd()), value, getattr(args, "run", None), getattr(args, "session_id", None))
             value = sanitize_operational(value, roots=_diagnostic_roots(getattr(args, "root", None)))
         print(_json(value) if getattr(args, "json", False) else _render_text_status(value))

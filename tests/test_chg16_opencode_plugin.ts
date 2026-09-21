@@ -631,6 +631,8 @@ export async function openCodeV139PluginLoaderCompatibilityBoundary(): Promise<v
   assert.doesNotMatch(hostSource, /from [\"']\.\/k-slide-access-key\.ts[\"']/) // The helper is not an independent plugin entrypoint.
   assert.doesNotMatch(hostSource, /hostClassificationForPart|part as unknown as \{ classification/)
   assert.doesNotMatch(toolSource, /classification: tool\.schema/)
+  assert.match(toolSource, /export const conflict_resolve = tool\(/)
+  assert.match(toolSource, /authority_evidence: tool\.schema\.array\(authorityEvidenceInput\)\.optional\(\)/)
 }
 
 async function main(): Promise<void> {

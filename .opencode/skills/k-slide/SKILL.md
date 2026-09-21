@@ -14,7 +14,7 @@ Use the typed lifecycle tools in this order. The normal employee workflow has on
 1. `kslide_prepare` — create or resume an immutable, hashed input run.
 2. `kslide_next` and `kslide_evidence` — obtain the bounded work unit and its evidence.
 3. Read the returned media plan's context image and required risk crops, then translate only the returned work unit and submit the narrow TranslationPatch with `kslide_submit`.
-4. When `kslide_next` returns `CONFLICT_ASSESSMENT_REQUIRED`, call `kslide_conflict_assess`; submit only existing canonical assertion references when needed, otherwise use its empty candidate list so the engine performs its deterministic scan.
+4. When `kslide_next` returns `CONFLICT_ASSESSMENT_REQUIRED`, call `kslide_conflict_assess`; submit only existing canonical assertion references when needed, otherwise use its empty candidate list so the engine performs its deterministic scan. For each returned conflict ID, call `kslide_conflict_resolve` with only the conflict ID for configured authority, or with current EvidenceIR identities for one explicit `AUTHORITY_SUPERSEDES:<assertion-id>` proof.
 5. Run `kslide_verify`; repair only the exact targets it returns.
 6. Call `kslide_finalize` only after verification passes.
 

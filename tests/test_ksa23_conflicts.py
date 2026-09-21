@@ -35,7 +35,7 @@ from k_slide.rendering.reports import render_run
 from k_slide.storage import StorageArtifact, storage_path
 from k_slide.translation import merge_evidence_patch, parse_translation_patch
 from k_slide.terminology import Termbase
-from k_slide.verify import VerificationResult, _validate_conflict_registry, verify_run
+from k_slide.verify import VerificationResult, _validate_conflict_registry, finalize_run, verify_run
 
 
 class KSA23ConflictTests(unittest.TestCase):
@@ -617,6 +617,159 @@ class KSA23ConflictTests(unittest.TestCase):
         with self.assertRaises(KSlideError) as raised:
             save_conflict_registry(run, reversed_registry)
         self.assertEqual(raised.exception.code, ErrorCode.SUPERSESSION_INVALID)
+
+    def _runtime_contract(self, run: Path, *, rules: list[dict[str, object]]) -> None:
+        manifest_path = storage_path(run, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["conflict_registry_contract"] = {"schema_version": "1.0", "assessment_required": True}
+        manifest["conflict_authority"] = {"schema_version": "1.0", "rules": rules}
+        manifest["conflict_assessment"] = {"schema_version": "1.0", "status": "NOT_ASSESSED"}
+        atomic_write_json(manifest_path, manifest)
+
+    def _runtime_state(self, run: Path) -> None:
+        from k_slide.state import RunPhase, RunState, save_state
+
+        save_state(run, RunState("run-ksa23", "standard", RunPhase.TRANSLATED, input_count=2))
+
+    def _runtime_english(self, run: Path, *evidences: EvidenceIR) -> None:
+        for evidence in evidences:
+            path = storage_path(run, StorageArtifact.CANONICAL_IR, f"ir/{evidence.work_unit_id}.json")
+            value = json.loads(path.read_text(encoding="utf-8"))
+            for region in value.get("regions", []):
+                region["translation"] = "Source evidence"
+            atomic_write_json(path, value)
+
+    def _runtime_candidate_group(self, evidence_a: EvidenceIR, evidence_b: EvidenceIR) -> list[dict[str, object]]:
+        return [{"assertions": [
+            {"work_unit_id": evidence_a.work_unit_id, "semantic_kind": "executive_claim", "semantic_id": f"{evidence_a.work_unit_id}-claim"},
+            {"work_unit_id": evidence_b.work_unit_id, "semantic_kind": "executive_claim", "semantic_id": f"{evidence_b.work_unit_id}-claim"},
+        ]}]
+
+    def test_runtime_configured_authority_resolves_and_finalizes_without_model_winner(self) -> None:
+        from k_slide.cli import _conflict_assess, _conflict_resolve
+        from unittest.mock import patch
+
+        run, evidence_a, evidence_b = self._run(workspace_layout=True)
+        self._runtime_contract(run, rules=[{"authority_config_id": "policy-v1", "priority": 10, "winner_selector": {"document_id": "doc-b"}, "loser_selector": {"document_id": "doc-a"}}])
+        self._runtime_state(run)
+        self._runtime_english(run, evidence_a, evidence_b)
+        root = run.parent.parent
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)):
+            assessed = _conflict_assess(root, run.name, json.dumps({"schema_version": "1.0", "candidate_groups": self._runtime_candidate_group(evidence_a, evidence_b)}), None)
+            conflict_id = assessed["unresolved_conflict_ids"][0]
+            resolved = _conflict_resolve(root, run.name, json.dumps({"schema_version": "1.0", "conflict_id": conflict_id}), None)
+        self.assertEqual(resolved["status"], "RESOLVED")
+        registry = load_conflict_registry(run)
+        assert registry is not None
+        conflict = registry.conflicts[0]
+        supersession = registry.supersessions[0]
+        self.assertEqual(supersession.superseding_assertion_id, next(item.assertion_id for item in conflict.participants if item.document_id == "doc-b"))
+        self.assertEqual(supersession.authority_config_id, "policy-v1")
+        original_registry = conflict_registry_path(run).read_bytes()
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)):
+            self.assertEqual(_conflict_resolve(root, run.name, json.dumps({"schema_version": "1.0", "conflict_id": conflict_id}), None)["status"], "RESOLVED")
+        self.assertEqual(original_registry, conflict_registry_path(run).read_bytes())
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)), self.assertRaises(KSlideError) as raised:
+            _conflict_resolve(root, run.name, json.dumps({"schema_version": "1.0", "conflict_id": conflict_id, "superseding_assertion_id": "caller-choice"}), None)
+        self.assertEqual(raised.exception.code, ErrorCode.SCHEMA_INVALID)
+        manifest_path = storage_path(run, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json")
+        original_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self._runtime_contract(run, rules=[{"authority_config_id": "policy-v1", "priority": 10, "winner_selector": {"document_id": "doc-a"}, "loser_selector": {"document_id": "doc-b"}}])
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)), self.assertRaises(KSlideError) as raised:
+            _conflict_resolve(root, run.name, json.dumps({"schema_version": "1.0", "conflict_id": conflict_id}), None)
+        self.assertEqual(raised.exception.code, ErrorCode.SUPERSESSION_INVALID)
+        atomic_write_json(manifest_path, original_manifest)
+        render_run(run)
+        with patch("k_slide.execution.ensure_workspace_environment_compatible", return_value=(None, None)), patch("k_slide.verify.resolve_run_termbase", return_value=Termbase("1.0")):
+            verification = verify_run(run)
+            self.assertTrue(verification.passed, verification.as_dict())
+            finalize_run(run)
+        self.assertTrue(storage_path(run, StorageArtifact.COMPLETION_MARKER, "RUN_COMPLETE.md").is_file())
+
+    def test_runtime_explicit_authority_derives_direction_and_is_idempotent(self) -> None:
+        from k_slide.cli import _conflict_assess, _conflict_resolve
+        from unittest.mock import patch
+
+        run, evidence_a, evidence_b = self._run(workspace_layout=True, authority_text=True)
+        self._runtime_contract(run, rules=[])
+        self._runtime_state(run)
+        self._runtime_english(run, evidence_a, evidence_b)
+        root = run.parent.parent
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)):
+            assessed = _conflict_assess(root, run.name, json.dumps({"schema_version": "1.0", "candidate_groups": self._runtime_candidate_group(evidence_a, evidence_b)}), None)
+        conflict_id = assessed["unresolved_conflict_ids"][0]
+        payload = {
+            "schema_version": "1.0",
+            "conflict_id": conflict_id,
+            "authority_evidence": [{"work_unit_id": evidence_a.work_unit_id, "evidence_ids": [f"{evidence_a.work_unit_id}-authority"]}],
+        }
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)):
+            resolved = _conflict_resolve(root, run.name, json.dumps(payload), None)
+        self.assertEqual(resolved["status"], "RESOLVED")
+        registry = load_conflict_registry(run)
+        assert registry is not None
+        self.assertEqual(registry.supersessions[0].superseding_assertion_id, next(item.assertion_id for item in registry.conflicts[0].participants if item.document_id == "doc-b"))
+        original_registry = conflict_registry_path(run).read_bytes()
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)):
+            self.assertEqual(_conflict_resolve(root, run.name, json.dumps(payload), None)["status"], "RESOLVED")
+        self.assertEqual(original_registry, conflict_registry_path(run).read_bytes())
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)), self.assertRaises(KSlideError) as raised:
+            _conflict_resolve(root, run.name, json.dumps({**payload, "superseding_assertion_id": "caller-choice"}), None)
+        self.assertEqual(raised.exception.code, ErrorCode.SCHEMA_INVALID)
+        render_run(run)
+        with patch("k_slide.execution.ensure_workspace_environment_compatible", return_value=(None, None)), patch("k_slide.verify.resolve_run_termbase", return_value=Termbase("1.0")):
+            verification = verify_run(run)
+            self.assertTrue(verification.passed, verification.as_dict())
+            finalize_run(run)
+        self.assertTrue(storage_path(run, StorageArtifact.COMPLETION_MARKER, "RUN_COMPLETE.md").is_file())
+
+    def test_runtime_authority_fail_closed_for_ambiguous_config_and_invalid_explicit_evidence(self) -> None:
+        from k_slide.cli import _conflict_assess, _conflict_resolve
+        from unittest.mock import patch
+
+        run, evidence_a, evidence_b = self._run(workspace_layout=True)
+        self._runtime_contract(run, rules=[
+            {"authority_config_id": "policy-a", "priority": 10, "winner_selector": {"document_id": "doc-b"}, "loser_selector": {"document_id": "doc-a"}},
+            {"authority_config_id": "policy-b", "priority": 10, "winner_selector": {"document_id": "doc-b"}, "loser_selector": {"document_id": "doc-a"}},
+        ])
+        self._runtime_state(run)
+        self._runtime_english(run, evidence_a, evidence_b)
+        root = run.parent.parent
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)):
+            assessed = _conflict_assess(root, run.name, json.dumps({"schema_version": "1.0", "candidate_groups": self._runtime_candidate_group(evidence_a, evidence_b)}), None)
+        conflict_id = assessed["unresolved_conflict_ids"][0]
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)):
+            self.assertEqual(_conflict_resolve(root, run.name, json.dumps({"schema_version": "1.0", "conflict_id": conflict_id}), None)["status"], "UNRESOLVED")
+        registry = load_conflict_registry(run)
+        assert registry is not None
+        self.assertEqual(registry.conflicts[0].resolution_state, ConflictResolutionState.UNRESOLVED.value)
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)), self.assertRaises(KSlideError) as raised:
+            _conflict_resolve(root, run.name, json.dumps({"schema_version": "1.0", "conflict_id": conflict_id, "authority_evidence": [{"work_unit_id": evidence_a.work_unit_id, "evidence_ids": [f"{evidence_a.work_unit_id}-r1"]}]}), None)
+        self.assertEqual(raised.exception.code, ErrorCode.SUPERSESSION_INVALID)
+
+    def test_runtime_explicit_authority_rejects_foreign_and_stale_evidence(self) -> None:
+        from k_slide.cli import _conflict_assess, _conflict_resolve
+        from unittest.mock import patch
+
+        run, evidence_a, evidence_b = self._run(workspace_layout=True, authority_text=True)
+        self._runtime_contract(run, rules=[])
+        self._runtime_state(run)
+        self._runtime_english(run, evidence_a, evidence_b)
+        root = run.parent.parent
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)):
+            assessed = _conflict_assess(root, run.name, json.dumps({"schema_version": "1.0", "candidate_groups": self._runtime_candidate_group(evidence_a, evidence_b)}), None)
+        conflict_id = assessed["unresolved_conflict_ids"][0]
+        foreign_payload = {"schema_version": "1.0", "conflict_id": conflict_id, "authority_evidence": [{"work_unit_id": "foreign-unit", "evidence_ids": ["foreign-evidence"]}]}
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)), self.assertRaises(KSlideError) as raised:
+            _conflict_resolve(root, run.name, json.dumps(foreign_payload), None)
+        self.assertEqual(raised.exception.code, ErrorCode.UNKNOWN_WORK_UNIT)
+        queue = load_queue(run)
+        queue.get(evidence_a.work_unit_id).evidence_revision = "f" * 64
+        save_queue(run, queue)
+        valid_payload = {"schema_version": "1.0", "conflict_id": conflict_id, "authority_evidence": [{"work_unit_id": evidence_a.work_unit_id, "evidence_ids": [f"{evidence_a.work_unit_id}-authority"]}]}
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)), self.assertRaises(KSlideError) as raised:
+            _conflict_resolve(root, run.name, json.dumps(valid_payload), None)
+        self.assertEqual(raised.exception.code, ErrorCode.STALE_EVIDENCE)
 
 
 if __name__ == "__main__":
