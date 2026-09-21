@@ -65,7 +65,6 @@ class StoragePlaneContractTests(unittest.TestCase):
                 StorageArtifact.COMPLETION_MARKER, StorageArtifact.COORDINATION_LOCK,
                 StorageArtifact.TELEMETRY_COORDINATION_LOCK, StorageArtifact.CONVERSION_STAGING,
                 StorageArtifact.TELEMETRY_EVENT, StorageArtifact.DELETION_AUDIT,
-                StorageArtifact.SUPPORT_CONTENT, StorageArtifact.SUPPORT_ACCESS_AUDIT,
             },
         )
         self.assertFalse(hasattr(StorageArtifact, "USER_INPUT_INTAKE"))

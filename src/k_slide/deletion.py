@@ -23,7 +23,6 @@ from typing import Any, Iterator, Protocol
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import stable_revision
 from .execution import CancellationState, OperationalLifecycle, WorkspaceRunStore
-from .content_support import ControlledSupportDeletionRecord
 from .io import atomic_write_json, atomic_write_text, read_json
 from .locking import filesystem_lock, run_lock
 from .retention_policy import RetentionPolicy
@@ -135,7 +134,6 @@ class DeletionArtifactClass(str, Enum):
     METRICS = StorageArtifact.METRICS.value
     FAILURE_MARKER = StorageArtifact.FAILURE_MARKER.value
     COMPLETION_MARKER = StorageArtifact.COMPLETION_MARKER.value
-    SUPPORT_CONTENT = StorageArtifact.SUPPORT_CONTENT.value
     RUN_SCOPED_CONTENT = "run_scoped_content"
 
 
@@ -304,10 +302,6 @@ class DeletionAudit:
     # Scoped PaaS deletion audits additionally bind the complete durable
     # identity so a replay cannot be adopted by a guessed sibling identity.
     identity_ref: str | None = None
-    # Source-free support identities are captured before support bytes or
-    # metadata are unlinked, so central audit recovery does not depend on the
-    # deleted metadata file or process memory.
-    support_recovery: tuple[ControlledSupportDeletionRecord, ...] = ()
 
     def __post_init__(self) -> None:
         if self.contract_version != DELETION_CONTRACT_VERSION:
@@ -349,14 +343,6 @@ class DeletionAudit:
             raise _invalid("Deletion audit generation anchors are invalid.", code=ErrorCode.STATE_CORRUPT)
         if self.identity_ref is not None and not _SHA256.fullmatch(self.identity_ref):
             raise _invalid("Deletion audit identity reference is invalid.", code=ErrorCode.STATE_CORRUPT)
-        if not isinstance(self.support_recovery, tuple) or any(not isinstance(item, ControlledSupportDeletionRecord) for item in self.support_recovery):
-            raise _invalid("Deletion audit support recovery is invalid.", code=ErrorCode.STATE_CORRUPT)
-        support_refs = [item.artifact_ref for item in self.support_recovery]
-        if len(support_refs) != len(set(support_refs)) or any(
-            item.scope_context.scope_ref != self.scope_ref or item.run_ref != self.run_ref
-            for item in self.support_recovery
-        ):
-            raise _invalid("Deletion audit support recovery identity is invalid.", code=ErrorCode.STATE_CORRUPT)
 
     def as_dict(self) -> dict[str, Any]:
         value = {
@@ -379,14 +365,12 @@ class DeletionAudit:
         }
         if self.identity_ref is not None:
             value["identity_ref"] = self.identity_ref
-        if self.support_recovery:
-            value["support_recovery"] = [item.as_dict() for item in self.support_recovery]
         return value
 
     @classmethod
     def from_dict(cls, value: Any) -> "DeletionAudit":
         required = {"contract_version", "deletion_id", "scope_ref", "run_ref", "reason", "target_generation_ref", "authority_ref", "hold_decision_ref", "requested_at", "updated_at", "retry_count", "state", "outcome", "error_code", "targets"}
-        allowed_optional = {"generation_anchors", "identity_ref", "support_recovery"}
+        allowed_optional = {"generation_anchors", "identity_ref"}
         if not isinstance(value, dict) or set(value) - (required | allowed_optional) or not isinstance(value["targets"], list):
             raise _invalid("Deletion audit record is incomplete.", code=ErrorCode.STATE_CORRUPT)
         try:
@@ -394,16 +378,12 @@ class DeletionAudit:
             raw_anchors = value.get("generation_anchors", {})
             if not isinstance(raw_anchors, dict) or any(not isinstance(name, str) or not isinstance(reference, str) for name, reference in raw_anchors.items()):
                 raise _invalid("Deletion audit generation anchors are invalid.", code=ErrorCode.STATE_CORRUPT)
-            raw_support_recovery = value.get("support_recovery", [])
-            if not isinstance(raw_support_recovery, list):
-                raise _invalid("Deletion audit support recovery is invalid.", code=ErrorCode.STATE_CORRUPT)
             return cls(
                 contract_version=value["contract_version"], deletion_id=value["deletion_id"], scope_ref=value["scope_ref"], run_ref=value["run_ref"],
                 reason=value["reason"], target_generation_ref=value["target_generation_ref"], authority_ref=value["authority_ref"], hold_decision_ref=value["hold_decision_ref"],
                 requested_at=value["requested_at"], updated_at=value["updated_at"], retry_count=value["retry_count"], state=value["state"], outcome=value["outcome"], error_code=value["error_code"], targets=targets,
                 generation_anchors=tuple(sorted(raw_anchors.items())),
                 identity_ref=value.get("identity_ref"),
-                support_recovery=tuple(ControlledSupportDeletionRecord.from_dict(item) for item in raw_support_recovery),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise _invalid("Deletion audit record is invalid.", code=ErrorCode.STATE_CORRUPT) from exc
@@ -478,9 +458,7 @@ class _DeletionBackend(Protocol):
 
     def enumerate_targets(self, deletion_id: str) -> tuple[_Candidate, ...]: ...
 
-    def prepare_support_recovery(self, candidate: _Candidate) -> tuple[ControlledSupportDeletionRecord, ...]: ...
-
-    def delete_target(self, candidate: _Candidate, *, support_recovery: tuple[ControlledSupportDeletionRecord, ...] = ()) -> None: ...
+    def delete_target(self, candidate: _Candidate) -> None: ...
 
     def cleanup_after_targets(self) -> None: ...
 
@@ -541,55 +519,6 @@ def _safe_target(path: Path, root: Path) -> None:
             raise KSlideError(ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT, "Deletion refuses a symbolic-link or alias component.")
 
 
-def _support_recovery_from_metadata(support_dir: Path) -> tuple[ControlledSupportDeletionRecord, ...]:
-    from .content_support import prepare_deleted_support_artifacts
-
-    return tuple(ControlledSupportDeletionRecord.from_artifact(item) for item in prepare_deleted_support_artifacts(support_dir))
-
-
-def _delete_support_content(
-    paths: tuple[Path, ...],
-    *,
-    support_dir: Path,
-    target_root: Path,
-    service_root: Path,
-    support_recovery: tuple[ControlledSupportDeletionRecord, ...] | None = None,
-) -> None:
-    """Unlink support copies before recording source-free deletion facts."""
-
-    from .content_support import record_deleted_support_artifacts
-
-    if support_dir.is_symlink() or (support_dir.exists() and not support_dir.is_dir()):
-        raise KSlideError(ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT, "Controlled support deletion namespace is unsafe.")
-    recovery = support_recovery if support_recovery is not None else _support_recovery_from_metadata(support_dir)
-    expected = {
-        artifact.artifact_ref: (support_dir / f"{artifact.artifact_ref}.zip", support_dir / f"{artifact.artifact_ref}.json")
-        for artifact in recovery
-    }
-
-    def record_removed() -> None:
-        removed = tuple(
-            artifact for artifact in recovery
-            if all(not path.exists() for path in expected[artifact.artifact_ref])
-        )
-        if removed:
-            record_deleted_support_artifacts(removed, service_root=service_root)
-
-    try:
-        # The bundle is removed first so a metadata-unlink failure leaves the
-        # source-free typed metadata available for a truthful retry.
-        ordered_paths = tuple(sorted(paths, key=lambda item: (item.suffix.casefold() != ".zip", item.as_posix())))
-        for path in ordered_paths:
-            _safe_target(path, target_root)
-            if path.exists():
-                path.unlink()
-            record_removed()
-    except (KSlideError, OSError):
-        record_removed()
-        raise
-    record_removed()
-
-
 def _class_for_relative(relative: str) -> DeletionArtifactClass:
     top = relative.split("/", 1)[0]
     name = Path(relative).name
@@ -613,8 +542,6 @@ def _class_for_relative(relative: str) -> DeletionArtifactClass:
         return DeletionArtifactClass.CANONICAL_IR
     if top == "translations":
         return DeletionArtifactClass.TRANSLATION_PATCH
-    if top == "support-content":
-        return DeletionArtifactClass.SUPPORT_CONTENT
     if top == "verification" or name.startswith("06_"):
         return DeletionArtifactClass.VERIFICATION
     if name in {"00_run_manifest.md", "ARTIFACT_MANIFEST.json"}:
@@ -812,22 +739,7 @@ class WorkspaceDeletionBackend:
             for artifact in sorted(classes, key=lambda item: item.value)
         )
 
-    def prepare_support_recovery(self, candidate: _Candidate) -> tuple[ControlledSupportDeletionRecord, ...]:
-        if candidate.artifact_class is not DeletionArtifactClass.SUPPORT_CONTENT:
-            return ()
-        return _support_recovery_from_metadata(self.run_dir / "support-content")
-
-    def delete_target(self, candidate: _Candidate, *, support_recovery: tuple[ControlledSupportDeletionRecord, ...] = ()) -> None:
-        if candidate.artifact_class is DeletionArtifactClass.SUPPORT_CONTENT:
-            support_dir = self.run_dir / "support-content"
-            _delete_support_content(
-                self._paths_for_class(candidate.artifact_class),
-                support_dir=support_dir,
-                target_root=self.run_dir,
-                service_root=self.operational_root,
-                support_recovery=support_recovery,
-            )
-            return
+    def delete_target(self, candidate: _Candidate) -> None:
         for path in self._paths_for_class(candidate.artifact_class):
             target_root = self.run_dir if path.is_relative_to(self.run_dir) else self.root / ".k-slide-runs" / "_sessions"
             _safe_target(path, target_root)
@@ -1100,24 +1012,9 @@ class ScopedReferenceDeletionBackend:
         if entries != raw.entries or active != raw.active_job_id:
             self.service._persist_scoped_state(replace(raw, revision=raw.revision + 1, entries=entries, active_job_id=active))
 
-    def prepare_support_recovery(self, candidate: _Candidate) -> tuple[ControlledSupportDeletionRecord, ...]:
-        if candidate.artifact_class is not DeletionArtifactClass.SUPPORT_CONTENT:
-            return ()
-        return _support_recovery_from_metadata(self._content_root() / "support-content")
-
-    def delete_target(self, candidate: _Candidate, *, support_recovery: tuple[ControlledSupportDeletionRecord, ...] = ()) -> None:
+    def delete_target(self, candidate: _Candidate) -> None:
         if candidate.control:
             self._invalidate_control()
-            return
-        if candidate.artifact_class is DeletionArtifactClass.SUPPORT_CONTENT:
-            support_dir = self._content_root() / "support-content"
-            _delete_support_content(
-                self._paths_for_class(candidate.artifact_class),
-                support_dir=support_dir,
-                target_root=self._content_root(),
-                service_root=self.service.root,
-                support_recovery=support_recovery,
-            )
             return
         content_root = self._content_root()
         for path in self._paths_for_class(candidate.artifact_class):
@@ -1294,12 +1191,6 @@ class DeletionCoordinator:
             audit = current or DeletionAudit(DELETION_CONTRACT_VERSION, request.deletion_id, request.scope_ref, request.run_ref, request.reason, state.generation_ref, hold.authority_ref, hold.decision_ref, request.requested_at, request.requested_at, 0, DeletionState.PLANNED, DeletionOutcome.PLANNED, "NONE", tuple(DeletionTargetRecord(item.target_ref, item.artifact_class, TargetStatus.PLANNED) for item in candidates), state.generation_anchors)
             if not audit.targets:
                 audit = replace(audit, targets=tuple(DeletionTargetRecord(item.target_ref, item.artifact_class, TargetStatus.PLANNED) for item in candidates))
-            if not audit.support_recovery:
-                support_candidates = [item for item in candidates if item.artifact_class is DeletionArtifactClass.SUPPORT_CONTENT]
-                if support_candidates:
-                    support_recovery = self.backend.prepare_support_recovery(support_candidates[0])
-                    if support_recovery:
-                        audit = replace(audit, support_recovery=support_recovery)
             known = {item.target_ref: item for item in audit.targets}
             added = [item for item in candidates if item.target_ref not in known]
             if added:
@@ -1328,13 +1219,6 @@ class DeletionCoordinator:
             failed = any(item.status is TargetStatus.FAILED and item.result_code == "TARGET_ADDED" for item in target_records)
             for index, record in enumerate(target_records):
                 candidate = by_ref.get(record.target_ref)
-                support_recovery = audit.support_recovery if record.artifact_class is DeletionArtifactClass.SUPPORT_CONTENT else ()
-                if candidate is None and support_recovery and record.artifact_class is DeletionArtifactClass.SUPPORT_CONTENT and record.status is not TargetStatus.DELETED:
-                    # The support bytes may already be gone after an audit
-                    # writer failure.  Reopen the typed support target from
-                    # the durable recovery facts so its final event can be
-                    # retried without resurrecting content metadata.
-                    candidate = _Candidate(record.artifact_class, record.target_ref)
                 if record.status is TargetStatus.FAILED and record.result_code == "TARGET_ADDED":
                     continue
                 if record.status in {TargetStatus.DELETED, TargetStatus.ABSENT} and candidate is None:
@@ -1345,7 +1229,7 @@ class DeletionCoordinator:
                 try:
                     if self.failure_injector is not None and self.failure_injector(candidate):
                         raise OSError("injected")
-                    self.backend.delete_target(candidate, support_recovery=support_recovery)
+                    self.backend.delete_target(candidate)
                     target_records[index] = replace(record, status=TargetStatus.DELETED, result_code="DELETED")
                 except KSlideError as exc:
                     code = "PATH_UNSAFE" if exc.code is ErrorCode.PATH_OUTSIDE_ALLOWED_ROOT else "TARGET_DELETE_FAILED"
@@ -1554,15 +1438,6 @@ def _cleanup_operational_metadata_at_root(
                 kept_lines.append(json.dumps(event.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")))
         if stream_expired and not dry_run:
             atomic_write_text(telemetry_path, "\n".join(kept_lines) + ("\n" if kept_lines else ""), mode=0o600)
-    from .content_support import cleanup_support_access_audit
-
-    support_audit = cleanup_support_access_audit(
-        operational_root,
-        scope_ref=scope_ref,
-        cutoff=cutoff,
-        hold_lookup=hold_provider.lookup,
-        dry_run=dry_run,
-    )
     return {
         "status": "PASS",
         "dry_run": dry_run,
@@ -1571,7 +1446,6 @@ def _cleanup_operational_metadata_at_root(
         "retained": retained,
         "expired_telemetry": telemetry_expired,
         "retained_telemetry": telemetry_retained,
-        "support_access_audit": support_audit,
         "cutoff": cutoff.isoformat(),
     }
 

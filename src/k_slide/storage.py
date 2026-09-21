@@ -76,12 +76,6 @@ class StorageArtifact(str, Enum):
     # intentionally a distinct artifact identity rather than an alias for a
     # durable content-plane class.
     DELETION_AUDIT = "deletion_audit"
-    # Controlled support copies remain in the durable run-data plane.  They
-    # are never ordinary support metadata or central telemetry.
-    SUPPORT_CONTENT = "support_content"
-    # Support-access audits are source-free operational records in the
-    # central non-content plane.
-    SUPPORT_ACCESS_AUDIT = "support_access_audit"
 
 
 STORAGE_POLICY: Mapping[StorageArtifact, StoragePlane] = {
@@ -118,8 +112,6 @@ STORAGE_POLICY: Mapping[StorageArtifact, StoragePlane] = {
     StorageArtifact.CONVERSION_STAGING: StoragePlane.EPHEMERAL_PROCESSING_SCRATCH,
     StorageArtifact.TELEMETRY_EVENT: StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY,
     StorageArtifact.DELETION_AUDIT: StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY,
-    StorageArtifact.SUPPORT_CONTENT: StoragePlane.DURABLE_USER_WORKSPACE_RUN_DATA,
-    StorageArtifact.SUPPORT_ACCESS_AUDIT: StoragePlane.CENTRAL_NON_CONTENT_OPERATIONAL_TELEMETRY,
 }
 
 _OPERATIONAL_JSON_ARTIFACTS = frozenset(

@@ -81,7 +81,6 @@ the generic attestation writer.
 - Centralized redaction for credentials, home paths, source-content fields, and support/diagnostic output.
 - Restrictive run/artifact permissions plus an admin-only retention cleanup command with symlink and outside-root refusal.
 - Sanitized `support-bundle` command that excludes source snapshots, renders, crops, evidence, translations, reports, and raw transcripts.
-- Separate KSA-20 controlled content-support boundary with typed exact-run artifact selections, deployment-supplied live decision re-checks, finite expiry, durable support-content copies, source-free support-access audit, and KSA-12/KSA-13 cleanup/deletion integration. The reference authorization provider is test-only; company IAM, support-role/approval authority, and any content transfer mechanism remain external gates. The ordinary `support-bundle` CLI remains source-free.
 - Fail-closed production profile checks for target model identity, OCR assets/provider initialization, OpenCode, retention, tenancy, egress, permissions, and certification fingerprint.
 - Provisional pinned production constraints, SLO configuration, deployment profile template, and offline release manifest/SBOM generator.
 - Evidence-bound release states, subject-SHA/deployment/certification fingerprints, validated machine/human evidence envelopes, champion binding, and stale-certification detection.

@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "kind": "codex-fabric-audit-evidence",
+  "operation": "VERIFY",
+  "status": "PASS",
+  "project_id": "k-slide",
+  "change": "CHG-16",
+  "request": "chg16-controlled-content-support-01-fix02-verify02",
+  "scope": {
+    "bounded_item": "KSA-20 FIX02",
+    "behavior": "F20-02",
+    "coverage": "F20-02 only"
+  },
+  "git": {
+    "candidate_branch": "codex/k-slide-chg16-controlled-content-support-01-fix02",
+    "candidate_sha": "6074bac4b267e32c8bf377f865a9e6999ba13ae7",
+    "candidate_parent_sha": "8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf",
+    "candidate_parent_exact": true,
+    "candidate_remote_sha": "6074bac4b267e32c8bf377f865a9e6999ba13ae7",
+    "required_fresh_origin_main_sha": "96172ecabd39ca6affa55306d965a03bc5dd3598",
+    "observed_origin_main_sha": "96172ecabd39ca6affa55306d965a03bc5dd3598",
+    "origin_main_fresh_and_exact": true,
+    "local_main_before_sha": "af5836540304b424289bedbe57a87dbb5d02763f",
+    "local_main_after_sha": "af5836540304b424289bedbe57a87dbb5d02763f",
+    "main_mutation": "NONE",
+    "merge_rebase_amend_cherry_pick_reset_force_push_direct_push": false,
+    "final_worktree": {
+      "head_sha": "6074bac4b267e32c8bf377f865a9e6999ba13ae7",
+      "detached": true,
+      "clean": true
+    }
+  },
+  "diff": {
+    "base_sha": "8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf",
+    "candidate_sha": "6074bac4b267e32c8bf377f865a9e6999ba13ae7",
+    "changed_files": [
+      "src/k_slide/content_support.py",
+      "src/k_slide/deletion.py",
+      "tests/test_ksa20_controlled_content_support.py"
+    ],
+    "additions": 469,
+    "deletions": 19,
+    "diff_check": "PASS"
+  },
+  "checks": [
+    {
+      "id": "refs-and-parent",
+      "status": "PASS",
+      "command": "git rev-parse origin/main; git show -s --format='%H %P' 6074bac4b267e32c8bf377f865a9e6999ba13ae7",
+      "result": "origin/main=96172ecabd39ca6affa55306d965a03bc5dd3598; candidate parent=8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf"
+    },
+    {
+      "id": "python311-focused",
+      "status": "PASS",
+      "command": "PYTHONPATH=src python3.11 -m unittest -q tests.test_ksa20_controlled_content_support tests.test_chg16_deletion tests.test_chg16_retention_policy tests.test_chg16_accesskey_nonleakage tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg16_storage_planes tests.test_chg16_foundation",
+      "result": "Ran 114 tests; OK (skipped=1)"
+    },
+    {
+      "id": "python311-storage",
+      "status": "PASS",
+      "command": "PYTHONPATH=src python3.11 -m unittest -q tests.test_chg16_storage_planes",
+      "result": "Ran 19 tests; OK (skipped=1)"
+    },
+    {
+      "id": "python311-full-discovery",
+      "status": "PASS",
+      "command": "PYTHONPATH=src python3.11 -m unittest discover -s tests -q",
+      "result": "Ran 407 tests; OK (skipped=3)"
+    },
+    {
+      "id": "python312-compatible-focused",
+      "status": "PASS",
+      "command": "PYTHONPATH=src python3.12 -m unittest -q tests.test_ksa20_controlled_content_support tests.test_chg16_deletion tests.test_chg16_retention_policy tests.test_chg16_accesskey_nonleakage tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg16_foundation",
+      "result": "Ran 95 tests; OK"
+    },
+    {
+      "id": "python312-storage-optional-dependency",
+      "status": "LIMITATION",
+      "command": "PYTHONPATH=src python3.12 -m unittest -q tests.test_chg16_storage_planes",
+      "result": "One storage test errors with ModuleNotFoundError: No module named 'PIL'; Pillow is absent from the Python 3.12 environment. Assertions were not weakened."
+    },
+    {
+      "id": "compile",
+      "status": "PASS",
+      "command": "PYTHONPATH=src python3.11 -m compileall -q src tests; PYTHONPATH=src python3.12 -m compileall -q src tests",
+      "result": "Both compile checks passed"
+    },
+    {
+      "id": "git-diff",
+      "status": "PASS",
+      "command": "git diff --check 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf 6074bac4b267e32c8bf377f865a9e6999ba13ae7; git diff --check 96172ecabd39ca6affa55306d965a03bc5dd3598 6074bac4b267e32c8bf377f865a9e6999ba13ae7",
+      "result": "No whitespace errors"
+    },
+    {
+      "id": "independent-semantic-probe",
+      "status": "PASS",
+      "command": "Independent Python 3.11 probe: central writer outage after unlink, retry, and completed replay",
+      "result": "PARTIAL -> COMPLETE -> COMPLETE; one DELETED event; recovery and support audit source-free; replay bytes stable"
+    }
+  ],
+  "verification": {
+    "bounded_f20_02_status": "PASS",
+    "requirements": [
+      {
+        "id": "source-free-recovery-before-unlink",
+        "status": "PASS",
+        "evidence": "ControlledSupportDeletionRecord snapshots only typed support identities before unlink; recovery records exclude content, OCR, translation, report data, filenames, absolute paths, prompts, credentials, AccessKey, and canaries."
+      },
+      {
+        "id": "workspace-partial-central-writer-failure",
+        "status": "PASS",
+        "evidence": "KSA-20 tests and independent probe report PARTIAL after content removal when the central writer fails; no final DELETED event is emitted until retry."
+      },
+      {
+        "id": "durable-scoped-partial-central-writer-failure",
+        "status": "PASS",
+        "evidence": "KSA-20 durable/scoped tests cover the same PARTIAL, recovery, retry, and final-event contract."
+      },
+      {
+        "id": "exactly-one-retry-event",
+        "status": "PASS",
+        "evidence": "Retry reconstructs from durable source-free recovery and emits exactly one final DELETED event."
+      },
+      {
+        "id": "append-before-success-idempotence",
+        "status": "PASS",
+        "evidence": "Ambiguous append-before-success tests verify the existing final deletion event is recognized semantically without a duplicate append."
+      },
+      {
+        "id": "independent-multiple-artifacts",
+        "status": "PASS",
+        "evidence": "Multiple support artifacts converge independently; one writer failure does not suppress an independently completed artifact."
+      },
+      {
+        "id": "completed-replay-byte-stability",
+        "status": "PASS",
+        "evidence": "Completed replay preserves support-audit bytes in tests and the independent probe."
+      },
+      {
+        "id": "regression-boundaries",
+        "status": "PASS",
+        "evidence": "Focused and full suites preserve FIX01 unlink ordering, legal holds, retention, authorization/isolation, AccessKey non-leakage, default-deny egress, storage-plane boundaries, and KSA-01 through KSA-19 behavior."
+      }
+    ]
+  },
+  "external_gates": [
+    {
+      "gate": "company-support-IAM-approval-records-control",
+      "status": "EXTERNAL_NOT_EVALUATED",
+      "note": "Company IAM, support-role membership, business approval, and records-control integration remain deployment-owned gates."
+    },
+    {
+      "gate": "live-egress-and-company-integration",
+      "status": "EXTERNAL_NOT_EVALUATED",
+      "note": "No live company service, production storage, live egress, or production transfer was exercised."
+    }
+  ],
+  "claims": {
+    "release": false,
+    "production_certification": false,
+    "live_integration": false,
+    "build_complete": false,
+    "statement": "This is bounded local F20-02 verification evidence only."
+  },
+  "publisher": {
+    "evidence_branch": "codex-fabric/evidence/k-slide/chg16-controlled-content-support-01-fix02-verify02",
+    "artifact_path": ".codex-fabric/audit.json",
+    "scope": "Only this evidence branch and this audit artifact are publisher-owned."
+  }
+}
