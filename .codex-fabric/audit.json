@@ -1,0 +1,443 @@
+{
+  "accepted_at": "2026-09-21T01:18:23Z",
+  "changed_files": [
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "additions": 1358,
+      "deletions": 0,
+      "path": "src/k_slide/content_support.py",
+      "status": "A"
+    },
+    {
+      "additions": 131,
+      "deletions": 5,
+      "path": "src/k_slide/deletion.py",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 10,
+      "deletions": 0,
+      "path": "src/k_slide/retention.py",
+      "status": "M"
+    },
+    {
+      "additions": 8,
+      "deletions": 0,
+      "path": "src/k_slide/storage.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": "tests/test_chg16_storage_planes.py",
+      "status": "M"
+    },
+    {
+      "additions": 679,
+      "deletions": 0,
+      "path": "tests/test_ksa20_controlled_content_support.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc 'rtk sleep 30; rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-3b0d0284c6dfe278f6cf8aac 2>/dev/null || true; rtk tail -n 3 /Users/haewonkim/.codex-fabric/results/CF-3b0d0284c6dfe278f6cf8aac/codex.events.jsonl 2>/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk sleep 30; rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-3b0d0284c6dfe278f6cf8aac 2>/dev/null || true; rtk tail -n 3 /Users/haewonkim/.codex-fabric/results/CF-3b0d0284c6dfe278f6cf8aac/codex.events.jsonl 2>/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk sleep 30; rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-3b0d0284c6dfe278f6cf8aac 2>/dev/null || true; rtk tail -n 4 /Users/haewonkim/.codex-fabric/results/CF-3b0d0284c6dfe278f6cf8aac/codex.events.jsonl 2>/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-3b0d0284c6dfe278f6cf8aac 2>/dev/null || true; rtk tail -n 5 /Users/haewonkim/.codex-fabric/results/CF-3b0d0284c6dfe278f6cf8aac/codex.events.jsonl 2>/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-3b0d0284c6dfe278f6cf8aac'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl --help'",
+      "exit_code": 2,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files /Users/haewonkim/.codex-fabric | rtk rg 'CF-3b0d0284c6dfe278f6cf8aac|codex.events' | rtk tail -n 20\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk tail -n 1 /Users/haewonkim/.codex-fabric/results/CF-3b0d0284c6dfe278f6cf8aac/codex.events.jsonl | rtk cut -c1-800'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-3b0d0284c6dfe278f6cf8aac'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk wc -l /Users/haewonkim/.codex-fabric/results/CF-3b0d0284c6dfe278f6cf8aac/codex.events.jsonl && rtk tail -n 1 /Users/haewonkim/.codex-fabric/results/CF-3b0d0284c6dfe278f6cf8aac/codex.events.jsonl | rtk cut -c1-320'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk sleep 10 && rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-3b0d0284c6dfe278f6cf8aac'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk tail -n 12 /Users/haewonkim/.codex-fabric/results/CF-3b0d0284c6dfe278f6cf8aac/codex.stderr.log'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -o '\\\"type\\\":\\\"[\"'^\"]+\"'\"' /Users/haewonkim/.codex-fabric/results/CF-3b0d0284c6dfe278f6cf8aac/codex.events.jsonl | rtk tail -n 12\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg 'agent_message|turn.completed|turn.failed|error' /Users/haewonkim/.codex-fabric/results/CF-3b0d0284c6dfe278f6cf8aac/codex.events.jsonl | rtk tail -n 6 | rtk cut -c1-1200\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk sleep 15 && rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-3b0d0284c6dfe278f6cf8aac'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk tail -n 1 /Users/haewonkim/.codex-fabric/results/CF-3b0d0284c6dfe278f6cf8aac/codex.events.jsonl | rtk cut -c1-900'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk ps -Ao pid=,stat=,command= | rtk rg 'CF-3b0d0284c6dfe278f6cf8aac|codex exec' | rtk tail -n 20\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk find /Users/haewonkim/.codex-fabric/results/CF-3b0d0284c6dfe278f6cf8aac -maxdepth 1 -type f -print | sort'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk find /Users/haewonkim/.codex-fabric/results/CF-3b0d0284c6dfe278f6cf8aac -maxdepth 1 -type f'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl recover-detached-verify CF-3b0d0284c6dfe278f6cf8aac'",
+      "exit_code": 4,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-3b0d0284c6dfe278f6cf8aac'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk ls -l /Users/haewonkim/.codex-fabric/locks/workers/CF-3b0d0284c6dfe278f6cf8aac.lock && rtk sed -n '1,80p' /Users/haewonkim/.codex-fabric/locks/workers/CF-3b0d0284c6dfe278f6cf8aac.lock\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk ps -Ao pid=,etime=,stat=,command= | rtk tail -n 40'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk ps -Ao pid=,etime=,stat=,command= | rtk rg 'fabric|codex|python|node' | rtk tail -n 40\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'recover-detached-verify|job_state|RUNNING' /Users/haewonkim/.codex-fabric -g '*.py' -g '*.md' | rtk head -n 80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n -C 8 'recover-detached-verify' /Users/haewonkim/.codex-fabric/current/fabric.py | rtk head -n 120\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n -C 25 '\"'^def recover_detached_verify'\"' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '2992,3115p' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '3115,3165p' /Users/haewonkim/.codex-fabric/current/fabric.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk find /Users/haewonkim/.codex-fabric/jobs -maxdepth 1 -name 'CF-3b0d0284c6dfe278f6cf8aac*' -print\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk ls -ld /Users/haewonkim/.codex-fabric/jobs/CF-3b0d0284c6dfe278f6cf8aac.* 2>/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-3b0d0284c6dfe278f6cf8aac && rtk /Users/haewonkim/.codex-fabric/bin/fabricctl status CF-7725836a60abec8a4c427199'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3.11 -c 'import json; from pathlib import Path; root=Path(\\\"/Users/haewonkim/.codex-fabric/results/CF-3b0d0284c6dfe278f6cf8aac\\\"); s=json.loads((root/\\\"job-summary.json\\\").read_text()); r=json.loads((root/\\\"result.json\\\").read_text()); p=r.get(\\\"evidence_publication\\\",{}); print(json.dumps({\\\"summary_status\\\":s.get(\\\"status\\\"),\\\"execution_outcome\\\":r.get(\\\"execution_outcome\\\"),\\\"candidate\\\":r.get(\\\"git\\\",{}),\\\"evidence\\\":p,\\\"diff\\\":r.get(\\\"diff\\\"),\\\"warnings\\\":r.get(\\\"warnings\\\",[])},sort_keys=True))'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n -C 25 'def publish_audit_evidence|unexpected commit|evidence ref' /Users/haewonkim/.codex-fabric/current/fabric.py | rtk head -n 180\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide status --short --branch && rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide rev-parse HEAD && rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide show-ref | rtk rg 'chg16-controlled-content-support-01-fix02-verify02|chg16-controlled-content-support-01-fix02-verify01|main' | rtk tail -n 12\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide show --stat --oneline 5382125ac0ef094d37ac60f3d5d7ef43a853ba4a && rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide show 5382125ac0ef094d37ac60f3d5d7ef43a853ba4a:.codex-fabric/audit.json | rtk python3.11 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps({k:d.get(k) for k in [\\\"kind\\\",\\\"status\\\",\\\"job_id\\\",\\\"project_id\\\",\\\"request\\\",\\\"git\\\",\\\"diff\\\",\\\"evidence_manifest\\\",\\\"failure_class\\\",\\\"error_code\\\"]},sort_keys=True))'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n -C 16 '\"'^def publish_evidence_for_job'\"' /Users/haewonkim/.codex-fabric/current/fabric.py | rtk head -n 100\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide show 5382125ac0ef094d37ac60f3d5d7ef43a853ba4a:.codex-fabric/audit.json | rtk sed -n '1,240p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide rev-list --parents -n 1 5382125ac0ef094d37ac60f3d5d7ef43a853ba4a && rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide push origin 5382125ac0ef094d37ac60f4d3d5d7ef43a853ba4a:refs/heads/codex-fabric/evidence/k-slide/chg16-controlled-content-support-01-fix02-verify02'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide push origin 5382125ac0ef094d37ac60f3d5d7ef43a853ba4a:refs/heads/codex-fabric/evidence/k-slide/chg16-controlled-content-support-01-fix02-verify02'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide show -s --format='%T' 5382125ac0ef094d37ac60f3d5d7ef43a853ba4a && rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide rev-list --parents -n 1 6074bac4b267e32c8bf377f865a9e6999ba13ae7\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide commit-tree 861fafde0b7b98fb51f459fd002c314293e165a8 -p 6074bac4b267e32c8bf377f865a9e6999ba13ae7 -m 'chore(fabric): publish audit evidence CF-3b0d0284c6dfe278f6cf8aac'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide push origin 0bcc05e99ec66a9832975e5525c0a167a75ab164:refs/heads/codex-fabric/evidence/k-slide/chg16-controlled-content-support-01-fix02-verify02 && rtk git ls-remote origin refs/heads/codex-fabric/evidence/k-slide/chg16-controlled-content-support-01-fix02-verify02 refs/heads/codex/k-slide-chg16-controlled-content-support-01-fix02 refs/heads/main'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n -i 'canary|absolute path|prompt|accesskey|credential|korean|ocr|translation|report' tests/test_ksa20_controlled_content_support.py tests/test_chg16_deletion.py | rtk head -n 120\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rev-parse refs/remotes/origin/main refs/remotes/origin/codex/k-slide-chg16-controlled-content-support-01-fix02 && rtk git diff --numstat 8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf 6074bac4b267e32c8bf377f865a9e6999ba13ae7'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide rev-list --parents -n 1 0bcc05e99ec66a9832975e5525c0a167a75ab164 && rtk git -C /Users/haewonkim/.codex-fabric/repos/k-slide show 0bcc05e99ec66a9832975e5525c0a167a75ab164:.codex-fabric/audit.json | rtk python3.11 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps({\\\"kind\\\":d.get(\\\"kind\\\"),\\\"status\\\":d.get(\\\"status\\\"),\\\"project_id\\\":d.get(\\\"project_id\\\"),\\\"request\\\":d.get(\\\"request\\\"),\\\"candidate\\\":d.get(\\\"git\\\",{}).get(\\\"candidate_sha\\\"),\\\"parent\\\":d.get(\\\"git\\\",{}).get(\\\"candidate_parent_sha\\\"),\\\"changed_files\\\":d.get(\\\"diff\\\",{}).get(\\\"changed_files\\\"),\\\"checks\\\":len(d.get(\\\"checks\\\",[])),\\\"external_gates\\\":len(d.get(\\\"external_gates\\\",[]))},sort_keys=True))'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short --branch && rtk git rev-parse HEAD && rtk git show -s --format='%H%n%P%n%s' HEAD && rtk git diff --check\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git ls-remote origin refs/heads/codex-fabric/evidence/k-slide/chg16-controlled-content-support-01-fix02-verify02'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show-ref refs/heads/main refs/remotes/origin/main refs/heads/codex/k-slide-chg16-controlled-content-support-01-fix02 && rtk git reflog --format='%h %gs' refs/heads/main -n 3\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n '\"'^    def test_'\"' tests/test_ksa20_controlled_content_support.py tests/test_chg16_deletion.py | rtk rg 'support|delete|replay|retry|audit|ambiguous|multiple|partial|failure|workspace|scoped|durable|completion' | rtk tail -n 80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.155.1",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 285,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.55,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 15262976,
+      "fresh_input_tokens": 382643,
+      "input_tokens": 15645619,
+      "non_reasoning_output_tokens": 34683,
+      "output_tokens": 71446,
+      "reasoning_output_tokens": 36763,
+      "total_processed_tokens": 15717065
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "6074bac4b267e32c8bf377f865a9e6999ba13ae7",
+      "subject": "Fix durable controlled-support deletion recovery"
+    },
+    {
+      "sha": "8298e7c323e8a22dd7dd8b24953fb8bca2fb8caf",
+      "subject": "Fix controlled-support deletion audit ordering"
+    },
+    {
+      "sha": "3d19eb9240c36924de2862184109b3897a31a6e1",
+      "subject": "Implement KSA-20 controlled content support"
+    }
+  ],
+  "diff": {
+    "additions": 2197,
+    "changed_files": 9,
+    "commit_count": 3,
+    "deletions": 5
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 2,
+    "items": [
+      {
+        "bytes": 35694,
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "90b4c71e4f5d0fe0c45e57f29bdf8d68a8f2f825e82a171dd3db20f6f0aa2b50"
+      },
+      {
+        "bytes": 13286,
+        "path": "README.md",
+        "sha256": "f30242e0d41618f69501dc1324898f2a58f6ad8d2dddb0fccc6c32b0ef3e0b1d"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.3-resume-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.3-resume-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-21T02:12:05Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "96172ecabd39ca6affa55306d965a03bc5dd3598",
+    "branch": "codex/k-slide-chg16-controlled-content-support-01-fix02",
+    "detached_verify": false,
+    "head_sha": "6074bac4b267e32c8bf377f865a9e6999ba13ae7",
+    "remote_exact_head": true,
+    "remote_head_sha": "6074bac4b267e32c8bf377f865a9e6999ba13ae7",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "96172ecabd39ca6affa55306d965a03bc5dd3598",
+    "work_branch": "codex/k-slide-chg16-controlled-content-support-01-fix02",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-b11f105b1f51719c9308895a",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-controlled-content-support-01-fix02",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-controlled-content-support-01-fix02"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.3-resume-candidate",
+    "policy_sha256": "a642c9f63bab2cb555704bdb0b9d1f28222591f133f934c1d0f93cc5a25ab8a1",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-controlled-content-support-01-fix02",
+  "schema_version": 1,
+  "started_at": "2026-09-21T01:18:23Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 3222,
+    "queue_seconds": 0,
+    "total_seconds": 3222
+  },
+  "transport": {
+    "bytes": 8003,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 7660,
+    "prompt_sha256": "bb44424782172030f35ae1b2ddfa00f17268bc9f74a81e540fca111dfc53a33f",
+    "sha256": "b11f105b1f51719c9308895a6bc03f43de083bdf412b3ef206292ade8699e6a2"
+  }
+}
