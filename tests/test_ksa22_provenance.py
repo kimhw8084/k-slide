@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from k_slide.errors import ErrorCode, KSlideError
-from k_slide.evidence_ir import EvidenceIR, EvidenceRegion, save_evidence
+from k_slide.evidence_ir import EvidenceIR, EvidenceRegion, EvidenceTable, EvidenceTableCell, save_evidence
 from k_slide.ir import SlideIR
 from k_slide.queue import WorkQueue, WorkUnit, WorkUnitStatus, save_queue
 from k_slide.rendering.reports import _semantic_text, render_run
@@ -19,6 +19,13 @@ from k_slide.io import atomic_write_json
 
 
 class KSA22ProvenanceTests(unittest.TestCase):
+    def _table_fixture(self) -> tuple[EvidenceIR, dict[str, object]]:
+        fixture = json.loads((Path(__file__).parent / "fixtures" / "ksa22_table_fixture.json").read_text(encoding="utf-8"))
+        evidence = EvidenceIR.from_dict(fixture["evidence"]).with_revision()
+        patch = dict(fixture["translation_patch"])
+        patch["evidence_revision"] = evidence.evidence_revision
+        return evidence, patch
+
     def _evidence(self) -> EvidenceIR:
         return EvidenceIR(
             "doc",
@@ -199,6 +206,94 @@ class KSA22ProvenanceTests(unittest.TestCase):
             self.assertIn("UNRESOLVED", unresolved)
             self.assertIn("SUPPORTED INTERPRETATION", brief)
             self.assertNotIn("- C", report)
+
+    def test_table_identity_survives_merge_serialize_reload_render_and_verify(self) -> None:
+        evidence, value = self._table_fixture()
+        slide = merge_evidence_patch(evidence, parse_translation_patch(value))
+        expected = [cell.cell_id for cell in evidence.tables[0].cells]
+        self.assertEqual([cell.cell_id for cell in slide.tables[0].cells], expected)
+        reloaded = SlideIR.from_dict(slide.as_dict(), evidence=evidence)
+        self.assertEqual([cell.cell_id for cell in reloaded.tables[0].cells], expected)
+
+        with tempfile.TemporaryDirectory() as directory:
+            run = Path(directory) / "run"
+            run.mkdir()
+            atomic_write_json(storage_path(run, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json", create_parent=True), {"inputs": []})
+            save_evidence(run, evidence)
+            save_queue(run, WorkQueue(run_id="run", work_units=[WorkUnit("unit-table", "doc", "source-001", 0, status=WorkUnitStatus.TRANSLATED)]))
+            atomic_write_json(storage_path(run, StorageArtifact.CANONICAL_IR, "ir/unit-table.json", create_parent=True), reloaded.as_dict())
+            render_run(run)
+            result = VerificationResult(status="PASS", run_id="run")
+            _validate_slide(run, "unit-table", result, termbase=Termbase("1.0", ()))
+            self.assertFalse(result.issues)
+            report = storage_path(run, StorageArtifact.REPORT, "05_final_report.md").read_text(encoding="utf-8")
+            self.assertIn("Revenue", report)
+
+    def test_new_canonical_cell_id_is_required_and_legacy_table_cells_migrate_only_with_unique_bound_evidence(self) -> None:
+        evidence, value = self._table_fixture()
+        slide = merge_evidence_patch(evidence, parse_translation_patch(value))
+        legacy = slide.as_dict()
+        legacy["tables"][0]["cells"][0].pop("cell_id")  # type: ignore[index]
+        migrated = SlideIR.from_dict(legacy, evidence=evidence)
+        self.assertEqual(migrated.tables[0].cells[0].cell_id, evidence.tables[0].cells[0].cell_id)
+        legacy["tables"][0]["cells"][1].pop("cell_id")  # type: ignore[index]
+        with tempfile.TemporaryDirectory() as directory:
+            run = Path(directory) / "run"
+            run.mkdir()
+            atomic_write_json(storage_path(run, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json", create_parent=True), {"inputs": []})
+            save_evidence(run, evidence)
+            save_queue(run, WorkQueue(run_id="run", work_units=[WorkUnit("unit-table", "doc", "source-001", 0, status=WorkUnitStatus.TRANSLATED)]))
+            atomic_write_json(storage_path(run, StorageArtifact.CANONICAL_IR, "ir/unit-table.json", create_parent=True), legacy)
+            render_run(run)
+            result = VerificationResult(status="PASS", run_id="run")
+            _validate_slide(run, "unit-table", result, termbase=Termbase("1.0", ()))
+            self.assertFalse(result.issues)
+        with self.assertRaises(KSlideError) as raised:
+            SlideIR.from_dict(legacy)
+        self.assertEqual(raised.exception.code, ErrorCode.LEGACY_TABLE_CELL_MIGRATION_REQUIRED)
+
+    def test_legacy_table_cell_ambiguity_and_missing_coordinates_fail_closed_without_crash(self) -> None:
+        evidence = EvidenceIR(
+            "doc", "unit-table", {},
+            tables=(EvidenceTable("table-1", row_count=1, column_count=1, cells=(
+                EvidenceTableCell("cell-a", 0, 0), EvidenceTableCell("cell-b", 0, 0),
+            )),),
+            required_source_ids=("table-1", "cell-a", "cell-b"),
+        ).with_revision()
+        legacy = {"schema_version": "1.0", "slide_id": "unit-table", "evidence_revision": evidence.evidence_revision, "tables": [{"table_id": "table-1", "row_count": 1, "column_count": 1, "cells": [{"row": 0, "column": 0}]}]}
+        with self.assertRaises(KSlideError) as raised:
+            SlideIR.from_dict(legacy, evidence=evidence)
+        self.assertEqual(raised.exception.code, ErrorCode.LEGACY_TABLE_CELL_MIGRATION_REQUIRED)
+        del legacy["tables"][0]["cells"][0]["row"]  # type: ignore[index]
+        with self.assertRaises(KSlideError) as raised:
+            SlideIR.from_dict(legacy, evidence=evidence)
+        self.assertEqual(raised.exception.code, ErrorCode.LEGACY_TABLE_CELL_MIGRATION_REQUIRED)
+
+    def test_table_cell_provenance_rejects_foreign_patch_and_canonical_identity(self) -> None:
+        evidence, value = self._table_fixture()
+        foreign = json.loads(json.dumps(value))
+        foreign["tables"][0]["cells"][0]["evidence_ids"] = ["unit-table-01-r01-c02"]
+        with self.assertRaises(KSlideError) as raised:
+            parse_translation_patch(foreign).validate_against(evidence)
+        self.assertEqual(raised.exception.code, ErrorCode.UNKNOWN_SOURCE_ELEMENT)
+
+        slide = merge_evidence_patch(evidence, parse_translation_patch(value))
+        tampered = slide.as_dict()
+        tampered["tables"][0]["cells"][0]["cell_id"] = "foreign-cell"  # type: ignore[index]
+        invalid = SlideIR.from_dict(tampered, evidence=evidence)
+        result = VerificationResult(status="PASS", run_id="run")
+        _validate_canonical_provenance(result, invalid, evidence, "unit-table")
+        self.assertIn("KSLIDE_TABLE_CELL_ID_MISMATCH", {issue.code for issue in result.issues})
+
+        unresolved = slide.as_dict()
+        unresolved["tables"][0]["cells"][0]["provenance"] = "unresolved"  # type: ignore[index]
+        unresolved["tables"][0]["cells"][0]["unresolved"] = True  # type: ignore[index]
+        unresolved["tables"][0]["cells"][0]["unresolved_reason"] = None  # type: ignore[index]
+        invalid_unresolved = SlideIR.from_dict(unresolved, evidence=evidence)
+        invalid_unresolved.tables[0].cells[0].unresolved_reason = None
+        result = VerificationResult(status="PASS", run_id="run")
+        _validate_canonical_provenance(result, invalid_unresolved, evidence, "unit-table")
+        self.assertIn("KSLIDE_PROVENANCE_INCONSISTENT", {issue.code for issue in result.issues})
 
 
 if __name__ == "__main__":

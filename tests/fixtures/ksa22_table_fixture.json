@@ -1,0 +1,43 @@
+{
+  "evidence": {
+    "schema_version": "1.0",
+    "document_id": "doc-ksa22",
+    "work_unit_id": "unit-table",
+    "source": {"source_name": "ksa22-table-fixture"},
+    "regions": [],
+    "tables": [
+      {
+        "table_id": "unit-table-01",
+        "bbox_px": [0, 0, 400, 120],
+        "row_count": 1,
+        "column_count": 2,
+        "headers": [],
+        "cells": [
+          {"cell_id": "unit-table-01-r01-c01", "row": 0, "column": 0, "source_text": "매출", "evidence_region_ids": [], "numeric_fact_ids": [], "required_for_translation": true},
+          {"cell_id": "unit-table-01-r01-c02", "row": 0, "column": 1, "source_text": "2025", "evidence_region_ids": [], "numeric_fact_ids": [], "required_for_translation": true}
+        ],
+        "required_for_translation": true
+      }
+    ],
+    "numeric_facts": [],
+    "visual_elements": [],
+    "native_evidence": [],
+    "required_source_ids": ["unit-table-01", "unit-table-01-r01-c01", "unit-table-01-r01-c02"]
+  },
+  "translation_patch": {
+    "schema_version": "1.0",
+    "work_unit_id": "unit-table",
+    "regions": [],
+    "tables": [
+      {
+        "table_id": "unit-table-01",
+        "cells": [
+          {"cell_id": "unit-table-01-r01-c01", "english": "Revenue", "unresolved": false, "provenance": "source_fact", "evidence_ids": ["unit-table-01-r01-c01"]},
+          {"cell_id": "unit-table-01-r01-c02", "english": "2025", "unresolved": false, "provenance": "supported_interpretation", "evidence_ids": ["unit-table-01-r01-c02"]}
+        ]
+      }
+    ],
+    "visual_interpretations": [],
+    "executive_claims": []
+  }
+}

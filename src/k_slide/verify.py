@@ -98,6 +98,33 @@ def _evidence_ids(evidence: Any) -> set[str]:
     )
 
 
+def _check_table_cell_binding(result: VerificationResult, table: Any, cell: Any, evidence: Any, *, target: str) -> None:
+    evidence_table = next((candidate for candidate in evidence.tables if candidate.table_id == table.table_id), None)
+    if evidence_table is None:
+        _issue(result, "KSLIDE_TABLE_CELL_ID_MISMATCH", Severity.CRITICAL, "Canonical table is not present in the current EvidenceIR.", target=target)
+        return
+    evidence_cell = next((candidate for candidate in evidence_table.cells if candidate.cell_id == cell.cell_id), None)
+    if evidence_cell is None:
+        _issue(result, "KSLIDE_TABLE_CELL_ID_MISMATCH", Severity.CRITICAL, "Canonical table cell_id is not the exact current EvidenceIR cell identity.", target=target, evidence_ids=[cell.cell_id])
+        return
+    for field in ("row", "column", "rowspan", "colspan", "source_text", "evidence_region_ids", "numeric_fact_ids"):
+        actual = getattr(cell, field)
+        expected = getattr(evidence_cell, field)
+        if field in {"evidence_region_ids", "numeric_fact_ids"}:
+            actual = tuple(actual)
+            expected = tuple(expected)
+        if actual != expected:
+            _issue(result, "KSLIDE_TABLE_CELL_ID_MISMATCH", Severity.CRITICAL, "Canonical table cell geometry or engine evidence does not match its EvidenceIR cell identity.", target=target, evidence_ids=[cell.cell_id])
+            break
+    allowed = {evidence_cell.cell_id, evidence_table.table_id, *evidence_cell.evidence_region_ids, *evidence_cell.numeric_fact_ids}
+    if not isinstance(cell.provenance_evidence_ids, list) or evidence_cell.cell_id not in cell.provenance_evidence_ids:
+        _issue(result, "KSLIDE_PROVENANCE_EVIDENCE_REQUIRED", Severity.CRITICAL, "Table cell provenance must cite the exact EvidenceIR cell ID.", target=target, evidence_ids=[evidence_cell.cell_id])
+    else:
+        foreign = sorted(set(cell.provenance_evidence_ids) - allowed)
+        if foreign:
+            _issue(result, "KSLIDE_PROVENANCE_FOREIGN_EVIDENCE", Severity.CRITICAL, "Table cell provenance cites evidence outside the bound EvidenceIR cell.", target=target, evidence_ids=foreign)
+
+
 def _check_provenance(
     result: VerificationResult,
     *,
@@ -169,6 +196,7 @@ def _validate_canonical_provenance(result: VerificationResult, slide: SlideIR, e
             expected_unresolved.add(region.region_id)
     for table in slide.tables:
         for cell in table.cells:
+            _check_table_cell_binding(result, table, cell, evidence, target=cell.cell_id)
             state = _check_provenance(
                 result,
                 state=cell.provenance,
@@ -223,8 +251,8 @@ def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult
         if not isinstance(value, dict) or value.get("schema_version") != "1.0":
             _issue(result, "KSLIDE_SCHEMA_INVALID", Severity.CRITICAL, "SlideIR schema version is missing or unsupported.", target=work_unit_id)
             return
-        slide = SlideIR.from_dict(value)
         evidence = load_evidence(run_dir, work_unit_id)
+        slide = SlideIR.from_dict(value, evidence=evidence)
         result.checked_slides += 1
         result.checked_regions += len(slide.regions)
         if slide.evidence_revision != evidence.evidence_revision:
@@ -286,7 +314,9 @@ def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult
         for item in slide.unresolved:
             if not item.get("reason") and not item.get("unresolved_reason"):
                 _issue(result, "KSLIDE_UNRESOLVED_UNDISCLOSED", Severity.CRITICAL, "Unresolved evidence lacks a reason.", target=work_unit_id)
-    except (KSlideError, KeyError, TypeError, ValueError, json.JSONDecodeError, OSError) as exc:
+    except KSlideError as exc:
+        _issue(result, exc.code.value, Severity.CRITICAL, exc.message, target=work_unit_id)
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError, OSError):
         _issue(result, "KSLIDE_SCHEMA_INVALID", Severity.CRITICAL, "Could not validate SlideIR safely.", target=work_unit_id)
 
 

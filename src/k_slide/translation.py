@@ -129,6 +129,24 @@ def _validate_provenance(
     return effective
 
 
+def _validate_table_cell_evidence_binding(
+    cell_id: str,
+    table: Any,
+    evidence_ids: tuple[str, ...],
+    *,
+    label: str,
+) -> None:
+    cell = next((candidate for candidate in table.cells if candidate.cell_id == cell_id), None)
+    if cell is None:
+        raise KSlideError(ErrorCode.UNKNOWN_TABLE_CELL, f"{label} is not the current EvidenceIR table cell.", {"cell_id": cell_id, "table_id": table.table_id})
+    allowed = {cell.cell_id, table.table_id, *cell.evidence_region_ids, *cell.numeric_fact_ids}
+    foreign = sorted(set(evidence_ids) - allowed)
+    if foreign:
+        raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, f"{label} provenance references evidence outside the bound table cell.", {"cell_id": cell_id, "evidence_ids": foreign})
+    if cell.cell_id not in evidence_ids:
+        raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, f"{label} provenance must cite its exact EvidenceIR cell ID.", {"cell_id": cell_id})
+
+
 @dataclass(frozen=True)
 class TranslationRegionPatch:
     region_id: str
@@ -275,6 +293,7 @@ class TranslationPatch:
                 if cell_patch.unresolved and not cell_patch.unresolved_reason:
                     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Unresolved table cells require an explicit reason.", {"cell_id": cell_patch.cell_id})
                 evidence_ids = tuple(cell_patch.evidence_ids if cell_patch.evidence_ids is not None else (cell_patch.cell_id,))
+                _validate_table_cell_evidence_binding(cell_patch.cell_id, table, evidence_ids, label=f"Table cell {cell_patch.cell_id}")
                 _validate_provenance(
                     cell_patch.provenance,
                     evidence_ids,
@@ -483,6 +502,7 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
             provenance = patch_cell.provenance or (ProvenanceState.UNRESOLVED.value if patch_cell.unresolved else ProvenanceState.SUPPORTED_INTERPRETATION.value)
             provenance_evidence_ids = list(patch_cell.evidence_ids if patch_cell.evidence_ids is not None else (cell.cell_id,))
             cells.append(TableCell(
+                cell_id=cell.cell_id,
                 row=cell.row,
                 column=cell.column,
                 source_text=cell.source_text,

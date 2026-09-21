@@ -70,8 +70,8 @@ def _unit_sections(run_dir: Path, unit: Any, source_name: str) -> tuple[list[str
     ir_path = storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json")
     if not ir_path.is_file():
         return [f"## {unit.document_id} — {unit.work_unit_id}", "", "_Translation not submitted yet._", ""], [], []
-    slide = SlideIR.from_dict(read_json(ir_path))
     evidence = load_evidence(run_dir, unit.work_unit_id)
+    slide = SlideIR.from_dict(read_json(ir_path), evidence=evidence)
     lines = [f"## {unit.document_id} — {unit.work_unit_id}", "", f"Source document: `{source_name}`", f"Source index: `{unit.source_index + 1}`", "", "### English Reconstruction", ""]
     for region in sorted(slide.regions, key=lambda item: item.reading_order):
         lines.append(f"- {_semantic_text(region.translation, region.provenance, region.unresolved_reason)}")

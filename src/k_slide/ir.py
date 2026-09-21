@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from . import SLIDE_IR_SCHEMA_VERSION
+from .errors import ErrorCode, KSlideError
 from .semantics import ProvenanceState
 
 
@@ -68,6 +69,7 @@ class TextRegion:
 
 @dataclass
 class TableCell:
+    cell_id: str
     row: int
     column: int
     source_text: str | None = None
@@ -159,7 +161,64 @@ class SlideIR:
         return value
 
     @classmethod
-    def from_dict(cls, value: dict[str, Any]) -> "SlideIR":
+    def from_dict(cls, value: dict[str, Any], evidence: Any | None = None) -> "SlideIR":
+        if not isinstance(value, dict):
+            raise KSlideError(ErrorCode.SCHEMA_INVALID, "SlideIR must be an object.")
+
+        def legacy_cell_id(table_value: dict[str, Any], cell_value: dict[str, Any], evidence: Any | None) -> str:
+            table_id = table_value.get("table_id")
+            if evidence is None:
+                raise KSlideError(
+                    ErrorCode.LEGACY_TABLE_CELL_MIGRATION_REQUIRED,
+                    "Legacy SlideIR table cells without cell_id require the bound EvidenceIR for migration.",
+                    {"table_id": table_id},
+                )
+            evidence_tables = [table for table in getattr(evidence, "tables", ()) if table.table_id == table_id]
+            if len(evidence_tables) != 1:
+                raise KSlideError(
+                    ErrorCode.LEGACY_TABLE_CELL_MIGRATION_REQUIRED,
+                    "Legacy SlideIR table cell cannot be bound to exactly one current EvidenceIR table.",
+                    {"table_id": table_id},
+                )
+            required = ("row", "column")
+            if any(key not in cell_value or isinstance(cell_value.get(key), bool) or not isinstance(cell_value.get(key), int) for key in required):
+                raise KSlideError(
+                    ErrorCode.LEGACY_TABLE_CELL_MIGRATION_REQUIRED,
+                    "Legacy SlideIR table cell lacks deterministic structural coordinates.",
+                    {"table_id": table_id},
+                )
+
+            def same(field: str, candidate: Any) -> bool:
+                if field not in cell_value:
+                    return True
+                expected = cell_value[field]
+                actual = getattr(candidate, field)
+                if field in {"evidence_region_ids", "numeric_fact_ids"}:
+                    try:
+                        return tuple(expected) == tuple(actual)
+                    except TypeError:
+                        return False
+                return expected == actual
+
+            candidates = [
+                candidate
+                for candidate in evidence_tables[0].cells
+                if all(same(field, candidate) for field in ("row", "column", "rowspan", "colspan", "source_text", "evidence_region_ids", "numeric_fact_ids"))
+            ]
+            identity_hints = cell_value.get("provenance_evidence_ids") or cell_value.get("evidence_ids") or []
+            if identity_hints:
+                try:
+                    candidates = [candidate for candidate in candidates if candidate.cell_id in set(identity_hints)]
+                except TypeError:
+                    candidates = []
+            if len(candidates) != 1:
+                raise KSlideError(
+                    ErrorCode.LEGACY_TABLE_CELL_MIGRATION_REQUIRED,
+                    "Legacy SlideIR table cell does not resolve to exactly one current EvidenceIR cell.",
+                    {"table_id": table_id, "row": cell_value.get("row"), "column": cell_value.get("column")},
+                )
+            return candidates[0].cell_id
+
         legacy_unresolved = {
             str(item.get("region_id") or item.get("cell_id") or item.get("relation_id") or item.get("claim_id")): item
             for item in value.get("unresolved", [])
@@ -188,20 +247,26 @@ class SlideIR:
                 result["unresolved_reason"] = (unresolved or {}).get("reason") or (unresolved or {}).get("unresolved_reason") or "Legacy unresolved item."
             return result
 
-        def cell_value(item: dict[str, Any]) -> dict[str, Any]:
-            cell_id = str(item["cell_id"])
+        def cell_value(table_item: dict[str, Any], item: dict[str, Any]) -> dict[str, Any]:
+            if not isinstance(item, dict):
+                raise KSlideError(ErrorCode.SCHEMA_INVALID, "SlideIR table cell must be an object.")
+            result = dict(item)
+            if "cell_id" not in result or result.get("cell_id") is None:
+                result["cell_id"] = legacy_cell_id(table_item, result, evidence)
+            elif not isinstance(result["cell_id"], str) or not result["cell_id"]:
+                raise KSlideError(ErrorCode.SCHEMA_INVALID, "SlideIR table cell_id must be a non-empty string.")
+            cell_id = result["cell_id"]
             unresolved = legacy_unresolved.get(cell_id)
-            provenance = item.get("provenance")
-            is_unresolved = bool(item.get("unresolved")) or bool(unresolved)
+            provenance = result.get("provenance")
+            is_unresolved = bool(result.get("unresolved")) or bool(unresolved)
             if provenance is None:
                 provenance = ProvenanceState.UNRESOLVED.value if is_unresolved else ProvenanceState.SUPPORTED_INTERPRETATION.value
-            if "provenance_evidence_ids" in item:
-                evidence_ids = item["provenance_evidence_ids"]
-            elif "evidence_ids" in item:
-                evidence_ids = item["evidence_ids"]
+            if "provenance_evidence_ids" in result:
+                evidence_ids = result["provenance_evidence_ids"]
+            elif "evidence_ids" in result:
+                evidence_ids = result["evidence_ids"]
             else:
-                evidence_ids = item.get("evidence_region_ids") or [cell_id]
-            result = dict(item)
+                evidence_ids = [cell_id]
             result.pop("evidence_ids", None)
             result["provenance"] = provenance
             result["provenance_evidence_ids"] = list(evidence_ids)
@@ -222,7 +287,9 @@ class SlideIR:
         regions = [TextRegion(**region_value(item)) for item in value.get("regions", [])]
         tables: list[TableIR] = []
         for item in value.get("tables", []):
-            cells = [TableCell(**cell_value(cell)) for cell in item.get("cells", [])]
+            if not isinstance(item, dict):
+                raise KSlideError(ErrorCode.SCHEMA_INVALID, "SlideIR table must be an object.")
+            cells = [TableCell(**cell_value(item, cell)) for cell in item.get("cells", [])]
             tables.append(TableIR(**{**item, "cells": cells}))
         relations = [VisualRelation(**relation_value(item)) for item in value.get("visual_relations", [])]
         facts = [NumericFact(**item) for item in value.get("numeric_facts", [])]
