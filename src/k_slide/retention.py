@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from .deletion import DeletionOutcome, DeletionReason, _operational_root, cleanup_operational_metadata, delete_workspace_run
+from .content_support import cleanup_expired_support_content
 from .errors import ErrorCode, KSlideError
 from .paas import AuthorizedScopeContext
 from .retention_policy import RetentionPolicy
@@ -82,6 +83,14 @@ def cleanup_expired_runs(
     assert isinstance(content_retention_days, int)
     root = root.expanduser().resolve()
     selected_operational_root = _operational_root(roots[0], workspace_namespace=root)
+    support_cleanup = cleanup_expired_support_content(
+        root,
+        scope_context=scope_context,
+        hold_provider=hold_provider,
+        operational_root=selected_operational_root,
+        now=now,
+        dry_run=dry_run,
+    )
     run_root = root / ".k-slide-runs"
     if run_root.is_symlink() or (run_root.exists() and not run_root.is_dir()):
         raise KSlideError(ErrorCode.RETENTION_REFUSED, "The K-Slide run root must be a real directory.", {"path": str(run_root)})
@@ -156,5 +165,6 @@ def cleanup_expired_runs(
         "planned": planned,
         "retained": retained,
         "deletions": deletion_results,
+        "controlled_support": support_cleanup,
         "operational_metadata": operational,
     }
