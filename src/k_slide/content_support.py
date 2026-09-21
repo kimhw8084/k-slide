@@ -532,6 +532,21 @@ class SupportAccessAuditWriter:
     def audit_path(self) -> Path:
         return self.layout.path(StorageArtifact.SUPPORT_ACCESS_AUDIT, "support-access-audit.jsonl", create_parent=True)
 
+    @staticmethod
+    def _deletion_semantics(record: SupportAccessAudit) -> dict[str, Any]:
+        value = record.as_dict()
+        value.pop("occurred_at", None)
+        return value
+
+    def _records_for_write(self, path: Path) -> tuple[SupportAccessAudit, ...]:
+        if not path.exists():
+            return ()
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+            return tuple(SupportAccessAudit.from_dict(json.loads(line)) for line in lines if line)
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise _invalid("Controlled support audit could not be read for idempotent commit.", code=ErrorCode.SUPPORT_AUDIT_FAILED) from exc
+
     def write(self, record: SupportAccessAudit) -> None:
         if not isinstance(record, SupportAccessAudit):
             raise _invalid("Controlled support audit requires a typed record.", code=ErrorCode.SUPPORT_AUDIT_FAILED)
@@ -540,6 +555,15 @@ class SupportAccessAuditWriter:
         line = json.dumps(record.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
         try:
             with filesystem_lock(lock):
+                if record.lifecycle is SupportAccessLifecycle.DELETED and any(
+                    existing.lifecycle is SupportAccessLifecycle.DELETED
+                    and existing.result is SupportAccessResult.DELETED
+                    and existing.support_artifact_ref is not None
+                    and self._deletion_semantics(existing) == self._deletion_semantics(record)
+                    for existing in self._records_for_write(path)
+                ):
+                    os.chmod(path, 0o600)
+                    return
                 with path.open("a", encoding="utf-8") as handle:
                     handle.write(line)
                     handle.flush()
@@ -647,6 +671,135 @@ class ControlledSupportArtifact:
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise _invalid("Controlled support artifact metadata is malformed.", code=ErrorCode.SUPPORT_CONTENT_UNAVAILABLE) from exc
+
+
+@dataclass(frozen=True)
+class ControlledSupportDeletionRecord:
+    """Source-free facts needed to reconstruct one final support deletion event."""
+
+    artifact_ref: str
+    access_request_ref: str
+    scope_context: AuthorizedScopeContext
+    run_ref: str
+    decision_ref: str
+    support_subject_ref: str
+    support_role_ref: str
+    support_capability_ref: str
+    purpose: SupportPurpose
+    authority_ref: str
+    approvals: tuple[SupportApprovalEvidence, ...]
+    allowed_artifact_classes: tuple[SupportArtifactClass, ...]
+    selected_artifact_classes: tuple[SupportArtifactClass, ...]
+    created_at: str
+    expires_at: str
+
+    def __post_init__(self) -> None:
+        _identity(self.artifact_ref, "support artifact reference")
+        _identity(self.access_request_ref, "access request reference")
+        _identity(self.run_ref, "run reference")
+        _identity(self.decision_ref, "decision reference")
+        _identity(self.support_subject_ref, "support subject reference")
+        _identity(self.support_role_ref, "support role reference")
+        _identity(self.support_capability_ref, "support capability reference")
+        _identity(self.authority_ref, "authority reference")
+        if not isinstance(self.scope_context, AuthorizedScopeContext):
+            raise _invalid("Controlled support deletion scope context is invalid.", code=ErrorCode.SUPPORT_AUDIT_FAILED)
+        _identity(self.scope_context.user_ref, "authorized user reference")
+        _identity(self.scope_context.workspace_ref, "authorized workspace reference")
+        _identity(str(self.scope_context.scope_ref), "authorized scope reference")
+        try:
+            object.__setattr__(self, "purpose", self.purpose if isinstance(self.purpose, SupportPurpose) else SupportPurpose(str(self.purpose)))
+        except ValueError as exc:
+            raise _invalid("Controlled support deletion purpose is invalid.", code=ErrorCode.SUPPORT_AUDIT_FAILED) from exc
+        if not self.approvals or any(not isinstance(item, SupportApprovalEvidence) for item in self.approvals):
+            raise _invalid("Controlled support deletion approval evidence is invalid.", code=ErrorCode.SUPPORT_AUDIT_FAILED)
+        object.__setattr__(self, "allowed_artifact_classes", tuple(_artifact_class(item) for item in self.allowed_artifact_classes))
+        object.__setattr__(self, "selected_artifact_classes", tuple(_artifact_class(item) for item in self.selected_artifact_classes))
+        _timestamp(self.created_at, "deletion artifact creation")
+        _timestamp(self.expires_at, "deletion artifact expiry")
+
+    @classmethod
+    def from_artifact(cls, artifact: ControlledSupportArtifact) -> "ControlledSupportDeletionRecord":
+        if not isinstance(artifact, ControlledSupportArtifact):
+            raise _invalid("Controlled support deletion audit metadata is invalid.", code=ErrorCode.SUPPORT_AUDIT_FAILED)
+        return cls(
+            artifact_ref=artifact.artifact_ref,
+            access_request_ref=artifact.access_request_ref,
+            scope_context=artifact.scope_context,
+            run_ref=artifact.run_ref,
+            decision_ref=artifact.decision_ref,
+            support_subject_ref=artifact.support_subject_ref,
+            support_role_ref=artifact.support_role_ref,
+            support_capability_ref=artifact.support_capability_ref,
+            purpose=artifact.purpose,
+            authority_ref=artifact.authority_ref,
+            approvals=artifact.approvals,
+            allowed_artifact_classes=artifact.allowed_artifact_classes,
+            selected_artifact_classes=artifact.selected_artifact_classes,
+            created_at=artifact.created_at,
+            expires_at=artifact.expires_at,
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "artifact_ref": self.artifact_ref,
+            "access_request_ref": self.access_request_ref,
+            "scope_ref": self.scope_context.scope_ref,
+            "user_ref": self.scope_context.user_ref,
+            "workspace_ref": self.scope_context.workspace_ref,
+            "run_ref": self.run_ref,
+            "decision_ref": self.decision_ref,
+            "support_subject_ref": self.support_subject_ref,
+            "support_role_ref": self.support_role_ref,
+            "support_capability_ref": self.support_capability_ref,
+            "purpose": self.purpose.value,
+            "authority_ref": self.authority_ref,
+            "approvals": [item.as_dict() for item in self.approvals],
+            "allowed_artifact_classes": [item.value for item in self.allowed_artifact_classes],
+            "selected_artifact_classes": [item.value for item in self.selected_artifact_classes],
+            "created_at": self.created_at,
+            "expires_at": self.expires_at,
+        }
+
+    @classmethod
+    def from_dict(cls, value: Any) -> "ControlledSupportDeletionRecord":
+        required = {
+            "artifact_ref", "access_request_ref", "scope_ref", "user_ref", "workspace_ref", "run_ref", "decision_ref",
+            "support_subject_ref", "support_role_ref", "support_capability_ref", "purpose", "authority_ref", "approvals",
+            "allowed_artifact_classes", "selected_artifact_classes", "created_at", "expires_at",
+        }
+        if not isinstance(value, dict) or set(value) != required or not isinstance(value["approvals"], list):
+            raise _invalid("Controlled support deletion recovery is invalid.", code=ErrorCode.STATE_CORRUPT)
+        try:
+            return cls(
+                artifact_ref=value["artifact_ref"],
+                access_request_ref=value["access_request_ref"],
+                scope_context=AuthorizedScopeContext(value["user_ref"], value["workspace_ref"], value["scope_ref"]),
+                run_ref=value["run_ref"],
+                decision_ref=value["decision_ref"],
+                support_subject_ref=value["support_subject_ref"],
+                support_role_ref=value["support_role_ref"],
+                support_capability_ref=value["support_capability_ref"],
+                purpose=SupportPurpose(value["purpose"]),
+                authority_ref=value["authority_ref"],
+                approvals=tuple(SupportApprovalEvidence(item["approval_ref"], SupportApprovalStatus(item["status"])) for item in value["approvals"]),
+                allowed_artifact_classes=tuple(SupportArtifactClass(item) for item in value["allowed_artifact_classes"]),
+                selected_artifact_classes=tuple(SupportArtifactClass(item) for item in value["selected_artifact_classes"]),
+                created_at=value["created_at"],
+                expires_at=value["expires_at"],
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise _invalid("Controlled support deletion recovery is malformed.", code=ErrorCode.STATE_CORRUPT) from exc
+
+    def audit(self, *, occurred_at: datetime | None = None) -> SupportAccessAudit:
+        return SupportAccessAudit(
+            occurred_at=_iso(occurred_at or datetime.now(timezone.utc)), lifecycle=SupportAccessLifecycle.DELETED, result=SupportAccessResult.DELETED,
+            access_request_ref=self.access_request_ref, scope_context=self.scope_context, run_ref=self.run_ref,
+            support_subject_ref=self.support_subject_ref, support_role_ref=self.support_role_ref, support_capability_ref=self.support_capability_ref,
+            purpose=self.purpose, authority_ref=self.authority_ref, decision_ref=self.decision_ref, approvals=self.approvals,
+            allowed_artifact_classes=self.allowed_artifact_classes, selected_artifact_classes=self.selected_artifact_classes,
+            issued_at=self.created_at, not_before_at=self.created_at, expires_at=self.expires_at, support_artifact_ref=self.artifact_ref,
+        )
 
 
 def _selection_identity(selections: Iterable[SupportContentSelection]) -> str:
@@ -1092,7 +1245,9 @@ def cleanup_expired_support_content(
     return {"status": "PASS", "dry_run": dry_run, "removed": removed, "planned": planned, "retained": retained}
 
 
-def _deleted_support_audit(artifact: ControlledSupportArtifact, *, occurred_at: datetime | None = None) -> SupportAccessAudit:
+def _deleted_support_audit(artifact: ControlledSupportArtifact | ControlledSupportDeletionRecord, *, occurred_at: datetime | None = None) -> SupportAccessAudit:
+    if isinstance(artifact, ControlledSupportDeletionRecord):
+        return artifact.audit(occurred_at=occurred_at)
     return SupportAccessAudit(
         occurred_at=_iso(occurred_at or datetime.now(timezone.utc)), lifecycle=SupportAccessLifecycle.DELETED, result=SupportAccessResult.DELETED,
         access_request_ref=artifact.access_request_ref, scope_context=artifact.scope_context, run_ref=artifact.run_ref,
@@ -1125,14 +1280,14 @@ def prepare_deleted_support_artifacts(support_dir: Path) -> tuple[ControlledSupp
 
 
 def record_deleted_support_artifacts(
-    artifacts: Iterable[ControlledSupportArtifact],
+    artifacts: Iterable[ControlledSupportArtifact | ControlledSupportDeletionRecord],
     *,
     service_root: Path,
 ) -> None:
     """Record KSA-13 deletion facts after the corresponding copies are gone."""
 
     prepared = tuple(artifacts)
-    if any(not isinstance(item, ControlledSupportArtifact) for item in prepared):
+    if any(not isinstance(item, (ControlledSupportArtifact, ControlledSupportDeletionRecord)) for item in prepared):
         raise _invalid("Controlled support deletion audit metadata is invalid.", code=ErrorCode.SUPPORT_AUDIT_FAILED)
     writer = SupportAccessAuditWriter(service_root=service_root)
     for artifact in prepared:
@@ -1195,7 +1350,7 @@ def cleanup_support_access_audit(
 
 
 __all__ = [
-    "ControlledSupportArtifact", "ControlledSupportRequest", "ReferenceSupportAuthorizationProvider", "SupportAccessAudit", "SupportAccessAuditWriter",
+    "ControlledSupportArtifact", "ControlledSupportDeletionRecord", "ControlledSupportRequest", "ReferenceSupportAuthorizationProvider", "SupportAccessAudit", "SupportAccessAuditWriter",
     "SupportAccessLifecycle", "SupportAccessResult", "SupportApprovalEvidence", "SupportApprovalStatus", "SupportArtifactClass",
     "SupportAuthorizationDecision", "SupportAuthorizationProvider", "SupportContentSelection", "SupportDecisionStatus", "SupportPurpose",
     "cleanup_expired_support_content", "materialize_controlled_support_bundle", "read_controlled_support_bundle",

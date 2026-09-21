@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import tempfile
 import unittest
 import zipfile
@@ -27,7 +28,7 @@ from k_slide.content_support import (
     materialize_controlled_support_bundle,
     read_controlled_support_bundle,
 )
-from k_slide.deletion import DeletionOutcome, DeletionState, LegalHoldStatus, ReferenceLegalHoldProvider, cleanup_operational_metadata, delete_scoped_run, delete_workspace_run
+from k_slide.deletion import DeletionOutcome, DeletionState, LegalHoldStatus, ReferenceLegalHoldProvider, WorkspaceDeletionBackend, cleanup_operational_metadata, delete_scoped_run, delete_workspace_run
 from k_slide.errors import ErrorCode, KSlideError
 from k_slide.paas import AuthorizedScopeContext, PaaSController, PaaSJobRequest, PaaSWorker, ReferencePaaSJobService, ReferenceWorkerEngine
 from k_slide.retention import cleanup_expired_runs
@@ -431,6 +432,242 @@ class KSA20ControlledContentSupportTests(unittest.TestCase):
             support_audit = writer.audit_path.read_text(encoding="utf-8")
             for canary in ("Korean", "OCR", "translation", "AccessKey", "secret", "inputs/source.txt", str(root), "support-content"):
                 self.assertNotIn(canary, support_audit)
+
+    def test_workspace_support_audit_outage_after_unlink_keeps_durable_recovery(self) -> None:
+        root, operational, run, layout, context, writer = self._setup()
+        layout.write_text(StorageArtifact.REPORT, "05_final_report.md", "Korean OCR translation AccessKey=secret")
+        request, provider = self._request(layout, context)
+        artifact = materialize_controlled_support_bundle(layout, request, authority=provider, audit_writer=writer, now=NOW)
+        bundle_path = layout.resolve(artifact.reference)
+        metadata_path = bundle_path.with_suffix(".json")
+        holds = ReferenceLegalHoldProvider()
+        holds.set_release(scope_ref="workspace", run_ref=run.name)
+
+        with patch.object(SupportAccessAuditWriter, "write", side_effect=OSError("persistent central audit outage")):
+            partial = delete_workspace_run(
+                root, run_ref=run.name, deletion_id="delete-support-audit-outage", scope_context=context,
+                hold_provider=holds, operational_root=operational,
+            )
+        self.assertEqual(partial.state, DeletionState.PARTIAL)
+        self.assertFalse(bundle_path.exists())
+        self.assertFalse(metadata_path.exists())
+        deletion_audit_path = operational / "_deletions" / "workspace" / run.name / "delete-support-audit-outage.json"
+        deletion_audit = deletion_audit_path.read_text(encoding="utf-8")
+        self.assertIn("support_recovery", deletion_audit)
+        for canary in ("Korean", "OCR", "translation", "AccessKey", "secret", "05_final_report.md", str(root), "support-content"):
+            self.assertNotIn(canary, deletion_audit)
+        self.assertFalse(any(item.lifecycle is SupportAccessLifecycle.DELETED for item in writer.records()))
+
+        complete = delete_workspace_run(
+            root, run_ref=run.name, deletion_id="delete-support-audit-outage", scope_context=context,
+            hold_provider=holds, operational_root=operational,
+        )
+        self.assertEqual(complete.outcome, DeletionOutcome.COMPLETE)
+        deleted = [item for item in writer.records() if item.lifecycle is SupportAccessLifecycle.DELETED]
+        self.assertEqual([item.support_artifact_ref for item in deleted], [artifact.artifact_ref])
+
+    def test_scoped_support_audit_outage_after_unlink_keeps_durable_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            context = AuthorizedScopeContext("user-scoped-outage", "workspace-scoped-outage", "scope-scoped-outage")
+            service = ReferencePaaSJobService(root)
+            receipt = PaaSController(service, scope_context=context).submit(
+                PaaSJobRequest("run-scoped-outage", "scope-scoped-outage", "store-scoped-outage", reference_runtime(), total_work_units=1)
+            )
+            PaaSWorker(service, worker_id="worker-scoped-outage", runtime_identity=reference_runtime(), engine=ReferenceWorkerEngine(), scope_context=context).run_until_terminal(receipt.identity)
+            layout = service.content_layout(receipt.identity, scope_context=context)
+            layout.write_text(StorageArtifact.SOURCE_SNAPSHOT, "inputs/source.txt", "Korean OCR translation AccessKey=secret")
+            decision = SupportAuthorizationDecision(
+                "request-scoped-outage", context, receipt.identity.run_id, "subject-owner", "role-support", "capability-diagnostic",
+                SupportPurpose.DATA_OWNER_REVIEW, "authority-company-support", "decision-scoped-outage",
+                (SupportApprovalEvidence("approval-scoped-outage", SupportApprovalStatus.APPROVED),),
+                (SupportArtifactClass.SOURCE_SNAPSHOT,), (), _ts(0), _ts(0), _ts(23),
+            )
+            request = ControlledSupportRequest(
+                decision,
+                (SupportContentSelection(SupportArtifactClass.SOURCE_SNAPSHOT, layout.reference(StorageArtifact.SOURCE_SNAPSHOT, "inputs/source.txt")),),
+            )
+            provider = ReferenceSupportAuthorizationProvider()
+            provider.add(decision)
+            writer = SupportAccessAuditWriter(service_root=root)
+            artifact = materialize_controlled_support_bundle(layout, request, authority=provider, audit_writer=writer, now=NOW)
+            bundle_path = layout.resolve(artifact.reference)
+            metadata_path = bundle_path.with_suffix(".json")
+            holds = ReferenceLegalHoldProvider()
+            holds.set_release(scope_ref=context.scope_ref, run_ref=receipt.identity.run_id)
+
+            with patch.object(SupportAccessAuditWriter, "write", side_effect=OSError("persistent central audit outage")):
+                partial = delete_scoped_run(
+                    service, identity=receipt.identity, scope_context=context, deletion_id="delete-scoped-audit-outage",
+                    hold_provider=holds,
+                )
+            self.assertEqual(partial.state, DeletionState.PARTIAL)
+            self.assertFalse(bundle_path.exists())
+            self.assertFalse(metadata_path.exists())
+            audit_path = service._central_operational_root() / "_deletions" / service._scope_key(context) / receipt.identity.run_id / receipt.identity.job_id / "delete-scoped-audit-outage.json"
+            deletion_audit = audit_path.read_text(encoding="utf-8")
+            self.assertIn("support_recovery", deletion_audit)
+            for canary in ("Korean", "OCR", "translation", "AccessKey", "secret", "inputs/source.txt", str(root), "support-content"):
+                self.assertNotIn(canary, deletion_audit)
+
+            complete = delete_scoped_run(
+                service, identity=receipt.identity, scope_context=context, deletion_id="delete-scoped-audit-outage",
+                hold_provider=holds,
+            )
+            self.assertEqual(complete.outcome, DeletionOutcome.COMPLETE)
+            deleted = [item for item in writer.records() if item.lifecycle is SupportAccessLifecycle.DELETED]
+            self.assertEqual([item.support_artifact_ref for item in deleted], [artifact.artifact_ref])
+
+    def test_workspace_ambiguous_support_audit_commit_is_exactly_once(self) -> None:
+        root, operational, run, layout, context, writer = self._setup()
+        layout.write_text(StorageArtifact.REPORT, "05_final_report.md", "Korean OCR translation AccessKey=secret")
+        request, provider = self._request(layout, context)
+        artifact = materialize_controlled_support_bundle(layout, request, authority=provider, audit_writer=writer, now=NOW)
+        holds = ReferenceLegalHoldProvider()
+        holds.set_release(scope_ref="workspace", run_ref=run.name)
+
+        original_chmod = os.chmod
+
+        def fail_support_audit_chmod(path: object, mode: int) -> None:
+            if Path(path) == writer.audit_path:
+                raise OSError("ambiguous chmod failure")
+            original_chmod(path, mode)  # type: ignore[arg-type]
+
+        with patch("k_slide.content_support.os.chmod", new=fail_support_audit_chmod):
+            partial = delete_workspace_run(
+                root, run_ref=run.name, deletion_id="delete-support-ambiguous", scope_context=context,
+                hold_provider=holds, operational_root=operational,
+            )
+        self.assertEqual(partial.state, DeletionState.PARTIAL)
+        self.assertEqual(len([item for item in writer.records() if item.lifecycle is SupportAccessLifecycle.DELETED]), 1)
+        support_audit_before = writer.audit_path.read_bytes()
+        complete = delete_workspace_run(
+            root, run_ref=run.name, deletion_id="delete-support-ambiguous", scope_context=context,
+            hold_provider=holds, operational_root=operational,
+        )
+        self.assertEqual(complete.outcome, DeletionOutcome.COMPLETE)
+        self.assertEqual(support_audit_before, writer.audit_path.read_bytes())
+        self.assertEqual(len([item for item in writer.records() if item.lifecycle is SupportAccessLifecycle.DELETED]), 1)
+
+    def test_scoped_ambiguous_support_audit_commit_is_exactly_once(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            context = AuthorizedScopeContext("user-scoped-ambiguous", "workspace-scoped-ambiguous", "scope-scoped-ambiguous")
+            service = ReferencePaaSJobService(root)
+            receipt = PaaSController(service, scope_context=context).submit(
+                PaaSJobRequest("run-scoped-ambiguous", "scope-scoped-ambiguous", "store-scoped-ambiguous", reference_runtime(), total_work_units=1)
+            )
+            PaaSWorker(service, worker_id="worker-scoped-ambiguous", runtime_identity=reference_runtime(), engine=ReferenceWorkerEngine(), scope_context=context).run_until_terminal(receipt.identity)
+            layout = service.content_layout(receipt.identity, scope_context=context)
+            layout.write_text(StorageArtifact.SOURCE_SNAPSHOT, "inputs/source.txt", "Korean OCR translation AccessKey=secret")
+            decision = SupportAuthorizationDecision(
+                "request-scoped-ambiguous", context, receipt.identity.run_id, "subject-owner", "role-support", "capability-diagnostic",
+                SupportPurpose.DATA_OWNER_REVIEW, "authority-company-support", "decision-scoped-ambiguous",
+                (SupportApprovalEvidence("approval-scoped-ambiguous", SupportApprovalStatus.APPROVED),),
+                (SupportArtifactClass.SOURCE_SNAPSHOT,), (), _ts(0), _ts(0), _ts(23),
+            )
+            request = ControlledSupportRequest(
+                decision,
+                (SupportContentSelection(SupportArtifactClass.SOURCE_SNAPSHOT, layout.reference(StorageArtifact.SOURCE_SNAPSHOT, "inputs/source.txt")),),
+            )
+            provider = ReferenceSupportAuthorizationProvider()
+            provider.add(decision)
+            writer = SupportAccessAuditWriter(service_root=root)
+            materialize_controlled_support_bundle(layout, request, authority=provider, audit_writer=writer, now=NOW)
+            holds = ReferenceLegalHoldProvider()
+            holds.set_release(scope_ref=context.scope_ref, run_ref=receipt.identity.run_id)
+
+            original_chmod = os.chmod
+
+            def fail_support_audit_chmod(path: object, mode: int) -> None:
+                if Path(path) == writer.audit_path:
+                    raise OSError("ambiguous chmod failure")
+                original_chmod(path, mode)  # type: ignore[arg-type]
+
+            with patch("k_slide.content_support.os.chmod", new=fail_support_audit_chmod):
+                partial = delete_scoped_run(
+                    service, identity=receipt.identity, scope_context=context, deletion_id="delete-scoped-ambiguous",
+                    hold_provider=holds,
+                )
+            self.assertEqual(partial.state, DeletionState.PARTIAL)
+            self.assertEqual(len([item for item in writer.records() if item.lifecycle is SupportAccessLifecycle.DELETED]), 1)
+            support_audit_before = writer.audit_path.read_bytes()
+            complete = delete_scoped_run(
+                service, identity=receipt.identity, scope_context=context, deletion_id="delete-scoped-ambiguous",
+                hold_provider=holds,
+            )
+            self.assertEqual(complete.outcome, DeletionOutcome.COMPLETE)
+            self.assertEqual(support_audit_before, writer.audit_path.read_bytes())
+            self.assertEqual(len([item for item in writer.records() if item.lifecycle is SupportAccessLifecycle.DELETED]), 1)
+
+    def test_multiple_support_artifacts_retry_each_deletion_event_independently(self) -> None:
+        root, operational, run, layout, context, writer = self._setup()
+        layout.write_text(StorageArtifact.REPORT, "05_final_report.md", "REPORT Korean")
+        layout.write_text(StorageArtifact.SOURCE_SNAPSHOT, "inputs/source.txt", "SOURCE Korean")
+        report_request, report_provider = self._request(layout, context, artifact_class=SupportArtifactClass.REPORT, relative_path="05_final_report.md")
+        source_request, source_provider = self._request(layout, context, artifact_class=SupportArtifactClass.SOURCE_SNAPSHOT, relative_path="inputs/source.txt")
+        report_artifact = materialize_controlled_support_bundle(layout, report_request, authority=report_provider, audit_writer=writer, now=NOW)
+        source_artifact = materialize_controlled_support_bundle(layout, source_request, authority=source_provider, audit_writer=writer, now=NOW)
+        failing_ref = max(report_artifact.artifact_ref, source_artifact.artifact_ref)
+        original_write = SupportAccessAuditWriter.write
+
+        def fail_one(writer_instance: SupportAccessAuditWriter, record: object) -> None:
+            if getattr(record, "lifecycle", None) is SupportAccessLifecycle.DELETED and getattr(record, "support_artifact_ref", None) == failing_ref:
+                raise OSError("one support audit event failed")
+            original_write(writer_instance, record)  # type: ignore[arg-type]
+
+        holds = ReferenceLegalHoldProvider()
+        holds.set_release(scope_ref="workspace", run_ref=run.name)
+        with patch.object(SupportAccessAuditWriter, "write", new=fail_one):
+            partial = delete_workspace_run(
+                root, run_ref=run.name, deletion_id="delete-support-multiple", scope_context=context,
+                hold_provider=holds, operational_root=operational,
+            )
+        self.assertEqual(partial.state, DeletionState.PARTIAL)
+        deleted_after_failure = {item.support_artifact_ref for item in writer.records() if item.lifecycle is SupportAccessLifecycle.DELETED}
+        self.assertEqual(deleted_after_failure, {min(report_artifact.artifact_ref, source_artifact.artifact_ref)})
+
+        complete = delete_workspace_run(
+            root, run_ref=run.name, deletion_id="delete-support-multiple", scope_context=context,
+            hold_provider=holds, operational_root=operational,
+        )
+        self.assertEqual(complete.outcome, DeletionOutcome.COMPLETE)
+        deleted = [item for item in writer.records() if item.lifecycle is SupportAccessLifecycle.DELETED]
+        self.assertEqual({item.support_artifact_ref for item in deleted}, {report_artifact.artifact_ref, source_artifact.artifact_ref})
+        self.assertEqual(len(deleted), 2)
+
+    def test_support_audit_success_before_final_deletion_state_failure_replays_without_duplicate(self) -> None:
+        root, operational, run, layout, context, writer = self._setup()
+        layout.write_text(StorageArtifact.REPORT, "05_final_report.md", "Korean OCR translation AccessKey=secret")
+        request, provider = self._request(layout, context)
+        artifact = materialize_controlled_support_bundle(layout, request, authority=provider, audit_writer=writer, now=NOW)
+        holds = ReferenceLegalHoldProvider()
+        holds.set_release(scope_ref="workspace", run_ref=run.name)
+        original_save = WorkspaceDeletionBackend.save_audit
+        failed = False
+
+        def fail_complete(backend: WorkspaceDeletionBackend, audit: object) -> None:
+            nonlocal failed
+            if getattr(audit, "state", None) is DeletionState.COMPLETE and not failed:
+                failed = True
+                raise OSError("injected final deletion-state persistence failure")
+            original_save(backend, audit)  # type: ignore[arg-type]
+
+        with patch.object(WorkspaceDeletionBackend, "save_audit", new=fail_complete):
+            with self.assertRaises(OSError):
+                delete_workspace_run(
+                    root, run_ref=run.name, deletion_id="delete-support-final-state-failure", scope_context=context,
+                    hold_provider=holds, operational_root=operational,
+                )
+        self.assertEqual(len([item for item in writer.records() if item.lifecycle is SupportAccessLifecycle.DELETED]), 1)
+        support_audit_before = writer.audit_path.read_bytes()
+        complete = delete_workspace_run(
+            root, run_ref=run.name, deletion_id="delete-support-final-state-failure", scope_context=context,
+            hold_provider=holds, operational_root=operational,
+        )
+        self.assertEqual(complete.outcome, DeletionOutcome.COMPLETE)
+        self.assertEqual(support_audit_before, writer.audit_path.read_bytes())
+        self.assertEqual([item.support_artifact_ref for item in writer.records() if item.lifecycle is SupportAccessLifecycle.DELETED], [artifact.artifact_ref])
 
     def test_cli_support_bundle_has_no_content_bearing_escape_hatch(self) -> None:
         parser = __import__("k_slide.cli", fromlist=["build_parser"]).build_parser()
