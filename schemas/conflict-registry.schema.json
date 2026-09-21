@@ -72,7 +72,22 @@
         "state": {"const": "authoritative"},
         "authority_basis": {"enum": ["explicit_evidence", "configured_authority"]},
         "authority_evidence": {"type": "array", "items": {"$ref": "#/$defs/authority_evidence"}},
-        "authority_config_id": {"type": ["string", "null"]}
+        "authority_config_id": {"type": ["string", "null"]},
+        "authority_relation": {"anyOf": [{"$ref": "#/$defs/authority_relation"}, {"type": "null"}]},
+        "authority_config_revision": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "authority_relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relation_type", "superseding_assertion_id", "superseded_assertion_id", "superseding_evidence_ids", "superseded_evidence_ids", "authority_evidence_ids"],
+      "properties": {
+        "relation_type": {"const": "supersedes"},
+        "superseding_assertion_id": {"type": "string", "minLength": 1},
+        "superseded_assertion_id": {"type": "string", "minLength": 1},
+        "superseding_evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+        "superseded_evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+        "authority_evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1}
       }
     }
   }

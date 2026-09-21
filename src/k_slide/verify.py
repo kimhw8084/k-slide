@@ -10,7 +10,14 @@ from typing import Any
 
 from . import VERIFICATION_SCHEMA_VERSION
 from .completion import ensure_completion_artifacts
-from .conflicts import ConflictResolutionState, conflict_registry_path, load_conflict_registry
+from .conflicts import (
+    ConflictResolutionState,
+    conflict_authority_policy,
+    conflict_contract_required,
+    configured_authority_ids,
+    conflict_registry_path,
+    load_conflict_registry,
+)
 from .environment import RunEnvironmentIdentity, resolve_run_termbase
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import load_evidence
@@ -331,19 +338,43 @@ def _configured_conflict_authority_ids(run_dir: Path) -> set[str]:
         return set()
     authority = value.get("conflict_authority", {}) if isinstance(value, dict) else {}
     configured = authority.get("configured_authority_ids", []) if isinstance(authority, dict) else []
-    return {item for item in configured if isinstance(item, str) and item}
+    ids = {item for item in configured if isinstance(item, str) and item}
+    try:
+        ids.update(configured_authority_ids(run_dir))
+    except KSlideError:
+        pass
+    return ids
 
 
 def _validate_conflict_registry(run_dir: Path, result: VerificationResult) -> None:
-    """Validate the optional legacy-compatible run-level conflict artifact."""
+    """Validate conflict coverage, preserving legacy absence semantics."""
 
     if not conflict_registry_path(run_dir).is_file():
+        try:
+            required = conflict_contract_required(run_dir)
+        except KSlideError as exc:
+            _issue(result, "KSLIDE_CONFLICT_REGISTRY_INVALID", Severity.CRITICAL, exc.message, target="RUN_MANIFEST.json", scope="RUN_LEVEL_POLICY_FAILURE")
+            return
+        if required:
+            _issue(
+                result,
+                "KSLIDE_CONFLICT_ASSESSMENT_REQUIRED",
+                Severity.CRITICAL,
+                "KSA-23 runs require durable conflict assessment before verification and finalization.",
+                target="CONFLICT_REGISTRY.json",
+                scope="RUN_LEVEL_POLICY_FAILURE",
+            )
         return
     try:
         registry = load_conflict_registry(run_dir)
         if registry is None:
             return
-        registry.validate_against_run(run_dir, configured_authority_ids=_configured_conflict_authority_ids(run_dir))
+        registry.validate_against_run(
+            run_dir,
+            configured_authority_ids=_configured_conflict_authority_ids(run_dir),
+            authority_policy=conflict_authority_policy(run_dir),
+            strict_authority=conflict_contract_required(run_dir),
+        )
     except KSlideError as exc:
         code = exc.code.value
         if exc.code in {ErrorCode.SCHEMA_INVALID, ErrorCode.CONFLICT_INVALID, ErrorCode.STALE_EVIDENCE}:

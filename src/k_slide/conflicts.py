@@ -20,7 +20,7 @@ from .errors import ErrorCode, KSlideError
 from .evidence_ir import EvidenceIR, load_evidence, stable_revision
 from .io import atomic_write_json, read_json
 from .ir import SlideIR
-from .queue import load_queue
+from .queue import WorkUnitStatus, load_queue
 from .security import sha256_file
 from .semantics import ProvenanceState, enum_value
 from .storage import StorageArtifact, storage_path, workspace_mutation_guard
@@ -28,6 +28,8 @@ from .storage import StorageArtifact, storage_path, workspace_mutation_guard
 
 CONFLICT_REGISTRY_SCHEMA_VERSION = "1.0"
 CONFLICT_REGISTRY_FILE = "CONFLICT_REGISTRY.json"
+CONFLICT_CONTRACT_VERSION = "1.0"
+AUTHORITY_POLICY_VERSION = "1.0"
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
 
@@ -100,9 +102,52 @@ def conflict_id_for(assertion_ids: Iterable[str]) -> str:
     return _stable_id("conflict", ["contradiction", sorted(set(assertion_ids))])
 
 
-def supersession_id_for(conflict_id: str, superseding: str, superseded: str, basis: str, authority_refs: Iterable[dict[str, Any]], config_id: str | None) -> str:
+def supersession_id_for(
+    conflict_id: str,
+    superseding: str,
+    superseded: str,
+    basis: str,
+    authority_refs: Iterable[dict[str, Any]],
+    config_id: str | None,
+    authority_relation: dict[str, Any] | None = None,
+    authority_config_revision: str | None = None,
+) -> str:
     refs = sorted(list(authority_refs), key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
-    return _stable_id("supersession", [conflict_id, superseding, superseded, basis, refs, config_id])
+    value: list[Any] = [conflict_id, superseding, superseded, basis, refs, config_id]
+    if authority_relation is not None or authority_config_revision is not None:
+        value.extend([authority_relation, authority_config_revision])
+    return _stable_id("supersession", value)
+
+
+def _authority_relation(value: Any) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise _error("Supersession authority_relation must be an object.", code=ErrorCode.SCHEMA_INVALID)
+    required = {
+        "relation_type",
+        "superseding_assertion_id",
+        "superseded_assertion_id",
+        "superseding_evidence_ids",
+        "superseded_evidence_ids",
+        "authority_evidence_ids",
+    }
+    _only_fields(value, required, "authority relation")
+    if set(value) != required:
+        raise _error("Supersession authority_relation is missing required fields.", code=ErrorCode.SCHEMA_INVALID)
+    if value.get("relation_type") != "supersedes":
+        raise _error("Supersession authority relation type is unsupported.", code=ErrorCode.SCHEMA_INVALID)
+    for field in ("superseding_assertion_id", "superseded_assertion_id"):
+        _identifier(value.get(field), field)
+    if value["superseding_assertion_id"] == value["superseded_assertion_id"]:
+        raise _error("Supersession authority relation cannot self-supersede.", code=ErrorCode.SUPERSESSION_INVALID)
+    relation = dict(value)
+    for field in ("superseding_evidence_ids", "superseded_evidence_ids", "authority_evidence_ids"):
+        values = _string_tuple(value.get(field), f"authority_relation.{field}")
+        if len(values) != len(set(values)):
+            raise _error("Supersession authority relation evidence IDs must be distinct.", code=ErrorCode.SCHEMA_INVALID)
+        relation[field] = list(values)
+    return relation
 
 
 @dataclass(frozen=True)
@@ -243,9 +288,11 @@ class Supersession:
     authority_basis: str = SupersessionAuthorityBasis.EXPLICIT_EVIDENCE.value
     authority_evidence: tuple[AuthorityEvidenceReference, ...] = ()
     authority_config_id: str | None = None
+    authority_relation: dict[str, Any] | None = None
+    authority_config_revision: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "supersession_id": self.supersession_id,
             "conflict_id": self.conflict_id,
             "superseding_assertion_id": self.superseding_assertion_id,
@@ -255,6 +302,11 @@ class Supersession:
             "authority_evidence": [item.as_dict() for item in sorted(self.authority_evidence, key=lambda item: (item.work_unit_id, item.evidence_ids))],
             "authority_config_id": self.authority_config_id,
         }
+        if self.authority_relation is not None:
+            value["authority_relation"] = self.authority_relation
+        if self.authority_config_revision is not None:
+            value["authority_config_revision"] = self.authority_config_revision
+        return value
 
     @classmethod
     def from_dict(cls, value: Any) -> "Supersession":
@@ -264,7 +316,7 @@ class Supersession:
             "supersession_id", "conflict_id", "superseding_assertion_id", "superseded_assertion_id",
             "state", "authority_basis", "authority_evidence", "authority_config_id",
         }
-        _only_fields(value, required, "supersession")
+        _only_fields(value, required | {"authority_relation", "authority_config_revision"}, "supersession")
         missing = sorted(required - set(value))
         if missing:
             raise _error("Supersession is missing required fields.", code=ErrorCode.SCHEMA_INVALID, details={"fields": missing})
@@ -276,6 +328,9 @@ class Supersession:
         authority_config_id = value.get("authority_config_id")
         if authority_config_id is not None:
             authority_config_id = _identifier(authority_config_id, "authority_config_id")
+        authority_config_revision = value.get("authority_config_revision")
+        if authority_config_revision is not None and (not isinstance(authority_config_revision, str) or not re.fullmatch(r"[a-f0-9]{64}", authority_config_revision)):
+            raise _error("Supersession authority_config_revision is invalid.", code=ErrorCode.SCHEMA_INVALID)
         evidence = value.get("authority_evidence")
         if not isinstance(evidence, list):
             raise _error("Supersession authority_evidence must be an array.", code=ErrorCode.SCHEMA_INVALID)
@@ -288,6 +343,8 @@ class Supersession:
             authority_basis=basis,
             authority_evidence=tuple(AuthorityEvidenceReference.from_dict(item) for item in evidence),
             authority_config_id=authority_config_id,
+            authority_relation=_authority_relation(value.get("authority_relation")),
+            authority_config_revision=authority_config_revision,
         )
 
 
@@ -448,7 +505,7 @@ class ConflictRegistry:
                 raise _error("Self-supersession is invalid.", code=ErrorCode.SUPERSESSION_INVALID)
             if {supersession.superseding_assertion_id, supersession.superseded_assertion_id} - participant_ids:
                 raise _error("Supersession must reference two assertions in its conflict.", code=ErrorCode.SUPERSESSION_INVALID)
-            if authority_basis == SupersessionAuthorityBasis.EXPLICIT_EVIDENCE.value and (not supersession.authority_evidence or supersession.authority_config_id is not None):
+            if authority_basis == SupersessionAuthorityBasis.EXPLICIT_EVIDENCE.value and (not supersession.authority_evidence or supersession.authority_config_id is not None or supersession.authority_config_revision is not None):
                 raise _error("Explicit-evidence supersession requires authority evidence and no configured winner.", code=ErrorCode.SUPERSESSION_INVALID)
             if authority_basis == SupersessionAuthorityBasis.CONFIGURED_AUTHORITY.value and (supersession.authority_evidence or supersession.authority_config_id is None):
                 raise _error("Configured supersession requires a configured authority identity only.", code=ErrorCode.SUPERSESSION_INVALID)
@@ -459,9 +516,19 @@ class ConflictRegistry:
                 authority_basis,
                 (item.as_dict() for item in supersession.authority_evidence),
                 supersession.authority_config_id,
+                supersession.authority_relation,
+                supersession.authority_config_revision,
             )
             if supersession.supersession_id != expected_supersession_id:
                 raise _error("Supersession identity is not stable for its exact authority references.", code=ErrorCode.SUPERSESSION_INVALID)
+            if supersession.authority_relation is not None:
+                _authority_relation(supersession.authority_relation)
+                relation = supersession.authority_relation
+                if relation["superseding_assertion_id"] != supersession.superseding_assertion_id or relation["superseded_assertion_id"] != supersession.superseded_assertion_id:
+                    raise _error("Supersession authority relation does not bind the declared assertion pair.", code=ErrorCode.SUPERSESSION_INVALID)
+                evidence_ids = sorted({evidence_id for item in supersession.authority_evidence for evidence_id in item.evidence_ids})
+                if relation["authority_evidence_ids"] != evidence_ids:
+                    raise _error("Supersession authority relation does not bind the exact authority evidence.", code=ErrorCode.SUPERSESSION_INVALID)
             graph.setdefault(supersession.superseding_assertion_id, set()).add(supersession.superseded_assertion_id)
         winners_by_conflict: dict[str, set[str]] = {}
         for supersession in self.supersessions:
@@ -485,7 +552,14 @@ class ConflictRegistry:
         for node in sorted(graph):
             visit(node)
 
-    def validate_against_run(self, run_dir: Path, *, configured_authority_ids: Iterable[str] = ()) -> None:
+    def validate_against_run(
+        self,
+        run_dir: Path,
+        *,
+        configured_authority_ids: Iterable[str] = (),
+        authority_policy: dict[str, Any] | None = None,
+        strict_authority: bool = False,
+    ) -> None:
         """Validate all references against current queue, canonical IR and EvidenceIR."""
 
         self.validate_structure()
@@ -508,25 +582,48 @@ class ConflictRegistry:
                 if supersession.state != SupersessionState.AUTHORITATIVE.value:
                     raise _error("Supersession state is not authoritative.", code=ErrorCode.SUPERSESSION_INVALID)
                 if supersession.authority_basis == SupersessionAuthorityBasis.EXPLICIT_EVIDENCE.value:
-                    if not supersession.authority_evidence or supersession.authority_config_id is not None:
+                    if not supersession.authority_evidence or supersession.authority_config_id is not None or supersession.authority_config_revision is not None:
                         raise _error("Explicit-evidence supersession requires authority evidence and no config winner.", code=ErrorCode.SUPERSESSION_INVALID)
+                    if strict_authority and supersession.authority_relation is None:
+                        raise _error("KSA-23 explicit-evidence supersession requires a typed authority relation.", code=ErrorCode.SUPERSESSION_INVALID)
                 elif supersession.authority_basis == SupersessionAuthorityBasis.CONFIGURED_AUTHORITY.value:
                     if supersession.authority_evidence or supersession.authority_config_id not in expected_authority:
                         raise _error("Configured supersession authority is unsupported or unavailable.", code=ErrorCode.SUPERSESSION_INVALID)
+                    if strict_authority:
+                        if (
+                            authority_policy is None
+                            or supersession.authority_config_revision != authority_policy_revision(authority_policy)
+                            or not _configured_policy_allows(authority_policy, supersession, conflict)
+                        ):
+                            raise _error("Configured supersession does not match the bound deterministic authority policy.", code=ErrorCode.SUPERSESSION_INVALID)
                 else:
                     raise _error("Unknown supersession authority cannot choose a winner.", code=ErrorCode.SUPERSESSION_INVALID)
                 for authority in supersession.authority_evidence:
                     expected_authority_ref = build_authority_evidence_reference(run_dir, authority.work_unit_id, authority.evidence_ids)
                     if authority.as_dict() != expected_authority_ref.as_dict():
                         raise _error("Supersession authority evidence is stale or fabricated.", code=ErrorCode.SUPERSESSION_INVALID, details={"work_unit_id": authority.work_unit_id})
+                if strict_authority and supersession.authority_basis == SupersessionAuthorityBasis.EXPLICIT_EVIDENCE.value:
+                    _validate_explicit_authority_relation(supersession, conflict)
                 if supersession.superseding_assertion_id not in expected_ids or supersession.superseded_assertion_id not in expected_ids:
                     raise _error("Supersession points outside its conflict participants.", code=ErrorCode.SUPERSESSION_INVALID)
 
-    def validate(self, run_dir: Path | None = None, *, configured_authority_ids: Iterable[str] = ()) -> None:
+    def validate(
+        self,
+        run_dir: Path | None = None,
+        *,
+        configured_authority_ids: Iterable[str] = (),
+        authority_policy: dict[str, Any] | None = None,
+        strict_authority: bool = False,
+    ) -> None:
         if run_dir is None:
             self.validate_structure()
         else:
-            self.validate_against_run(run_dir, configured_authority_ids=configured_authority_ids)
+            self.validate_against_run(
+                run_dir,
+                configured_authority_ids=configured_authority_ids,
+                authority_policy=authority_policy,
+                strict_authority=strict_authority,
+            )
 
 
 def _source_context(evidence: EvidenceIR, evidence_ids: Iterable[str]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -601,6 +698,137 @@ def _all_evidence_ids(evidence: EvidenceIR) -> set[str]:
         | {str(item.get("fact_id")) for item in evidence.numeric_facts if isinstance(item, dict) and item.get("fact_id")}
         | {str(item.get("element_id")) for item in evidence.visual_elements if isinstance(item, dict) and item.get("element_id")}
     )
+
+
+def _run_manifest(run_dir: Path) -> dict[str, Any]:
+    path = storage_path(run_dir, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json")
+    if not path.is_file():
+        return {}
+    value = read_json(path)
+    if not isinstance(value, dict):
+        raise _error("RUN_MANIFEST.json must contain an object.", code=ErrorCode.SCHEMA_INVALID)
+    return value
+
+
+def conflict_contract_required(run_dir: Path) -> bool:
+    """Return whether this run was created under the KSA-23 assessment contract."""
+
+    contract = _run_manifest(run_dir).get("conflict_registry_contract")
+    if contract is None:
+        return False
+    if not isinstance(contract, dict) or contract.get("schema_version") != CONFLICT_CONTRACT_VERSION or contract.get("assessment_required") is not True:
+        raise _error("Conflict registry contract is malformed.", code=ErrorCode.SCHEMA_INVALID)
+    return True
+
+
+_SELECTOR_FIELDS = {"document_id", "work_unit_id", "semantic_kind", "source_index"}
+_AUTHORITY_RULE_FIELDS = {"authority_config_id", "priority", "winner_selector", "loser_selector"}
+
+
+def conflict_authority_policy(run_dir: Path) -> dict[str, Any]:
+    """Load and validate the closed, run-bound authority policy."""
+
+    authority = _run_manifest(run_dir).get("conflict_authority")
+    if authority is None:
+        return {"schema_version": AUTHORITY_POLICY_VERSION, "rules": []}
+    if not isinstance(authority, dict):
+        raise _error("Conflict authority policy must be an object.", code=ErrorCode.SCHEMA_INVALID)
+    if "schema_version" not in authority and set(authority) <= {"configured_authority_ids"}:
+        return {"schema_version": AUTHORITY_POLICY_VERSION, "rules": []}
+    if authority.get("schema_version") != AUTHORITY_POLICY_VERSION:
+        raise _error("Conflict authority policy version is unsupported.", code=ErrorCode.SCHEMA_INVALID)
+    if set(authority) - {"schema_version", "rules", "configured_authority_ids"}:
+        raise _error("Conflict authority policy contains unsupported fields.", code=ErrorCode.SCHEMA_INVALID)
+    rules = authority.get("rules", [])
+    if not isinstance(rules, list):
+        raise _error("Conflict authority policy rules must be an array.", code=ErrorCode.SCHEMA_INVALID)
+    normalized: list[dict[str, Any]] = []
+    for rule in rules:
+        if not isinstance(rule, dict) or set(rule) != _AUTHORITY_RULE_FIELDS:
+            raise _error("Conflict authority policy rules must be closed selector rules.", code=ErrorCode.SCHEMA_INVALID)
+        config_id = _identifier(rule.get("authority_config_id"), "authority_config_id")
+        priority = rule.get("priority")
+        if isinstance(priority, bool) or not isinstance(priority, int):
+            raise _error("Conflict authority policy priority must be an integer.", code=ErrorCode.SCHEMA_INVALID)
+        selectors: dict[str, dict[str, Any]] = {}
+        for name in ("winner_selector", "loser_selector"):
+            selector = rule.get(name)
+            if not isinstance(selector, dict) or not set(selector) or set(selector) - _SELECTOR_FIELDS:
+                raise _error("Conflict authority policy selector is unsupported or empty.", code=ErrorCode.SCHEMA_INVALID)
+            clean: dict[str, Any] = {}
+            for field, value in selector.items():
+                if field in {"document_id", "work_unit_id", "semantic_kind"}:
+                    if not isinstance(value, str) or not value:
+                        raise _error("Conflict authority policy selector value is invalid.", code=ErrorCode.SCHEMA_INVALID)
+                elif isinstance(value, bool) or not isinstance(value, int):
+                    raise _error("Conflict authority policy source_index selector is invalid.", code=ErrorCode.SCHEMA_INVALID)
+                clean[field] = value
+            selectors[name] = clean
+        normalized.append({"authority_config_id": config_id, "priority": priority, **selectors})
+    configured_ids = authority.get("configured_authority_ids")
+    if configured_ids is not None:
+        ids = _string_tuple(configured_ids, "configured_authority_ids")
+        if set(ids) != {rule["authority_config_id"] for rule in normalized}:
+            raise _error("Configured authority IDs must match the closed policy rules.", code=ErrorCode.SCHEMA_INVALID)
+    return {"schema_version": AUTHORITY_POLICY_VERSION, "rules": normalized}
+
+
+def configured_authority_ids(run_dir: Path) -> set[str]:
+    policy = conflict_authority_policy(run_dir)
+    return {rule["authority_config_id"] for rule in policy["rules"]}
+
+
+def authority_policy_revision(policy: dict[str, Any]) -> str:
+    return stable_revision(policy)
+
+
+def _selector_matches(selector: dict[str, Any], participant: AssertionReference) -> bool:
+    values = {
+        "document_id": participant.document_id,
+        "work_unit_id": participant.work_unit_id,
+        "semantic_kind": participant.semantic_kind,
+        "source_index": participant.location.get("source_index"),
+    }
+    return all(values.get(field) == expected for field, expected in selector.items())
+
+
+def _configured_policy_allows(policy: dict[str, Any], supersession: Supersession, conflict: Conflict) -> bool:
+    participants = {item.assertion_id: item for item in conflict.participants}
+    winner = participants.get(supersession.superseding_assertion_id)
+    loser = participants.get(supersession.superseded_assertion_id)
+    if winner is None or loser is None:
+        return False
+    rules = [rule for rule in policy.get("rules", []) if rule["authority_config_id"] == supersession.authority_config_id]
+    matches = [rule for rule in rules if _selector_matches(rule["winner_selector"], winner) and _selector_matches(rule["loser_selector"], loser)]
+    opposite = [rule for rule in rules if _selector_matches(rule["winner_selector"], loser) and _selector_matches(rule["loser_selector"], winner)]
+    if not matches or opposite:
+        return False
+    highest = max(rule["priority"] for rule in matches)
+    return sum(rule["priority"] == highest for rule in matches) == 1
+
+
+def _validate_explicit_authority_relation(supersession: Supersession, conflict: Conflict) -> None:
+    relation = _authority_relation(supersession.authority_relation)
+    if relation is None:
+        raise _error("Explicit-evidence supersession requires a typed authority relation.", code=ErrorCode.SUPERSESSION_INVALID)
+    participants = {item.assertion_id: item for item in conflict.participants}
+    winner = participants.get(supersession.superseding_assertion_id)
+    loser = participants.get(supersession.superseded_assertion_id)
+    if winner is None or loser is None:
+        raise _error("Supersession authority relation references unknown participants.", code=ErrorCode.SUPERSESSION_INVALID)
+    if relation["superseding_assertion_id"] != winner.assertion_id or relation["superseded_assertion_id"] != loser.assertion_id:
+        raise _error("Supersession authority relation reverses or omits the declared winner.", code=ErrorCode.SUPERSESSION_INVALID)
+    if relation["superseding_evidence_ids"] != sorted(set(winner.provenance_evidence_ids)) or relation["superseded_evidence_ids"] != sorted(set(loser.provenance_evidence_ids)):
+        raise _error("Supersession authority relation does not bind the exact competing assertion evidence.", code=ErrorCode.SUPERSESSION_INVALID)
+    expected_authority_ids = sorted({evidence_id for item in supersession.authority_evidence for evidence_id in item.evidence_ids})
+    if relation["authority_evidence_ids"] != expected_authority_ids:
+        raise _error("Supersession authority relation does not bind the exact current authority evidence.", code=ErrorCode.SUPERSESSION_INVALID)
+    authority_text = " ".join(str(item.source_context.get("text", "")) for item in supersession.authority_evidence)
+    if not re.search(r"(?:정정|공식|승인|확정|대체|official|authorit|correct|supersed|approved|confirmed|replaced)", authority_text, re.IGNORECASE):
+        raise _error("Explicit authority evidence does not contain a typed authority marker.", code=ErrorCode.SUPERSESSION_INVALID)
+    explicit_target = re.search(r"(?:AUTHORITY_SUPERSEDES|SUPERSEDES)\s*[:=]\s*(assertion-[A-Za-z0-9._:-]+)", authority_text, re.IGNORECASE)
+    if explicit_target is not None and explicit_target.group(1) != winner.assertion_id:
+        raise _error("Explicit authority evidence names a different superseding assertion.", code=ErrorCode.SUPERSESSION_INVALID)
 
 
 def _validate_assertion_provenance(
@@ -772,10 +1000,120 @@ def build_assertion_reference(run_dir: Path, work_unit_id: str, semantic_kind: s
     )
 
 
+_DETERMINISTIC_CONFLICT_CLAIM_KINDS = frozenset({"owner", "timing", "key_number", "decision_status", "decision_or_ask"})
+
+
+def _normalized_claim_text(value: str) -> str:
+    return re.sub(r"[^\w\uac00-\ud7a3]+", "", value.casefold(), flags=re.UNICODE)
+
+
+def _deterministic_candidate_keys(run_dir: Path) -> list[tuple[tuple[str, str, str], ...]]:
+    queue = load_queue(run_dir)
+    grouped: dict[str, list[tuple[str, str, str, str]]] = {}
+    for unit in sorted(queue.work_units, key=lambda item: (item.document_id, item.source_index, item.work_unit_id)):
+        canonical_path = storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json")
+        if not canonical_path.is_file():
+            continue
+        evidence = load_evidence(run_dir, unit.work_unit_id)
+        slide = SlideIR.from_dict(read_json(canonical_path), evidence=evidence)
+        claims = slide.executive_semantics.get("executive_claims", [])
+        if not isinstance(claims, list):
+            continue
+        for claim in claims:
+            if not isinstance(claim, dict) or claim.get("kind") not in _DETERMINISTIC_CONFLICT_CLAIM_KINDS:
+                continue
+            claim_id = claim.get("claim_id")
+            text = claim.get("text")
+            if not isinstance(claim_id, str) or not isinstance(text, str) or not text.strip():
+                continue
+            grouped.setdefault(str(claim["kind"]), []).append((unit.document_id, unit.work_unit_id, claim_id, _normalized_claim_text(text)))
+    groups: list[tuple[tuple[str, str, str], ...]] = []
+    for entries in grouped.values():
+        if len({entry[3] for entry in entries}) < 2 or len({(entry[0], entry[1]) for entry in entries}) < 2:
+            continue
+        groups.append(tuple((entry[1], AssertionKind.EXECUTIVE_CLAIM.value, entry[2]) for entry in entries))
+    return sorted(groups)
+
+
+def _typed_candidate_keys(candidate_groups: Any) -> list[tuple[tuple[str, str, str], ...]]:
+    if candidate_groups is None:
+        return []
+    if not isinstance(candidate_groups, list):
+        raise _error("Conflict candidate_groups must be an array.", code=ErrorCode.SCHEMA_INVALID)
+    result: list[tuple[tuple[str, str, str], ...]] = []
+    for group in candidate_groups:
+        if not isinstance(group, dict) or set(group) != {"assertions"} or not isinstance(group["assertions"], list):
+            raise _error("Conflict candidate groups must contain only typed assertion references.", code=ErrorCode.SCHEMA_INVALID)
+        keys: list[tuple[str, str, str]] = []
+        for reference in group["assertions"]:
+            if not isinstance(reference, dict) or set(reference) != {"work_unit_id", "semantic_kind", "semantic_id"}:
+                raise _error("Conflict candidate references may contain only canonical object identities.", code=ErrorCode.SCHEMA_INVALID)
+            keys.append((
+                _identifier(reference["work_unit_id"], "work_unit_id"),
+                AssertionKind(reference["semantic_kind"]).value,
+                _identifier(reference["semantic_id"], "semantic_id"),
+            ))
+        if len(keys) < 2 or len(set(keys)) != len(keys):
+            raise _error("Conflict candidate groups require distinct competing assertions.", code=ErrorCode.CONFLICT_INVALID)
+        result.append(tuple(sorted(keys)))
+    return result
+
+
+def assess_conflicts(run_dir: Path, *, candidate_groups: Any = None) -> ConflictRegistry:
+    """Engine-owned conflict admission for the real K-Slide lifecycle.
+
+    The model may add only canonical object identities.  The engine always adds
+    its deterministic claim scan, rebuilds every assertion reference, and
+    persists either unresolved conflicts or an explicit zero-conflict registry.
+    """
+
+    queue = load_queue(run_dir)
+    if not queue.work_units or any(unit.status not in {WorkUnitStatus.TRANSLATED, WorkUnitStatus.VERIFIED} for unit in queue.work_units):
+        raise _error("Conflict assessment requires every work unit to have a current canonical translation.", code=ErrorCode.CONFLICT_INVALID)
+    groups = set(_deterministic_candidate_keys(run_dir))
+    groups.update(_typed_candidate_keys(candidate_groups))
+    current = load_conflict_registry(run_dir)
+    if current is not None:
+        current.validate_against_run(
+            run_dir,
+            configured_authority_ids=configured_authority_ids(run_dir),
+            authority_policy=conflict_authority_policy(run_dir),
+            strict_authority=conflict_contract_required(run_dir),
+        )
+    conflicts_by_id = {item.conflict_id: item for item in (current.conflicts if current is not None else ())}
+    for keys in sorted(groups):
+        participants = tuple(build_assertion_reference(run_dir, work_unit_id, semantic_kind, semantic_id) for work_unit_id, semantic_kind, semantic_id in keys)
+        conflict = Conflict(conflict_id_for(item.assertion_id for item in participants), participants)
+        conflicts_by_id.setdefault(conflict.conflict_id, conflict)
+    registry = finalize_registry(
+        ConflictRegistry(
+            run_id=queue.run_id,
+            conflicts=tuple(conflicts_by_id.values()),
+            supersessions=current.supersessions if current is not None else (),
+        )
+    )
+    save_conflict_registry(run_dir, registry)
+    return registry
+
+
 def save_conflict_registry(run_dir: Path, registry: ConflictRegistry, *, configured_authority_ids: Iterable[str] = ()) -> None:
     workspace_mutation_guard(run_dir)
-    registry.validate_against_run(run_dir, configured_authority_ids=configured_authority_ids)
+    strict = conflict_contract_required(run_dir)
+    policy = conflict_authority_policy(run_dir)
+    allowed_ids = set(configured_authority_ids) or configured_authority_ids_for_save(run_dir, policy)
+    registry.validate_against_run(
+        run_dir,
+        configured_authority_ids=allowed_ids,
+        authority_policy=policy,
+        strict_authority=strict,
+    )
     atomic_write_json(conflict_registry_path(run_dir), registry.as_dict(), mode=0o600)
+
+
+def configured_authority_ids_for_save(run_dir: Path, policy: dict[str, Any]) -> set[str]:
+    if conflict_contract_required(run_dir):
+        return {rule["authority_config_id"] for rule in policy.get("rules", [])}
+    return set()
 
 
 def conflict_registry_path(run_dir: Path) -> Path:
@@ -814,7 +1152,7 @@ __all__ = [
     "AssertionKind", "AssertionReference", "AuthorityEvidenceReference", "Conflict", "ConflictAssertion", "ConflictIR",
     "ConflictRegistry", "ConflictResolutionState", "ConflictState", "CONFLICT_REGISTRY_FILE", "CONFLICT_REGISTRY_SCHEMA_VERSION", "CONFLICT_SCHEMA_VERSION",
     "Supersession", "SupersessionIR", "SupersessionAuthorityBasis", "SupersessionState",
-    "assertion_id_for", "build_assertion_reference", "build_authority_evidence_reference", "conflict_id_for",
+    "assertion_id_for", "assess_conflicts", "authority_policy_revision", "build_assertion_reference", "build_authority_evidence_reference", "conflict_authority_policy", "conflict_contract_required", "conflict_id_for",
     "conflict_registry_path", "finalize_registry", "load_conflict_registry", "save_conflict_registry",
     "supersession_id_for",
 ]

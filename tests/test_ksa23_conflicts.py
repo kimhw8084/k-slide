@@ -8,6 +8,8 @@ from pathlib import Path
 
 from k_slide.conflicts import (
     AssertionKind,
+    assess_conflicts,
+    authority_policy_revision,
     Conflict,
     ConflictRegistry,
     ConflictResolutionState,
@@ -16,6 +18,7 @@ from k_slide.conflicts import (
     build_assertion_reference,
     build_authority_evidence_reference,
     conflict_id_for,
+    conflict_contract_required,
     conflict_registry_path,
     finalize_registry,
     load_conflict_registry,
@@ -314,6 +317,123 @@ class KSA23ConflictTests(unittest.TestCase):
         save_conflict_registry(run, resumed)
         self.assertEqual(first_bytes, conflict_registry_path(run).read_bytes())
         self.assertEqual(resumed.as_dict(), registry.as_dict())
+
+    def test_ksa23_contract_requires_engine_assessment_and_distinguishes_zero(self) -> None:
+        run, _, _ = self._run(claim_kind="takeaway")
+        manifest_path = storage_path(run, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["conflict_registry_contract"] = {"schema_version": "1.0", "assessment_required": True}
+        manifest["conflict_authority"] = {"schema_version": "1.0", "rules": []}
+        atomic_write_json(manifest_path, manifest)
+        self.assertTrue(conflict_contract_required(run))
+        result = VerificationResult(status="PASS", run_id="run-ksa23")
+        _validate_conflict_registry(run, result)
+        self.assertIn("KSLIDE_CONFLICT_ASSESSMENT_REQUIRED", {issue.code for issue in result.issues})
+
+        registry = assess_conflicts(run, candidate_groups=[])
+        self.assertEqual(registry.conflicts, ())
+        result = VerificationResult(status="PASS", run_id="run-ksa23")
+        _validate_conflict_registry(run, result)
+        self.assertFalse(result.issues)
+
+    def test_engine_assessment_unions_deterministic_and_typed_candidates_without_model_context(self) -> None:
+        run, evidence_a, evidence_b = self._run(claim_kind="takeaway")
+        first_id = f"{evidence_a.work_unit_id}-claim"
+        second_id = f"{evidence_b.work_unit_id}-claim"
+        registry = assess_conflicts(
+            run,
+            candidate_groups=[{
+                "assertions": [
+                    {"work_unit_id": evidence_a.work_unit_id, "semantic_kind": "executive_claim", "semantic_id": first_id},
+                    {"work_unit_id": evidence_b.work_unit_id, "semantic_kind": "executive_claim", "semantic_id": second_id},
+                ]
+            }],
+        )
+        self.assertEqual(len(registry.conflicts), 1)
+        self.assertEqual(registry.conflicts[0].participants[0].rendered_context["language"], "en")
+        with self.assertRaises(KSlideError) as raised:
+            assess_conflicts(run, candidate_groups=[{"assertions": [{"work_unit_id": evidence_a.work_unit_id, "semantic_kind": "executive_claim", "semantic_id": first_id, "source_context": "forged"}, {"work_unit_id": evidence_b.work_unit_id, "semantic_kind": "executive_claim", "semantic_id": second_id}]}])
+        self.assertEqual(raised.exception.code, ErrorCode.SCHEMA_INVALID)
+
+    def test_engine_deterministic_scan_admits_cross_document_and_cross_slide_contradictions(self) -> None:
+        for two_documents in (True, False):
+            with self.subTest(two_documents=two_documents):
+                run, evidence_a, evidence_b = self._run(two_documents=two_documents)
+                registry = assess_conflicts(run, candidate_groups=[])
+                self.assertEqual(len(registry.conflicts), 1)
+                participants = registry.conflicts[0].participants
+                self.assertEqual({item.location["source_index"] for item in participants}, {0, 1} if not two_documents else {0})
+                if two_documents:
+                    self.assertEqual({item.document_id for item in participants}, {evidence_a.document_id, evidence_b.document_id})
+
+    def test_ksa23_explicit_relation_binds_exact_competing_evidence(self) -> None:
+        run, evidence_a, evidence_b = self._run(authority_text=True)
+        manifest_path = storage_path(run, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["conflict_registry_contract"] = {"schema_version": "1.0", "assessment_required": True}
+        manifest["conflict_authority"] = {"schema_version": "1.0", "rules": []}
+        atomic_write_json(manifest_path, manifest)
+        conflict, first, second = self._conflict(run, evidence_a, evidence_b)
+        authority = build_authority_evidence_reference(run, evidence_a.work_unit_id, (f"{evidence_a.work_unit_id}-authority",))
+        relation = {
+            "relation_type": "supersedes",
+            "superseding_assertion_id": second.assertion_id,
+            "superseded_assertion_id": first.assertion_id,
+            "superseding_evidence_ids": sorted(second.provenance_evidence_ids),
+            "superseded_evidence_ids": sorted(first.provenance_evidence_ids),
+            "authority_evidence_ids": sorted(authority.evidence_ids),
+        }
+        supersession_id = supersession_id_for(conflict.conflict_id, second.assertion_id, first.assertion_id, "explicit_evidence", (authority.as_dict(),), None, relation)
+        supersession = Supersession(
+            supersession_id,
+            conflict.conflict_id,
+            second.assertion_id,
+            first.assertion_id,
+            authority_basis=SupersessionAuthorityBasis.EXPLICIT_EVIDENCE.value,
+            authority_evidence=(authority,),
+            authority_relation=relation,
+        )
+        resolved = Conflict(conflict.conflict_id, conflict.participants, ConflictResolutionState.RESOLVED_BY_AUTHORITATIVE_SUPERSESSION.value, (supersession_id,))
+        save_conflict_registry(run, finalize_registry(ConflictRegistry("run-ksa23", (resolved,), (supersession,))))
+        unrelated = build_authority_evidence_reference(run, evidence_a.work_unit_id, (f"{evidence_a.work_unit_id}-r1",))
+        bad_relation = {**relation, "authority_evidence_ids": sorted(unrelated.evidence_ids)}
+        bad_id = supersession_id_for(conflict.conflict_id, second.assertion_id, first.assertion_id, "explicit_evidence", (unrelated.as_dict(),), None, bad_relation)
+        bad = Supersession(
+            bad_id,
+            conflict.conflict_id,
+            second.assertion_id,
+            first.assertion_id,
+            authority_basis=SupersessionAuthorityBasis.EXPLICIT_EVIDENCE.value,
+            authority_evidence=(unrelated,),
+            authority_relation=bad_relation,
+        )
+        bad_registry = finalize_registry(ConflictRegistry("run-ksa23", (replace(resolved, supersession_ids=(bad_id,)),), (bad,)))
+        with self.assertRaises(KSlideError) as raised:
+            save_conflict_registry(run, bad_registry)
+        self.assertEqual(raised.exception.code, ErrorCode.SUPERSESSION_INVALID)
+
+    def test_ksa23_configured_policy_recomputes_direction_and_rejects_reversal(self) -> None:
+        run, evidence_a, evidence_b = self._run()
+        manifest_path = storage_path(run, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["conflict_registry_contract"] = {"schema_version": "1.0", "assessment_required": True}
+        manifest["conflict_authority"] = {
+            "schema_version": "1.0",
+            "rules": [{"authority_config_id": "policy-v1", "priority": 10, "winner_selector": {"document_id": "doc-b"}, "loser_selector": {"document_id": "doc-a"}}],
+        }
+        atomic_write_json(manifest_path, manifest)
+        policy_revision = authority_policy_revision({"schema_version": "1.0", "rules": manifest["conflict_authority"]["rules"]})
+        conflict, first, second = self._conflict(run, evidence_a, evidence_b)
+        supersession_id = supersession_id_for(conflict.conflict_id, second.assertion_id, first.assertion_id, "configured_authority", (), "policy-v1", None, policy_revision)
+        supersession = Supersession(supersession_id, conflict.conflict_id, second.assertion_id, first.assertion_id, authority_basis=SupersessionAuthorityBasis.CONFIGURED_AUTHORITY.value, authority_config_id="policy-v1", authority_config_revision=policy_revision)
+        resolved = Conflict(conflict.conflict_id, conflict.participants, ConflictResolutionState.RESOLVED_BY_AUTHORITATIVE_SUPERSESSION.value, (supersession_id,))
+        save_conflict_registry(run, finalize_registry(ConflictRegistry("run-ksa23", (resolved,), (supersession,))))
+        reverse_id = supersession_id_for(conflict.conflict_id, first.assertion_id, second.assertion_id, "configured_authority", (), "policy-v1", None, policy_revision)
+        reverse = Supersession(reverse_id, conflict.conflict_id, first.assertion_id, second.assertion_id, authority_basis=SupersessionAuthorityBasis.CONFIGURED_AUTHORITY.value, authority_config_id="policy-v1", authority_config_revision=policy_revision)
+        reversed_registry = finalize_registry(ConflictRegistry("run-ksa23", (Conflict(conflict.conflict_id, conflict.participants, ConflictResolutionState.RESOLVED_BY_AUTHORITATIVE_SUPERSESSION.value, (reverse_id,)),), (reverse,)))
+        with self.assertRaises(KSlideError) as raised:
+            save_conflict_registry(run, reversed_registry)
+        self.assertEqual(raised.exception.code, ErrorCode.SUPERSESSION_INVALID)
 
 
 if __name__ == "__main__":
