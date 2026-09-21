@@ -34,6 +34,7 @@ from .translation import merge_evidence_patch, parse_translation_patch
 from .rendering import render_run
 from .terminology import load_effective_termbase
 from .verify import finalize_run, verify_run
+from .conflicts import assess_conflicts, conflict_assessment_status, conflict_registry_path, resolve_authoritative_conflict
 
 
 def _run_root(root: Path) -> Path:
@@ -137,6 +138,73 @@ def _submit(
         return {"status": "ACCEPTED", "run_id": state.run_id, "work_unit_id": unit.work_unit_id, "translation_revision": translation_revision, "stored": str(storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json").relative_to(root.resolve()))}
 
 
+def _conflict_assess(
+    root: Path,
+    run_id: str,
+    payload_json: str,
+    session_id: str | None,
+    environment_identity: RunEnvironmentIdentity | None = None,
+) -> dict[str, Any]:
+    run_dir = _find_run(root, run_id, session_id)
+    ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
+    try:
+        payload = json.loads(payload_json)
+    except json.JSONDecodeError as exc:
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Conflict assessment payload is not valid JSON.") from exc
+    if not isinstance(payload, dict):
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Conflict assessment payload must be an object.")
+    if set(payload) - {"schema_version", "candidate_groups"} or payload.get("schema_version") != "1.0":
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Conflict assessment payload schema is unsupported.")
+    with run_lock(run_dir):
+        bind_session(_run_root(root), session_id, run_dir.name)
+        registry = assess_conflicts(run_dir, candidate_groups=payload.get("candidate_groups", []))
+    status = "ASSESSED_ZERO_CONFLICTS" if not registry.conflicts else "ASSESSED_CONFLICTS"
+    return {
+        "status": status,
+        "run_id": registry.run_id,
+        "conflict_count": len(registry.conflicts),
+        "unresolved_conflict_ids": [item.conflict_id for item in registry.conflicts if item.resolution_state == "unresolved"],
+        "stored": str(conflict_registry_path(run_dir).relative_to(root.resolve())),
+    }
+
+
+def _conflict_resolve(
+    root: Path,
+    run_id: str,
+    payload_json: str,
+    session_id: str | None,
+    environment_identity: RunEnvironmentIdentity | None = None,
+) -> dict[str, Any]:
+    run_dir = _find_run(root, run_id, session_id)
+    ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
+    try:
+        payload = json.loads(payload_json)
+    except json.JSONDecodeError as exc:
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Conflict resolution payload is not valid JSON.") from exc
+    if not isinstance(payload, dict) or set(payload) - {"schema_version", "conflict_id", "authority_evidence"} or payload.get("schema_version") != "1.0":
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Conflict resolution payload schema is unsupported.")
+    if not isinstance(payload.get("conflict_id"), str) or not payload["conflict_id"].strip():
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Conflict resolution requires an existing conflict_id.")
+    if "authority_evidence" in payload and not isinstance(payload["authority_evidence"], list):
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "authority_evidence must be a list of current EvidenceIR identities when supplied.")
+    with run_lock(run_dir):
+        bind_session(_run_root(root), session_id, run_dir.name)
+        registry = resolve_authoritative_conflict(
+            run_dir,
+            payload["conflict_id"],
+            authority_evidence=payload.get("authority_evidence") if "authority_evidence" in payload else None,
+        )
+    conflict = next(item for item in registry.conflicts if item.conflict_id == payload["conflict_id"])
+    return {
+        "status": "RESOLVED" if conflict.resolution_state == "resolved_by_authoritative_supersession" else "UNRESOLVED",
+        "run_id": registry.run_id,
+        "conflict_id": conflict.conflict_id,
+        "resolution_state": conflict.resolution_state,
+        "supersession_ids": list(conflict.supersession_ids),
+        "stored": str(conflict_registry_path(run_dir).relative_to(root.resolve())),
+    }
+
+
 def _status(
     root: Path,
     run_id: str | None,
@@ -172,13 +240,19 @@ def _status(
     artifact_classes = {
         "RUN_STATE.json": StorageArtifact.RUN_STATE,
         "RUN_MANIFEST.json": StorageArtifact.RUN_MANIFEST,
+        "CONFLICT_REGISTRY.json": StorageArtifact.CANONICAL_IR,
         "RUN_FAILED.md": StorageArtifact.FAILURE_MARKER,
         **{name: StorageArtifact.REPORT if name.startswith(("05_", "07_")) else StorageArtifact.VERIFICATION if name.startswith("06_") else StorageArtifact.COMPLETION_MARKER for name in COMPLETION_POLICY.required_artifacts},
     }
     artifacts = {name: storage_path(run, artifact_classes[name], name).is_file() for name in artifact_classes}
+    conflict_assessment = "LEGACY_NOT_ASSESSED"
+    try:
+        conflict_assessment = conflict_assessment_status(run)
+    except KSlideError:
+        conflict_assessment = "INVALID"
     return sanitize_operational(
         add_host_contract(
-            {"status": state.phase.value, "run_id": state.run_id, "input_count": state.input_count, "current_work_unit": state.current_work_unit, "next_action": state.next_action, "artifacts": artifacts, "work_queue": queue_info, **({"environment_compatibility": "INCOMPATIBLE", "environment_error": environment_error} if environment_error is not None else {})},
+            {"status": state.phase.value, "run_id": state.run_id, "input_count": state.input_count, "current_work_unit": state.current_work_unit, "next_action": state.next_action, "artifacts": artifacts, "work_queue": queue_info, "conflict_assessment": conflict_assessment, **({"environment_compatibility": "INCOMPATIBLE", "environment_error": environment_error} if environment_error is not None else {})},
             phase=state.phase,
             queue=queue if queue_info.get("status") != "INVALID" else None,
             input_count=state.input_count,
@@ -278,6 +352,8 @@ def _next_unsanitized(
             save_state(run, state)
             return {"status": "REPAIR_READY", "run_id": state.run_id, "work_unit_id": unit.work_unit_id, "work_unit_status": unit.status.value, "evidence_revision": unit.evidence_revision, "repair_revision": unit.translation_revision, "next_action": "kslide_evidence"}
         if queue_status == "ALL_TRANSLATED":
+            if conflict_assessment_status(run) == "NOT_ASSESSED":
+                return {"status": "CONFLICT_ASSESSMENT_REQUIRED", "run_id": state.run_id, "next_action": "kslide_conflict_assess"}
             return {"status": "ALL_TRANSLATED", "run_id": state.run_id, "next_action": "kslide_verify"}
         if queue_status == "NEEDS_REVIEW":
             return {"status": "NEEDS_REVIEW", "run_id": state.run_id, "next_action": "Human review or explicit repair is required."}
@@ -360,7 +436,7 @@ def _evidence(
 
 def _render_text_status(value: dict[str, Any]) -> str:
     lines = [str(value.get("status", "UNKNOWN"))]
-    for key in ("run_id", "input_count", "current_work_unit", "phase", "error_code", "error_message", "next_action", "reason"):
+    for key in ("run_id", "input_count", "current_work_unit", "phase", "error_code", "error_message", "next_action", "conflict_assessment", "reason"):
         if value.get(key) is not None:
             lines.append(f"{key}: {value[key]}")
     error = value.get("error")
@@ -408,6 +484,18 @@ def build_parser() -> argparse.ArgumentParser:
     submit.add_argument("--payload-json", required=True)
     submit.add_argument("--session-id")
     submit.add_argument("--json", action="store_true")
+    conflicts = sub.add_parser("conflict-assess")
+    conflicts.add_argument("--root", type=Path, default=Path.cwd())
+    conflicts.add_argument("--run", required=True)
+    conflicts.add_argument("--payload-json", required=True)
+    conflicts.add_argument("--session-id")
+    conflicts.add_argument("--json", action="store_true")
+    resolve = sub.add_parser("conflict-resolve")
+    resolve.add_argument("--root", type=Path, default=Path.cwd())
+    resolve.add_argument("--run", required=True)
+    resolve.add_argument("--payload-json", required=True)
+    resolve.add_argument("--session-id")
+    resolve.add_argument("--json", action="store_true")
     verify = sub.add_parser("verify")
     verify.add_argument("--root", type=Path, default=Path.cwd())
     verify.add_argument("--run", required=True)
@@ -481,6 +569,10 @@ def main(argv: list[str] | None = None) -> int:
             value = _evidence(args.root, args.run, args.session_id)
         elif args.command == "submit":
             value = _submit(args.root, args.run, args.payload_json, args.session_id)
+        elif args.command == "conflict-assess":
+            value = _conflict_assess(args.root, args.run, args.payload_json, args.session_id)
+        elif args.command == "conflict-resolve":
+            value = _conflict_resolve(args.root, args.run, args.payload_json, args.session_id)
         elif args.command == "verify":
             value = verify_run(_find_run(args.root, args.run, args.session_id)).as_dict()
         elif args.command == "finalize":
@@ -501,7 +593,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             raise KSlideError(ErrorCode.INTERNAL, "Unknown K-Slide command.")
         if args.command != "evidence":
-            if args.command in {"prepare", "normalize", "extract", "submit", "verify", "finalize", "status", "next"}:
+            if args.command in {"prepare", "normalize", "extract", "submit", "conflict-assess", "conflict-resolve", "verify", "finalize", "status", "next"}:
                 value = _attach_run_contract(getattr(args, "root", Path.cwd()), value, getattr(args, "run", None), getattr(args, "session_id", None))
             value = sanitize_operational(value, roots=_diagnostic_roots(getattr(args, "root", None)))
         print(_json(value) if getattr(args, "json", False) else _render_text_status(value))

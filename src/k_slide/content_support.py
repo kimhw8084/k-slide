@@ -29,6 +29,7 @@ from .locking import filesystem_lock
 from .paas import AuthorizedScopeContext
 from .redaction import sanitize_operational
 from .storage import StorageArtifact, StorageLayout, StoragePlane, StorageReference
+from .conflicts import CONFLICT_REGISTRY_FILE
 
 
 SUPPORT_CONTRACT_VERSION = "1.0"
@@ -147,7 +148,7 @@ def _path_matches_class(artifact_class: SupportArtifactClass, relative_path: str
     if artifact_class is SupportArtifactClass.TRANSLATION_PATCH:
         return top == "translations" and len(parts) >= 2
     if artifact_class is SupportArtifactClass.CANONICAL_IR:
-        return top == "ir" and len(parts) >= 2
+        return (top == "ir" and len(parts) >= 2) or relative_path == CONFLICT_REGISTRY_FILE
     if artifact_class is SupportArtifactClass.REPORT:
         return len(parts) == 1 and name.startswith(("05_", "07_"))
     return False

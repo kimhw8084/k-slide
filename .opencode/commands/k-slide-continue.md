@@ -6,10 +6,10 @@ subtask: false
 
 Continue this K-Slide run: `$ARGUMENTS`
 
-Do not use shell, edit, write, web, or Task/subagent tools. Use `kslide_status`, `kslide_next`, `kslide_evidence`, `kslide_submit`, `kslide_verify`, and `kslide_finalize`.
+Do not use shell, edit, write, web, or Task/subagent tools. Use `kslide_status`, `kslide_next`, `kslide_evidence`, `kslide_submit`, `kslide_conflict_assess`, `kslide_conflict_resolve`, `kslide_verify`, and `kslide_finalize`.
 
 If `$ARGUMENTS` is empty, resolve the current session's run automatically.
 
 Use `kslide_status` and loop with `kslide_next` to resume from persisted queue state. Do not invent paths or run IDs. Process each returned work unit through `kslide_evidence`, read its context image and required risk crops, and structured `kslide_submit`; do not repeat verified units.
 
-When `kslide_next` returns `VERIFIED`, call `kslide_finalize`. Do not say DONE unless `RUN_COMPLETE.md` exists and current verification passes.
+When `kslide_next` returns `CONFLICT_ASSESSMENT_REQUIRED`, call `kslide_conflict_assess` with an empty candidate list unless existing canonical assertion references must be added, then call `kslide_conflict_resolve` for each returned conflict ID using only configured authority or current explicit authority evidence identities. When it returns `VERIFIED`, call `kslide_finalize`. Do not say DONE unless `RUN_COMPLETE.md` exists and current verification passes.

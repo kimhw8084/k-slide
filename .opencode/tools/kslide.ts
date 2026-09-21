@@ -83,6 +83,30 @@ const translationPatch = tool.schema.object({
   repair_revision: tool.schema.string().optional(),
 }).strict()
 
+const conflictAssertionReference = tool.schema.object({
+  work_unit_id: tool.schema.string(),
+  semantic_kind: tool.schema.enum(["region", "table_cell", "visual_relation", "executive_claim", "numeric_fact"]),
+  semantic_id: tool.schema.string(),
+}).strict()
+
+const conflictAssessment = tool.schema.object({
+  schema_version: tool.schema.enum(["1.0"]),
+  candidate_groups: tool.schema.array(tool.schema.object({
+    assertions: tool.schema.array(conflictAssertionReference),
+  }).strict()).default([]),
+}).strict()
+
+const authorityEvidenceInput = tool.schema.object({
+  work_unit_id: tool.schema.string(),
+  evidence_ids: tool.schema.array(tool.schema.string()),
+}).strict()
+
+const conflictResolution = tool.schema.object({
+  schema_version: tool.schema.enum(["1.0"]),
+  conflict_id: tool.schema.string(),
+  authority_evidence: tool.schema.array(authorityEvidenceInput).optional(),
+}).strict()
+
 function projectAndEngine(context: ToolContext): { root: string; engine: string; opencodeRoot: string } {
   const candidates = [context.directory, context.worktree]
   for (const candidate of candidates) {
@@ -169,6 +193,28 @@ export const submit = tool({
   },
   async execute(args, context) {
     return runCore(context, "submit", ["--run", args.run_id, "--session-id", context.sessionID, "--payload-json", JSON.stringify(args.payload)])
+  },
+})
+
+export const conflict_assess = tool({
+  description: "Engine-owned KSA-23 conflict assessment. The model may submit only references to existing canonical semantic objects; the engine rebuilds all evidence, locations, provenance, and conflict context and records an explicit zero-conflict result when none are found.",
+  args: {
+    run_id: tool.schema.string(),
+    payload: conflictAssessment,
+  },
+  async execute(args, context) {
+    return runCore(context, "conflict-assess", ["--run", args.run_id, "--session-id", context.sessionID, "--payload-json", JSON.stringify(args.payload)])
+  },
+})
+
+export const conflict_resolve = tool({
+  description: "Resolve one existing KSA-23 conflict through deterministic configured authority or current explicit AUTHORITY_SUPERSEDES evidence. The engine derives and validates every supersession field; the caller supplies no winner, loser, relation, source text, or resolution state.",
+  args: {
+    run_id: tool.schema.string(),
+    payload: conflictResolution,
+  },
+  async execute(args, context) {
+    return runCore(context, "conflict-resolve", ["--run", args.run_id, "--session-id", context.sessionID, "--payload-json", JSON.stringify(args.payload)])
   },
 })
 

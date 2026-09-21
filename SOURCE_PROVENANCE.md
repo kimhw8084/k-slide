@@ -37,6 +37,24 @@ for existing unresolved flags/items, which adapt to `unresolved`; nothing
 ambiguous is promoted to `source_fact`. Current EvidenceIR revision and source
 ID validation still apply on resume and re-verification.
 
+## Conflict and supersession provenance (KSA-23)
+
+Run-level `CONFLICT_REGISTRY.json` is an optional durable artifact. Its absence
+keeps legacy runs readable and is explicitly rendered as “conflict coverage not
+assessed”; it is never interpreted as proof that no conflict exists. Each
+conflict retains at least two stable assertion references to current canonical
+SlideIR and EvidenceIR objects, including document/work-unit/source location,
+provenance, exact evidence IDs, source-language context, and rendered English
+context. The engine rebuilds those references during verification, so model or
+operator-authored replacement text, fabricated evidence, locations, and stale
+references are rejected without changing either competing claim.
+
+The only resolving state is an evidence-backed or deterministically configured
+authoritative supersession. Unknown authority remains `unresolved`; all
+participants remain visible in final and executive reports. Supersession is
+metadata about authority, never deletion, normalization, or repair of the
+superseded source claim.
+
 ## Why v6 is the active baseline
 
 v6 is the latest pack and explicitly identifies itself as the Gemma 4 31B single-agent stable core. Its acceptance laws directly match this project's objective: reconstruct visible tables, preserve visible item counts, explain visual relationships, verify numbers and unresolved regions, and never claim completion without `RUN_COMPLETE.md`.

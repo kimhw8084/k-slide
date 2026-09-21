@@ -10,6 +10,15 @@ from typing import Any
 
 from . import VERIFICATION_SCHEMA_VERSION
 from .completion import ensure_completion_artifacts
+from .conflicts import (
+    ConflictResolutionState,
+    conflict_authority_policy,
+    conflict_assessment_status,
+    conflict_contract_required,
+    configured_authority_ids,
+    conflict_registry_path,
+    load_conflict_registry,
+)
 from .environment import RunEnvironmentIdentity, resolve_run_termbase
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import load_evidence
@@ -320,6 +329,85 @@ def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult
         _issue(result, "KSLIDE_SCHEMA_INVALID", Severity.CRITICAL, "Could not validate SlideIR safely.", target=work_unit_id)
 
 
+def _configured_conflict_authority_ids(run_dir: Path) -> set[str]:
+    path = storage_path(run_dir, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json")
+    if not path.is_file():
+        return set()
+    try:
+        value = read_json(path)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return set()
+    authority = value.get("conflict_authority", {}) if isinstance(value, dict) else {}
+    configured = authority.get("configured_authority_ids", []) if isinstance(authority, dict) else []
+    ids = {item for item in configured if isinstance(item, str) and item}
+    try:
+        ids.update(configured_authority_ids(run_dir))
+    except KSlideError:
+        pass
+    return ids
+
+
+def _validate_conflict_registry(run_dir: Path, result: VerificationResult) -> None:
+    """Validate conflict coverage, preserving legacy absence semantics."""
+
+    try:
+        assessment_status = conflict_assessment_status(run_dir)
+    except KSlideError as exc:
+        _issue(result, "KSLIDE_CONFLICT_REGISTRY_INVALID", Severity.CRITICAL, exc.message, target="RUN_MANIFEST.json", scope="RUN_LEVEL_POLICY_FAILURE")
+        return
+    if assessment_status == "NOT_ASSESSED":
+        _issue(
+            result,
+            "KSLIDE_CONFLICT_ASSESSMENT_REQUIRED",
+            Severity.CRITICAL,
+            "KSA-23 runs require durable conflict assessment before verification and finalization.",
+            target="CONFLICT_REGISTRY.json",
+            scope="RUN_LEVEL_POLICY_FAILURE",
+        )
+        return
+    if not conflict_registry_path(run_dir).is_file():
+        if conflict_contract_required(run_dir):
+            _issue(
+                result,
+                "KSLIDE_CONFLICT_REGISTRY_INVALID",
+                Severity.CRITICAL,
+                "An assessed KSA-23 run is missing its conflict registry.",
+                target="CONFLICT_REGISTRY.json",
+                scope="RUN_LEVEL_POLICY_FAILURE",
+            )
+        return
+    try:
+        registry = load_conflict_registry(run_dir)
+        if registry is None:
+            return
+        registry.validate_against_run(
+            run_dir,
+            configured_authority_ids=_configured_conflict_authority_ids(run_dir),
+            authority_policy=conflict_authority_policy(run_dir),
+            strict_authority=conflict_contract_required(run_dir),
+        )
+    except KSlideError as exc:
+        code = exc.code.value
+        if exc.code in {ErrorCode.SCHEMA_INVALID, ErrorCode.CONFLICT_INVALID, ErrorCode.STALE_EVIDENCE}:
+            code = "KSLIDE_CONFLICT_REGISTRY_INVALID"
+        _issue(result, code, Severity.CRITICAL, exc.message, target="CONFLICT_REGISTRY.json", scope="RUN_LEVEL_POLICY_FAILURE")
+        return
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError, OSError):
+        _issue(result, "KSLIDE_CONFLICT_REGISTRY_INVALID", Severity.CRITICAL, "Conflict registry could not be validated safely.", target="CONFLICT_REGISTRY.json", scope="RUN_LEVEL_POLICY_FAILURE")
+        return
+    unresolved = [item.conflict_id for item in registry.conflicts if item.resolution_state == ConflictResolutionState.UNRESOLVED.value]
+    if unresolved:
+        _issue(
+            result,
+            "KSLIDE_CONFLICT_UNRESOLVED",
+            Severity.CRITICAL,
+            "Run-level source contradictions remain unresolved; no authoritative supersession is recorded.",
+            target="CONFLICT_REGISTRY.json",
+            evidence_ids=sorted(unresolved),
+            scope="RUN_LEVEL_POLICY_FAILURE",
+        )
+
+
 def _verify_unlocked(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | None = None, termbase: Termbase | None = None, termbase_authority: Any | None = None) -> VerificationResult:
     state = load_state(run_dir)
     result = VerificationResult(status="PASS", run_id=state.run_id)
@@ -349,6 +437,7 @@ def _verify_unlocked(run_dir: Path, *, environment_identity: RunEnvironmentIdent
         else:
             result.unit_status[unit.work_unit_id] = "INCOMPLETE"
             _issue(result, "KSLIDE_WORK_UNIT_INCOMPLETE", Severity.CRITICAL, "Work unit is not translated or explicitly reviewable.", target=unit.work_unit_id, scope="RUN_LEVEL_POLICY_FAILURE")
+    _validate_conflict_registry(run_dir, result)
     # 06_verification.md is generated by this verifier, so it cannot be a
     # prerequisite for the verifier that writes it. The remaining artifacts
     # must already exist before a run can pass.

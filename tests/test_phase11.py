@@ -6,7 +6,7 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from k_slide.cli import _next, _submit
+from k_slide.cli import _conflict_assess, _next, _submit
 from k_slide.errors import ErrorCode, KSlideError
 from k_slide.evidence_ir import EvidenceIR, EvidenceRegion, save_evidence
 from k_slide.ingest import prepare_run
@@ -87,6 +87,8 @@ class Phase11Tests(unittest.TestCase):
                 _submit(root, run.name, json.dumps(self._payload(run, work_unit_id)), None, reference_environment())
                 if index == 2:
                     self.assertEqual(load_state(run).phase, RunPhase.TRANSLATING)
+            self.assertEqual(_next(root, run.name, None, reference_environment())["status"], "CONFLICT_ASSESSMENT_REQUIRED")
+            _conflict_assess(root, run.name, '{"schema_version":"1.0","candidate_groups":[]}', None, reference_environment())
             self.assertEqual(_next(root, run.name, None, reference_environment())["status"], "ALL_TRANSLATED")
             self.assertEqual([unit.status for unit in load_queue(run).work_units], [WorkUnitStatus.TRANSLATED] * 3)
 
@@ -114,6 +116,7 @@ class Phase11Tests(unittest.TestCase):
             run = self._prepared(root)
             next_value = _next(root, run.name, None, reference_environment())
             _submit(root, run.name, json.dumps(self._payload(run, str(next_value["work_unit_id"]))), None, reference_environment())
+            _conflict_assess(root, run.name, '{"schema_version":"1.0","candidate_groups":[]}', None, reference_environment())
             for name, content in {"05_executive_brief.md": "# brief\n", "05_final_report.md": "# report\n", "07_unresolved_items.md": "No unresolved items.\n"}.items():
                 (run / name).write_text(content)
             self.assertTrue(verify_run(run, environment_identity=reference_environment()).passed)

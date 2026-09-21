@@ -73,6 +73,9 @@ def _artifact_manifest(artifacts: list[InputArtifact], *, classification_admissi
         "input_count": len(artifacts),
         "inputs": [{"snapshot_id": f"source-{index:03d}", **artifact.as_dict()} for index, artifact in enumerate(artifacts, start=1)],
         "snapshot_policy": "immutable_copy_hashed_at_prepare",
+        "conflict_registry_contract": {"schema_version": "1.0", "assessment_required": True},
+        "conflict_authority": {"schema_version": "1.0", "rules": []},
+        "conflict_assessment": {"schema_version": "1.0", "status": "NOT_ASSESSED"},
     }
     if classification_admission is not None:
         value["classification_admission"] = classification_admission.as_dict()
