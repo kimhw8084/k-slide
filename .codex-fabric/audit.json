@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "kind": "codex-fabric-audit-evidence",
+  "operation": "FIX",
+  "request": "CHG-16 / KSA-23 F23-03 and F23-04",
+  "status": "EXECUTED_CHANGE",
+  "target_branch": "main",
+  "base_sha": "59590202cf8d6b6073c2510b110fc89ae0be221b",
+  "predecessor_sha": "9e6d615dc619c0ebba1517c76025bb4b2853a2a2",
+  "candidate_sha": "c98d40e83284f7dab6b9e71263259426383908ba",
+  "git": {
+    "base_is_ancestor": true,
+    "predecessor_is_ancestor": true,
+    "work_branch": "codex/k-slide-chg16-conflict-supersession-01-fix02",
+    "evidence_branch": "codex-fabric/evidence/k-slide/chg16-conflict-supersession-01-fix02",
+    "target_branch": "main",
+    "main_observed_sha": "59590202cf8d6b6073c2510b110fc89ae0be221b",
+    "worktree_clean_at_candidate": true
+  },
+  "changed_files": [
+    {"path": "schemas/conflict-registry.schema.json", "status": "M", "additions": 2, "deletions": 1},
+    {"path": "src/k_slide/cli.py", "status": "M", "additions": 3, "deletions": 14},
+    {"path": "src/k_slide/conflicts.py", "status": "M", "additions": 112, "deletions": 52},
+    {"path": "src/k_slide/ingest.py", "status": "M", "additions": 1, "deletions": 0},
+    {"path": "src/k_slide/rendering/reports.py", "status": "M", "additions": 12, "deletions": 1},
+    {"path": "src/k_slide/verify.py", "status": "M", "additions": 19, "deletions": 8},
+    {"path": "tests/test_ksa19_employee_path.py", "status": "M", "additions": 2, "deletions": 1},
+    {"path": "tests/test_ksa23_conflicts.py", "status": "M", "additions": 191, "deletions": 8},
+    {"path": "tests/test_phase1.py", "status": "M", "additions": 2, "deletions": 1},
+    {"path": "tests/test_phase11.py", "status": "M", "additions": 4, "deletions": 1}
+  ],
+  "checks": [
+    {
+      "name": "ksa23_focused_and_lifecycle",
+      "command": "PYTHONPATH=src python3.11 -m unittest tests.test_ksa23_conflicts",
+      "result": "PASS",
+      "tests": 19
+    },
+    {
+      "name": "ksa22_ksa21_phase_compatibility",
+      "command": "PYTHONPATH=src python3.11 -m unittest tests.test_ksa22_provenance tests.test_ksa21_adversarial_security tests.test_phase1 tests.test_phase11",
+      "result": "PASS",
+      "tests": 61,
+      "skipped": 1
+    },
+    {
+      "name": "full_unittest_discovery_python311",
+      "command": "PYTHONPATH=src python3.11 -m unittest discover -s tests",
+      "result": "PASS",
+      "tests": 467,
+      "skipped": 4
+    },
+    {
+      "name": "full_unittest_discovery_python312",
+      "command": "isolated Python 3.12.9 environment with Pillow; PYTHONPATH=src python -m unittest discover -s tests",
+      "result": "PASS",
+      "tests": 467,
+      "skipped": 7
+    },
+    {
+      "name": "compile_validation",
+      "command": "python3.11 -m compileall -q src tests; python3.12 -m compileall -q src tests",
+      "result": "PASS"
+    },
+    {
+      "name": "schema_validation",
+      "command": "python -m json.tool schemas/conflict-registry.schema.json schemas/evidence-ir.schema.json schemas/slide-ir.schema.json schemas/translation-patch.schema.json",
+      "result": "PASS"
+    },
+    {
+      "name": "diff_validation",
+      "command": "git diff HEAD^ HEAD --check",
+      "result": "PASS"
+    }
+  ],
+  "behavioral_evidence": {
+    "f23_03": [
+      "Final translation submit no longer calls conflict assessment.",
+      "New runs persist NOT_ASSESSED and kslide_next returns CONFLICT_ASSESSMENT_REQUIRED until kslide_conflict_assess persists the registry.",
+      "Assessment persists ASSESSED_ZERO_CONFLICTS or ASSESSED_CONFLICTS; legacy pre-KSA-23 absence remains LEGACY_NOT_ASSESSED.",
+      "Typed candidates remain identity-only and admit region, table_cell, visual_relation, executive_claim, and numeric_fact references.",
+      "Differing text plus broad owner/timing/key_number kind is not an automatic conflict; ambiguous cases require typed admission."
+    ],
+    "f23_04": [
+      "Strict explicit authority requires exactly one engine-recomputed AUTHORITY_SUPERSEDES target from current authority evidence.",
+      "The same valid authority evidence passes the correct direction and rejects the reversed winner/loser direction.",
+      "Configured authority selectors, unresolved conflicts, stale/unrelated evidence, self-supersession, competing winners, and cycles remain enforced."
+    ]
+  },
+  "evidence_manifest": [
+    {"path": "schemas/conflict-registry.schema.json", "bytes": 5284, "sha256": "77d685c06c249a102d06fe2e21130420a5d08d9bbb940b2a98d7dea62c0702ae"},
+    {"path": "src/k_slide/cli.py", "bytes": 32927, "sha256": "368490bba721983212c9ecfc7c6bd9366ac1a00574f6cf940a968c453c0c48bf"},
+    {"path": "src/k_slide/conflicts.py", "bytes": 67924, "sha256": "50414a9ece752bd66f23192a44dad737771f05e294cdfcd26660952d7547597c"},
+    {"path": "src/k_slide/ingest.py", "bytes": 17907, "sha256": "dac5e2235e73a8866ca4660e64a282fbdc650b5c0b0548fbeb34593e372e99c4"},
+    {"path": "src/k_slide/rendering/reports.py", "bytes": 15143, "sha256": "e69a0fcb7ec40a07fdbdf98b7e5ffee5e172d97a50228317bd02fed52a9a5781"},
+    {"path": "src/k_slide/verify.py", "bytes": 32845, "sha256": "2d4d9ca39ff14a69255e680be92a848e7dd5341669837f934972406356711e9"},
+    {"path": "tests/test_ksa19_employee_path.py", "bytes": 11778, "sha256": "76c375084f66376a3c19aa3adfdf5f4aa7f539ea15b99b044ada07b3b3fcfbf8"},
+    {"path": "tests/test_ksa23_conflicts.py", "bytes": 38853, "sha256": "482d1958c4df218b7474c475dfd17966fbdb6d277889a4a4c56fd4af1254e634"},
+    {"path": "tests/test_phase1.py", "bytes": 12296, "sha256": "0750a9e8d72b899ac212beb729b6166e081ae59c60bb7faea403f48e9d16a899"},
+    {"path": "tests/test_phase11.py", "bytes": 8210, "sha256": "704a04be9ccfb888e3299f716a7ace0be92ec74d98c46ad13cbc0bc8148ba7a4"}
+  ],
+  "out_of_scope": [
+    "KSA-24+",
+    "live company/Gemma qualification",
+    "release",
+    "production certification"
+  ],
+  "recovery": {
+    "worktree_retained": true,
+    "recovery_required": false,
+    "resume": "Use /k-slide-status or /k-slide-continue for any interrupted K-Slide run."
+  }
+}
