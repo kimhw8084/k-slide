@@ -1,0 +1,398 @@
+{
+  "accepted_at": "2026-09-21T12:24:26Z",
+  "changed_files": [
+    {
+      "additions": 8,
+      "deletions": 8,
+      "path": ".opencode/tools/kslide.ts",
+      "status": "M"
+    },
+    {
+      "additions": 25,
+      "deletions": 4,
+      "path": "src/k_slide/normalization.py",
+      "status": "M"
+    },
+    {
+      "additions": 299,
+      "deletions": 24,
+      "path": "src/k_slide/security.py",
+      "status": "M"
+    },
+    {
+      "additions": 621,
+      "deletions": 0,
+      "path": "tests/test_ksa21_adversarial_security.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc 'rtk git cherry-pick 74a1d40127a24eb5786bd918365da421c993e0df'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '240,390p' src/k_slide/normalization.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,240p' src/k_slide/security.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,520p' tests/test_ksa21_adversarial_security.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git show --format=fuller --stat f29799e && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,240p' tests/test_ksa21_adversarial_security.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '240,520p' tests/test_ksa21_adversarial_security.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '210,290p' src/k_slide/security.py && rtk sed -n '310,350p' src/k_slide/normalization.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,220p' tests/test_normalization.py && rtk sed -n '100,190p' tests/test_chg16_storage_planes.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,240p' src/k_slide/errors.py && rtk sed -n '1,180p' pyproject.toml\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"_inspect_zip|MAX_ARCHIVE_|INPUT_ARCHIVE_UNSAFE|prepare_run|perform_processing\" src tests | head -160'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git show 74a1d40127a24eb5786bd918365da421c993e0df -- src/k_slide/security.py src/k_slide/normalization.py tests/test_ksa21_adversarial_security.py | head -260'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python --version && rtk command -v python3.11 || true && rtk command -v python3.12 || true && rtk command -v python3 || true && rtk command -v rtk'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python -c 'import importlib.util; print(\\\"pptx\\\", bool(importlib.util.find_spec(\\\"pptx\\\"))); print(\\\"xlsxwriter\\\", bool(importlib.util.find_spec(\\\"xlsxwriter\\\"))); print(\\\"openpyxl\\\", bool(importlib.util.find_spec(\\\"openpyxl\\\")))'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"Content_Types|embeddings|package\" tests evals src | head -120'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python -c 'import tempfile,zipfile; from pathlib import Path; from pptx import Presentation; from pptx.chart.data import CategoryChartData; from pptx.enum.chart import XL_CHART_TYPE; from pptx.util import Inches; d=tempfile.TemporaryDirectory(); p=Path(d.name)/\\\"chart.pptx\\\"; r=Presentation(); s=r.slides.add_slide(r.slide_layouts[6]); data=CategoryChartData(); data.categories=[\\\"Q1\\\",\\\"Q2\\\"]; data.add_series(\\\"Sales\\\",(1,2)); s.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED,Inches(1),Inches(1),Inches(5),Inches(3),data); r.save(p); z=zipfile.ZipFile(p); print(\\\"\\\\\\\\n\\\".join(z.namelist())); print(z.read(\\\"ppt/_rels/presentation.xml.rels\\\").decode())'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python -c 'import tempfile,zipfile; from pathlib import Path; from pptx import Presentation; from pptx.chart.data import CategoryChartData; from pptx.enum.chart import XL_CHART_TYPE; from pptx.util import Inches; d=tempfile.TemporaryDirectory(); p=Path(d.name)/\\\"chart.pptx\\\"; r=Presentation(); s=r.slides.add_slide(r.slide_layouts[6]); data=CategoryChartData(); data.categories=[\\\"Q1\\\",\\\"Q2\\\"]; data.add_series(\\\"Sales\\\",(1,2)); s.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED,Inches(1),Inches(1),Inches(5),Inches(3),data); r.save(p); z=zipfile.ZipFile(p); print(\\\"XLSX\\\"); x=zipfile.ZipFile(z.open(\\\"ppt/embeddings/Microsoft_Excel_Sheet1.xlsx\\\")); print(\\\"\\\\\\\\n\\\".join(x.namelist())); print(\\\"REL ppt chart\\\"); print(z.read(\\\"ppt/charts/_rels/chart1.xml.rels\\\").decode()); print(\\\"XLSX CT\\\"); print(x.read(\\\"[Content_Types].xml\\\").decode()); print(\\\"XLSX workbook\\\"); print(x.read(\\\"xl/workbook.xml\\\").decode()); print(\\\"XLSX rels\\\"); print(x.read(\\\"xl/_rels/workbook.xml.rels\\\").decode())'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,390p' src/k_slide/security.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m py_compile src/k_slide/security.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git diff --stat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m unittest tests.test_ksa21_adversarial_security -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m unittest tests.test_ksa21_adversarial_security -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src rtk python -c 'import tempfile; from pathlib import Path; from pptx import Presentation; from pptx.chart.data import CategoryChartData; from pptx.enum.chart import XL_CHART_TYPE; from pptx.util import Inches; from k_slide.security import validate_input; d=tempfile.TemporaryDirectory(); p=Path(d.name)/\\\"chart.pptx\\\"; r=Presentation(); s=r.slides.add_slide(r.slide_layouts[6]); data=CategoryChartData(); data.categories=[\\\"Q1\\\",\\\"Q2\\\"]; data.add_series(\\\"Sales\\\",(1,2)); s.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED,Inches(1),Inches(1),Inches(5),Inches(3),data); r.save(p); print(validate_input(p).kind)'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src rtk python -c 'import tempfile; from pathlib import Path; from pptx import Presentation; from pptx.chart.data import CategoryChartData; from pptx.enum.chart import XL_CHART_TYPE; from pptx.util import Inches; from k_slide.security import validate_input; d=tempfile.TemporaryDirectory(); p=Path(d.name)/\\\"chart.pptx\\\"; r=Presentation(); s=r.slides.add_slide(r.slide_layouts[6]); data=CategoryChartData(); data.categories=[\\\"Q1\\\",\\\"Q2\\\"]; data.add_series(\\\"Sales\\\",(1,2)); s.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED,Inches(1),Inches(1),Inches(5),Inches(3),data); r.save(p); print(validate_input(p).kind)'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m unittest tests.test_ksa21_adversarial_security -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files tests | rg 'ksa(15|16|17|18|19|20)|chg16_host|normalization'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"KSA-15|KSA-16|KSA-17|KSA-18|KSA-19|KSA-20|ksa15|ksa16|ksa17|ksa18\" tests docs IMPLEMENTATION_STATUS.md README.md'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git diff --stat && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest tests.test_ksa21_adversarial_security tests.test_chg16_accesskey_nonleakage tests.test_chg16_classification_admission tests.test_chg16_default_deny_egress tests.test_chg18_default_deny_egress tests.test_chg18_accesskey_handoff tests.test_ksa19_governed_termbase tests.test_ksa19_employee_path tests.test_ksa20_controlled_content_support tests.test_chg16_host_integration tests.test_normalization -q'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files tests | rg 'chg16|chg18|ksa19|ksa20|normalization'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest tests.test_ksa21_adversarial_security tests.test_chg16_accesskey_nonleakage tests.test_chg16_classification_admission tests.test_chg18_default_deny_egress tests.test_chg18_accesskey_handoff tests.test_chg18_opencode_bootstrap tests.test_chg16_authentication_transport tests.test_ksa19_governed_termbase tests.test_ksa19_employee_path tests.test_ksa20_controlled_content_support tests.test_chg16_host_integration tests.test_normalization -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src:. rtk python -m unittest discover -s tests -p 'test*.py' -q\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python3.11 -m compileall -q src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git log --oneline --decorate -4 && rtk git merge-base --is-ancestor f29799e824e5104b8a65b1ae15b5fcb6c2827428 HEAD; rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --check && rtk git diff --stat && rtk git diff -- src/k_slide/security.py tests/test_ksa21_adversarial_security.py | sed -n '1,520p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python3.12 -m compileall -q src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python3.12 -m unittest tests.test_ksa21_adversarial_security tests.test_normalization -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest tests.test_ksa21_adversarial_security -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git diff --stat && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python3.11 -m compileall -q src tests && PYTHONPATH=src:. rtk python3.12 -m compileall -q src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python3.12 -m unittest tests.test_ksa21_adversarial_security tests.test_normalization -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. rtk python -m unittest tests.test_ksa21_adversarial_security tests.test_chg16_accesskey_nonleakage tests.test_chg16_classification_admission tests.test_chg18_default_deny_egress tests.test_chg18_accesskey_handoff tests.test_chg18_opencode_bootstrap tests.test_chg16_authentication_transport tests.test_ksa19_governed_termbase tests.test_ksa19_employee_path tests.test_ksa20_controlled_content_support tests.test_chg16_host_integration tests.test_normalization -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src:. rtk python -m unittest discover -s tests -p 'test*.py' -q\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --numstat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git merge-base --is-ancestor f29799e824e5104b8a65b1ae15b5fcb6c2827428 HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git diff --stat && rtk git diff --name-only'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add src/k_slide/security.py tests/test_ksa21_adversarial_security.py && rtk git commit -m \"KSA-21 F21-01 validate nested chart workbooks\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git merge-base --is-ancestor 74a1d40127a24eb5786bd918365da421c993e0df HEAD && rtk git merge-base --is-ancestor f29799e824e5104b8a65b1ae15b5fcb6c2827428 HEAD && rtk git rev-parse HEAD'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git show --stat --oneline --decorate HEAD && rtk git diff --check HEAD''^ HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git log --oneline --decorate -5'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.155.1",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 150,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 96.93,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 4845312,
+      "fresh_input_tokens": 153662,
+      "input_tokens": 4998974,
+      "non_reasoning_output_tokens": 18805,
+      "output_tokens": 38366,
+      "reasoning_output_tokens": 19561,
+      "total_processed_tokens": 5037340
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "27a9d3a0ca66d5c48faf497b3d9e24a6563a58d1",
+      "subject": "KSA-21 F21-01 validate nested chart workbooks"
+    },
+    {
+      "sha": "f29799e824e5104b8a65b1ae15b5fcb6c2827428",
+      "subject": "KSA-21: harden adversarial document security"
+    }
+  ],
+  "diff": {
+    "additions": 953,
+    "changed_files": 4,
+    "commit_count": 2,
+    "deletions": 36
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 0,
+    "items": [],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.4-quota-recovery-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.4-quota-recovery-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-21T12:38:17Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "498d46fe99660e02a2d428a6fb5c7c1d5cd711ed",
+    "branch": "codex/k-slide-chg16-adversarial-document-security-01-fix01",
+    "detached_verify": false,
+    "head_sha": "27a9d3a0ca66d5c48faf497b3d9e24a6563a58d1",
+    "remote_exact_head": true,
+    "remote_head_sha": "27a9d3a0ca66d5c48faf497b3d9e24a6563a58d1",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "498d46fe99660e02a2d428a6fb5c7c1d5cd711ed",
+    "work_branch": "codex/k-slide-chg16-adversarial-document-security-01-fix01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-ff430039130865d82a5c869a",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-adversarial-document-security-01-fix01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-adversarial-document-security-01-fix01"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.4-quota-recovery-candidate",
+    "policy_sha256": "a642c9f63bab2cb555704bdb0b9d1f28222591f133f934c1d0f93cc5a25ab8a1",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-adversarial-document-security-01-fix01",
+  "schema_version": 1,
+  "started_at": "2026-09-21T12:24:26Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 831,
+    "queue_seconds": 0,
+    "total_seconds": 831
+  },
+  "transport": {
+    "bytes": 3154,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 2805,
+    "prompt_sha256": "999a5c5ddbf78665bc2f378f71c1dd28d60f267b9877cfbd1f2f04fe7bf73e25",
+    "sha256": "ff430039130865d82a5c869ae382b187865d76c2182980850f06be633bf3af92"
+  }
+}
