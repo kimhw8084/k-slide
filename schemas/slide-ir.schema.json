@@ -4,20 +4,23 @@
   "title": "K-Slide SlideIR",
   "type": "object",
   "required": ["schema_version", "slide_id", "regions", "tables", "visual_relations", "numeric_facts", "coverage"],
+  "$defs": {
+    "provenance": {"enum": ["source_fact", "supported_interpretation", "unresolved"]}
+  },
   "properties": {
     "schema_version": {"const": "1.0"},
     "slide_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
     "source": {"type": "object"},
-    "regions": {"type": "array", "items": {"type": "object", "required": ["region_id"]}},
-    "tables": {"type": "array", "items": {"type": "object", "required": ["table_id", "row_count", "column_count", "cells"]}},
+    "regions": {"type": "array", "items": {"type": "object", "required": ["region_id"], "properties": {"provenance": {"$ref": "#/$defs/provenance"}, "provenance_evidence_ids": {"type": "array", "items": {"type": "string"}}}}},
+    "tables": {"type": "array", "items": {"type": "object", "required": ["table_id", "row_count", "column_count", "cells"], "properties": {"cells": {"type": "array", "items": {"type": "object", "properties": {"provenance": {"$ref": "#/$defs/provenance"}, "provenance_evidence_ids": {"type": "array", "items": {"type": "string"}}}}}}}},
     "visual_elements": {"type": "array"},
-    "visual_relations": {"type": "array"},
+    "visual_relations": {"type": "array", "items": {"type": "object", "properties": {"provenance": {"$ref": "#/$defs/provenance"}, "evidence": {"type": "array", "items": {"type": "string"}}, "unresolved_reason": {"type": "string"}}}},
     "numeric_facts": {"type": "array"},
     "entities": {"type": "array"},
     "terms": {"type": "array"},
     "unresolved": {"type": "array"},
     "coverage": {"type": "array", "items": {"type": "object", "required": ["source_id", "status"]}},
-    "executive_semantics": {"type": "object"}
+    "executive_semantics": {"type": "object", "properties": {"executive_claims": {"type": "array", "items": {"type": "object", "properties": {"provenance": {"$ref": "#/$defs/provenance"}, "evidence_ids": {"type": "array", "items": {"type": "string"}}, "unresolved_reason": {"type": "string"}}}}}}
   },
   "additionalProperties": true
 }

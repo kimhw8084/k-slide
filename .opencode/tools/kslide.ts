@@ -30,6 +30,8 @@ const translationRegion = tool.schema.object({
   unresolved: tool.schema.boolean(),
   unresolved_reason: tool.schema.string().optional(),
   hangul_retention: hangulRetention.optional(),
+  provenance: tool.schema.enum(["source_fact", "supported_interpretation", "unresolved"]).optional(),
+  evidence_ids: tool.schema.array(tool.schema.string()).optional(),
 }).strict()
 
 const translationCell = tool.schema.object({
@@ -38,6 +40,8 @@ const translationCell = tool.schema.object({
   unresolved: tool.schema.boolean(),
   unresolved_reason: tool.schema.string().optional(),
   hangul_retention: hangulRetention.optional(),
+  provenance: tool.schema.enum(["source_fact", "supported_interpretation", "unresolved"]).optional(),
+  evidence_ids: tool.schema.array(tool.schema.string()).optional(),
 }).strict()
 
 const translationTable = tool.schema.object({
@@ -53,6 +57,8 @@ const visualInterpretation = tool.schema.object({
   relation_type: tool.schema.enum(["next", "depends_on", "contains", "before", "after", "causes", "mitigates", "compares_to", "part_of", "flows_to", "highlights", "other"]).optional(),
   direction: tool.schema.enum(["left_to_right", "right_to_left", "top_to_bottom", "bottom_to_top", "bidirectional", "none", "unknown"]).optional(),
   hangul_retention: hangulRetention.optional(),
+  provenance: tool.schema.enum(["source_fact", "supported_interpretation", "unresolved"]).optional(),
+  unresolved_reason: tool.schema.string().optional(),
 }).strict()
 
 const executiveClaim = tool.schema.object({
@@ -62,6 +68,8 @@ const executiveClaim = tool.schema.object({
   evidence_ids: tool.schema.array(tool.schema.string()),
   uncertainty: tool.schema.enum(["low", "medium", "high"]),
   hangul_retention: hangulRetention.optional(),
+  provenance: tool.schema.enum(["source_fact", "supported_interpretation", "unresolved"]).optional(),
+  unresolved_reason: tool.schema.string().optional(),
 }).strict()
 
 const translationPatch = tool.schema.object({

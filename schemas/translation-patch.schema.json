@@ -18,6 +18,7 @@
   "$defs": {
     "commitment": {"enum": ["decided", "committed", "planned", "scheduled", "target", "proposed", "under_review", "needs_review", "discussion_required", "expected", "forecast", "possible", "tentative", "not_decided", "completed", "in_progress", "unknown"]},
     "speech": {"enum": ["fact", "status", "decision", "plan", "request", "recommendation", "risk", "dependency", "forecast", "question", "unknown"]},
+    "provenance": {"enum": ["source_fact", "supported_interpretation", "unresolved"]},
     "region": {
       "type": "object",
       "additionalProperties": false,
@@ -30,6 +31,8 @@
         "term_ids": {"type": "array", "items": {"type": "string"}},
         "unresolved": {"type": "boolean"},
         "unresolved_reason": {"type": "string"},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "evidence_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
         "hangul_retention": {"$ref": "#/$defs/hangul_retention"}
       }
     },
@@ -48,6 +51,8 @@
         "english": {"type": "string"},
         "unresolved": {"type": "boolean"},
         "unresolved_reason": {"type": "string"},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "evidence_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
         "hangul_retention": {"$ref": "#/$defs/hangul_retention"}
       }
     },
@@ -58,10 +63,12 @@
       "properties": {
         "relation_id": {"type": "string"},
         "interpretation": {"type": "string"},
-        "evidence_ids": {"type": "array", "items": {"type": "string"}},
+        "evidence_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
         "source_element_ids": {"type": "array", "items": {"type": "string"}},
         "relation_type": {"enum": ["next", "depends_on", "contains", "before", "after", "causes", "mitigates", "compares_to", "part_of", "flows_to", "highlights", "other"]},
         "direction": {"enum": ["left_to_right", "right_to_left", "top_to_bottom", "bottom_to_top", "bidirectional", "none", "unknown"]},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "unresolved_reason": {"type": "string"},
         "hangul_retention": {"$ref": "#/$defs/hangul_retention"}
       }
     },
@@ -75,6 +82,8 @@
         "text": {"type": "string"},
         "evidence_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
         "uncertainty": {"enum": ["low", "medium", "high"]},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "unresolved_reason": {"type": "string"},
         "hangul_retention": {"$ref": "#/$defs/hangul_retention"}
       }
     },
