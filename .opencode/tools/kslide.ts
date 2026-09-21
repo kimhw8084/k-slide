@@ -14,12 +14,12 @@ const hostInputReference = tool.schema.object({
   source_kind: tool.schema.enum(["attachment", "workspace_file"]),
   logical_name: tool.schema.string(),
   locator: tool.schema.string(),
-})
+}).strict()
 
 const hangulRetention = tool.schema.object({
   reason: tool.schema.string(),
   evidence_id: tool.schema.string(),
-})
+}).strict()
 
 const translationRegion = tool.schema.object({
   region_id: tool.schema.string(),
@@ -30,7 +30,7 @@ const translationRegion = tool.schema.object({
   unresolved: tool.schema.boolean(),
   unresolved_reason: tool.schema.string().optional(),
   hangul_retention: hangulRetention.optional(),
-})
+}).strict()
 
 const translationCell = tool.schema.object({
   cell_id: tool.schema.string(),
@@ -38,12 +38,12 @@ const translationCell = tool.schema.object({
   unresolved: tool.schema.boolean(),
   unresolved_reason: tool.schema.string().optional(),
   hangul_retention: hangulRetention.optional(),
-})
+}).strict()
 
 const translationTable = tool.schema.object({
   table_id: tool.schema.string(),
   cells: tool.schema.array(translationCell),
-})
+}).strict()
 
 const visualInterpretation = tool.schema.object({
   relation_id: tool.schema.string(),
@@ -53,7 +53,7 @@ const visualInterpretation = tool.schema.object({
   relation_type: tool.schema.enum(["next", "depends_on", "contains", "before", "after", "causes", "mitigates", "compares_to", "part_of", "flows_to", "highlights", "other"]).optional(),
   direction: tool.schema.enum(["left_to_right", "right_to_left", "top_to_bottom", "bottom_to_top", "bidirectional", "none", "unknown"]).optional(),
   hangul_retention: hangulRetention.optional(),
-})
+}).strict()
 
 const executiveClaim = tool.schema.object({
   claim_id: tool.schema.string(),
@@ -62,7 +62,7 @@ const executiveClaim = tool.schema.object({
   evidence_ids: tool.schema.array(tool.schema.string()),
   uncertainty: tool.schema.enum(["low", "medium", "high"]),
   hangul_retention: hangulRetention.optional(),
-})
+}).strict()
 
 const translationPatch = tool.schema.object({
   schema_version: tool.schema.enum(["1.0"]),
@@ -73,7 +73,7 @@ const translationPatch = tool.schema.object({
   visual_interpretations: tool.schema.array(visualInterpretation),
   executive_claims: tool.schema.array(executiveClaim),
   repair_revision: tool.schema.string().optional(),
-})
+}).strict()
 
 function projectAndEngine(context: ToolContext): { root: string; engine: string; opencodeRoot: string } {
   const candidates = [context.directory, context.worktree]
