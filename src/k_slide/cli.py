@@ -185,6 +185,8 @@ def _conflict_resolve(
         raise KSlideError(ErrorCode.SCHEMA_INVALID, "Conflict resolution payload schema is unsupported.")
     if not isinstance(payload.get("conflict_id"), str) or not payload["conflict_id"].strip():
         raise KSlideError(ErrorCode.SCHEMA_INVALID, "Conflict resolution requires an existing conflict_id.")
+    if "authority_evidence" in payload and not isinstance(payload["authority_evidence"], list):
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "authority_evidence must be a list of current EvidenceIR identities when supplied.")
     with run_lock(run_dir):
         bind_session(_run_root(root), session_id, run_dir.name)
         registry = resolve_authoritative_conflict(

@@ -672,6 +672,9 @@ class KSA23ConflictTests(unittest.TestCase):
         with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)), self.assertRaises(KSlideError) as raised:
             _conflict_resolve(root, run.name, json.dumps({"schema_version": "1.0", "conflict_id": conflict_id, "superseding_assertion_id": "caller-choice"}), None)
         self.assertEqual(raised.exception.code, ErrorCode.SCHEMA_INVALID)
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)), self.assertRaises(KSlideError) as raised:
+            _conflict_resolve(root, run.name, json.dumps({"schema_version": "1.0", "conflict_id": conflict_id, "authority_evidence": None}), None)
+        self.assertEqual(raised.exception.code, ErrorCode.SCHEMA_INVALID)
         manifest_path = storage_path(run, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json")
         original_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         self._runtime_contract(run, rules=[{"authority_config_id": "policy-v1", "priority": 10, "winner_selector": {"document_id": "doc-a"}, "loser_selector": {"document_id": "doc-b"}}])
