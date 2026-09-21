@@ -1,0 +1,545 @@
+{
+  "accepted_at": "2026-09-21T21:19:20Z",
+  "changed_files": [
+    {
+      "additions": 4,
+      "deletions": 3,
+      "path": ".opencode/agents/k-slide.md",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 2,
+      "path": ".opencode/commands/k-slide-continue.md",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": ".opencode/commands/k-slide.md",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 2,
+      "path": ".opencode/skills/k-slide/SKILL.md",
+      "status": "M"
+    },
+    {
+      "additions": 24,
+      "deletions": 0,
+      "path": ".opencode/tools/kslide.ts",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 1,
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "additions": 18,
+      "deletions": 0,
+      "path": "SOURCE_PROVENANCE.md",
+      "status": "M"
+    },
+    {
+      "additions": 95,
+      "deletions": 0,
+      "path": "schemas/conflict-registry.schema.json",
+      "status": "A"
+    },
+    {
+      "additions": 50,
+      "deletions": 3,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 1218,
+      "deletions": 0,
+      "path": "src/k_slide/conflicts.py",
+      "status": "A"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "src/k_slide/content_support.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "src/k_slide/deletion.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 0,
+      "path": "src/k_slide/ingest.py",
+      "status": "M"
+    },
+    {
+      "additions": 87,
+      "deletions": 0,
+      "path": "src/k_slide/rendering/reports.py",
+      "status": "M"
+    },
+    {
+      "additions": 89,
+      "deletions": 0,
+      "path": "src/k_slide/verify.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "tests/test_ksa19_employee_path.py",
+      "status": "M"
+    },
+    {
+      "additions": 623,
+      "deletions": 0,
+      "path": "tests/test_ksa23_conflicts.py",
+      "status": "A"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "tests/test_phase1.py",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 1,
+      "path": "tests/test_phase11.py",
+      "status": "M"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"pwd && printf '%s\\\\n' '--- RTK.md ---' && sed -n '1,240p' /Users/haewonkim/.codex/RTK.md && printf '%s\\\\n' '--- law.md ---' && sed -n '1,280p' /Users/haewonkim/.codex/law.md && printf '%s\\\\n' '--- git status ---' && git status --short --branch && printf '%s\\\\n' '--- refs ---' && git show -s --format='%H%n%P%n%D%n%s' c98d40e83284f7dab6b9e71263259426383908ba && git show -s --format='%H%n%P%n%D%n%s' 59590202cf8d6b6073c2510b110fc89ae0be221b\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git branch -avv && rtk git log --graph --decorate --oneline --all -30 && rtk git rev-list --ancestry-path --oneline 59590202cf8d6b6073c2510b110fc89ae0be221b..c98d40e83284f7dab6b9e71263259426383908ba && rtk git diff --stat c98d40e83284f7dab6b9e71263259426383908ba && rtk git diff --name-status c98d40e83284f7dab6b9e71263259426383908ba'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git merge-base 59590202cf8d6b6073c2510b110fc89ae0be221b c98d40e83284f7dab6b9e71263259426383908ba && rtk git merge-base --is-ancestor 59590202cf8d6b6073c2510b110fc89ae0be221b c98d40e83284f7dab6b9e71263259426383908ba; printf 'ancestor_status=%s\\\\n' \\\"\"'$?\"; rtk git merge-base --is-ancestor c98d40e83284f7dab6b9e71263259426383908ba 59590202cf8d6b6073c2510b110fc89ae0be221b; printf '\"'reverse_status=%s\\\\n' \\\"\"'$?\"; printf '\"'%s\\\\n' '--- subject parents ---'; rtk git show -s --format=fuller c98d40e83284f7dab6b9e71263259426383908ba; printf '%s\\\\n' '--- base parents ---'; rtk git show -s --format=fuller 59590202cf8d6b6073c2510b110fc89ae0be221b; printf '%s\\\\n' '--- merge base ancestry ---'; rtk git log --oneline --decorate --ancestry-path 59590202cf8d6b6073c2510b110fc89ae0be221b..c98d40e83284f7dab6b9e71263259426383908ba\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files -g '\"'!*__pycache__*'\"' | sed -n '1,240p'; printf '%s\\\\n' '--- project config candidates ---'; rtk find . -maxdepth 3 -type f \\\\( -name 'pyproject.toml' -o -name 'setup.cfg' -o -name 'tox.ini' -o -name 'Makefile' -o -name 'package.json' -o -path './.github/workflows/*' -o -path './scripts/*' \\\\) -print | sort; printf '%s\\\\n' '--- test/workflow references ---'; rtk rg -n \\\"Python 3\\\\.11|Python 3\\\\.12|Phase 3\\\\.5|phase.?3\\\\.5|unittest|compileall|pytest|KSA-23|conflict\\\" .github Makefile pyproject.toml setup.cfg tox.ini scripts tests src 2>/dev/null | sed -n '1,320p'\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 19083,
+        "output_sha256": "a9fa73b0198f283be145bb3560f47573e81528f9fb3eb22843cee5d80edabd55",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,220p' .github/workflows/k-slide.yml; printf '%s\\\\n' '--- phase workflow ---'; rtk sed -n '1,260p' .github/workflows/k-slide-phase32.yml; printf '%s\\\\n' '--- pyproject ---'; rtk sed -n '1,220p' pyproject.toml; printf '%s\\\\n' '--- workflows list ---'; rtk proxy find .github/workflows -maxdepth 1 -type f -print | sort; printf '%s\\\\n' '--- phase35 test ---'; rtk sed -n '1,380p' tests/test_phase35.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git switch --detach c98d40e83284f7dab6b9e71263259426383908ba && rtk git switch --force-create codex/k-slide-chg16-conflict-supersession-01-fix02-verify01 c98d40e83284f7dab6b9e71263259426383908ba && rtk git status --short --branch && rtk git rev-parse HEAD && rtk git diff --exit-code c98d40e83284f7dab6b9e71263259426383908ba -- && rtk git diff --cached --exit-code && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' tests/test_ksa23_conflicts.py; printf '%s\\\\n' '--- KSA23 test methods ---'; rtk rg -n '\"'^    def test_'\"' tests/test_ksa23_conflicts.py; printf '%s\\\\n' '--- KSA22 methods ---'; rtk rg -n '\"'^    def test_'\"' tests/test_ksa22_provenance.py; printf '%s\\\\n' '--- KSA21 methods ---'; rtk rg -n '\"'^    def test_'\"' tests/test_ksa21_adversarial_security.py; printf '%s\\\\n' '--- KSA15-20 and host test files ---'; rtk proxy find tests -maxdepth 1 -type f -print | sort | rtk rg 'ksa19|ksa20|ksa21|ksa22|chg16_accesskey_nonleakage|chg16_authentication_transport|chg16_host_integration|chg16_classification_admission|chg16_controlled|chg16_default|chg16_deletion|chg16_environment|chg16_foundation|chg16_retention|phase1|phase11|phase21|phase32|phase33|phase34|phase35'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3.11 --version; rtk python3.12 --version; rtk python --version; rtk git remote -v; rtk git ls-remote --heads origin codex/k-slide-chg16-conflict-supersession-01-fix02-verify01 refs/heads/main refs/heads/codex/k-slide-chg16-conflict-supersession-01-fix02'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src:. python3.11 -m unittest discover -s tests -p 'test_ksa23_conflicts.py' -v && PYTHONPATH=src:. python3.11 -m unittest discover -s tests -p 'test_ksa22_provenance.py' -v && PYTHONPATH=src:. python3.11 -m unittest discover -s tests -p 'test_ksa21_adversarial_security.py' -v\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"set -o pipefail\nPYTHONPATH=src:. python3.11 -m unittest discover -s tests -p 'test_chg16_accesskey_nonleakage.py' -v\nPYTHONPATH=src:. python3.11 -m unittest discover -s tests -p 'test_chg16_classification_admission.py' -v\nPYTHONPATH=src:. python3.11 -m unittest discover -s tests -p 'test_chg17_run_scope_authorization.py' -v\nPYTHONPATH=src:. python3.11 -m unittest discover -s tests -p 'test_chg16_authentication_transport.py' -v\nPYTHONPATH=src:. python3.11 -m unittest discover -s tests -p 'test_chg18_accesskey_handoff.py' -v\nPYTHONPATH=src:. python3.11 -m unittest discover -s tests -p 'test_chg18_default_deny_egress.py' -v\nPYTHONPATH=src:. python3.11 -m unittest discover -s tests -p 'test_chg16_host_integration.py' -v\nPYTHONPATH=src:. python3.11 -m unittest discover -s tests -p 'test_chg16_environment_binding.py' -v\nPYTHONPATH=src:. python3.11 -m unittest discover -s tests -p 'test_ksa19_employee_path.py' -v\nPYTHONPATH=src:. python3.11 -m unittest discover -s tests -p 'test_ksa19_governed_termbase.py' -v\nPYTHONPATH=src:. python3.11 -m unittest discover -s tests -p 'test_ksa20_controlled_content_support.py' -v\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. python3.11 -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src:. python3.12 -m unittest discover -s tests -q'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'verify_py312_env=$(rtk proxy mktemp -d)\nrtk python3.12 -m venv \"$verify_py312_env\"\nrtk \"$verify_py312_env/bin/python\" -m pip install --disable-pip-version-check --no-input '\"'Pillow>=10,<13' 'PyMuPDF>=1.24,<2' 'python-pptx>=0.6.23,<2' 'pytest>=8,<9' 'fonttools>=4,<5'\nrtk \\\"\"'$verify_py312_env/bin/python\" --version\nPYTHONPATH=src:. rtk \"$verify_py312_env/bin/python\" -m unittest discover -s tests -q\nprintf '\"'VERIFY_PY312_ENV=%s\\\\n' \\\"\"'$verify_py312_env\"'",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 7659,
+        "output_sha256": "a832675ddc24903ed8e4a222f5076452caae6cc309782cb4c7a7bf7b83aa8d4a",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'verify_compile_root=$(rtk proxy mktemp -d)\nverify_json_root=$(rtk proxy mktemp -d)\nPYTHONPYCACHEPREFIX=\"$verify_compile_root/py311\" rtk python3.11 -m compileall -q src tests evals\nPYTHONPYCACHEPREFIX=\"$verify_compile_root/py312\" rtk python3.12 -m compileall -q src tests evals\nPYTHONPATH=src:. rtk python3.11 - \"$verify_json_root\" <<'\"'PY'\nimport json\nimport subprocess\nimport sys\nfrom pathlib import Path\n\nroot = Path.cwd()\ntracked = subprocess.check_output([\\\"git\\\", \\\"ls-files\\\", \\\"*.json\\\"], text=True).splitlines()\nparsed = 0\nfor name in tracked:\n    path = root / name\n    with path.open(encoding=\\\"utf-8\\\") as handle:\n        json.load(handle)\n    parsed += 1\nschema_paths = sorted((root / \\\"schemas\\\").glob(\\\"*.json\\\"))\nfor path in schema_paths:\n    with path.open(encoding=\\\"utf-8\\\") as handle:\n        document = json.load(handle)\n    if not isinstance(document, dict) or \\\"\"'$schema\" not in document:\n        raise SystemExit(f\"schema metadata missing: {path}\")\nprint(f\"JSON_PARSE_PASS tracked={parsed} schemas={len(schema_paths)}\")\nPY\nPYTHONPATH=src:. rtk python3.12 - \"$verify_json_root\" <<'\"'PY'\nimport json\nimport subprocess\nfrom pathlib import Path\n\nroot = Path.cwd()\ntracked = subprocess.check_output([\\\"git\\\", \\\"ls-files\\\", \\\"*.json\\\"], text=True).splitlines()\nfor name in tracked:\n    with (root / name).open(encoding=\\\"utf-8\\\") as handle:\n        json.load(handle)\nprint(f\\\"JSON_PARSE_PASS_PY312 tracked={len(tracked)}\\\")\nPY\nrtk git diff --exit-code c98d40e83284f7dab6b9e71263259426383908ba --\nrtk git diff --cached --exit-code\nrtk git diff --check\nrtk git status --short --branch\nrtk git rev-parse HEAD\nrtk git merge-base --is-ancestor 59590202cf8d6b6073c2510b110fc89ae0be221b HEAD\nprintf 'BASE_ANCESTOR_PASS=%s\\\\n' \\\"\"'$?\"\nrtk git diff-tree --no-commit-id --name-status -r c98d40e83284f7dab6b9e71263259426383908ba\nprintf '\"'COMPILE_ROOT=%s\\\\nJSON_ROOT=%s\\\\n' \\\"\"'$verify_compile_root\" \"$verify_json_root\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git push --set-upstream origin codex/k-slide-chg16-conflict-supersession-01-fix02-verify01'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git ls-remote --heads origin codex/k-slide-chg16-conflict-supersession-01-fix02-verify01 && rtk gh run list --repo kimhw8084/k-slide --branch codex/k-slide-chg16-conflict-supersession-01-fix02-verify01 --limit 20 --json databaseId,workflowName,headSha,status,conclusion,event,createdAt,updatedAt,url'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy sleep 10; rtk gh run list --repo kimhw8084/k-slide --branch codex/k-slide-chg16-conflict-supersession-01-fix02-verify01 --limit 20 --json databaseId,workflowName,headSha,status,conclusion,event,createdAt,updatedAt,url'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy sleep 15; rtk gh run list --repo kimhw8084/k-slide --branch codex/k-slide-chg16-conflict-supersession-01-fix02-verify01 --limit 20 --json databaseId,workflowName,headSha,status,conclusion,event,createdAt,updatedAt,url'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk gh api repos/kimhw8084/k-slide/actions/runs -f head_sha=c98d40e83284f7dab6b9e71263259426383908ba -f per_page=100 --jq '.workflow_runs[] | {id,name,head_sha,status,conclusion,event,created_at,updated_at,html_url}'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk gh api repos/kimhw8084/k-slide --jq '{full_name,default_branch,actions:visibility}' && rtk gh api -X GET repos/kimhw8084/k-slide/actions/runs -f head_sha=c98d40e83284f7dab6b9e71263259426383908ba -f per_page=100 --jq '.workflow_runs[] | {id,name,head_sha,status,conclusion,event,created_at,updated_at,html_url}'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk gh api repos/kimhw8084/k-slide --jq '{full_name,default_branch}' || true\nrtk gh api -X GET repos/kimhw8084/k-slide/actions/runs -f head_sha=c98d40e83284f7dab6b9e71263259426383908ba -f per_page=100 --jq '.workflow_runs[] | {id,name,head_sha,status,conclusion,event,created_at,updated_at,html_url}' || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk gh run list --repo kimhw8084/k-slide --limit 20 --json databaseId,workflowName,headSha,status,conclusion,event,createdAt,updatedAt,url || true\nprintf '%s\\\\n' '--- workflow registrations ---'\nrtk gh workflow list --repo kimhw8084/k-slide --all || true\nprintf '%s\\\\n' '--- actions permissions ---'\nrtk gh api repos/kimhw8084/k-slide/actions/permissions --jq '{enabled,allowed_actions,sha_pinning_required}' || true\nprintf '%s\\\\n' '--- branch commit ---'\nrtk gh api repos/kimhw8084/k-slide/branches/codex/k-slide-chg16-conflict-supersession-01-fix02-verify01 --jq '{name,sha:.commit.sha,protected}' || true\nprintf '%s\\\\n' '--- recent events for exact SHA ---'\nrtk gh api -X GET repos/kimhw8084/k-slide/actions/runs -f head_sha=c98d40e83284f7dab6b9e71263259426383908ba -f per_page=100 --jq '.total_count' || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy sleep 30; rtk gh run list --repo kimhw8084/k-slide --branch codex/k-slide-chg16-conflict-supersession-01-fix02-verify01 --limit 20 --json databaseId,workflowName,headSha,status,conclusion,event,createdAt,updatedAt,url'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk gh api repos/kimhw8084/k-slide/events?per_page=30 --jq '.[] | select(.type == \\\"PushEvent\\\") | {id,created_at,ref,head:.payload.head,distinct:.payload.distinct_size}' | sed -n '1,120p' || true\nprintf '%s\\\\n' '--- phase workflow dispatch ---'\nrtk gh workflow run k-slide-phase32.yml --repo kimhw8084/k-slide --ref codex/k-slide-chg16-conflict-supersession-01-fix02-verify01 || true\nprintf '%s\\\\n' '--- k-slide dispatch probe ---'\nrtk gh workflow run k-slide.yml --repo kimhw8084/k-slide --ref codex/k-slide-chg16-conflict-supersession-01-fix02-verify01 || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk gh pr create --repo kimhw8084/k-slide --base main --head codex/k-slide-chg16-conflict-supersession-01-fix02-verify01 --title 'VERIFY KSA-23 FIX02 exact subject c98d40e' --body \"'$'\"'Evidence-only verification of exact subject c98d40e83284f7dab6b9e71263259426383908ba against base 59590202cf8d6b6073c2510b110fc89ae0be221b.\\\\n\\\\nNo product/source/test changes are added by this verification branch. Do not merge.'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy sleep 10; rtk gh run list --repo kimhw8084/k-slide --branch codex/k-slide-chg16-conflict-supersession-01-fix02-verify01 --limit 20 --json databaseId,workflowName,headSha,status,conclusion,event,createdAt,updatedAt,url'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run watch 35657364923 --repo kimhw8084/k-slide --exit-status'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run watch 35657364932 --repo kimhw8084/k-slide --exit-status'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk gh run view 35657364932 --repo kimhw8084/k-slide --json databaseId,workflowName,headSha,event,status,conclusion,jobs,url --jq '{databaseId,workflowName,headSha,event,status,conclusion,url,jobs:[.jobs[]|{name,conclusion,status,startedAt,completedAt}]}'\nrtk gh run view 35657364923 --repo kimhw8084/k-slide --json databaseId,workflowName,headSha,event,status,conclusion,jobs,url --jq '{databaseId,workflowName,headSha,event,status,conclusion,url,jobs:[.jobs[]|{name,conclusion,status,startedAt,completedAt}]}'\nprintf '%s\\\\n' '--- exact-head runs ---'\nrtk gh run list --repo kimhw8084/k-slide --branch codex/k-slide-chg16-conflict-supersession-01-fix02-verify01 --limit 20 --json databaseId,workflowName,headSha,status,conclusion,event,createdAt,updatedAt,url\nprintf '%s\\\\n' '--- previous audit evidence conventions ---'\nrtk git ls-tree -r --name-only codex-fabric/evidence/k-slide/chg16-conflict-supersession-01-fix02 | sed -n '1,200p'\nrtk git log -1 --format=fuller codex-fabric/evidence/k-slide/chg16-conflict-supersession-01-fix02\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show codex-fabric/evidence/k-slide/chg16-conflict-supersession-01-fix02:.codex-fabric/audit.json | sed -n '1,320p'; printf '%s\\\\n' '--- previous evidence directory refs ---'; rtk git ls-tree -r --name-only codex-fabric/evidence/k-slide/chg16-conflict-supersession-01-fix02 | rtk rg 'evidence|audit|RUN|json\"'$'\"' | sed -n '1,240p'; printf '%s\\\\n' '--- audit command docs ---'; rtk git show codex-fabric/evidence/k-slide/chg16-conflict-supersession-01-fix02:.opencode/commands/k-slide-audit.md | sed -n '1,260p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'for ref in $(rtk git for-each-ref --format='\"'%(refname:short)' 'refs/heads/codex-fabric/evidence/*verify*' 'refs/remotes/origin/codex-fabric/evidence/*verify*' 2>/dev/null | sort -u | head -20); do if rtk git cat-file -e \\\"\"'$ref:.codex-fabric/audit.json\" 2>/dev/null; then printf '\"'%s\\\\n' \\\"--- \"'$ref ---\"; rtk git show \"$ref:.codex-fabric/audit.json\" | sed -n '\"'1,180p'; fi; done\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"for ref in codex-fabric/evidence/k-slide/chg16-controlled-content-support-01-fix02-verify01 codex-fabric/evidence/k-slide/chg16-controlled-content-support-01-fix02-verify02 codex-fabric/evidence/k-slide/chg16-controlled-content-support-01-fix01-verify01; do printf '%s\\\\n' \\\"--- \"'$ref ---\"; rtk git show \"$ref:.codex-fabric/audit.json\" 2>/dev/null | sed -n '\"'1,220p' || true; done\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show codex-fabric/evidence/k-slide/chg16-controlled-content-support-01-fix02-verify02:.codex-fabric/audit.json | rtk rg -n 'fabric|release|policy|transport|job_id|evidence_ref|target_drift|remote|ancestry|predecessor|project_id' || true\nfor ref in codex-fabric/evidence/k-slide/chg16-default-deny-egress-01-fix05 codex-fabric/evidence/k-slide/chg16-accesskey-nonleakage-01-fix04 codex-fabric/evidence/k-slide/chg16-controlled-content-support-01-fix02-verify02; do printf '%s\\\\n' \\\"--- \"'$ref top-level keys ---\"; rtk git show \"$ref:.codex-fabric/audit.json\" 2>/dev/null | rtk python3.11 -c '\"'import json,sys; x=json.load(sys.stdin); print(sorted(x)); print(json.dumps({k:x[k] for k in x if k in (\\\"fabric\\\",\\\"metadata\\\",\\\"publisher\\\",\\\"transport\\\",\\\"policy\\\",\\\"release\\\",\\\"job_id\\\",\\\"evidence_ref\\\",\\\"target_drift\\\")},sort_keys=True,indent=2))' || true; done\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show codex-fabric/evidence/k-slide/chg16-default-deny-egress-01-fix05:.codex-fabric/audit.json | sed -n '1,260p'; printf '%s\\\\n' '--- accesskey audit ---'; rtk git show codex-fabric/evidence/k-slide/chg16-accesskey-nonleakage-01-fix04:.codex-fabric/audit.json | sed -n '1,220p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- Fabric audit references in local workspace ---'; rtk rg -n --hidden --glob '\"'!**/.git/**'\"' 'fabric.*(release|policy|transport)|transport.*(metadata|policy)|audit envelope|job_id' /Users/haewonkim/.codex-fabric /Users/haewonkim/.codex 2>/dev/null | sed -n '1,300p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n --hidden --glob '\"'!backups/**'\"' --glob '\"'!*worktrees/**'\"' --glob '\"'!*repos/**'\"' 'RELEASE_VERSION|fabric_release|policy_sha256|transport_sha256|execution_policy|transport_version' /Users/haewonkim/.codex-fabric 2>/dev/null | sed -n '1,260p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- current release target ---'; rtk proxy readlink /Users/haewonkim/.codex-fabric/current || true; rtk proxy readlink -f /Users/haewonkim/.codex-fabric/current || true; printf '%s\\\\n' '--- release constants ---'; rtk rg -n '\"'^RELEASE_VERSION|''^PROTOCOL|''^.*POLICY|''^.*TRANSPORT'\"' /Users/haewonkim/.codex-fabric/releases/1.2.4-quota-recovery-candidate/fabric.py /Users/haewonkim/.codex-fabric/releases/1.2.4-quota-recovery-candidate/* 2>/dev/null | sed -n '1,160p'; printf '%s\\\\n' '--- active health/status ---'; rtk sed -n '1,120p' /Users/haewonkim/.codex-fabric/health.json 2>/dev/null || true; rtk sed -n '1,180p' /Users/haewonkim/.codex-fabric/status.json 2>/dev/null || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,240p' /Users/haewonkim/.codex-fabric/config/execution.toml; printf '%s\\\\n' '--- policy files ---'; rtk proxy find /Users/haewonkim/.codex-fabric/config -maxdepth 1 -type f -print | sort; printf '%s\\\\n' '--- active status files ---'; rtk proxy find /Users/haewonkim/.codex-fabric -maxdepth 2 -type f \\\\( -name 'health.json' -o -name 'status.json' -o -name 'registry.json' \\\\) -print | sort | sed -n '1,100p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- Fabric job states ---'; rtk proxy find /Users/haewonkim/.codex-fabric/jobs -maxdepth 1 -type f -print 2>/dev/null | sort | tail -80; printf '%s\\\\n' '--- Fabric results ---'; rtk proxy find /Users/haewonkim/.codex-fabric/results -maxdepth 2 -type f -print 2>/dev/null | sort | tail -80; printf '%s\\\\n' '--- Fabric root dirs ---'; rtk proxy find /Users/haewonkim/.codex-fabric -maxdepth 1 -mindepth 1 -print | sort\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,280p' /Users/haewonkim/.codex-fabric/audit.json; printf '%s\\\\n' '--- recent result summaries ---'; for p in \"'$(rtk proxy find /Users/haewonkim/.codex-fabric/results -maxdepth 2 -name result.json -print | sort | tail -8); do printf '\"'%s\\\\n' \\\"--- \"'$p\"; rtk python3.11 - \"$p\" <<'\"'PY'\nimport json,sys\nfrom pathlib import Path\nx=json.loads(Path(sys.argv[1]).read_text())\nprint({k:x.get(k) for k in ('job_id','project_id','operation','request','status','finished_at','fabric_capture')})\nPY\ndone\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run watch 35657227618 --repo kimhw8084/k-slide --exit-status'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -l 'conflict-supersession|fix02-verify01|KSA-23' /Users/haewonkim/.codex-fabric/results /Users/haewonkim/.codex-fabric/runs 2>/dev/null | sed -n '1,120p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,300p' /Users/haewonkim/.codex-fabric/results/CF-37c6b378950fc21cb7f6ac69/job-summary.json 2>/dev/null || true; printf '%s\\\\n' '--- current result ---'; rtk sed -n '1,320p' /Users/haewonkim/.codex-fabric/results/CF-37c6b378950fc21cb7f6ac69/result.json 2>/dev/null || true; printf '%s\\\\n' '--- codex event request metadata ---'; rtk rg -n 'fabric_release|job_id|transport|policy|request|project|operation' /Users/haewonkim/.codex-fabric/results/CF-37c6b378950fc21cb7f6ac69/codex.events.jsonl | sed -n '1,160p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -l 'CF-37c6b378950fc21cb7f6ac69' /Users/haewonkim/.codex-fabric --hidden --glob '\"'!backups/**'\"' --glob '\"'!**/codex.events.jsonl'\"' 2>/dev/null | sed -n '1,160p'; printf '%s\\\\n' '--- current job metadata candidates ---'; rtk proxy find /Users/haewonkim/.codex-fabric -type f -name '*CF-37c6b378950fc21cb7f6ac69*' -print 2>/dev/null | sed -n '1,160p'; printf '%s\\\\n' '--- execution config hashes ---'; rtk shasum -a 256 /Users/haewonkim/.codex-fabric/config/execution.toml /Users/haewonkim/.codex-fabric/config/codex-env.allowlist /Users/haewonkim/.codex-fabric/config/notifier-env.allowlist\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,300p' /Users/haewonkim/.codex-fabric/jobs/CF-37c6b378950fc21cb7f6ac69.running/job.json; printf '%s\\\\n' '--- launcher log tail ---'; rtk tail -80 /Users/haewonkim/.codex-fabric/logs/CF-37c6b378950fc21cb7f6ac69.launcher.log\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"printf '%s\\\\n' '--- exact remote refs ---'\nrtk git ls-remote origin refs/heads/main refs/heads/codex/k-slide-chg16-conflict-supersession-01-fix02-verify01\nprintf '%s\\\\n' '--- local refs/status ---'\nrtk git show-ref refs/heads/main refs/remotes/origin/main refs/heads/codex/k-slide-chg16-conflict-supersession-01-fix02-verify01\nrtk git status --short --branch\nprintf '%s\\\\n' '--- ancestry ---'\nrtk git show -s --format='%H%n%P%n%s' HEAD\nrtk git merge-base --is-ancestor 59590202cf8d6b6073c2510b110fc89ae0be221b HEAD; printf 'base_is_ancestor=%s\\\\n' \\\"\"'$?\"\nrtk git merge-base --is-ancestor 9e6d615dc619c0ebba1517c76025bb4b2853a2a2 HEAD; printf '\"'predecessor_is_ancestor=%s\\\\n' \\\"\"'$?\"\nprintf '\"'%s\\\\n' '--- exact workflow results ---'\nrtk gh run view 35657364909 --repo kimhw8084/k-slide --json databaseId,workflowName,headSha,event,status,conclusion,jobs,url --jq '{databaseId,workflowName,headSha,event,status,conclusion,url,jobs:[.jobs[]|{name,conclusion,status}]}'\nrtk gh run view 35657227618 --repo kimhw8084/k-slide --json databaseId,workflowName,headSha,event,status,conclusion,jobs,url --jq '{databaseId,workflowName,headSha,event,status,conclusion,url,jobs:[.jobs[]|{name,conclusion,status}]}'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rev-parse c98d40e83284f7dab6b9e71263259426383908ba''^{tree} 59590202cf8d6b6073c2510b110fc89ae0be221b''^{tree} 9e6d615dc619c0ebba1517c76025bb4b2853a2a2''^{tree}; rtk python3.11 - <<'\"'PY'\nimport hashlib\nimport json\npayload = {\n    \\\"project_id\\\": \\\"k-slide\\\",\n    \\\"operation\\\": \\\"VERIFY\\\",\n    \\\"request\\\": \\\"chg16-conflict-supersession-01-fix02-verify01\\\",\n    \\\"base_sha\\\": \\\"59590202cf8d6b6073c2510b110fc89ae0be221b\\\",\n    \\\"predecessor_sha\\\": \\\"9e6d615dc619c0ebba1517c76025bb4b2853a2a2\\\",\n    \\\"candidate_sha\\\": \\\"c98d40e83284f7dab6b9e71263259426383908ba\\\",\n    \\\"work_branch\\\": \\\"codex/k-slide-chg16-conflict-supersession-01-fix02-verify01\\\",\n}\nraw = json.dumps(payload, sort_keys=True, separators=(\\\",\\\", \\\":\\\")).encode()\nprint(hashlib.sha256(raw).hexdigest())\nPY\nprintf '%s\\\\n' '--- current job metadata hash fields ---'\nrtk python3.11 - <<'PY'\nimport json\nfrom pathlib import Path\np=Path('/Users/haewonkim/.codex-fabric/jobs/CF-37c6b378950fc21cb7f6ac69.running/job.json')\nif p.exists():\n  x=json.loads(p.read_text())\n  print(json.dumps({k:x.get(k) for k in ('fabric_release','job_id','operation','project_id','request','accepted_at','envelope','transport_bytes','transport_sha256','prompt_bytes','prompt_sha256','registry_sha256','execution_policy','environment_policy_sha256')}, sort_keys=True, indent=2))\nelse:\n  print('job_metadata_not_in_running_path')\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk gh pr close 22 --repo kimhw8084/k-slide --comment 'Verification complete; exact-head CI evidence recorded. No merge performed.'\nrtk gh pr view 22 --repo kimhw8084/k-slide --json number,state,headRefName,headRefOid,baseRefName,mergedAt,url --jq '{number,state,headRefName,headRefOid,baseRefName,mergedAt,url}'\nrtk git ls-remote --heads origin codex/k-slide-chg16-conflict-supersession-01-fix02-verify01 refs/heads/main\nrtk git status --short --branch\nrtk git diff --exit-code c98d40e83284f7dab6b9e71263259426383908ba --\nrtk git diff --cached --exit-code\nrtk git diff --check\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk gh run view 35657227618 --repo kimhw8084/k-slide --log-failed | tail -80'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.155.1",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 118,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 96.64,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 5680896,
+      "fresh_input_tokens": 197429,
+      "input_tokens": 5878325,
+      "non_reasoning_output_tokens": 16318,
+      "output_tokens": 33873,
+      "reasoning_output_tokens": 17555,
+      "total_processed_tokens": 5912198
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "c98d40e83284f7dab6b9e71263259426383908ba",
+      "subject": "fix: require explicit KSA-23 conflict assessment"
+    },
+    {
+      "sha": "9e6d615dc619c0ebba1517c76025bb4b2853a2a2",
+      "subject": "fix: wire KSA-23 conflict assessment and authority semantics"
+    },
+    {
+      "sha": "595e8d1bc5ff3d9a8e11825c7e838aeb6531590b",
+      "subject": "fabric: capture completed model changes [CF-d92f009d77bff14ff781b412]"
+    }
+  ],
+  "diff": {
+    "additions": 2239,
+    "changed_files": 20,
+    "commit_count": 3,
+    "deletions": 16
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 7,
+    "items": [
+      {
+        "bytes": 3291,
+        "path": ".opencode/agents/k-slide.md",
+        "sha256": "1cf7df4c587cd0169a846e2f754c5cffad63cb8020226f47e6f76a6ed7efa7bf"
+      },
+      {
+        "bytes": 1029,
+        "path": ".opencode/commands/k-slide-continue.md",
+        "sha256": "4f01cc666981b032c42468e20665b091ea3ffdb37057af4b191adeed2de607ed"
+      },
+      {
+        "bytes": 1277,
+        "path": ".opencode/commands/k-slide.md",
+        "sha256": "dbe2918c1470c64f2a20cd8135ef22f593ec52365836042023ae5a7f3119ddba"
+      },
+      {
+        "bytes": 3154,
+        "path": ".opencode/skills/k-slide/SKILL.md",
+        "sha256": "57b76190c52ee1e1e5fc46f865ef112b121fa572cdeee3437b7a9ff487cb1c62"
+      },
+      {
+        "bytes": 13710,
+        "path": "README.md",
+        "sha256": "bc62576eca1256c1447463df8180ac6846c1afd3f848a8eed66e1b5a5592257e"
+      },
+      {
+        "bytes": 5369,
+        "path": "SOURCE_PROVENANCE.md",
+        "sha256": "58fe39fa385563005700371215656fc4a931e699ae67bf773261c0d308fd3a3b"
+      },
+      {
+        "bytes": 5284,
+        "path": "schemas/conflict-registry.schema.json",
+        "sha256": "77d685c06c249a102d06fe2e21130420a5d08d9bbb940b2a98d7dea62c0702ae"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.4-quota-recovery-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.4-quota-recovery-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-21T21:35:16Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "59590202cf8d6b6073c2510b110fc89ae0be221b",
+    "branch": "codex/k-slide-chg16-conflict-supersession-01-fix02-verify01",
+    "detached_verify": false,
+    "head_sha": "c98d40e83284f7dab6b9e71263259426383908ba",
+    "remote_exact_head": true,
+    "remote_head_sha": "c98d40e83284f7dab6b9e71263259426383908ba",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "59590202cf8d6b6073c2510b110fc89ae0be221b",
+    "work_branch": "codex/k-slide-chg16-conflict-supersession-01-fix02-verify01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-37c6b378950fc21cb7f6ac69",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-conflict-supersession-01-fix02-verify01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-conflict-supersession-01-fix02-verify01"
+  },
+  "operation": "VERIFY",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.4-quota-recovery-candidate",
+    "policy_sha256": "a642c9f63bab2cb555704bdb0b9d1f28222591f133f934c1d0f93cc5a25ab8a1",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-conflict-supersession-01-fix02-verify01",
+  "schema_version": 1,
+  "started_at": "2026-09-21T21:19:20Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 956,
+    "queue_seconds": 0,
+    "total_seconds": 956
+  },
+  "transport": {
+    "bytes": 3298,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 2944,
+    "prompt_sha256": "d723fd9220c10112ce076a2e9741b7e14545eeeb0d19188bfd7a29dfe88e6544",
+    "sha256": "37c6b378950fc21cb7f6ac69473f65d62f54a67e78c4c2f77efffb04aa8b6f77"
+  }
+}
