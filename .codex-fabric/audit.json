@@ -1,0 +1,505 @@
+{
+  "accepted_at": "2026-09-21T13:27:38Z",
+  "changed_files": [
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": ".opencode/agents/k-slide.md",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": ".opencode/skills/k-slide/SKILL.md",
+      "status": "M"
+    },
+    {
+      "additions": 8,
+      "deletions": 0,
+      "path": ".opencode/tools/kslide.ts",
+      "status": "M"
+    },
+    {
+      "additions": 15,
+      "deletions": 0,
+      "path": "SOURCE_PROVENANCE.md",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 3,
+      "path": "prompts/translation/v1.md",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 4,
+      "path": "schemas/slide-ir.schema.json",
+      "status": "M"
+    },
+    {
+      "additions": 10,
+      "deletions": 1,
+      "path": "schemas/translation-patch.schema.json",
+      "status": "M"
+    },
+    {
+      "additions": 130,
+      "deletions": 5,
+      "path": "src/k_slide/ir.py",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 2,
+      "path": "src/k_slide/model.py",
+      "status": "M"
+    },
+    {
+      "additions": 29,
+      "deletions": 10,
+      "path": "src/k_slide/rendering/reports.py",
+      "status": "M"
+    },
+    {
+      "additions": 8,
+      "deletions": 0,
+      "path": "src/k_slide/semantics.py",
+      "status": "M"
+    },
+    {
+      "additions": 173,
+      "deletions": 16,
+      "path": "src/k_slide/translation.py",
+      "status": "M"
+    },
+    {
+      "additions": 6,
+      "deletions": 5,
+      "path": "src/k_slide/translation_contract.py",
+      "status": "M"
+    },
+    {
+      "additions": 130,
+      "deletions": 0,
+      "path": "src/k_slide/verify.py",
+      "status": "M"
+    },
+    {
+      "additions": 205,
+      "deletions": 0,
+      "path": "tests/test_ksa22_provenance.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"pwd && git status --short --branch && git rev-parse HEAD && git branch --show-current && sed -n '1,240p' /Users/haewonkim/.codex/RTK.md && sed -n '1,260p' /Users/haewonkim/.codex/law.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files -g '\"'!*.pyc'\"' -g '\"'!__pycache__'\"' | sed -n '1,240p' && rtk rg -n \\\"EvidenceIR|TranslationPatch|SlideIR|provenance|uncertainty|unresolved|kslide_evidence|WORK_QUEUE|RUN_COMPLETE|1\\\\.0|KSA-21|KSA-20|KSA-15\\\" . -g '\"'!*.pyc'\"' -g '\"'!__pycache__'\"'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,280p' src/k_slide/semantics.py && rtk sed -n '1,360p' src/k_slide/ir.py && rtk sed -n '1,360p' src/k_slide/translation_contract.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,440p' src/k_slide/translation.py && rtk sed -n '1,360p' src/k_slide/evidence_ir.py && rtk sed -n '1,380p' src/k_slide/fusion.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,380p' src/k_slide/verify.py && rtk sed -n '1,440p' src/k_slide/rendering/reports.py && rtk sed -n '1,220p' src/k_slide/__init__.py && rtk sed -n '1,320p' src/k_slide/runtime_artifact.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,300p' src/k_slide/rendering/reports.py && rtk sed -n '1,260p' schemas/translation-patch.schema.json && rtk sed -n '1,320p' schemas/slide-ir.schema.json && rtk sed -n '1,260p' schemas/evidence-ir.schema.json\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"parse_translation_patch|merge_evidence_patch|TranslationRegionPatch|executive_claims|visual_interpretations|SlideIR.from_dict|render_run|canonical_ir\\\" tests src/k_slide -g '*.py' | sed -n '1,260p' && rtk rg -n \\\"translation_patch|slide_ir|schema_version\\\" src/k_slide tests/fixtures tests -g '*.py' | sed -n '1,320p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,190p' src/k_slide/cli.py && rtk sed -n '320,470p' src/k_slide/cli.py && rtk sed -n '1,260p' src/k_slide/opencode_bootstrap.py && rtk sed -n '1,260p' tests/test_phase34.py && rtk sed -n '1,230p' tests/test_phase35.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,360p' .opencode/tools/kslide.ts && rtk sed -n '1,220p' src/k_slide/model.py && rtk sed -n '1,220p' tests/fixtures/translation_patch_full.json && rtk sed -n '1,260p' tests/test_phase1.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,280p' tests/reference_fixtures.py && rtk sed -n '80,230p' src/k_slide/environment.py && rtk sed -n '220,260p' src/k_slide/certification.py && rtk sed -n '1,120p' src/k_slide/errors.py && rtk sed -n '1,180p' src/k_slide/queue.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '390,435p' tests/test_certification_closure.py && rtk sed -n '1,120p' tests/test_chg16_environment_binding.py && rtk rg -n '\\\"translation_patch\\\"|translation_patch_schema_version|slide_ir_schema_version|\\\"slide_ir\\\"' tests -g '*.py' | sed -n '1,200p' && rtk rg -n 'schema_version.*1\\\\.0|schema_version.*1\\\\.1|source_fact|supported_interpretation' .opencode src tests schemas docs -g '*.py' -g '*.ts' -g '*.json' -g '*.md' | sed -n '1,220p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '270,350p' tests/test_certification_closure.py && rtk sed -n '100,210p' src/k_slide/cli.py && rtk sed -n '1,180p' src/k_slide/installer.py && rtk sed -n '1,180p' src/k_slide/completion.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '680,760p' src/k_slide/certification.py && rtk sed -n '1020,1085p' src/k_slide/certification.py && rtk sed -n '1040,1140p' src/k_slide/environment.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'STALE_EVIDENCE|KSLIDE_SCHEMA_INVALID|UNRESOLVED_UNDISCLOSED|EVIDENCE_COVERAGE' tests -g '*.py' | sed -n '1,220p' && rtk rg -n 'slide\\\\.unresolved|unresolved_reason|VisualRelation\\\\(|TableCell\\\\(|TextRegion\\\\(' tests src -g '*.py' | sed -n '1,260p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' SOURCE_PROVENANCE.md && rtk sed -n '1,200p' AGENTS.md && rtk python -m compileall -q src tests\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m unittest tests.test_phase34 tests.test_phase35 tests.test_phase1 tests.test_ksa21_adversarial_security'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_phase34 tests.test_phase35 tests.test_phase1 tests.test_ksa21_adversarial_security'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,150p' src/k_slide/storage.py && rtk sed -n '1,180p' src/k_slide/io.py && rtk sed -n '1,180p' src/k_slide/state.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nfrom k_slide.evidence_ir import EvidenceIR, EvidenceRegion, EvidenceTable, EvidenceTableCell\nfrom k_slide.translation import parse_translation_patch, merge_evidence_patch\nfrom k_slide.errors import KSlideError\n\nevidence = EvidenceIR('d','u',{}, regions=(EvidenceRegion('r1', selected_literal_candidate='fact'), EvidenceRegion('r2', selected_literal_candidate='interp'), EvidenceRegion('r3', selected_literal_candidate='?')), tables=(EvidenceTable('t1',row_count=1,column_count=1,cells=(EvidenceTableCell('c1',0,0,source_text='x'),)),), visual_elements=({'element_id':'v1','kind':'shape'},), required_source_ids=('r1','r2','r3','t1','c1','v1')).with_revision()\npayload={'schema_version':'1.0','work_unit_id':'u','evidence_revision':evidence.evidence_revision,'regions':[{'region_id':'r1','english':'Fact','term_ids':[],'unresolved':False,'provenance':'source_fact','evidence_ids':['r1']},{'region_id':'r2','english':'Interp','term_ids':[],'unresolved':False,'provenance':'supported_interpretation','evidence_ids':['r2']},{'region_id':'r3','english':'Unknown','term_ids':[],'unresolved':True,'unresolved_reason':'blur','provenance':'unresolved','evidence_ids':['r3']}],'tables':[{'table_id':'t1','cells':[{'cell_id':'c1','english':'Cell','unresolved':False,'provenance':'supported_interpretation','evidence_ids':['c1']}]}],'visual_interpretations':[{'relation_id':'rel','interpretation':'Flow','evidence_ids':['r2'],'provenance':'supported_interpretation'}],'executive_claims':[{'claim_id':'c','kind':'takeaway','text':'Open','evidence_ids':['r3'],'uncertainty':'high','provenance':'unresolved','unresolved_reason':'blur'}]}\npatch=parse_translation_patch(payload); patch.validate_against(evidence); slide=merge_evidence_patch(evidence,patch)\nprint(slide.regions[0].provenance, slide.regions[1].provenance, slide.regions[2].provenance, slide.unresolved)\ntry:\n bad=dict(payload); bad['regions']=[dict(payload['regions'][0], provenance='bogus')]; parse_translation_patch(bad)\nexcept KSlideError as e: print(e.code.value)\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff -- src/k_slide/semantics.py src/k_slide/translation_contract.py src/k_slide/translation.py src/k_slide/ir.py src/k_slide/verify.py src/k_slide/rendering/reports.py src/k_slide/model.py .opencode/tools/kslide.ts schemas/translation-patch.schema.json schemas/slide-ir.schema.json | sed -n '1,1000p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk tail -n 16 SOURCE_PROVENANCE.md'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"def storage_path|STORAGE_ROOTS\\\" src/k_slide/storage.py && rtk sed -n '210,285p' src/k_slide/storage.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '570,635p' src/k_slide/storage.py && rtk sed -n '1,90p' src/k_slide/rendering/__init__.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_ksa22_provenance'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_ksa22_provenance'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m json.tool schemas/slide-ir.schema.json >/dev/null && rtk python -m json.tool schemas/translation-patch.schema.json >/dev/null && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python --version && rtk command -v python3.12 || true && rtk command -v python3.11 || true && rtk command -v mypy || true && rtk command -v ruff || true && rtk git status --short'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m compileall -q src tests && rtk env PYTHONPATH=src python3.12 -m compileall -q src tests && rtk env PYTHONPATH=src python3.12 -m unittest tests.test_ksa22_provenance tests.test_phase34 tests.test_ksa21_adversarial_security'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n '\"'^class Termbase'\"' src/k_slide/terminology.py && rtk sed -n '1,55p' src/k_slide/terminology.py && rtk env PYTHONPATH=src python -m unittest tests.test_ksa22_provenance\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,240p' prompts/translation/v1.md && rtk rg -n \\\"Every executive claim|unresolved|TranslationPatch|source_fact|provenance\\\" .opencode prompts src/k_slide -g '*.md' -g '*.py' -g '*.ts' | sed -n '1,260p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,90p' .opencode/skills/k-slide/SKILL.md && rtk sed -n '42,64p' .opencode/agents/k-slide.md && rtk sed -n '1,80p' .opencode/skills/k-slide/references/output-contract.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '48,68p' .opencode/agents/k-slide.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_ksa22_provenance tests.test_phase34 tests.test_phase35 tests.test_ksa21_adversarial_security tests.test_ksa20_controlled_content_support tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_chg16_host_integration tests.test_chg16_storage_planes tests.test_chg16_durable_execution'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python3.12 -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files tests | sort | rg 'ksa|phase1[5-9]|chg16|chg17|chg18' && rtk git diff --check && rtk git status --short && rtk git diff --stat\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_classification_admission tests.test_chg16_deletion tests.test_chg16_durable_execution tests.test_chg16_environment_binding tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_chg16_opencode_bootstrap tests.test_chg16_paas_worker tests.test_chg16_retention_policy tests.test_chg16_scoped_admission tests.test_chg16_storage_planes tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_classification_admission tests.test_chg16_deletion tests.test_chg16_durable_execution tests.test_chg16_environment_binding tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_chg16_paas_worker tests.test_chg16_retention_policy tests.test_chg16_scoped_admission tests.test_chg16_storage_planes tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,140p' package.json 2>/dev/null || true && rtk command -v bun || true && rtk command -v node || true && rtk sed -n '1,220p' tests/test_chg16_opencode_plugin.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --no-ext-diff -- src/k_slide/translation.py src/k_slide/ir.py src/k_slide/verify.py src/k_slide/rendering/reports.py | sed -n '1,1200p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"class ProvenanceState|def _validate_provenance|def _validate_canonical_provenance|def _provenance_label|provenance_evidence_ids|PROVENANCE_VALUES|provenance:\\\" src/k_slide schemas .opencode/tools/kslide.ts tests/test_ksa22_provenance.py | sed -n '1,260p' && rtk git diff --check && rtk env PYTHONPATH=src python -m unittest tests.test_ksa22_provenance\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '50,92p' tests/test_ksa22_provenance.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_ksa22_provenance && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'evidence_ids' schemas/translation-patch.schema.json && rtk python -m json.tool schemas/translation-patch.schema.json >/dev/null\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python -m compileall -q src tests && rtk python -m json.tool schemas/slide-ir.schema.json >/dev/null && rtk python -m json.tool schemas/translation-patch.schema.json >/dev/null && rtk env PYTHONPATH=src python -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3.12 -m compileall -q src tests && rtk env PYTHONPATH=src python3.12 -m unittest tests.test_ksa22_provenance tests.test_phase34 tests.test_ksa21_adversarial_security'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git status --short && rtk git diff --stat && rtk git diff --numstat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git branch --show-current && rtk git rev-parse HEAD && rtk git diff --name-only'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.155.1",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 168,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 98.31,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 14773248,
+      "fresh_input_tokens": 253296,
+      "input_tokens": 15026544,
+      "non_reasoning_output_tokens": 32001,
+      "output_tokens": 54741,
+      "reasoning_output_tokens": 22740,
+      "total_processed_tokens": 15081285
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "44136fb634db17a61c7394f5f3b8ee8d83c0b593",
+      "subject": "fabric: capture completed model changes [CF-d155ea7ac67f37a6c4aed747]"
+    }
+  ],
+  "diff": {
+    "additions": 735,
+    "changed_files": 15,
+    "commit_count": 1,
+    "deletions": 47
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 6,
+    "items": [
+      {
+        "bytes": 3068,
+        "path": ".opencode/agents/k-slide.md",
+        "sha256": "29e446f5c58b2b54b394b242cd2e1de1b75b19b7c4cf4d1c4f0b6236350e2063"
+      },
+      {
+        "bytes": 2910,
+        "path": ".opencode/skills/k-slide/SKILL.md",
+        "sha256": "23218666168398b2cacfa5c6d93812021b1cf89bf06e33fac5914a327b0a41ba"
+      },
+      {
+        "bytes": 4296,
+        "path": "SOURCE_PROVENANCE.md",
+        "sha256": "c68832a1cc62aeb6e903d098d87144451fd34e98c8ca92567b59d8c0af005546"
+      },
+      {
+        "bytes": 1002,
+        "path": "prompts/translation/v1.md",
+        "sha256": "ddd32207f635341ad7eb5ee467a44a795c45e2afb8bc55d0de7ec9262fd3fde5"
+      },
+      {
+        "bytes": 2014,
+        "path": "schemas/slide-ir.schema.json",
+        "sha256": "befe642f46cce0a6f977f0816c9997ad64ef1d3778f323b1ddd1be990218cd8f"
+      },
+      {
+        "bytes": 4942,
+        "path": "schemas/translation-patch.schema.json",
+        "sha256": "677d8f816667c49770b80b6d5de804852d9cbdce980a7b75b0b8facd2894289e"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.4-quota-recovery-candidate",
+  "fabric_capture": {
+    "applied": true,
+    "commit_message": "fabric: capture completed model changes [CF-d155ea7ac67f37a6c4aed747]",
+    "commit_sha": "44136fb634db17a61c7394f5f3b8ee8d83c0b593",
+    "paths_before": 15,
+    "status_before": [
+      " M .opencode/agents/k-slide.md",
+      " M .opencode/skills/k-slide/SKILL.md",
+      " M .opencode/tools/kslide.ts",
+      " M SOURCE_PROVENANCE.md",
+      " M prompts/translation/v1.md",
+      " M schemas/slide-ir.schema.json",
+      " M schemas/translation-patch.schema.json",
+      " M src/k_slide/ir.py",
+      " M src/k_slide/model.py",
+      " M src/k_slide/rendering/reports.py",
+      " M src/k_slide/semantics.py",
+      " M src/k_slide/translation.py",
+      " M src/k_slide/translation_contract.py",
+      " M src/k_slide/verify.py",
+      "?? tests/test_ksa22_provenance.py"
+    ],
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.4-quota-recovery-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-21T13:47:56Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "e3f7fa32ac8f23e6e5aaf0a92ed391bf92872c68",
+    "branch": "codex/k-slide-chg16-provenance-states-01",
+    "detached_verify": false,
+    "head_sha": "44136fb634db17a61c7394f5f3b8ee8d83c0b593",
+    "remote_exact_head": true,
+    "remote_head_sha": "44136fb634db17a61c7394f5f3b8ee8d83c0b593",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "e3f7fa32ac8f23e6e5aaf0a92ed391bf92872c68",
+    "work_branch": "codex/k-slide-chg16-provenance-states-01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-d155ea7ac67f37a6c4aed747",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-provenance-states-01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-provenance-states-01"
+  },
+  "operation": "BUILD",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.4-quota-recovery-candidate",
+    "policy_sha256": "a642c9f63bab2cb555704bdb0b9d1f28222591f133f934c1d0f93cc5a25ab8a1",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-provenance-states-01",
+  "schema_version": 1,
+  "started_at": "2026-09-21T13:27:38Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1218,
+    "queue_seconds": 0,
+    "total_seconds": 1218
+  },
+  "transport": {
+    "bytes": 3600,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 3285,
+    "prompt_sha256": "386337c5f9b80dfbd38c46406e479e90ab83d20409dc650454b15c8d6ee14f54",
+    "sha256": "d155ea7ac67f37a6c4aed7479d2eeaba985ccc8382993ed545a108bba799d860"
+  }
+}
