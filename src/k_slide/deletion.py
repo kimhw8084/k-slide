@@ -593,6 +593,8 @@ def _delete_support_content(
 def _class_for_relative(relative: str) -> DeletionArtifactClass:
     top = relative.split("/", 1)[0]
     name = Path(relative).name
+    if name == "CONFLICT_REGISTRY.json":
+        return DeletionArtifactClass.CANONICAL_IR
     if name == "EXTRACTION_ERROR.json":
         return DeletionArtifactClass.EXTRACTION_ERROR
     if top == "inputs":

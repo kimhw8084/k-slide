@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kimhw8084/agent-skills/blob/main/k-slide/schemas/conflict-registry.schema.json",
+  "title": "K-Slide run-level conflict and supersession registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "conflicts", "supersessions", "registry_revision"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "run_id": {"type": "string", "minLength": 1},
+    "registry_revision": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "conflicts": {"type": "array", "items": {"$ref": "#/$defs/conflict"}},
+    "supersessions": {"type": "array", "items": {"$ref": "#/$defs/supersession"}}
+  },
+  "$defs": {
+    "provenance": {"enum": ["source_fact", "supported_interpretation", "unresolved"]},
+    "assertion_kind": {"enum": ["region", "table_cell", "visual_relation", "executive_claim", "numeric_fact"]},
+    "assertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assertion_id", "document_id", "work_unit_id", "semantic_kind", "semantic_id", "canonical_ref", "evidence_ref", "location", "provenance", "provenance_evidence_ids", "source_context", "rendered_context"],
+      "properties": {
+        "assertion_id": {"type": "string", "minLength": 1},
+        "document_id": {"type": "string", "minLength": 1},
+        "work_unit_id": {"type": "string", "minLength": 1},
+        "semantic_kind": {"$ref": "#/$defs/assertion_kind"},
+        "semantic_id": {"type": "string", "minLength": 1},
+        "canonical_ref": {"type": "object"},
+        "evidence_ref": {"type": "object"},
+        "location": {"type": "object"},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "provenance_evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+        "source_context": {"type": "object"},
+        "rendered_context": {"type": "object"},
+        "provenance_reason": {"type": "string", "minLength": 1}
+      }
+    },
+    "conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conflict_id", "conflict_type", "resolution_state", "participants", "supersession_ids"],
+      "properties": {
+        "conflict_id": {"type": "string", "minLength": 1},
+        "conflict_type": {"const": "contradiction"},
+        "resolution_state": {"enum": ["unresolved", "resolved_by_authoritative_supersession"]},
+        "participants": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/assertion"}},
+        "supersession_ids": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "authority_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["document_id", "work_unit_id", "evidence_revision", "evidence_ids", "location", "source_context"],
+      "properties": {
+        "document_id": {"type": "string", "minLength": 1},
+        "work_unit_id": {"type": "string", "minLength": 1},
+        "evidence_revision": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+        "location": {"type": "object"},
+        "source_context": {"type": "object"}
+      }
+    },
+    "supersession": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supersession_id", "conflict_id", "superseding_assertion_id", "superseded_assertion_id", "state", "authority_basis", "authority_evidence", "authority_config_id"],
+      "properties": {
+        "supersession_id": {"type": "string", "minLength": 1},
+        "conflict_id": {"type": "string", "minLength": 1},
+        "superseding_assertion_id": {"type": "string", "minLength": 1},
+        "superseded_assertion_id": {"type": "string", "minLength": 1},
+        "state": {"const": "authoritative"},
+        "authority_basis": {"enum": ["explicit_evidence", "configured_authority"]},
+        "authority_evidence": {"type": "array", "items": {"$ref": "#/$defs/authority_evidence"}},
+        "authority_config_id": {"type": ["string", "null"]}
+      }
+    }
+  }
+}
