@@ -70,12 +70,18 @@ Image normalization requires Pillow. PDF normalization requires PyMuPDF, PPTX na
 The source pipeline is deliberately separated:
 
 ```text
-engine EvidenceIR → Gemma TranslationPatch → engine-controlled SlideIR → deterministic verification
+engine EvidenceIR → Gemma TranslationPatch → engine-controlled SlideIR → optional run-level conflict registry → deterministic verification
 ```
 
 The model cannot author source geometry, native text, numeric facts, required-region inventories, or coverage baselines. Each patch is bound to the immutable EvidenceIR revision for its work unit.
 
 `kslide_evidence` also returns a model media plan with one required whole-unit context image and risk-routed crops. The agent must read those images before submitting a patch. Reports are rendered deterministically from the merged SlideIR; `NEEDS_REVIEW` and incomplete work units block `DONE`.
+
+KSA-23 adds an optional engine-owned `CONFLICT_REGISTRY.json` for contradictions
+that span claims, slides, languages, or documents. It preserves every competing
+canonical assertion and renders authoritative supersession separately only when
+current evidence or configured authority supports it; legacy runs without the
+artifact remain readable and are not treated as conflict-free.
 
 ## OpenCode integration
 

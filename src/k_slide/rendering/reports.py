@@ -5,7 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from ..conflicts import ConflictAssessmentState, ConflictResolutionState, conflict_assessment_status, load_conflict_registry, conflict_registry_path
 from ..evidence_ir import load_evidence
+from ..errors import KSlideError
 from ..io import atomic_write_text, read_json
 from ..ir import SlideIR
 from ..queue import WorkUnitStatus, load_queue
@@ -116,6 +118,82 @@ def _unit_sections(run_dir: Path, unit: Any, source_name: str) -> tuple[list[str
     return lines, claims, review_items
 
 
+def _conflict_sections(run_dir: Path) -> tuple[list[str], list[str]]:
+    """Render every competing assertion and keep authority metadata separate."""
+
+    path = conflict_registry_path(run_dir)
+    if not path.is_file():
+        try:
+            status = conflict_assessment_status(run_dir)
+        except (KSlideError, KeyError, TypeError, ValueError, OSError):
+            status = None
+        if status == ConflictAssessmentState.NOT_ASSESSED.value:
+            return [
+                "## Conflict Registry",
+                "",
+                "Conflict assessment: **NOT_ASSESSED**. A KSA-23 run must complete the typed engine assessment before verification or finalization.",
+                "",
+            ], []
+        return [
+            "## Conflict Registry",
+            "",
+            "Conflict registry: **not present**. Legacy artifacts remain readable; conflict coverage is not assessed and absence is not evidence that no conflicts exist.",
+            "",
+        ], []
+    try:
+        registry = load_conflict_registry(run_dir)
+    except (KSlideError, KeyError, TypeError, ValueError, OSError):
+        return [
+            "## Conflict Registry",
+            "",
+            "Conflict registry: **present but unreadable**. Deterministic verification must repair or review `CONFLICT_REGISTRY.json`.",
+            "",
+        ], ["Conflict registry present but unreadable."]
+    if registry is None:
+        return ["## Conflict Registry", "", "Conflict registry: **not present**; conflict coverage is not assessed.", ""], []
+    lines = ["## Conflict Registry", "", "Conflict registry: **present**", f"Registry revision: `{registry.registry_revision}`", ""]
+    summary: list[str] = []
+    if not registry.conflicts:
+        lines.extend(["Registry is present and contains no recorded conflicts.", ""])
+        return lines, summary
+    for conflict in sorted(registry.conflicts, key=lambda item: item.conflict_id):
+        state = "UNRESOLVED" if conflict.resolution_state == ConflictResolutionState.UNRESOLVED.value else "RESOLVED BY AUTHORITATIVE SUPERSESSION"
+        lines.extend([f"### Conflict `{conflict.conflict_id}` — **{state}**", "", "Every competing assertion is retained:", ""])
+        summary.append(f"{conflict.conflict_id}: {state}")
+        for participant in sorted(conflict.participants, key=lambda item: item.assertion_id):
+            location = participant.location
+            location_text = "/".join(
+                item for item in (
+                    f"document={participant.document_id}",
+                    f"work-unit={participant.work_unit_id}",
+                    f"slide={location.get('slide_id', participant.work_unit_id)}",
+                    f"source={participant.semantic_kind}:{participant.semantic_id}",
+                    f"table={location.get('table_id')} row={location.get('row')} column={location.get('column')}" if location.get("table_id") is not None else None,
+                ) if item is not None
+            )
+            source = participant.source_context
+            rendered = participant.rendered_context
+            lines.extend([
+                f"- Assertion `{participant.assertion_id}` — {location_text}",
+                f"  - Provenance: **{_provenance_label(participant.provenance)}**; evidence: `{', '.join(participant.provenance_evidence_ids)}`",
+                f"  - Source ({source.get('language') or 'unknown'}): `{source.get('text', '')}`",
+                f"  - Rendered English: `{rendered.get('text', '')}`",
+                f"  - Canonical: `{participant.canonical_ref.get('path')}#{participant.canonical_ref.get('json_pointer')}`; SHA-256 `{participant.canonical_ref.get('canonical_sha256')}`",
+                f"  - Evidence: `{participant.evidence_ref.get('path')}` revision `{participant.evidence_ref.get('evidence_revision')}`",
+            ])
+        supersessions = [item for item in registry.supersessions if item.conflict_id == conflict.conflict_id]
+        lines.extend(["", "Authoritative supersession (metadata only; no competing assertion is deleted or rewritten):", ""])
+        if supersessions:
+            for supersession in sorted(supersessions, key=lambda item: item.supersession_id):
+                evidence_ids = "; ".join(", ".join(ref.evidence_ids) for ref in supersession.authority_evidence)
+                basis = f"configured authority `{supersession.authority_config_id}`" if supersession.authority_basis == "configured_authority" else f"explicit evidence `{evidence_ids}`"
+                lines.append(f"- `{supersession.superseding_assertion_id}` supersedes `{supersession.superseded_assertion_id}` — **{supersession.state}**, basis: {basis}.")
+        else:
+            lines.append("- None recorded; authority remains unknown and the conflict remains unresolved.")
+        lines.append("")
+    return lines, summary
+
+
 def render_run(run_dir: Path) -> dict[str, str]:
     queue = load_queue(run_dir)
     names = _manifest_names(run_dir)
@@ -128,11 +206,20 @@ def render_run(run_dir: Path) -> dict[str, str]:
         final_lines.extend(sections)
         all_claims.extend([{**claim, "work_unit_id": unit.work_unit_id} for claim in claims])
         review_items.extend(unresolved)
+    conflict_lines, conflict_summary = _conflict_sections(run_dir)
+    final_lines.extend(conflict_lines)
     final_lines.extend(["## Coverage Summary", "", f"Translated/processed work units: `{sum(unit.status in {WorkUnitStatus.TRANSLATED, WorkUnitStatus.VERIFIED} for unit in queue.work_units)}` / `{len(queue.work_units)}`", f"Review items: `{len(review_items)}`", ""])
     for claim in all_claims:
         brief_lines.append(f"- **{_provenance_label(claim.get('provenance'))} · {claim.get('kind', 'other')}** ({claim.get('work_unit_id')}): {_semantic_text(claim.get('text'), claim.get('provenance'), claim.get('unresolved_reason'))} _(evidence: {', '.join(claim.get('evidence_ids', []))})_")
     if not all_claims:
         brief_lines.append("No evidence-backed executive claims are available yet.")
+    brief_lines.extend(["", "## Conflicts and authoritative supersession", ""])
+    if conflict_summary:
+        brief_lines.extend(f"- {item}" for item in conflict_summary)
+    elif conflict_registry_path(run_dir).is_file():
+        brief_lines.append("Conflict registry is present and contains no recorded conflicts.")
+    else:
+        brief_lines.append("Conflict registry is not present; conflict coverage is not assessed and absence is not evidence that no conflicts exist.")
     unresolved_lines = ["# K-Slide Unresolved Items", ""]
     if not review_items:
         unresolved_lines.append("No unresolved items.")
