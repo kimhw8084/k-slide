@@ -1,0 +1,437 @@
+{
+  "accepted_at": "2026-09-21T14:23:07Z",
+  "changed_files": [
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": ".opencode/agents/k-slide.md",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": ".opencode/skills/k-slide/SKILL.md",
+      "status": "M"
+    },
+    {
+      "additions": 8,
+      "deletions": 0,
+      "path": ".opencode/tools/kslide.ts",
+      "status": "M"
+    },
+    {
+      "additions": 15,
+      "deletions": 0,
+      "path": "SOURCE_PROVENANCE.md",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 3,
+      "path": "prompts/translation/v1.md",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 4,
+      "path": "schemas/slide-ir.schema.json",
+      "status": "M"
+    },
+    {
+      "additions": 10,
+      "deletions": 1,
+      "path": "schemas/translation-patch.schema.json",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 198,
+      "deletions": 6,
+      "path": "src/k_slide/ir.py",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 2,
+      "path": "src/k_slide/model.py",
+      "status": "M"
+    },
+    {
+      "additions": 30,
+      "deletions": 11,
+      "path": "src/k_slide/rendering/reports.py",
+      "status": "M"
+    },
+    {
+      "additions": 8,
+      "deletions": 0,
+      "path": "src/k_slide/semantics.py",
+      "status": "M"
+    },
+    {
+      "additions": 193,
+      "deletions": 16,
+      "path": "src/k_slide/translation.py",
+      "status": "M"
+    },
+    {
+      "additions": 6,
+      "deletions": 5,
+      "path": "src/k_slide/translation_contract.py",
+      "status": "M"
+    },
+    {
+      "additions": 162,
+      "deletions": 2,
+      "path": "src/k_slide/verify.py",
+      "status": "M"
+    },
+    {
+      "additions": 43,
+      "deletions": 0,
+      "path": "tests/fixtures/ksa22_table_fixture.json",
+      "status": "A"
+    },
+    {
+      "additions": 300,
+      "deletions": 0,
+      "path": "tests/test_ksa22_provenance.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"pwd && printf '%s\\\\n' '--- git status ---' && git status --short --branch && printf '%s\\\\n' '--- instructions ---' && sed -n '1,240p' /Users/haewonkim/.codex/RTK.md && sed -n '1,260p' /Users/haewonkim/.codex/law.md && printf '%s\\\\n' '--- files ---' && rg --files -g '\"'!*__pycache__*'\"' | sed -n '1,240p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short --branch && rtk git log --oneline --decorate --graph --all -25 && rtk git show --no-patch --format=fuller 44136fb634db17a61c7394f5f3b8ee8d83c0b593 && rtk git show --no-patch --format=fuller e3f7fa32ac8f23e6e5aaf0a92ed391bf92872c68 && rtk rg -n \\\"TableCell|EvidenceTableCell|cell_id|merge_evidence_patch|SlideIR.from_dict|_validate_canonical_provenance|TranslationPatch\\\" src schemas tests | sed -n '1,280p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show --stat --oneline 44136fb634db17a61c7394f5f3b8ee8d83c0b593 && rtk git show --format=raw --no-patch 44136fb634db17a61c7394f5f3b8ee8d83c0b593 && printf '%s\\\\n' '--- ir.py ---' && sed -n '1,280p' src/k_slide/ir.py && printf '%s\\\\n' '--- translation.py ---' && sed -n '1,470p' src/k_slide/translation.py && printf '%s\\\\n' '--- verify.py ---' && sed -n '1,300p' src/k_slide/verify.py && printf '%s\\\\n' '--- schema slide ---' && sed -n '1,300p' schemas/slide-ir.schema.json\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git cherry-pick 44136fb634db17a61c7394f5f3b8ee8d83c0b593 && rtk git status --short --branch && rtk git log --oneline --decorate -4'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' src/k_slide/ir.py && rtk sed -n '245,440p' src/k_slide/translation.py && rtk sed -n '1,260p' src/k_slide/verify.py && rtk sed -n '1,260p' tests/test_ksa22_provenance.py && rtk sed -n '1,220p' schemas/slide-ir.schema.json && rtk sed -n '1,180p' schemas/translation-patch.schema.json && rtk sed -n '1,140p' src/k_slide/errors.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/ir.py | sed -n '115,330p' && rtk nl -ba src/k_slide/translation.py | sed -n '1,430p' && rtk rg -n \\\"def _validate_canonical_provenance|def _validate_provenance|cell\\\\.cell_id|TableCell\\\" src/k_slide/verify.py src/k_slide/translation.py && rtk nl -ba src/k_slide/verify.py | sed -n '280,500p' && rtk nl -ba tests/test_ksa22_provenance.py | sed -n '1,300p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/translation.py | sed -n '180,430p' && rtk nl -ba src/k_slide/verify.py | sed -n '70,230p' && rtk nl -ba src/k_slide/evidence_ir.py | sed -n '55,190p' && rtk nl -ba src/k_slide/evidence_ir.py | sed -n '205,255p' && rtk nl -ba src/k_slide/translation_contract.py | sed -n '1,160p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/verify.py | sed -n '85,220p' && rtk nl -ba src/k_slide/translation.py | sed -n '430,540p' && rtk nl -ba src/k_slide/translation.py | sed -n '540,680p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"TableCell\\\\(\\\" . --glob '*.py' && rtk rg -n \\\"SlideIR\\\\.from_dict|render_run\\\\(|_validate_canonical_provenance\\\\(\\\" src tests --glob '*.py' && rtk sed -n '1,220p' src/k_slide/rendering/reports.py && rtk sed -n '1,120p' src/k_slide/rendering/__init__.py && rtk rg -n \\\"schema|jsonschema|compile|python 3\\\\.1|unittest\\\" scripts tests pyproject.toml README.md IMPLEMENTATION_STATUS.md | sed -n '1,240p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/verify.py | sed -n '219,345p' && rtk sed -n '1,70p' src/k_slide/verify.py && rtk sed -n '1,80p' src/k_slide/__init__.py && rtk rg -n \\\"ErrorCode\\\\.[A-Z_]+\\\" tests/test_ksa22_provenance.py tests | sed -n '1,60p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"def from_dict|def legacy_cell_id|def cell_value|class TableCell|LEGACY\\\" src/k_slide/ir.py src/k_slide/errors.py && rtk sed -n '20,55p' src/k_slide/ir.py && rtk sed -n '155,255p' src/k_slide/ir.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_ksa22_provenance -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_ksa22_provenance -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_ksa22_provenance -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_ksa22_provenance -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --check && rtk git diff --stat && rtk git diff -- src/k_slide/ir.py src/k_slide/translation.py src/k_slide/verify.py src/k_slide/rendering/reports.py schemas/slide-ir.schema.json tests/test_ksa22_provenance.py tests/fixtures/ksa22_table_fixture.json | sed -n '1,520p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short && rtk rg -n \\\"KSA-1[5-9]|KSA-20|KSA15|KSA16|KSA17|KSA18|KSA19|KSA20\\\" tests IMPLEMENTATION_STATUS.md | sed -n '1,260p' && rtk rg -n \\\"class .*Tests\\\" tests/test_*.py | sed -n '1,220p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_ksa22_provenance -q && rtk python3 -m json.tool schemas/slide-ir.schema.json >/dev/null && rtk python3 -m json.tool tests/fixtures/ksa22_table_fixture.json >/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_ksa21_adversarial_security tests.test_chg16_accesskey_nonleakage tests.test_chg16_classification_admission tests.test_chg16_scoped_admission tests.test_chg18_default_deny_egress tests.test_chg18_accesskey_handoff tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support tests.test_chg16_host_integration tests.test_chg16_environment_binding -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk command -v python3.11 && rtk python3.11 --version && rtk command -v python3.12 || true && rtk python3.12 --version || true && rtk env PYTHONPATH=src:. python3.11 -m compileall -q src evals tests && rtk env PYTHONPATH=src:. python3.12 -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. python3.11 -c 'import json; from pathlib import Path; import jsonschema; from tests.test_ksa22_provenance import KSA22ProvenanceTests; from k_slide.translation import merge_evidence_patch, parse_translation_patch; root=Path(\\\".\\\"); patch_schema=json.loads((root/\\\"schemas/translation-patch.schema.json\\\").read_text()); slide_schema=json.loads((root/\\\"schemas/slide-ir.schema.json\\\").read_text()); fixture=json.loads((root/\\\"tests/fixtures/translation_patch_full.json\\\").read_text()); jsonschema.validate(fixture, patch_schema); case=KSA22ProvenanceTests(); evidence, value=case._table_fixture(); slide=merge_evidence_patch(evidence, parse_translation_patch(value)); jsonschema.validate(slide.as_dict(), slide_schema); print(\\\"schema validation PASS\\\")' && rtk git diff --check && rtk git status --short --branch\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_ksa22_provenance -q && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show --stat --oneline e7d34f0 && rtk git show --format= --name-only e7d34f0 | sed -n '1,160p' && rtk git ls-tree -r --name-only e7d34f0 | rg -i 'fabric|evidence|audit|run_complete|verification' | sed -n '1,200p' && rtk git branch -a --contains 44136fb634db17a61c7394f5f3b8ee8d8d83c0b593 2>/dev/null || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git reset --keep 44136fb634db17a61c7394f5f3b8ee8d83c0b593 && rtk git status --short --branch && rtk git log --oneline --decorate --graph -5 && rtk git merge-base --is-ancestor 44136fb634db17a61c7394f5f3b8ee8d83c0b593 HEAD; rtk git merge-base --is-ancestor e3f7fa32ac8f23e6e5aaf0a92ed391bf92872c68 HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show e7d34f0:.codex-fabric/audit.json | sed -n '1,120p' && rtk git show e7d34f0:.codex-fabric/audit.json | tail -80 && rtk git log --all --format='%H %s' -- .codex-fabric/audit.json | sed -n '1,20p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show e7d34f0:.codex-fabric/audit.json | rtk python3 -c 'import json,sys; value=json.load(sys.stdin); print(json.dumps({k:value.get(k) for k in (\\\"schema_version\\\",\\\"status\\\",\\\"project_id\\\",\\\"request\\\",\\\"operation\\\",\\\"job_id\\\",\\\"fabric_release\\\",\\\"changed_files\\\",\\\"checks\\\",\\\"git\\\",\\\"recovery\\\",\\\"locator\\\")}, indent=2))' | sed -n '1,300p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk command -v codex-fabric || true && rtk command -v fabric || true && rtk rg -n \\\"audit.json|codex-fabric/evidence|Fabric evidence|fabric evidence\\\" /Users/haewonkim/.codex-fabric /Users/haewonkim/.codex 2>/dev/null | sed -n '1,220p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add schemas/slide-ir.schema.json src/k_slide/errors.py src/k_slide/ir.py src/k_slide/rendering/reports.py src/k_slide/translation.py src/k_slide/verify.py tests/test_ksa22_provenance.py tests/fixtures/ksa22_table_fixture.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git commit -m \"fix(k-slide): preserve table cell provenance identity\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git show --stat --oneline HEAD && rtk git log --oneline --decorate --graph -5 && rtk git merge-base --is-ancestor e3f7fa32ac8f23e6e5aaf0a92ed391bf92872c68 HEAD && rtk git merge-base --is-ancestor 44136fb634db17a61c7394f5f3b8ee8d83c0b593 HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3 -m unittest tests.test_ksa22_provenance -q && rtk env PYTHONPATH=src:. python3 -m unittest discover -s tests -q && rtk env PYTHONPATH=src:. python3.11 -m compileall -q src evals tests && rtk env PYTHONPATH=src:. python3.12 -m compileall -q src evals tests && rtk git diff --check HEAD''^ HEAD && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3.12 -m unittest tests.test_ksa22_provenance tests.test_ksa21_adversarial_security tests.test_phase34 tests.test_phase35 -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rev-parse HEAD && rtk git rev-parse HEAD''^ && rtk git show -s --format='\"'%H%n%P%n%s' HEAD && rtk git status --porcelain=v1 --branch && rtk git diff --check HEAD\"'^ HEAD && rtk python3.11 -c '\"'import jsonschema; print(\\\"jsonschema available\\\")'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"class TableCell|def from_dict|LEGACY_TABLE_CELL_MIGRATION_REQUIRED|_validate_table_cell_evidence_binding|cell_id=cell.cell_id|_check_table_cell_binding|SlideIR.from_dict\\\\(value, evidence|SlideIR.from_dict\\\\(read_json\\\" src/k_slide schemas tests/test_ksa22_provenance.py | sed -n '1,160p' && rtk git diff --stat e3f7fa32ac8f23e6e5aaf0a92ed391bf92872c68 HEAD\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.155.1",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 108,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.0,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 5481984,
+      "fresh_input_tokens": 169767,
+      "input_tokens": 5651751,
+      "non_reasoning_output_tokens": 14162,
+      "output_tokens": 30619,
+      "reasoning_output_tokens": 16457,
+      "total_processed_tokens": 5682370
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "47abad7dce0c8434129c416c31e7b45123c1a415",
+      "subject": "fix(k-slide): preserve table cell provenance identity"
+    },
+    {
+      "sha": "44136fb634db17a61c7394f5f3b8ee8d83c0b593",
+      "subject": "fabric: capture completed model changes [CF-d155ea7ac67f37a6c4aed747]"
+    }
+  ],
+  "diff": {
+    "additions": 995,
+    "changed_files": 17,
+    "commit_count": 2,
+    "deletions": 51
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 7,
+    "items": [
+      {
+        "bytes": 3068,
+        "path": ".opencode/agents/k-slide.md",
+        "sha256": "29e446f5c58b2b54b394b242cd2e1de1b75b19b7c4cf4d1c4f0b6236350e2063"
+      },
+      {
+        "bytes": 2910,
+        "path": ".opencode/skills/k-slide/SKILL.md",
+        "sha256": "23218666168398b2cacfa5c6d93812021b1cf89bf06e33fac5914a327b0a41ba"
+      },
+      {
+        "bytes": 4296,
+        "path": "SOURCE_PROVENANCE.md",
+        "sha256": "c68832a1cc62aeb6e903d098d87144451fd34e98c8ca92567b59d8c0af005546"
+      },
+      {
+        "bytes": 1002,
+        "path": "prompts/translation/v1.md",
+        "sha256": "ddd32207f635341ad7eb5ee467a44a795c45e2afb8bc55d0de7ec9262fd3fde5"
+      },
+      {
+        "bytes": 2282,
+        "path": "schemas/slide-ir.schema.json",
+        "sha256": "5bb5993fc56a9d2f725d4666e6b4522a812d37ecc0ba18d65fa6d57d9f0572a0"
+      },
+      {
+        "bytes": 4942,
+        "path": "schemas/translation-patch.schema.json",
+        "sha256": "677d8f816667c49770b80b6d5de804852d9cbdce980a7b75b0b8facd2894289e"
+      },
+      {
+        "bytes": 1596,
+        "path": "tests/fixtures/ksa22_table_fixture.json",
+        "sha256": "a94562d0669db969a7ef1e2bc69d74ed74c3e60122e689c757a8532655864c46"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.4-quota-recovery-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.4-quota-recovery-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-21T14:34:27Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "e3f7fa32ac8f23e6e5aaf0a92ed391bf92872c68",
+    "branch": "codex/k-slide-chg16-provenance-states-01-fix01",
+    "detached_verify": false,
+    "head_sha": "47abad7dce0c8434129c416c31e7b45123c1a415",
+    "remote_exact_head": true,
+    "remote_head_sha": "47abad7dce0c8434129c416c31e7b45123c1a415",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "e3f7fa32ac8f23e6e5aaf0a92ed391bf92872c68",
+    "work_branch": "codex/k-slide-chg16-provenance-states-01-fix01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-079575cf684e4bbef287b052",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-provenance-states-01-fix01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-provenance-states-01-fix01"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.4-quota-recovery-candidate",
+    "policy_sha256": "a642c9f63bab2cb555704bdb0b9d1f28222591f133f934c1d0f93cc5a25ab8a1",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-provenance-states-01-fix01",
+  "schema_version": 1,
+  "started_at": "2026-09-21T14:23:07Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 680,
+    "queue_seconds": 0,
+    "total_seconds": 680
+  },
+  "transport": {
+    "bytes": 3377,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 3052,
+    "prompt_sha256": "e21bf1407018ddae8f9e4a878c5e5ecde24f81226f96c0d232f19c1d344f875d",
+    "sha256": "079575cf684e4bbef287b05261ba80bc64bff9df1a5b369bfcda3a21672e2544"
+  }
+}
