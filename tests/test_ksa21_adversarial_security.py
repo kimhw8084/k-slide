@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import io
 import os
 import signal
 import socket
@@ -49,6 +50,39 @@ def _write_pptx(path: Path, members: dict[str, bytes | zipfile.ZipInfo], *, comp
                 archive.writestr(value, b"unsafe")
             else:
                 archive.writestr(name, value)
+
+
+def _minimal_chart_workbook(
+    *,
+    relationship_data: bytes | None = None,
+    replacements: dict[str, bytes] | None = None,
+    compression: int = zipfile.ZIP_STORED,
+) -> bytes:
+    """Build deterministic, structurally valid workbook bytes for a chart part."""
+
+    members = {
+        "[Content_Types].xml": b"""<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">
+<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>
+<Default Extension=\"xml\" ContentType=\"application/xml\"/>
+<Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/>
+<Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>
+</Types>""",
+        "_rels/.rels": b"""<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId0\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"xl/workbook.xml\"/></Relationships>""",
+        "xl/workbook.xml": b"""<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><sheets><sheet name=\"Sheet1\" sheetId=\"1\" r:id=\"rId1\"/></sheets></workbook>""",
+        "xl/_rels/workbook.xml.rels": b"""<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/></Relationships>""",
+        "xl/worksheets/sheet1.xml": b"""<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData><row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><v>2</v></c></row></sheetData></worksheet>""",
+    }
+    if relationship_data is not None:
+        members["xl/_rels/workbook.xml.rels"] = relationship_data
+    if replacements:
+        members.update(replacements)
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", compression=compression) as archive:
+        for name, value in members.items():
+            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = compression
+            archive.writestr(info, value)
+    return output.getvalue()
 
 
 def _assert_rejected(test: unittest.TestCase, path: Path, *, code: ErrorCode = ErrorCode.INPUT_ARCHIVE_UNSAFE) -> None:
@@ -205,6 +239,16 @@ class KSA21PromptAndAuthorityTests(unittest.TestCase):
 
 
 class KSA21OfficePackageTests(unittest.TestCase):
+    def _write_chart_pptx(self, path: Path, workbook: bytes) -> None:
+        _write_pptx(
+            path,
+            {
+                **_base_pptx_members(),
+                "ppt/embeddings/Microsoft_Excel_Sheet1.xlsx": workbook,
+                "ppt/_rels/presentation.xml.rels": b'<Relationships><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/package" Target="embeddings/Microsoft_Excel_Sheet1.xlsx"/></Relationships>',
+            },
+        )
+
     def test_traversal_aliases_and_symlink_members_fail_closed_without_echoing_source(self) -> None:
         cases = ("../escape.bin", "/absolute.bin", "ppt/../escape.bin", "ppt/./escape.bin", "C:/escape.bin")
         for index, member in enumerate(cases):
@@ -286,12 +330,143 @@ class KSA21OfficePackageTests(unittest.TestCase):
             path = Path(directory) / "safe-chart.pptx"
             members = {
                 **_base_pptx_members(),
-                "ppt/embeddings/Microsoft_Excel_Sheet1.xlsx": b"safe-chart-data",
-                "ppt/_rels/presentation.xml.rels": b'<Relationships><Relationship Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/package" Target="embeddings/Microsoft_Excel_Sheet1.xlsx"/></Relationships>',
+                "ppt/embeddings/Microsoft_Excel_Sheet1.xlsx": _minimal_chart_workbook(),
+                "ppt/_rels/presentation.xml.rels": b'<Relationships><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/package" Target="embeddings/Microsoft_Excel_Sheet1.xlsx"/></Relationships>',
             }
             _write_pptx(path, members)
             artifact = validate_input(path)
             self.assertEqual(artifact.kind, "pptx")
+
+    @unittest.skipUnless(__import__("importlib.util").util.find_spec("pptx"), "python-pptx is optional")
+    def test_real_python_pptx_chart_workbook_remains_accepted(self) -> None:
+        from pptx import Presentation
+        from pptx.chart.data import CategoryChartData
+        from pptx.enum.chart import XL_CHART_TYPE
+        from pptx.util import Inches
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "python-pptx-chart.pptx"
+            presentation = Presentation()
+            slide = presentation.slides.add_slide(presentation.slide_layouts[6])
+            data = CategoryChartData()
+            data.categories = ["Q1", "Q2"]
+            data.add_series("Sales", (1, 2))
+            slide.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED, Inches(1), Inches(1), Inches(5), Inches(3), data)
+            presentation.save(path)
+            self.assertEqual(validate_input(path).kind, "pptx")
+
+    def test_invalid_non_zip_workbook_fails_before_converter(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "invalid-chart.pptx"
+            members = {
+                **_base_pptx_members(),
+                "ppt/embeddings/Microsoft_Excel_Sheet1.xlsx": b"not-a-zip-workbook",
+                "ppt/_rels/presentation.xml.rels": b'<Relationships><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/package" Target="embeddings/Microsoft_Excel_Sheet1.xlsx"/></Relationships>',
+            }
+            _write_pptx(path, members)
+            with patch("k_slide.normalization._render_pptx", side_effect=AssertionError("converter reached")) as render:
+                run = prepare_run(root, explicit_paths=[str(path)], perform_processing=True, environment_identity=reference_environment())
+            self.assertEqual(load_state(run).phase, RunPhase.FAILED_INPUT)
+            render.assert_not_called()
+
+    def test_nested_external_relationships_fail_closed(self) -> None:
+        relationship_data = b'<Relationships><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" TargetMode="External" Target="https://attacker.invalid/sheet.xml"/></Relationships>'
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "nested-external.pptx"
+            self._write_chart_pptx(path, _minimal_chart_workbook(relationship_data=relationship_data))
+            with patch.object(socket, "create_connection", side_effect=AssertionError("network boundary reached")):
+                _assert_rejected(self, path)
+
+    def test_nested_macro_active_content_and_further_package_layers_fail_closed(self) -> None:
+        cases = (
+            _minimal_chart_workbook(replacements={"xl/vbaProject.bin": b"macro"}),
+            _minimal_chart_workbook(
+                replacements={
+                    "[Content_Types].xml": b'<Types><Override PartName="/xl/workbook.xml" ContentType="application/vnd.ms-excel.sheet.macroEnabled.main+xml"/></Types>',
+                },
+            ),
+            _minimal_chart_workbook(replacements={"xl/embeddings/inner.xlsx": b"nested"}),
+        )
+        for index, workbook in enumerate(cases):
+            with self.subTest(index=index), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "nested-active.pptx"
+                self._write_chart_pptx(path, workbook)
+                _assert_rejected(self, path)
+
+    def test_nested_traversal_duplicate_and_symlink_ambiguity_fail_closed(self) -> None:
+        traversal = _minimal_chart_workbook(replacements={"xl/../escape.xml": b"escape"})
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "nested-traversal.pptx"
+            self._write_chart_pptx(path, traversal)
+            _assert_rejected(self, path)
+
+        for name in ("xl/worksheets/SHEET1.XML", "xl/worksheets/sheet1.xml"):
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "nested-alias.pptx"
+                workbook = io.BytesIO()
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", UserWarning)
+                    with zipfile.ZipFile(workbook, "w") as archive:
+                        base = _minimal_chart_workbook()
+                        with zipfile.ZipFile(io.BytesIO(base)) as source:
+                            for info in source.infolist():
+                                archive.writestr(info.filename, source.read(info))
+                        archive.writestr(name, b"alias")
+                self._write_chart_pptx(path, workbook.getvalue())
+                _assert_rejected(self, path)
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "nested-symlink.pptx"
+            workbook = io.BytesIO()
+            with zipfile.ZipFile(workbook, "w") as archive:
+                base = _minimal_chart_workbook()
+                with zipfile.ZipFile(io.BytesIO(base)) as source:
+                    for info in source.infolist():
+                        archive.writestr(info.filename, source.read(info))
+                link = zipfile.ZipInfo("xl/worksheets/link.xml")
+                link.create_system = 3
+                link.external_attr = (stat.S_IFLNK | 0o777) << 16
+                archive.writestr(link, b"target")
+            self._write_chart_pptx(path, workbook.getvalue())
+            _assert_rejected(self, path)
+
+    def test_nested_resource_and_cumulative_outer_nested_limits_fail_closed(self) -> None:
+        import k_slide.security as security
+
+        compressed = _minimal_chart_workbook(
+            replacements={"xl/worksheets/sheet1.xml": b"A" * 20_000},
+            compression=zipfile.ZIP_DEFLATED,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "nested-compression.pptx"
+            self._write_chart_pptx(path, compressed)
+            with patch.object(security, "MAX_ARCHIVE_COMPRESSION_RATIO", 1):
+                _assert_rejected(self, path)
+
+        workbook = _minimal_chart_workbook()
+        outer_members = {
+            **_base_pptx_members(),
+            "ppt/embeddings/Microsoft_Excel_Sheet1.xlsx": workbook,
+            "ppt/_rels/presentation.xml.rels": b'<Relationships><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/package" Target="embeddings/Microsoft_Excel_Sheet1.xlsx"/></Relationships>',
+        }
+        outer_expanded = sum(len(value) for value in outer_members.values())
+        nested_expanded = sum(info.file_size for info in zipfile.ZipFile(io.BytesIO(workbook)).infolist())
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "nested-cumulative.pptx"
+            _write_pptx(path, outer_members)
+            with patch.object(security, "MAX_ARCHIVE_BYTES", outer_expanded + nested_expanded - 1):
+                _assert_rejected(self, path)
+
+    def test_nested_xml_member_limit_is_enforced(self) -> None:
+        import k_slide.security as security
+
+        workbook = _minimal_chart_workbook(replacements={"xl/worksheets/sheet1.xml": b"x" * 128})
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "nested-xml-limit.pptx"
+            self._write_chart_pptx(path, workbook)
+            with patch.object(security, "MAX_ARCHIVE_XML_BYTES", 127):
+                _assert_rejected(self, path)
 
     def test_source_url_in_xml_is_data_and_never_fetched(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
