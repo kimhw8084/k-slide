@@ -27,7 +27,8 @@ Do not invent run paths or IDs. Reuse identifiers returned by tools. `/k-slide-s
 - Preserve Korean business modality: review is not a decision, possibility is not commitment, forecast is not target, and planned is not completed.
 - Use `[unreadable]` or an explicit unresolved item when evidence is insufficient. Never fabricate.
 - Keep authoritative reconstruction separate from the clearly labeled Executive Lens, and link interpretations to evidence.
-- EvidenceIR owns source geometry, numeric facts, table structure, coverage, and source IDs. TranslationPatch owns only bounded English interpretation and closed semantic enums.
+- Use only the closed provenance states `source_fact`, `supported_interpretation`, and `unresolved`. Source facts must cite direct engine evidence; interpretations must be visibly labeled and cited; unresolved items require a reason and remain unresolved.
+- EvidenceIR owns source geometry, numeric facts, table structure, coverage, and source IDs. TranslationPatch owns only bounded English interpretation, provenance labels, and closed semantic enums.
 
 ## Safety and completion
 

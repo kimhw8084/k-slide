@@ -22,6 +22,21 @@
 - Production hardening metadata is evidence-only. `constraints-production.txt` is a candidate lock for the heavy CPU image, not a claim that the listed OCR/LibreOffice/OpenCode versions passed certification in this workspace. OCR model assets are not bundled in the public repository; a managed heavy build must generate and hash its local asset manifest before production use.
 - Certification closure uses source-free evidence envelopes bound to a subject Git SHA and deployment fingerprint. The public development SBOM is intentionally incomplete metadata; a certified release must generate a real CycloneDX environment/image SBOM with the approved `cyclonedx-py` tool in a private release environment. No private attestation content or source artifacts belong in this repository.
 
+## Semantic provenance states (KSA-22)
+
+User-facing semantic items use one closed vocabulary: `source_fact`,
+`supported_interpretation`, or `unresolved`. The first state is accepted only
+when the item cites its engine-owned source ID; interpretations and executive
+claims cite current EvidenceIR IDs; unresolved items require a reason and stay
+on the unresolved report surface. Geometry, numeric facts, source inventories,
+and other engine-owned primitives do not carry model-authored provenance.
+
+Existing 1.0 TranslationPatch and SlideIR artifacts remain readable. Missing
+provenance is deterministically adapted to `supported_interpretation`, except
+for existing unresolved flags/items, which adapt to `unresolved`; nothing
+ambiguous is promoted to `source_fact`. Current EvidenceIR revision and source
+ID validation still apply on resume and re-verification.
+
 ## Why v6 is the active baseline
 
 v6 is the latest pack and explicitly identifies itself as the Gemma 4 31B single-agent stable core. Its acceptance laws directly match this project's objective: reconstruct visible tables, preserve visible item counts, explain visual relationships, verify numbers and unresolved regions, and never claim completion without `RUN_COMPLETE.md`.

@@ -62,6 +62,14 @@ class Uncertainty(str, Enum):
     HIGH = "high"
 
 
+class ProvenanceState(str, Enum):
+    """Closed provenance states for user-facing semantic content."""
+
+    SOURCE_FACT = "source_fact"
+    SUPPORTED_INTERPRETATION = "supported_interpretation"
+    UNRESOLVED = "unresolved"
+
+
 class RelationType(str, Enum):
     NEXT = "next"
     DEPENDS_ON = "depends_on"

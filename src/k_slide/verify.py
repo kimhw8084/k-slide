@@ -21,6 +21,7 @@ from .policy import COMPLETION_POLICY
 from .queue import WorkQueue, WorkUnitStatus, load_queue, save_queue
 from .rendering import render_run
 from .security import sha256_file
+from .semantics import ProvenanceState, enum_value
 from .state import RunPhase, load_state, save_state
 from .storage import StorageArtifact, storage_path, workspace_mutation_guard
 from .terminology import Termbase, load_effective_termbase
@@ -87,6 +88,162 @@ def _issue(result: VerificationResult, code: str, severity: Severity, message: s
         result.critical_count += 1
 
 
+def _evidence_ids(evidence: Any) -> set[str]:
+    return (
+        {region.region_id for region in evidence.regions}
+        | {table.table_id for table in evidence.tables}
+        | {cell.cell_id for table in evidence.tables for cell in table.cells}
+        | {str(item.get("fact_id")) for item in evidence.numeric_facts if isinstance(item, dict) and item.get("fact_id")}
+        | {str(item.get("element_id")) for item in evidence.visual_elements if isinstance(item, dict) and item.get("element_id")}
+    )
+
+
+def _check_table_cell_binding(result: VerificationResult, table: Any, cell: Any, evidence: Any, *, target: str) -> None:
+    evidence_table = next((candidate for candidate in evidence.tables if candidate.table_id == table.table_id), None)
+    if evidence_table is None:
+        _issue(result, "KSLIDE_TABLE_CELL_ID_MISMATCH", Severity.CRITICAL, "Canonical table is not present in the current EvidenceIR.", target=target)
+        return
+    evidence_cell = next((candidate for candidate in evidence_table.cells if candidate.cell_id == cell.cell_id), None)
+    if evidence_cell is None:
+        _issue(result, "KSLIDE_TABLE_CELL_ID_MISMATCH", Severity.CRITICAL, "Canonical table cell_id is not the exact current EvidenceIR cell identity.", target=target, evidence_ids=[cell.cell_id])
+        return
+    for field in ("row", "column", "rowspan", "colspan", "source_text", "evidence_region_ids", "numeric_fact_ids"):
+        actual = getattr(cell, field)
+        expected = getattr(evidence_cell, field)
+        if field in {"evidence_region_ids", "numeric_fact_ids"}:
+            actual = tuple(actual)
+            expected = tuple(expected)
+        if actual != expected:
+            _issue(result, "KSLIDE_TABLE_CELL_ID_MISMATCH", Severity.CRITICAL, "Canonical table cell geometry or engine evidence does not match its EvidenceIR cell identity.", target=target, evidence_ids=[cell.cell_id])
+            break
+    allowed = {evidence_cell.cell_id, evidence_table.table_id, *evidence_cell.evidence_region_ids, *evidence_cell.numeric_fact_ids}
+    if not isinstance(cell.provenance_evidence_ids, list) or evidence_cell.cell_id not in cell.provenance_evidence_ids:
+        _issue(result, "KSLIDE_PROVENANCE_EVIDENCE_REQUIRED", Severity.CRITICAL, "Table cell provenance must cite the exact EvidenceIR cell ID.", target=target, evidence_ids=[evidence_cell.cell_id])
+    else:
+        foreign = sorted(set(cell.provenance_evidence_ids) - allowed)
+        if foreign:
+            _issue(result, "KSLIDE_PROVENANCE_FOREIGN_EVIDENCE", Severity.CRITICAL, "Table cell provenance cites evidence outside the bound EvidenceIR cell.", target=target, evidence_ids=foreign)
+
+
+def _check_provenance(
+    result: VerificationResult,
+    *,
+    state: Any,
+    evidence_ids: Any,
+    evidence: Any,
+    target: str,
+    reason: Any = None,
+    source_id: str | None = None,
+    source_fact_allowed: bool = True,
+    unresolved_flag: bool | None = None,
+) -> str | None:
+    try:
+        effective = enum_value(state, ProvenanceState, f"{target} provenance")
+    except KSlideError:
+        _issue(result, "KSLIDE_PROVENANCE_INVALID", Severity.CRITICAL, "Semantic item has an invalid provenance state.", target=target)
+        return None
+    if not isinstance(evidence_ids, list) or not evidence_ids or any(not isinstance(item, str) or not item for item in evidence_ids):
+        _issue(result, "KSLIDE_PROVENANCE_EVIDENCE_REQUIRED", Severity.CRITICAL, "Semantic item provenance must cite at least one engine evidence ID.", target=target)
+    else:
+        valid = _evidence_ids(evidence)
+        foreign = sorted(set(evidence_ids) - valid)
+        if foreign:
+            _issue(result, "KSLIDE_PROVENANCE_FOREIGN_EVIDENCE", Severity.CRITICAL, "Semantic item provenance cites evidence outside the current EvidenceIR.", target=target, evidence_ids=foreign)
+    if effective == ProvenanceState.UNRESOLVED.value:
+        if not isinstance(reason, str) or not reason.strip():
+            _issue(result, "KSLIDE_PROVENANCE_INCONSISTENT", Severity.CRITICAL, "Unresolved provenance requires a non-empty reason.", target=target)
+        if unresolved_flag is False:
+            _issue(result, "KSLIDE_PROVENANCE_INCONSISTENT", Severity.CRITICAL, "Unresolved provenance conflicts with a resolved semantic flag.", target=target)
+    else:
+        if reason is not None:
+            _issue(result, "KSLIDE_PROVENANCE_INCONSISTENT", Severity.CRITICAL, "Only unresolved provenance may carry an unresolved reason.", target=target)
+        if unresolved_flag is True:
+            _issue(result, "KSLIDE_PROVENANCE_INCONSISTENT", Severity.CRITICAL, "Resolved provenance conflicts with unresolved=true.", target=target)
+    if effective == ProvenanceState.SOURCE_FACT.value:
+        if not source_fact_allowed:
+            _issue(result, "KSLIDE_PROVENANCE_INCONSISTENT", Severity.CRITICAL, "This semantic item cannot be a source_fact.", target=target)
+        elif source_id is not None and (not isinstance(evidence_ids, list) or source_id not in evidence_ids):
+            _issue(result, "KSLIDE_PROVENANCE_INCONSISTENT", Severity.CRITICAL, "source_fact must cite its direct engine source ID.", target=target, evidence_ids=[source_id])
+    return effective
+
+
+def _validate_canonical_provenance(result: VerificationResult, slide: SlideIR, evidence: Any, work_unit_id: str) -> None:
+    unresolved_refs: set[str] = set()
+    for item in slide.unresolved:
+        source_id = item.get("region_id") or item.get("cell_id") or item.get("relation_id") or item.get("claim_id")
+        if source_id:
+            unresolved_refs.add(str(source_id))
+        _check_provenance(
+            result,
+            state=item.get("provenance"),
+            evidence_ids=item.get("evidence_ids", []),
+            evidence=evidence,
+            target=str(source_id or work_unit_id),
+            reason=item.get("reason") or item.get("unresolved_reason"),
+        )
+    expected_unresolved: set[str] = set()
+    for region in slide.regions:
+        state = _check_provenance(
+            result,
+            state=region.provenance,
+            evidence_ids=region.provenance_evidence_ids,
+            evidence=evidence,
+            target=region.region_id,
+            reason=region.unresolved_reason,
+            source_id=region.region_id,
+        )
+        if state == ProvenanceState.UNRESOLVED.value:
+            expected_unresolved.add(region.region_id)
+    for table in slide.tables:
+        for cell in table.cells:
+            _check_table_cell_binding(result, table, cell, evidence, target=cell.cell_id)
+            state = _check_provenance(
+                result,
+                state=cell.provenance,
+                evidence_ids=cell.provenance_evidence_ids,
+                evidence=evidence,
+                target=cell.cell_id,
+                reason=cell.unresolved_reason,
+                source_id=cell.cell_id,
+                unresolved_flag=cell.unresolved,
+            )
+            if state == ProvenanceState.UNRESOLVED.value:
+                expected_unresolved.add(cell.cell_id)
+    for relation in slide.visual_relations:
+        state = _check_provenance(
+            result,
+            state=relation.provenance,
+            evidence_ids=relation.evidence,
+            evidence=evidence,
+            target=relation.relation_id,
+            reason=relation.unresolved_reason,
+            source_fact_allowed=False,
+        )
+        if state == ProvenanceState.UNRESOLVED.value:
+            expected_unresolved.add(relation.relation_id)
+    for claim in slide.executive_semantics.get("executive_claims", []):
+        if not isinstance(claim, dict):
+            _issue(result, "KSLIDE_PROVENANCE_INVALID", Severity.CRITICAL, "Executive semantic item is not an object.", target=work_unit_id)
+            continue
+        claim_id = str(claim.get("claim_id", ""))
+        state = _check_provenance(
+            result,
+            state=claim.get("provenance"),
+            evidence_ids=claim.get("evidence_ids", []),
+            evidence=evidence,
+            target=claim_id or work_unit_id,
+            reason=claim.get("unresolved_reason"),
+        )
+        if state == ProvenanceState.UNRESOLVED.value and claim_id:
+            expected_unresolved.add(claim_id)
+    missing = sorted(expected_unresolved - unresolved_refs)
+    extra = sorted(unresolved_refs - expected_unresolved)
+    if missing:
+        _issue(result, "KSLIDE_PROVENANCE_UNRESOLVED_SURFACE_GAP", Severity.CRITICAL, "Unresolved semantic items are missing from the unresolved surface.", target=work_unit_id, evidence_ids=missing)
+    if extra:
+        _issue(result, "KSLIDE_PROVENANCE_INCONSISTENT", Severity.CRITICAL, "Unresolved surface contains a semantic item that is not unresolved in canonical state.", target=work_unit_id, evidence_ids=extra)
+
+
 def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult, *, expected_termbase_identity: RunEnvironmentIdentity | None = None, termbase: Termbase | None = None, termbase_authority: Any | None = None) -> None:
     path = storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{work_unit_id}.json")
     try:
@@ -94,12 +251,13 @@ def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult
         if not isinstance(value, dict) or value.get("schema_version") != "1.0":
             _issue(result, "KSLIDE_SCHEMA_INVALID", Severity.CRITICAL, "SlideIR schema version is missing or unsupported.", target=work_unit_id)
             return
-        slide = SlideIR.from_dict(value)
         evidence = load_evidence(run_dir, work_unit_id)
+        slide = SlideIR.from_dict(value, evidence=evidence)
         result.checked_slides += 1
         result.checked_regions += len(slide.regions)
         if slide.evidence_revision != evidence.evidence_revision:
             _issue(result, ErrorCode.STALE_EVIDENCE.value, Severity.CRITICAL, "SlideIR is linked to a stale EvidenceIR revision.", target=work_unit_id)
+        _validate_canonical_provenance(result, slide, evidence, work_unit_id)
         source_regions = {region.region_id for region in evidence.regions}
         translated_regions = {region.region_id for region in slide.regions}
         missing = sorted(source_regions - translated_regions)
@@ -156,7 +314,9 @@ def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult
         for item in slide.unresolved:
             if not item.get("reason") and not item.get("unresolved_reason"):
                 _issue(result, "KSLIDE_UNRESOLVED_UNDISCLOSED", Severity.CRITICAL, "Unresolved evidence lacks a reason.", target=work_unit_id)
-    except (KSlideError, KeyError, TypeError, ValueError, json.JSONDecodeError, OSError) as exc:
+    except KSlideError as exc:
+        _issue(result, exc.code.value, Severity.CRITICAL, exc.message, target=work_unit_id)
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError, OSError):
         _issue(result, "KSLIDE_SCHEMA_INVALID", Severity.CRITICAL, "Could not validate SlideIR safely.", target=work_unit_id)
 
 

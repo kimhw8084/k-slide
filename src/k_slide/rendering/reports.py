@@ -9,6 +9,7 @@ from ..evidence_ir import load_evidence
 from ..io import atomic_write_text, read_json
 from ..ir import SlideIR
 from ..queue import WorkUnitStatus, load_queue
+from ..semantics import ProvenanceState
 from ..storage import StorageArtifact, storage_path
 
 
@@ -35,14 +36,32 @@ def _status(queue: Any) -> str:
     return "IN PROGRESS"
 
 
+def _provenance_label(state: Any) -> str:
+    state = state.value if isinstance(state, ProvenanceState) else str(state)
+    return {
+        "source_fact": "SOURCE FACT",
+        "supported_interpretation": "SUPPORTED INTERPRETATION",
+        "unresolved": "UNRESOLVED",
+    }.get(str(state), "UNRESOLVED")
+
+
+def _semantic_text(text: Any, state: Any, reason: Any = None) -> str:
+    state = state.value if isinstance(state, ProvenanceState) else str(state)
+    label = _provenance_label(state)
+    if str(state) == "unresolved":
+        return f"[{label}: {reason or 'Evidence is unresolved.'}]"
+    return f"[{label}] {text or '[unreadable]'}"
+
+
 def _table_markdown(table: Any) -> list[str]:
     lines = [f"#### Table `{table.table_id}`", ""]
     if not table.cells:
         return lines + ["_No source cells were extracted._", ""]
-    lines.extend(["| Row | Column | Source | English | Status |", "| ---: | ---: | --- | --- | --- |"])
+    lines.extend(["| Row | Column | Source | English | Provenance | Status |", "| ---: | ---: | --- | --- | --- | --- |"])
     for cell in sorted(table.cells, key=lambda item: (item.row, item.column)):
         status = "unresolved" if cell.unresolved else "translated"
-        lines.append(f"| {cell.row + 1} | {cell.column + 1} | {cell.source_text or ''} | {cell.translation or ''} | {status} |")
+        english = _semantic_text(cell.translation, cell.provenance, cell.unresolved_reason)
+        lines.append(f"| {cell.row + 1} | {cell.column + 1} | {cell.source_text or ''} | {english} | {_provenance_label(cell.provenance)} | {status} |")
     lines.append("")
     return lines
 
@@ -51,11 +70,11 @@ def _unit_sections(run_dir: Path, unit: Any, source_name: str) -> tuple[list[str
     ir_path = storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json")
     if not ir_path.is_file():
         return [f"## {unit.document_id} — {unit.work_unit_id}", "", "_Translation not submitted yet._", ""], [], []
-    slide = SlideIR.from_dict(read_json(ir_path))
     evidence = load_evidence(run_dir, unit.work_unit_id)
+    slide = SlideIR.from_dict(read_json(ir_path), evidence=evidence)
     lines = [f"## {unit.document_id} — {unit.work_unit_id}", "", f"Source document: `{source_name}`", f"Source index: `{unit.source_index + 1}`", "", "### English Reconstruction", ""]
     for region in sorted(slide.regions, key=lambda item: item.reading_order):
-        lines.append(f"- {region.translation or '[unreadable]'}")
+        lines.append(f"- {_semantic_text(region.translation, region.provenance, region.unresolved_reason)}")
     if not slide.regions:
         lines.append("_No text regions were extracted._")
     lines.extend(["", "### Tables", ""])
@@ -66,7 +85,7 @@ def _unit_sections(run_dir: Path, unit: Any, source_name: str) -> tuple[list[str
     lines.extend(["### Visual / Process Meaning", ""])
     relations = slide.visual_relations
     if relations:
-        lines.extend(f"- {relation.interpretation or '[unresolved visual relationship]'}" for relation in relations)
+        lines.extend(f"- {_semantic_text(relation.interpretation, relation.provenance, relation.unresolved_reason)}" for relation in relations)
     else:
         context = next((item for item in evidence.visual_elements if item.get("kind") == "context_image"), None)
         lines.append(f"- Whole-work-unit visual context is preserved at `{context.get('path')}`." if context else "- No structured visual relationship was extracted.")
@@ -76,13 +95,13 @@ def _unit_sections(run_dir: Path, unit: Any, source_name: str) -> tuple[list[str
     lines.extend(["", "### Executive Context", ""])
     claims = slide.executive_semantics.get("executive_claims", [])
     if claims:
-        lines.extend(f"- **{claim.get('kind', 'other')}**: {claim.get('text', '')} _(uncertainty: {claim.get('uncertainty', 'unknown')}; evidence: {', '.join(claim.get('evidence_ids', []))})_" for claim in claims)
+        lines.extend(f"- **{_provenance_label(claim.get('provenance'))} · {claim.get('kind', 'other')}**: {_semantic_text(claim.get('text'), claim.get('provenance'), claim.get('unresolved_reason'))} _(uncertainty: {claim.get('uncertainty', 'unknown')}; evidence: {', '.join(claim.get('evidence_ids', []))})_" for claim in claims)
     else:
         lines.append("_No evidence-backed executive claims recorded._")
     unresolved = list(slide.unresolved)
     lines.extend(["", "### Unresolved / Unreadable", ""])
     if unresolved:
-        lines.extend(f"- `{item.get('region_id', item.get('cell_id', 'unknown'))}`: {item.get('reason', 'Unresolved source evidence.')}" for item in unresolved)
+        lines.extend(f"- `{item.get('region_id', item.get('cell_id', item.get('relation_id', item.get('claim_id', 'unknown'))))}`: **UNRESOLVED** — {item.get('reason', item.get('unresolved_reason', 'Unresolved source evidence.'))} _(evidence: {', '.join(item.get('evidence_ids', []))})_" for item in unresolved)
     else:
         lines.append("None.")
     lines.extend(["", "### Coverage", "", "| Source ID | Status | Note |", "| --- | --- | --- |"])
@@ -91,9 +110,9 @@ def _unit_sections(run_dir: Path, unit: Any, source_name: str) -> tuple[list[str
     lines.append("")
     review_items: list[dict[str, Any]] = []
     for item in unresolved:
-        source_id = item.get("region_id") or item.get("cell_id")
+        source_id = item.get("region_id") or item.get("cell_id") or item.get("relation_id") or item.get("claim_id")
         region = next((candidate for candidate in evidence.regions if candidate.region_id == source_id), None)
-        review_items.append({"work_unit_id": unit.work_unit_id, "source_id": source_id, "reason": item.get("reason"), "severity": "MAJOR", "crop_path": region.crop_original_path if region else None, "recommended_action": "Review the source crop and submit a targeted repair."})
+        review_items.append({"work_unit_id": unit.work_unit_id, "source_id": source_id, "reason": item.get("reason") or item.get("unresolved_reason"), "evidence_ids": item.get("evidence_ids", []), "severity": "MAJOR", "crop_path": region.crop_original_path if region else None, "recommended_action": "Review the source crop and submit a targeted repair."})
     return lines, claims, review_items
 
 
@@ -111,7 +130,7 @@ def render_run(run_dir: Path) -> dict[str, str]:
         review_items.extend(unresolved)
     final_lines.extend(["## Coverage Summary", "", f"Translated/processed work units: `{sum(unit.status in {WorkUnitStatus.TRANSLATED, WorkUnitStatus.VERIFIED} for unit in queue.work_units)}` / `{len(queue.work_units)}`", f"Review items: `{len(review_items)}`", ""])
     for claim in all_claims:
-        brief_lines.append(f"- **{claim.get('kind', 'other')}** ({claim.get('work_unit_id')}): {claim.get('text', '')} _(evidence: {', '.join(claim.get('evidence_ids', []))})_")
+        brief_lines.append(f"- **{_provenance_label(claim.get('provenance'))} · {claim.get('kind', 'other')}** ({claim.get('work_unit_id')}): {_semantic_text(claim.get('text'), claim.get('provenance'), claim.get('unresolved_reason'))} _(evidence: {', '.join(claim.get('evidence_ids', []))})_")
     if not all_claims:
         brief_lines.append("No evidence-backed executive claims are available yet.")
     unresolved_lines = ["# K-Slide Unresolved Items", ""]
@@ -119,7 +138,7 @@ def render_run(run_dir: Path) -> dict[str, str]:
         unresolved_lines.append("No unresolved items.")
     else:
         for item in review_items:
-            unresolved_lines.extend([f"## {item['work_unit_id']} — `{item['source_id']}`", "", f"- Severity: {item['severity']}", f"- Reason: {item['reason']}", f"- Crop: `{item.get('crop_path') or '[not available]'}`", f"- Recommended action: {item['recommended_action']}", ""])
+            unresolved_lines.extend([f"## {item['work_unit_id']} — `{item['source_id']}`", "", "- Provenance: **UNRESOLVED**", f"- Evidence: {', '.join(item.get('evidence_ids', [])) or '[missing]' }", f"- Severity: {item['severity']}", f"- Reason: {item['reason']}", f"- Crop: `{item.get('crop_path') or '[not available]'}`", f"- Recommended action: {item['recommended_action']}", ""])
     atomic_write_text(storage_path(run_dir, StorageArtifact.REPORT, "05_final_report.md", create_parent=True), "\n".join(final_lines) + "\n")
     atomic_write_text(storage_path(run_dir, StorageArtifact.REPORT, "05_executive_brief.md", create_parent=True), "\n".join(brief_lines) + "\n")
     atomic_write_text(storage_path(run_dir, StorageArtifact.REPORT, "07_unresolved_items.md", create_parent=True), "\n".join(unresolved_lines) + "\n")
