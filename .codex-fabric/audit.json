@@ -1,0 +1,512 @@
+{
+  "accepted_at": "2026-09-21T15:53:58Z",
+  "changed_files": [
+    {
+      "additions": 4,
+      "deletions": 3,
+      "path": ".opencode/agents/k-slide.md",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 2,
+      "path": ".opencode/commands/k-slide-continue.md",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": ".opencode/commands/k-slide.md",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 2,
+      "path": ".opencode/skills/k-slide/SKILL.md",
+      "status": "M"
+    },
+    {
+      "additions": 24,
+      "deletions": 0,
+      "path": ".opencode/tools/kslide.ts",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 1,
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "additions": 18,
+      "deletions": 0,
+      "path": "SOURCE_PROVENANCE.md",
+      "status": "M"
+    },
+    {
+      "additions": 94,
+      "deletions": 0,
+      "path": "schemas/conflict-registry.schema.json",
+      "status": "A"
+    },
+    {
+      "additions": 61,
+      "deletions": 3,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 1158,
+      "deletions": 0,
+      "path": "src/k_slide/conflicts.py",
+      "status": "A"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "src/k_slide/content_support.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "src/k_slide/deletion.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "src/k_slide/ingest.py",
+      "status": "M"
+    },
+    {
+      "additions": 76,
+      "deletions": 0,
+      "path": "src/k_slide/rendering/reports.py",
+      "status": "M"
+    },
+    {
+      "additions": 78,
+      "deletions": 0,
+      "path": "src/k_slide/verify.py",
+      "status": "M"
+    },
+    {
+      "additions": 440,
+      "deletions": 0,
+      "path": "tests/test_ksa23_conflicts.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/ingest.py | sed -n '180,360p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,280p' schemas/conflict-registry.schema.json && rtk rg -n \\\"configured_authority_ids|conflict_authority|authority_config\\\" README.md docs src tests | sed -n '1,200p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,220p' tests/test_phase35.py && rtk sed -n '1,220p' tests/test_phase34.py && rtk sed -n '1,260p' tests/test_chg16_opencode_plugin.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"CONFLICT|SUPERSESSION\\\" src/k_slide/errors.py && rtk sed -n '1,180p' src/k_slide/errors.py && rtk rg -n \\\"def render_run|workspace_mutation_guard\\\" src/k_slide/rendering/reports.py src/k_slide/storage.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3 -m json.tool schemas/conflict-registry.schema.json >/dev/null && rtk git diff --check && rtk git diff --stat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3 -m compileall -q src/k_slide'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python3 -m unittest -v tests.test_ksa23_conflicts'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python3 -m unittest -v tests.test_ksa23_conflicts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"def ensure_workspace_environment_compatible\\\" src/k_slide/execution.py && rtk nl -ba src/k_slide/execution.py | sed -n '740,820p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/execution.py | sed -n '1090,1165p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python3 -m unittest -v tests.test_ksa23_conflicts'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python3 -m unittest -v tests.test_ksa23_conflicts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"kslide_prepare|kslide_next|kslide_submit|kslide_verify|tools/kslide|CONFLICT_REGISTRY\\\" tests .opencode src | sed -n '1,260p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files -g 'package.json' -g 'tsconfig*.json' -g 'package-lock.json' -g 'pnpm-lock.yaml' -g 'bun.lock*' | sed -n '1,120p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff -- src/k_slide/conflicts.py src/k_slide/verify.py src/k_slide/cli.py .opencode/tools/kslide.ts schemas/conflict-registry.schema.json | sed -n '1,520p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,180p' src/k_slide/queue.py && rtk rg -n \\\"WorkQueue\\\\(|WorkUnit\\\\(\\\" tests/test_chg16_* tests/test_phase*.py | head -n 120\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,160p' .opencode/skills/k-slide/SKILL.md && rtk sed -n '1,120p' .opencode/agents/k-slide.md && rtk sed -n '1,120p' .opencode/commands/k-slide-continue.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '30,56p' .opencode/agents/k-slide.md && rtk sed -n '8,28p' .opencode/skills/k-slide/SKILL.md && rtk sed -n '1,28p' .opencode/commands/k-slide-continue.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk command -v bun || true; rtk command -v node || true; rtk command -v npm || true; rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python3 -m unittest -v tests.test_ksa22_provenance tests.test_chg16_opencode_bootstrap tests.test_ksa21_adversarial_security tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python3 -m unittest -v tests.test_chg16_durable_execution tests.test_chg16_foundation tests.test_chg16_scoped_admission tests.test_chg16_storage_planes tests.test_chg16_host_integration'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk ps -axo pid=,stat=,command= | rtk rg 'unittest|test_ksa21|test_chg16' || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src rtk python3 -m unittest discover -s tests -p 'test_*.py'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba tests/test_ksa19_employee_path.py | sed -n '80,170p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"prepare_run\\\\(|RUN_MANIFEST|WorkQueue\\\\(\\\" tests/test_phase1.py tests/test_phase11.py tests/test_ksa19_employee_path.py | sed -n '1,180p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba tests/test_phase1.py | sed -n '100,190p' && rtk nl -ba tests/test_phase11.py | sed -n '1,140p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python3 -m unittest -v tests.test_ksa23_conflicts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python3 -m unittest -v tests.test_phase1 tests.test_phase11 tests.test_ksa19_employee_path'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python3 -m unittest -v tests.test_ksa23_conflicts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git diff --stat && rtk git log --oneline --decorate -4'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk command -v python3.12 || true; rtk command -v python3.11 || true; rtk python3 -m compileall -q src/k_slide && rtk python3 -m json.tool schemas/conflict-registry.schema.json >/dev/null && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk node --help | rtk rg 'strip|typescript' || true; rtk command -v bunx || true; rtk command -v deno || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src /opt/homebrew/bin/python3.12 -m unittest -v tests.test_ksa23_conflicts tests.test_ksa22_provenance tests.test_ksa21_adversarial_security'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src rtk python3 -m unittest discover -s tests -p 'test_*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src /opt/homebrew/bin/python3.12 -m unittest discover -s tests -p 'test_*.py'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python3 -m unittest -v tests.test_ksa23_conflicts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"Fabric evidence|fabric.*evidence|evidence.*branch|RUN_COMPLETE|audit evidence|CF-\" scripts docs README.md .github | head -n 240'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git status --short && rtk git diff --name-only && rtk git diff --numstat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src /opt/homebrew/bin/python3.12 -m unittest -v tests.test_ksa23_conflicts && /opt/homebrew/bin/python3.12 -m compileall -q src/k_slide'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/conflicts.py | sed -n '680,860p' && rtk nl -ba src/k_slide/conflicts.py | sed -n '960,1145p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/conflicts.py | sed -n '1,190p' && rtk nl -ba src/k_slide/conflicts.py | sed -n '270,640p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba src/k_slide/cli.py | sed -n '80,170p' && rtk nl -ba src/k_slide/cli.py | sed -n '190,340p' && rtk nl -ba src/k_slide/verify.py | sed -n '315,410p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"class Termbase|@dataclass.*Termbase\\\" src/k_slide/terminology.py && rtk sed -n '1,80p' src/k_slide/terminology.py && rtk rg -n \\\"def _fixture|RunState\\\\(\\\" tests/test_ksa23_conflicts.py tests/test_phase11.py | head -n 80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src rtk python3 -m unittest discover -s tests -p 'test_*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git status --short && rtk git add .opencode/agents/k-slide.md .opencode/commands/k-slide-continue.md .opencode/commands/k-slide.md .opencode/skills/k-slide/SKILL.md .opencode/tools/kslide.ts schemas/conflict-registry.schema.json src/k_slide/cli.py src/k_slide/conflicts.py src/k_slide/ingest.py src/k_slide/verify.py tests/test_ksa23_conflicts.py && rtk git commit -m \"fix: wire KSA-23 conflict assessment and authority semantics\" && rtk git status --short --branch && rtk git log --oneline --decorate -5'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"/opt/homebrew/bin/python3.12 -m compileall -q src/k_slide && /opt/homebrew/bin/python3.12 -m json.tool schemas/conflict-registry.schema.json >/dev/null && rtk rg -n \\\"export const conflict_assess|CONFLICT_ASSESSMENT_REQUIRED|conflict_registry_contract|authority_config_revision|authority_relation\\\" .opencode/tools/kslide.ts src/k_slide/cli.py src/k_slide/verify.py src/k_slide/conflicts.py schemas/conflict-registry.schema.json | sed -n '1,180p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rev-list --parents -3 HEAD && rtk git merge-base --is-ancestor 59590202cf8d6b6073c2510b110fc89ae0be221b HEAD && rtk git merge-base --is-ancestor 595e8d1bc5ff3d9a8e11825c7e838aeb6531590b HEAD; rtk git status --porcelain=v1 --branch; rtk git diff --check HEAD''^ HEAD; rtk git show --stat --oneline --decorate HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python3 -m unittest -v tests.test_ksa23_conflicts tests.test_ksa22_provenance tests.test_ksa21_adversarial_security'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rebase --onto 595e8d1bc5ff3d9a8e11825c7e838aeb6531590b dd948de5910a679a7825f68280ece6101d4ce730 && rtk git status --short --branch && rtk git log --oneline --decorate -5 && rtk git merge-base --is-ancestor 59590202cf8d6b6073c2510b110fc89ae0be221b HEAD && rtk git merge-base --is-ancestor 595e8d1bc5ff3d9a8e11825c7e838aeb6531590b HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git rev-list --parents -2 HEAD && rtk git merge-base --is-ancestor 59590202cf8d6b6073c2510b110fc89ae0be221b HEAD && rtk git merge-base --is-ancestor 595e8d1bc5ff3d9a8e11825c7e838aeb6531590b HEAD && rtk git diff --check HEAD''^ HEAD && rtk git diff --stat 59590202cf8d6b6073c2510b110fc89ae0be221b..HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.155.1",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 254,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 98.02,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 14559744,
+      "fresh_input_tokens": 293864,
+      "input_tokens": 14853608,
+      "non_reasoning_output_tokens": 30461,
+      "output_tokens": 59885,
+      "reasoning_output_tokens": 29424,
+      "total_processed_tokens": 14913493
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "9e6d615dc619c0ebba1517c76025bb4b2853a2a2",
+      "subject": "fix: wire KSA-23 conflict assessment and authority semantics"
+    },
+    {
+      "sha": "595e8d1bc5ff3d9a8e11825c7e838aeb6531590b",
+      "subject": "fabric: capture completed model changes [CF-d92f009d77bff14ff781b412]"
+    }
+  ],
+  "diff": {
+    "additions": 1975,
+    "changed_files": 17,
+    "commit_count": 2,
+    "deletions": 13
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 7,
+    "items": [
+      {
+        "bytes": 3291,
+        "path": ".opencode/agents/k-slide.md",
+        "sha256": "1cf7df4c587cd0169a846e2f754c5cffad63cb8020226f47e6f76a6ed7efa7bf"
+      },
+      {
+        "bytes": 1029,
+        "path": ".opencode/commands/k-slide-continue.md",
+        "sha256": "4f01cc666981b032c42468e20665b091ea3ffdb37057af4b191adeed2de607ed"
+      },
+      {
+        "bytes": 1277,
+        "path": ".opencode/commands/k-slide.md",
+        "sha256": "dbe2918c1470c64f2a20cd8135ef22f593ec52365836042023ae5a7f3119ddba"
+      },
+      {
+        "bytes": 3154,
+        "path": ".opencode/skills/k-slide/SKILL.md",
+        "sha256": "57b76190c52ee1e1e5fc46f865ef112b121fa572cdeee3437b7a9ff487cb1c62"
+      },
+      {
+        "bytes": 13710,
+        "path": "README.md",
+        "sha256": "bc62576eca1256c1447463df8180ac6846c1afd3f848a8eed66e1b5a5592257e"
+      },
+      {
+        "bytes": 5369,
+        "path": "SOURCE_PROVENANCE.md",
+        "sha256": "58fe39fa385563005700371215656fc4a931e699ae67bf773261c0d308fd3a3b"
+      },
+      {
+        "bytes": 5177,
+        "path": "schemas/conflict-registry.schema.json",
+        "sha256": "b1e337879281feea1abd4e45c1ec42e3874043c155673fba125bd4404aafcdbc"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.4-quota-recovery-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.4-quota-recovery-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-21T16:26:59Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "59590202cf8d6b6073c2510b110fc89ae0be221b",
+    "branch": "codex/k-slide-chg16-conflict-supersession-01-fix01",
+    "detached_verify": false,
+    "head_sha": "9e6d615dc619c0ebba1517c76025bb4b2853a2a2",
+    "remote_exact_head": true,
+    "remote_head_sha": "9e6d615dc619c0ebba1517c76025bb4b2853a2a2",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "59590202cf8d6b6073c2510b110fc89ae0be221b",
+    "work_branch": "codex/k-slide-chg16-conflict-supersession-01-fix01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-de4ecd7a6d9285473a559c0b",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-conflict-supersession-01-fix01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-conflict-supersession-01-fix01"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.4-quota-recovery-candidate",
+    "policy_sha256": "a642c9f63bab2cb555704bdb0b9d1f28222591f133f934c1d0f93cc5a25ab8a1",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-conflict-supersession-01-fix01",
+  "schema_version": 1,
+  "started_at": "2026-09-21T15:53:58Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1981,
+    "queue_seconds": 0,
+    "total_seconds": 1981
+  },
+  "transport": {
+    "bytes": 5436,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 5103,
+    "prompt_sha256": "d32f2b9393a589fb53d931360d25538e224f2f4050c80bb7cd0e0657f14dafd8",
+    "sha256": "de4ecd7a6d9285473a559c0b86531b787b297a23f55670df27e8761ee4a2dda8"
+  }
+}
