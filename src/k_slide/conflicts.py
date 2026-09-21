@@ -40,6 +40,15 @@ class ConflictResolutionState(str, Enum):
     RESOLVED_BY_AUTHORITATIVE_SUPERSESSION = "resolved_by_authoritative_supersession"
 
 
+class ConflictAssessmentState(str, Enum):
+    """Durable run-level conflict assessment states."""
+
+    NOT_ASSESSED = "NOT_ASSESSED"
+    ASSESSED_ZERO_CONFLICTS = "ASSESSED_ZERO_CONFLICTS"
+    ASSESSED_CONFLICTS = "ASSESSED_CONFLICTS"
+    LEGACY_NOT_ASSESSED = "LEGACY_NOT_ASSESSED"
+
+
 class AssertionKind(str, Enum):
     REGION = "region"
     TABLE_CELL = "table_cell"
@@ -399,11 +408,22 @@ class ConflictRegistry:
     supersessions: tuple[Supersession, ...] = ()
     registry_revision: str = ""
     schema_version: str = CONFLICT_REGISTRY_SCHEMA_VERSION
+    assessment_status: str = ""
+
+    def effective_assessment_status(self) -> str:
+        if self.assessment_status:
+            return ConflictAssessmentState(self.assessment_status).value
+        return (
+            ConflictAssessmentState.ASSESSED_CONFLICTS.value
+            if self.conflicts
+            else ConflictAssessmentState.ASSESSED_ZERO_CONFLICTS.value
+        )
 
     def without_revision(self) -> dict[str, Any]:
         return {
             "schema_version": self.schema_version,
             "run_id": self.run_id,
+            "assessment_status": self.effective_assessment_status(),
             "conflicts": [item.as_dict() for item in sorted(self.conflicts, key=lambda item: item.conflict_id)],
             "supersessions": [item.as_dict() for item in sorted(self.supersessions, key=lambda item: item.supersession_id)],
         }
@@ -421,7 +441,7 @@ class ConflictRegistry:
         if not isinstance(value, dict):
             raise _error("Conflict registry must be an object.", code=ErrorCode.SCHEMA_INVALID)
         required = {"schema_version", "run_id", "conflicts", "supersessions", "registry_revision"}
-        _only_fields(value, required, "registry")
+        _only_fields(value, required | {"assessment_status"}, "registry")
         missing = sorted(required - set(value))
         if missing:
             raise _error("Conflict registry is missing required fields.", code=ErrorCode.SCHEMA_INVALID, details={"fields": missing})
@@ -431,13 +451,38 @@ class ConflictRegistry:
         supersessions = value.get("supersessions")
         if not isinstance(conflicts, list) or not isinstance(supersessions, list):
             raise _error("Conflict registry conflicts and supersessions must be arrays.", code=ErrorCode.SCHEMA_INVALID)
+        assessment_status_present = "assessment_status" in value
         registry = cls(
             run_id=_identifier(value.get("run_id"), "run_id"),
             conflicts=tuple(Conflict.from_dict(item) for item in conflicts),
             supersessions=tuple(Supersession.from_dict(item) for item in supersessions),
             registry_revision=_non_empty(value.get("registry_revision"), "registry_revision"),
             schema_version=value.get("schema_version"),
+            assessment_status=str(value.get("assessment_status", "")),
         )
+        if not assessment_status_present:
+            legacy_contents = {key: value[key] for key in ("schema_version", "run_id", "conflicts", "supersessions")}
+            if registry.registry_revision != stable_revision(legacy_contents):
+                raise _error(
+                    "Conflict registry revision does not match its deterministic contents.",
+                    code=ErrorCode.STALE_EVIDENCE,
+                    details={"expected": stable_revision(legacy_contents), "actual": registry.registry_revision},
+                )
+            registry = cls(
+                run_id=registry.run_id,
+                conflicts=registry.conflicts,
+                supersessions=registry.supersessions,
+                schema_version=registry.schema_version,
+                assessment_status=registry.effective_assessment_status(),
+            )
+            registry = cls(
+                run_id=registry.run_id,
+                conflicts=registry.conflicts,
+                supersessions=registry.supersessions,
+                registry_revision=registry.computed_revision(),
+                schema_version=registry.schema_version,
+                assessment_status=registry.assessment_status,
+            )
         if registry.registry_revision != registry.computed_revision():
             raise _error(
                 "Conflict registry revision does not match its deterministic contents.",
@@ -451,6 +496,17 @@ class ConflictRegistry:
         if self.schema_version != CONFLICT_REGISTRY_SCHEMA_VERSION:
             raise _error("Unsupported conflict registry schema version.", code=ErrorCode.SCHEMA_INVALID)
         _identifier(self.run_id, "run_id")
+        try:
+            assessment_status = self.effective_assessment_status()
+        except ValueError as exc:
+            raise _error("Conflict registry assessment status is unsupported.", code=ErrorCode.SCHEMA_INVALID) from exc
+        expected_assessment_status = (
+            ConflictAssessmentState.ASSESSED_CONFLICTS.value
+            if self.conflicts
+            else ConflictAssessmentState.ASSESSED_ZERO_CONFLICTS.value
+        )
+        if assessment_status != expected_assessment_status:
+            raise _error("Conflict registry assessment status does not match its contents.", code=ErrorCode.CONFLICT_INVALID)
         if self.registry_revision and self.registry_revision != self.computed_revision():
             raise _error("Conflict registry revision does not match its deterministic contents.", code=ErrorCode.STALE_EVIDENCE)
         conflict_ids = [item.conflict_id for item in self.conflicts]
@@ -824,10 +880,13 @@ def _validate_explicit_authority_relation(supersession: Supersession, conflict: 
     if relation["authority_evidence_ids"] != expected_authority_ids:
         raise _error("Supersession authority relation does not bind the exact current authority evidence.", code=ErrorCode.SUPERSESSION_INVALID)
     authority_text = " ".join(str(item.source_context.get("text", "")) for item in supersession.authority_evidence)
-    if not re.search(r"(?:정정|공식|승인|확정|대체|official|authorit|correct|supersed|approved|confirmed|replaced)", authority_text, re.IGNORECASE):
-        raise _error("Explicit authority evidence does not contain a typed authority marker.", code=ErrorCode.SUPERSESSION_INVALID)
-    explicit_target = re.search(r"(?:AUTHORITY_SUPERSEDES|SUPERSEDES)\s*[:=]\s*(assertion-[A-Za-z0-9._:-]+)", authority_text, re.IGNORECASE)
-    if explicit_target is not None and explicit_target.group(1) != winner.assertion_id:
+    targets = re.findall(r"AUTHORITY_SUPERSEDES\s*[:=]\s*(assertion-[A-Za-z0-9._:-]{1,127})\b", authority_text, re.IGNORECASE)
+    if len(targets) != 1:
+        raise _error(
+            "Explicit authority evidence must contain exactly one engine-verifiable AUTHORITY_SUPERSEDES target.",
+            code=ErrorCode.SUPERSESSION_INVALID,
+        )
+    if targets[0] != winner.assertion_id:
         raise _error("Explicit authority evidence names a different superseding assertion.", code=ErrorCode.SUPERSESSION_INVALID)
 
 
@@ -1000,41 +1059,6 @@ def build_assertion_reference(run_dir: Path, work_unit_id: str, semantic_kind: s
     )
 
 
-_DETERMINISTIC_CONFLICT_CLAIM_KINDS = frozenset({"owner", "timing", "key_number", "decision_status", "decision_or_ask"})
-
-
-def _normalized_claim_text(value: str) -> str:
-    return re.sub(r"[^\w\uac00-\ud7a3]+", "", value.casefold(), flags=re.UNICODE)
-
-
-def _deterministic_candidate_keys(run_dir: Path) -> list[tuple[tuple[str, str, str], ...]]:
-    queue = load_queue(run_dir)
-    grouped: dict[str, list[tuple[str, str, str, str]]] = {}
-    for unit in sorted(queue.work_units, key=lambda item: (item.document_id, item.source_index, item.work_unit_id)):
-        canonical_path = storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json")
-        if not canonical_path.is_file():
-            continue
-        evidence = load_evidence(run_dir, unit.work_unit_id)
-        slide = SlideIR.from_dict(read_json(canonical_path), evidence=evidence)
-        claims = slide.executive_semantics.get("executive_claims", [])
-        if not isinstance(claims, list):
-            continue
-        for claim in claims:
-            if not isinstance(claim, dict) or claim.get("kind") not in _DETERMINISTIC_CONFLICT_CLAIM_KINDS:
-                continue
-            claim_id = claim.get("claim_id")
-            text = claim.get("text")
-            if not isinstance(claim_id, str) or not isinstance(text, str) or not text.strip():
-                continue
-            grouped.setdefault(str(claim["kind"]), []).append((unit.document_id, unit.work_unit_id, claim_id, _normalized_claim_text(text)))
-    groups: list[tuple[tuple[str, str, str], ...]] = []
-    for entries in grouped.values():
-        if len({entry[3] for entry in entries}) < 2 or len({(entry[0], entry[1]) for entry in entries}) < 2:
-            continue
-        groups.append(tuple((entry[1], AssertionKind.EXECUTIVE_CLAIM.value, entry[2]) for entry in entries))
-    return sorted(groups)
-
-
 def _typed_candidate_keys(candidate_groups: Any) -> list[tuple[tuple[str, str, str], ...]]:
     if candidate_groups is None:
         return []
@@ -1048,11 +1072,11 @@ def _typed_candidate_keys(candidate_groups: Any) -> list[tuple[tuple[str, str, s
         for reference in group["assertions"]:
             if not isinstance(reference, dict) or set(reference) != {"work_unit_id", "semantic_kind", "semantic_id"}:
                 raise _error("Conflict candidate references may contain only canonical object identities.", code=ErrorCode.SCHEMA_INVALID)
-            keys.append((
-                _identifier(reference["work_unit_id"], "work_unit_id"),
-                AssertionKind(reference["semantic_kind"]).value,
-                _identifier(reference["semantic_id"], "semantic_id"),
-            ))
+            try:
+                semantic_kind = AssertionKind(reference["semantic_kind"]).value
+            except ValueError as exc:
+                raise _error("Conflict candidate reference has an unsupported semantic kind.", code=ErrorCode.SCHEMA_INVALID) from exc
+            keys.append((_identifier(reference["work_unit_id"], "work_unit_id"), semantic_kind, _identifier(reference["semantic_id"], "semantic_id")))
         if len(keys) < 2 or len(set(keys)) != len(keys):
             raise _error("Conflict candidate groups require distinct competing assertions.", code=ErrorCode.CONFLICT_INVALID)
         result.append(tuple(sorted(keys)))
@@ -1062,16 +1086,16 @@ def _typed_candidate_keys(candidate_groups: Any) -> list[tuple[tuple[str, str, s
 def assess_conflicts(run_dir: Path, *, candidate_groups: Any = None) -> ConflictRegistry:
     """Engine-owned conflict admission for the real K-Slide lifecycle.
 
-    The model may add only canonical object identities.  The engine always adds
-    its deterministic claim scan, rebuilds every assertion reference, and
-    persists either unresolved conflicts or an explicit zero-conflict registry.
+    The model may add only canonical object identities.  The engine rebuilds
+    every assertion reference and persists either unresolved conflicts or an
+    explicit zero-conflict registry.  Ambiguous contradictions are never
+    inferred from differing text or a broad executive-claim kind.
     """
 
     queue = load_queue(run_dir)
     if not queue.work_units or any(unit.status not in {WorkUnitStatus.TRANSLATED, WorkUnitStatus.VERIFIED} for unit in queue.work_units):
         raise _error("Conflict assessment requires every work unit to have a current canonical translation.", code=ErrorCode.CONFLICT_INVALID)
-    groups = set(_deterministic_candidate_keys(run_dir))
-    groups.update(_typed_candidate_keys(candidate_groups))
+    groups = set(_typed_candidate_keys(candidate_groups))
     current = load_conflict_registry(run_dir)
     if current is not None:
         current.validate_against_run(
@@ -1108,6 +1132,10 @@ def save_conflict_registry(run_dir: Path, registry: ConflictRegistry, *, configu
         strict_authority=strict,
     )
     atomic_write_json(conflict_registry_path(run_dir), registry.as_dict(), mode=0o600)
+    if strict:
+        manifest = _run_manifest(run_dir)
+        manifest["conflict_assessment"] = {"schema_version": CONFLICT_CONTRACT_VERSION, "status": registry.effective_assessment_status()}
+        atomic_write_json(storage_path(run_dir, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json"), manifest, mode=0o600)
 
 
 def configured_authority_ids_for_save(run_dir: Path, policy: dict[str, Any]) -> set[str]:
@@ -1128,6 +1156,33 @@ def load_conflict_registry(run_dir: Path) -> ConflictRegistry | None:
     return ConflictRegistry.from_dict(value)
 
 
+def conflict_assessment_status(run_dir: Path) -> str:
+    """Return the durable assessment state for a run."""
+
+    if not conflict_contract_required(run_dir):
+        return ConflictAssessmentState.LEGACY_NOT_ASSESSED.value
+    registry = load_conflict_registry(run_dir)
+    manifest = _run_manifest(run_dir)
+    marker = manifest.get("conflict_assessment")
+    if marker is not None:
+        if not isinstance(marker, dict) or marker.get("schema_version") != CONFLICT_CONTRACT_VERSION:
+            raise _error("Conflict assessment marker is malformed.", code=ErrorCode.SCHEMA_INVALID)
+        marker_status = marker.get("status")
+        try:
+            marker_status = ConflictAssessmentState(marker_status).value
+        except ValueError as exc:
+            raise _error("Conflict assessment marker status is unsupported.", code=ErrorCode.SCHEMA_INVALID) from exc
+        if registry is None:
+            if marker_status != ConflictAssessmentState.NOT_ASSESSED.value:
+                raise _error("Conflict assessment marker claims assessment without a registry.", code=ErrorCode.STALE_EVIDENCE)
+            return marker_status
+        if marker_status != registry.effective_assessment_status():
+            raise _error("Conflict assessment marker does not match the current registry.", code=ErrorCode.STALE_EVIDENCE)
+    if registry is None:
+        return ConflictAssessmentState.NOT_ASSESSED.value
+    return registry.effective_assessment_status()
+
+
 def finalize_registry(registry: ConflictRegistry) -> ConflictRegistry:
     """Return a deterministic revisioned copy after structural validation."""
 
@@ -1138,6 +1193,11 @@ def finalize_registry(registry: ConflictRegistry) -> ConflictRegistry:
         supersessions=registry.supersessions,
         registry_revision=registry.computed_revision(),
         schema_version=registry.schema_version,
+        assessment_status=(
+            ConflictAssessmentState.ASSESSED_CONFLICTS.value
+            if registry.conflicts
+            else ConflictAssessmentState.ASSESSED_ZERO_CONFLICTS.value
+        ),
     )
 
 
@@ -1149,10 +1209,10 @@ CONFLICT_SCHEMA_VERSION = CONFLICT_REGISTRY_SCHEMA_VERSION
 
 
 __all__ = [
-    "AssertionKind", "AssertionReference", "AuthorityEvidenceReference", "Conflict", "ConflictAssertion", "ConflictIR",
+    "AssertionKind", "AssertionReference", "AuthorityEvidenceReference", "Conflict", "ConflictAssertion", "ConflictIR", "ConflictAssessmentState",
     "ConflictRegistry", "ConflictResolutionState", "ConflictState", "CONFLICT_REGISTRY_FILE", "CONFLICT_REGISTRY_SCHEMA_VERSION", "CONFLICT_SCHEMA_VERSION",
     "Supersession", "SupersessionIR", "SupersessionAuthorityBasis", "SupersessionState",
     "assertion_id_for", "assess_conflicts", "authority_policy_revision", "build_assertion_reference", "build_authority_evidence_reference", "conflict_authority_policy", "conflict_contract_required", "conflict_id_for",
-    "conflict_registry_path", "finalize_registry", "load_conflict_registry", "save_conflict_registry",
+    "conflict_assessment_status", "conflict_registry_path", "finalize_registry", "load_conflict_registry", "save_conflict_registry",
     "supersession_id_for",
 ]

@@ -9,6 +9,7 @@ from pathlib import Path
 from k_slide.conflicts import (
     AssertionKind,
     assess_conflicts,
+    conflict_assessment_status,
     authority_policy_revision,
     Conflict,
     ConflictRegistry,
@@ -27,13 +28,14 @@ from k_slide.conflicts import (
     assertion_id_for,
 )
 from k_slide.errors import ErrorCode, KSlideError
-from k_slide.evidence_ir import EvidenceIR, EvidenceRegion, save_evidence
+from k_slide.evidence_ir import EvidenceIR, EvidenceRegion, EvidenceTable, EvidenceTableCell, save_evidence
 from k_slide.io import atomic_write_json
-from k_slide.queue import WorkQueue, WorkUnit, WorkUnitStatus, save_queue
+from k_slide.queue import WorkQueue, WorkUnit, WorkUnitStatus, load_queue, save_queue
 from k_slide.rendering.reports import render_run
 from k_slide.storage import StorageArtifact, storage_path
 from k_slide.translation import merge_evidence_patch, parse_translation_patch
-from k_slide.verify import VerificationResult, _validate_conflict_registry
+from k_slide.terminology import Termbase
+from k_slide.verify import VerificationResult, _validate_conflict_registry, verify_run
 
 
 class KSA23ConflictTests(unittest.TestCase):
@@ -96,11 +98,87 @@ class KSA23ConflictTests(unittest.TestCase):
         atomic_write_json(storage_path(run, StorageArtifact.CANONICAL_IR, f"ir/{unit_id}.json", create_parent=True), slide.as_dict(), mode=0o600)
         return evidence
 
-    def _run(self, *, two_documents: bool = True, authority_text: bool = False, claim_kind: str = "owner") -> tuple[Path, EvidenceIR, EvidenceIR]:
+    def _typed_kind_run(self, kind: str) -> tuple[Path, EvidenceIR, EvidenceIR, str, str]:
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         run = Path(directory.name) / "run"
         run.mkdir()
+        evidences: list[EvidenceIR] = []
+        for index, (document_id, language) in enumerate((("doc-ko", "ko"), ("doc-en", "en")), start=1):
+            unit_id = f"{document_id}-slide-001"
+            region_id = f"{unit_id}-r1"
+            cell_id = f"{unit_id}-table-1-r0-c0"
+            fact_id = f"{unit_id}-fact-1"
+            visual_id = f"{unit_id}-visual-1"
+            region = EvidenceRegion(
+                region_id,
+                selected_literal_candidate="매출 10억원" if language == "ko" else "Revenue KRW 10 million",
+                language=language,
+                numeric_fact_ids=(fact_id,) if kind == "numeric_fact" else (),
+            )
+            tables = (
+                EvidenceTable(
+                    f"{unit_id}-table-1",
+                    row_count=1,
+                    column_count=1,
+                    cells=(EvidenceTableCell(cell_id, 0, 0, source_text="매출" if language == "ko" else "Revenue", evidence_region_ids=(region_id,)),),
+                ),
+            ) if kind == "table_cell" else ()
+            numeric_facts = ({
+                "fact_id": fact_id,
+                "source_region_id": region_id,
+                "source_string": "10억원" if language == "ko" else "KRW 10 million",
+                "raw_value": 10,
+                "canonical_value": 1000000000,
+                "scale_factor": 100000000,
+                "source_unit": "억원" if language == "ko" else "KRW million",
+                "semantic_quantity": "currency",
+                "currency": "KRW",
+            },) if kind == "numeric_fact" else ()
+            visual_elements = ({"element_id": visual_id, "kind": "bar", "required": True},) if kind == "visual_relation" else ()
+            required_ids = [region_id]
+            if kind == "table_cell":
+                required_ids.append(cell_id)
+            if kind == "numeric_fact":
+                required_ids.append(fact_id)
+            if kind == "visual_relation":
+                required_ids.append(visual_id)
+            evidence = EvidenceIR(
+                document_id,
+                unit_id,
+                {"slide_number": index},
+                regions=(region,),
+                tables=tables,
+                numeric_facts=numeric_facts,
+                visual_elements=visual_elements,
+                required_source_ids=tuple(required_ids),
+            ).with_revision()
+            save_evidence(run, evidence)
+            regions = [{"region_id": region_id, "english": "Revenue KRW 10 million", "term_ids": [], "unresolved": False, "provenance": "source_fact", "evidence_ids": [region_id]}]
+            tables_patch = [{"table_id": f"{unit_id}-table-1", "cells": [{"cell_id": cell_id, "english": "Revenue", "unresolved": False, "provenance": "source_fact", "evidence_ids": [cell_id]}]}] if kind == "table_cell" else []
+            visual_patch = [{"relation_id": f"{unit_id}-relation-1", "interpretation": "The bar increases.", "evidence_ids": [region_id], "source_element_ids": [visual_id], "relation_type": "highlights", "direction": "left_to_right", "provenance": "supported_interpretation"}] if kind == "visual_relation" else []
+            claims = [{"claim_id": f"{unit_id}-claim", "kind": "key_number", "text": "Revenue is KRW 10 million.", "evidence_ids": [region_id], "uncertainty": "low", "provenance": "supported_interpretation"}] if kind == "executive_claim" else []
+            patch = parse_translation_patch({"schema_version": "1.0", "work_unit_id": unit_id, "evidence_revision": evidence.evidence_revision, "regions": regions, "tables": tables_patch, "visual_interpretations": visual_patch, "executive_claims": claims})
+            slide = merge_evidence_patch(evidence, patch)
+            atomic_write_json(storage_path(run, StorageArtifact.CANONICAL_IR, f"ir/{unit_id}.json", create_parent=True), slide.as_dict(), mode=0o600)
+            evidences.append(evidence)
+        save_queue(run, WorkQueue("run-ksa23-typed", [WorkUnit(item.work_unit_id, item.document_id, f"source-{index:03d}", index - 1, status=WorkUnitStatus.TRANSLATED) for index, item in enumerate(evidences, start=1)]))
+        atomic_write_json(storage_path(run, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json", create_parent=True), {"inputs": [{"source_name": "ko.pptx"}, {"source_name": "en.pptx"}]})
+        ids = {
+            "region": (f"{evidences[0].work_unit_id}-r1", f"{evidences[1].work_unit_id}-r1"),
+            "table_cell": (f"{evidences[0].work_unit_id}-table-1-r0-c0", f"{evidences[1].work_unit_id}-table-1-r0-c0"),
+            "visual_relation": (f"{evidences[0].work_unit_id}-relation-1", f"{evidences[1].work_unit_id}-relation-1"),
+            "executive_claim": (f"{evidences[0].work_unit_id}-claim", f"{evidences[1].work_unit_id}-claim"),
+            "numeric_fact": (f"{evidences[0].work_unit_id}-fact-1", f"{evidences[1].work_unit_id}-fact-1"),
+        }[kind]
+        return run, evidences[0], evidences[1], ids[0], ids[1]
+
+    def _run(self, *, two_documents: bool = True, authority_text: bool = False, claim_kind: str = "owner", workspace_layout: bool = False) -> tuple[Path, EvidenceIR, EvidenceIR]:
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        workspace = Path(directory.name)
+        run = workspace / ".k-slide-runs" / "run" if workspace_layout else workspace / "run"
+        run.mkdir(parents=True)
         evidence_a = self._unit(
             run,
             unit_id="doc-a-slide-001",
@@ -109,7 +187,15 @@ class KSA23ConflictTests(unittest.TestCase):
             source_text="책임자는 김 과장이다.",
             language="ko",
             claim_text="The owner is Manager Kim.",
-            authority_text="공식 정정: 책임자는 박 부장이다." if authority_text else None,
+            authority_text=(
+                "공식 정정: AUTHORITY_SUPERSEDES: "
+                + assertion_id_for(
+                    "doc-b" if two_documents else "doc-a",
+                    "doc-b-slide-001" if two_documents else "doc-a-slide-002",
+                    AssertionKind.EXECUTIVE_CLAIM.value,
+                    ("doc-b-slide-001" if two_documents else "doc-a-slide-002") + "-claim",
+                )
+            ) if authority_text else None,
             claim_kind=claim_kind,
         )
         evidence_b = self._unit(
@@ -336,7 +422,7 @@ class KSA23ConflictTests(unittest.TestCase):
         _validate_conflict_registry(run, result)
         self.assertFalse(result.issues)
 
-    def test_engine_assessment_unions_deterministic_and_typed_candidates_without_model_context(self) -> None:
+    def test_engine_assessment_admits_typed_candidates_without_model_context(self) -> None:
         run, evidence_a, evidence_b = self._run(claim_kind="takeaway")
         first_id = f"{evidence_a.work_unit_id}-claim"
         second_id = f"{evidence_b.work_unit_id}-claim"
@@ -355,16 +441,92 @@ class KSA23ConflictTests(unittest.TestCase):
             assess_conflicts(run, candidate_groups=[{"assertions": [{"work_unit_id": evidence_a.work_unit_id, "semantic_kind": "executive_claim", "semantic_id": first_id, "source_context": "forged"}, {"work_unit_id": evidence_b.work_unit_id, "semantic_kind": "executive_claim", "semantic_id": second_id}]}])
         self.assertEqual(raised.exception.code, ErrorCode.SCHEMA_INVALID)
 
-    def test_engine_deterministic_scan_admits_cross_document_and_cross_slide_contradictions(self) -> None:
+    def test_typed_canonical_references_admit_cross_document_and_cross_slide_contradictions(self) -> None:
         for two_documents in (True, False):
             with self.subTest(two_documents=two_documents):
                 run, evidence_a, evidence_b = self._run(two_documents=two_documents)
-                registry = assess_conflicts(run, candidate_groups=[])
+                registry = assess_conflicts(
+                    run,
+                    candidate_groups=[{
+                        "assertions": [
+                            {"work_unit_id": evidence_a.work_unit_id, "semantic_kind": "region", "semantic_id": f"{evidence_a.work_unit_id}-r1"},
+                            {"work_unit_id": evidence_b.work_unit_id, "semantic_kind": "region", "semantic_id": f"{evidence_b.work_unit_id}-r1"},
+                        ]
+                    }],
+                )
                 self.assertEqual(len(registry.conflicts), 1)
                 participants = registry.conflicts[0].participants
                 self.assertEqual({item.location["source_index"] for item in participants}, {0, 1} if not two_documents else {0})
                 if two_documents:
                     self.assertEqual({item.document_id for item in participants}, {evidence_a.document_id, evidence_b.document_id})
+
+    def test_broad_claim_kind_and_different_text_do_not_admit_unrelated_objects(self) -> None:
+        for kind, first_text, second_text in (
+            ("owner", "Project Alpha owner: Manager Kim.", "Project Beta owner: Director Park."),
+            ("timing", "Project Alpha milestone: Q2.", "Project Beta milestone: Q4."),
+            ("key_number", "Project Alpha revenue: KRW 10m.", "Project Beta users: 20k."),
+        ):
+            with self.subTest(kind=kind):
+                run, evidence_a, evidence_b = self._run(claim_kind=kind)
+                for unit_id, text in ((evidence_a.work_unit_id, first_text), (evidence_b.work_unit_id, second_text)):
+                    path = storage_path(run, StorageArtifact.CANONICAL_IR, f"ir/{unit_id}.json")
+                    value = json.loads(path.read_text(encoding="utf-8"))
+                    value["executive_semantics"]["executive_claims"][0]["text"] = text
+                    atomic_write_json(path, value)
+                registry = assess_conflicts(run, candidate_groups=[])
+                self.assertEqual(registry.assessment_status, "ASSESSED_ZERO_CONFLICTS")
+
+    def test_typed_candidate_admission_supports_every_canonical_assertion_kind(self) -> None:
+        for kind in ("region", "table_cell", "visual_relation", "executive_claim", "numeric_fact"):
+            with self.subTest(kind=kind):
+                run, evidence_a, evidence_b, first_id, second_id = self._typed_kind_run(kind)
+                registry = assess_conflicts(
+                    run,
+                    candidate_groups=[{
+                        "assertions": [
+                            {"work_unit_id": evidence_a.work_unit_id, "semantic_kind": kind, "semantic_id": first_id},
+                            {"work_unit_id": evidence_b.work_unit_id, "semantic_kind": kind, "semantic_id": second_id},
+                        ]
+                    }],
+                )
+                self.assertEqual(len(registry.conflicts), 1)
+
+    def test_new_run_lifecycle_keeps_assessment_required_until_typed_stage(self) -> None:
+        from unittest.mock import patch
+
+        from k_slide.cli import _conflict_assess, _next, _submit
+        from k_slide.state import RunPhase, RunState, save_state
+
+        run, evidence_a, evidence_b = self._run(workspace_layout=True)
+        manifest_path = storage_path(run, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["conflict_registry_contract"] = {"schema_version": "1.0", "assessment_required": True}
+        manifest["conflict_authority"] = {"schema_version": "1.0", "rules": []}
+        manifest["conflict_assessment"] = {"schema_version": "1.0", "status": "NOT_ASSESSED"}
+        atomic_write_json(manifest_path, manifest)
+        queue = load_queue(run)
+        queue.get(evidence_a.work_unit_id).status = WorkUnitStatus.TRANSLATING
+        queue.get(evidence_b.work_unit_id).status = WorkUnitStatus.TRANSLATED
+        save_queue(run, queue)
+        save_state(run, RunState("run-ksa23", "standard", RunPhase.TRANSLATING, current_work_unit=evidence_a.work_unit_id))
+        translation_payload = self._patch(evidence_a, claim_text="The owner is Manager Kim.")
+        translation_payload["regions"][0]["english"] = "The owner is Manager Kim."
+        payload = json.dumps(translation_payload, ensure_ascii=False)
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)):
+            self.assertEqual(_submit(run.parent.parent, run.name, payload, None)["status"], "ACCEPTED")
+            self.assertEqual(_next(run.parent.parent, run.name, None)["status"], "CONFLICT_ASSESSMENT_REQUIRED")
+            self.assertEqual(conflict_assessment_status(run), "NOT_ASSESSED")
+        blocked = VerificationResult(status="PASS", run_id="run-ksa23")
+        _validate_conflict_registry(run, blocked)
+        self.assertIn("KSLIDE_CONFLICT_ASSESSMENT_REQUIRED", {issue.code for issue in blocked.issues})
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)):
+            assessed = _conflict_assess(run.parent.parent, run.name, '{"schema_version":"1.0","candidate_groups":[]}', None)
+        self.assertEqual(assessed["status"], "ASSESSED_ZERO_CONFLICTS")
+        self.assertEqual(conflict_assessment_status(run), "ASSESSED_ZERO_CONFLICTS")
+        with patch("k_slide.cli.ensure_workspace_environment_compatible", return_value=(None, None)):
+            self.assertEqual(_next(run.parent.parent, run.name, None)["status"], "ALL_TRANSLATED")
+        with patch("k_slide.execution.ensure_workspace_environment_compatible", return_value=(None, None)), patch("k_slide.verify.resolve_run_termbase", return_value=Termbase("1.0")):
+            self.assertTrue(verify_run(run).passed)
 
     def test_ksa23_explicit_relation_binds_exact_competing_evidence(self) -> None:
         run, evidence_a, evidence_b = self._run(authority_text=True)
@@ -395,6 +557,27 @@ class KSA23ConflictTests(unittest.TestCase):
         )
         resolved = Conflict(conflict.conflict_id, conflict.participants, ConflictResolutionState.RESOLVED_BY_AUTHORITATIVE_SUPERSESSION.value, (supersession_id,))
         save_conflict_registry(run, finalize_registry(ConflictRegistry("run-ksa23", (resolved,), (supersession,))))
+        reversed_relation = {
+            **relation,
+            "superseding_assertion_id": first.assertion_id,
+            "superseded_assertion_id": second.assertion_id,
+            "superseding_evidence_ids": sorted(first.provenance_evidence_ids),
+            "superseded_evidence_ids": sorted(second.provenance_evidence_ids),
+        }
+        reversed_id = supersession_id_for(conflict.conflict_id, first.assertion_id, second.assertion_id, "explicit_evidence", (authority.as_dict(),), None, reversed_relation)
+        reversed_supersession = Supersession(
+            reversed_id,
+            conflict.conflict_id,
+            first.assertion_id,
+            second.assertion_id,
+            authority_basis=SupersessionAuthorityBasis.EXPLICIT_EVIDENCE.value,
+            authority_evidence=(authority,),
+            authority_relation=reversed_relation,
+        )
+        reversed_registry = finalize_registry(ConflictRegistry("run-ksa23", (replace(resolved, supersession_ids=(reversed_id,)),), (reversed_supersession,)))
+        with self.assertRaises(KSlideError) as raised:
+            save_conflict_registry(run, reversed_registry)
+        self.assertEqual(raised.exception.code, ErrorCode.SUPERSESSION_INVALID)
         unrelated = build_authority_evidence_reference(run, evidence_a.work_unit_id, (f"{evidence_a.work_unit_id}-r1",))
         bad_relation = {**relation, "authority_evidence_ids": sorted(unrelated.evidence_ids)}
         bad_id = supersession_id_for(conflict.conflict_id, second.assertion_id, first.assertion_id, "explicit_evidence", (unrelated.as_dict(),), None, bad_relation)

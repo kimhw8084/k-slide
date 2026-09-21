@@ -4,10 +4,11 @@
   "title": "K-Slide run-level conflict and supersession registry",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "run_id", "conflicts", "supersessions", "registry_revision"],
+  "required": ["schema_version", "run_id", "assessment_status", "conflicts", "supersessions", "registry_revision"],
   "properties": {
     "schema_version": {"const": "1.0"},
     "run_id": {"type": "string", "minLength": 1},
+    "assessment_status": {"enum": ["ASSESSED_ZERO_CONFLICTS", "ASSESSED_CONFLICTS"]},
     "registry_revision": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "conflicts": {"type": "array", "items": {"$ref": "#/$defs/conflict"}},
     "supersessions": {"type": "array", "items": {"$ref": "#/$defs/supersession"}}

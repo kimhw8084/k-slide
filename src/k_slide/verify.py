@@ -13,6 +13,7 @@ from .completion import ensure_completion_artifacts
 from .conflicts import (
     ConflictResolutionState,
     conflict_authority_policy,
+    conflict_assessment_status,
     conflict_contract_required,
     configured_authority_ids,
     conflict_registry_path,
@@ -349,18 +350,28 @@ def _configured_conflict_authority_ids(run_dir: Path) -> set[str]:
 def _validate_conflict_registry(run_dir: Path, result: VerificationResult) -> None:
     """Validate conflict coverage, preserving legacy absence semantics."""
 
+    try:
+        assessment_status = conflict_assessment_status(run_dir)
+    except KSlideError as exc:
+        _issue(result, "KSLIDE_CONFLICT_REGISTRY_INVALID", Severity.CRITICAL, exc.message, target="RUN_MANIFEST.json", scope="RUN_LEVEL_POLICY_FAILURE")
+        return
+    if assessment_status == "NOT_ASSESSED":
+        _issue(
+            result,
+            "KSLIDE_CONFLICT_ASSESSMENT_REQUIRED",
+            Severity.CRITICAL,
+            "KSA-23 runs require durable conflict assessment before verification and finalization.",
+            target="CONFLICT_REGISTRY.json",
+            scope="RUN_LEVEL_POLICY_FAILURE",
+        )
+        return
     if not conflict_registry_path(run_dir).is_file():
-        try:
-            required = conflict_contract_required(run_dir)
-        except KSlideError as exc:
-            _issue(result, "KSLIDE_CONFLICT_REGISTRY_INVALID", Severity.CRITICAL, exc.message, target="RUN_MANIFEST.json", scope="RUN_LEVEL_POLICY_FAILURE")
-            return
-        if required:
+        if conflict_contract_required(run_dir):
             _issue(
                 result,
-                "KSLIDE_CONFLICT_ASSESSMENT_REQUIRED",
+                "KSLIDE_CONFLICT_REGISTRY_INVALID",
                 Severity.CRITICAL,
-                "KSA-23 runs require durable conflict assessment before verification and finalization.",
+                "An assessed KSA-23 run is missing its conflict registry.",
                 target="CONFLICT_REGISTRY.json",
                 scope="RUN_LEVEL_POLICY_FAILURE",
             )

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from ..conflicts import ConflictResolutionState, load_conflict_registry, conflict_registry_path
+from ..conflicts import ConflictAssessmentState, ConflictResolutionState, conflict_assessment_status, load_conflict_registry, conflict_registry_path
 from ..evidence_ir import load_evidence
 from ..errors import KSlideError
 from ..io import atomic_write_text, read_json
@@ -123,6 +123,17 @@ def _conflict_sections(run_dir: Path) -> tuple[list[str], list[str]]:
 
     path = conflict_registry_path(run_dir)
     if not path.is_file():
+        try:
+            status = conflict_assessment_status(run_dir)
+        except (KSlideError, KeyError, TypeError, ValueError, OSError):
+            status = None
+        if status == ConflictAssessmentState.NOT_ASSESSED.value:
+            return [
+                "## Conflict Registry",
+                "",
+                "Conflict assessment: **NOT_ASSESSED**. A KSA-23 run must complete the typed engine assessment before verification or finalization.",
+                "",
+            ], []
         return [
             "## Conflict Registry",
             "",

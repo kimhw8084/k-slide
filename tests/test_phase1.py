@@ -16,7 +16,7 @@ from k_slide.runtime import discover_runtime
 from k_slide.session import resolve_run
 from k_slide.state import RunPhase, load_state, save_state
 from k_slide.verify import finalize_run, verify_run
-from k_slide.cli import _next, _submit
+from k_slide.cli import _conflict_assess, _next, _submit
 from tests.reference_fixtures import reference_environment
 
 
@@ -155,6 +155,7 @@ class Phase1Tests(unittest.TestCase):
             self.assertEqual(_next(root, run_dir.name, None, reference_environment())["status"], "READY")
             accepted = _submit(root, run_dir.name, json.dumps(payload), None, reference_environment())
             self.assertEqual(accepted["status"], "ACCEPTED")
+            _conflict_assess(root, run_dir.name, '{"schema_version":"1.0","candidate_groups":[]}', None, reference_environment())
             (run_dir / "05_executive_brief.md").write_text("# Executive brief\n")
             (run_dir / "05_final_report.md").write_text("# Source-faithful reconstruction\n")
             (run_dir / "07_unresolved_items.md").write_text("No unresolved items.\n")

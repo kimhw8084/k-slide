@@ -34,7 +34,7 @@ from .translation import merge_evidence_patch, parse_translation_patch
 from .rendering import render_run
 from .terminology import load_effective_termbase
 from .verify import finalize_run, verify_run
-from .conflicts import assess_conflicts, conflict_contract_required, conflict_registry_path, load_conflict_registry
+from .conflicts import assess_conflicts, conflict_assessment_status, conflict_registry_path
 
 
 def _run_root(root: Path) -> Path:
@@ -135,12 +135,6 @@ def _submit(
         if state.phase == RunPhase.NEEDS_REVIEW:
             state.transition(RunPhase.TRANSLATING, next_action=state.next_action)
         save_state(run_dir, state)
-        if conflict_contract_required(run_dir) and all(item.status in {WorkUnitStatus.TRANSLATED, WorkUnitStatus.VERIFIED} for item in queue.work_units):
-            # The normal employee path gets a durable engine assessment as
-            # soon as the final canonical work unit is admitted.  The typed
-            # conflict tool remains available to add bounded candidate
-            # references that the deterministic scan cannot infer.
-            assess_conflicts(run_dir, candidate_groups=[])
         return {"status": "ACCEPTED", "run_id": state.run_id, "work_unit_id": unit.work_unit_id, "translation_revision": translation_revision, "stored": str(storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json").relative_to(root.resolve()))}
 
 
@@ -216,12 +210,7 @@ def _status(
     artifacts = {name: storage_path(run, artifact_classes[name], name).is_file() for name in artifact_classes}
     conflict_assessment = "LEGACY_NOT_ASSESSED"
     try:
-        if conflict_contract_required(run):
-            if not conflict_registry_path(run).is_file():
-                conflict_assessment = "NOT_ASSESSED"
-            else:
-                registry = load_conflict_registry(run)
-                conflict_assessment = "ASSESSED_ZERO_CONFLICTS" if registry is not None and not registry.conflicts else "ASSESSED_CONFLICTS"
+        conflict_assessment = conflict_assessment_status(run)
     except KSlideError:
         conflict_assessment = "INVALID"
     return sanitize_operational(
@@ -326,7 +315,7 @@ def _next_unsanitized(
             save_state(run, state)
             return {"status": "REPAIR_READY", "run_id": state.run_id, "work_unit_id": unit.work_unit_id, "work_unit_status": unit.status.value, "evidence_revision": unit.evidence_revision, "repair_revision": unit.translation_revision, "next_action": "kslide_evidence"}
         if queue_status == "ALL_TRANSLATED":
-            if conflict_contract_required(run) and load_conflict_registry(run) is None:
+            if conflict_assessment_status(run) == "NOT_ASSESSED":
                 return {"status": "CONFLICT_ASSESSMENT_REQUIRED", "run_id": state.run_id, "next_action": "kslide_conflict_assess"}
             return {"status": "ALL_TRANSLATED", "run_id": state.run_id, "next_action": "kslide_verify"}
         if queue_status == "NEEDS_REVIEW":

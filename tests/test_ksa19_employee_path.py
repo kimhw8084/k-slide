@@ -10,7 +10,7 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-from k_slide.cli import _evidence, _next, _submit, main
+from k_slide.cli import _conflict_assess, _evidence, _next, _submit, main
 from k_slide.certification import effective_termbase_identity
 from k_slide.environment import RunEnvironmentIdentity
 from k_slide.errors import KSlideError
@@ -133,6 +133,7 @@ class EmployeeGovernedTermbasePathTests(unittest.TestCase):
         try:
             accepted = self._translate(root, run, environment, english="LockedTerm")
             self.assertEqual(accepted["status"], "ACCEPTED")
+            _conflict_assess(root, run.name, '{"schema_version":"1.0","candidate_groups":[]}', None, environment)
             for name, content in {"05_executive_brief.md": "# brief\n", "05_final_report.md": "# report\n", "07_unresolved_items.md": "No unresolved items.\n"}.items():
                 (run / name).write_text(content, encoding="utf-8")
             job = WorkspaceRunStore(run).load(f"job-{run.name}")
