@@ -7,6 +7,8 @@ import os
 import shutil
 import subprocess
 import tempfile
+import zipfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
@@ -78,12 +80,28 @@ def _snapshot_inputs(run_dir: Path) -> list[tuple[str, Path, dict[str, Any]]]:
     results: list[tuple[str, Path, dict[str, Any]]] = []
     for index, item in enumerate(values, start=1):
         extension = str(item.get("extension", "")).lower()
-        inputs_root = storage_path(run_dir, StorageArtifact.SOURCE_SNAPSHOT, "inputs")
-        source = next((path for path in inputs_root.glob(f"source-{index:03d}.*") if path.is_file()), None)
-        if source is None:
+        if extension not in {".png", ".jpg", ".jpeg", ".webp", ".pdf", ".pptx"}:
+            raise KSlideError(ErrorCode.INPUT_CORRUPT, "Immutable input snapshot metadata is invalid.")
+        source = storage_path(run_dir, StorageArtifact.SOURCE_SNAPSHOT, f"inputs/source-{index:03d}{extension}")
+        if not source.is_file() or source.is_symlink():
             raise KSlideError(ErrorCode.INPUT_NOT_FOUND, "Immutable input snapshot is missing.", {"input_id": f"source-{index:03d}"})
+        expected_sha256 = item.get("sha256")
+        if not isinstance(expected_sha256, str) or sha256_file(source) != expected_sha256:
+            raise KSlideError(ErrorCode.INPUT_CORRUPT, "Immutable input snapshot failed hash verification.")
         results.append((f"source-{index:03d}", source, {**item, "extension": extension}))
     return results
+
+
+def _pptx_slide_count(source: Path) -> int:
+    """Preflight slide cardinality before invoking an Office converter."""
+
+    try:
+        with zipfile.ZipFile(source) as archive:
+            data = archive.read("ppt/presentation.xml")
+        root = ET.fromstring(data)
+    except (ET.ParseError, OSError, ValueError, zipfile.BadZipFile, KeyError) as exc:
+        raise KSlideError(ErrorCode.NORMALIZATION_FAILED, "PPTX package structure could not be inspected safely.") from exc
+    return sum(1 for item in root.iter() if item.tag.rsplit("}", 1)[-1].casefold() == "sldid")
 
 
 def _normalize_image(run_dir: Path, input_id: str, source: Path, index: int, document_id: str) -> list[DocumentUnit]:
@@ -276,7 +294,7 @@ def _render_pptx(source: Path, run_dir: Path, document_id: str) -> list[Path]:
             _terminate_subprocess_group(process)
             raise KSlideError(ErrorCode.PPTX_CONVERSION_TIMEOUT, "PPTX rendering timed out.", {"input": source.name}) from exc
         if process.returncode != 0:
-            raise KSlideError(ErrorCode.PPTX_RENDER_UNAVAILABLE, "PPTX could not be rendered by the available Office converter.", {"input": source.name, "reason": (stderr or stdout)[-1000:]})
+            raise KSlideError(ErrorCode.PPTX_RENDER_UNAVAILABLE, "PPTX could not be rendered by the available Office converter.", {"input": source.name, "reason": "converter_exit"})
         pdf = output / f"{source.stem}.pdf"
         if not pdf.is_file():
             raise KSlideError(ErrorCode.PPTX_RENDER_UNAVAILABLE, "PPTX converter produced no PDF output.", {"input": source.name})
@@ -324,6 +342,9 @@ def normalize_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity
                 elif extension == ".pdf":
                     units = _pdf_units(run_dir, input_id, source, document_id, int(input_id.split("-")[-1]))
                 elif extension == ".pptx":
+                    slide_count = _pptx_slide_count(source)
+                    if slide_count > MAX_SLIDES_PER_PPTX:
+                        raise KSlideError(ErrorCode.RESOURCE_LIMIT, "PPTX slide count exceeds the configured safety limit.", {"max_slides": MAX_SLIDES_PER_PPTX})
                     rendered = _render_pptx(source, run_dir, document_id)
                     units = _pptx_native(source, run_dir, input_id, document_id, rendered)
                 else:
