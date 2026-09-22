@@ -1,0 +1,21 @@
+{
+  "table_id": "fixture-table",
+  "row_count": 3,
+  "column_count": 3,
+  "headers": ["Region", "Revenue", "Margin"],
+  "header_rows": [0, 1],
+  "header_columns": [0],
+  "unit": "USD millions",
+  "source_notes": ["Source: Finance", "* Margin excludes one-time items"],
+  "cells": [
+    {"cell_id": "fixture-table-r0-c0", "row": 0, "column": 0, "rowspan": 1, "colspan": 2, "source_text": "Region", "source_language": "en", "cell_state": "merge_origin", "is_merge_origin": true, "is_spanned": false, "is_blank": false, "is_header": true},
+    {"cell_id": "fixture-table-r0-c1", "row": 0, "column": 1, "rowspan": 1, "colspan": 1, "source_text": null, "source_language": "unknown", "cell_state": "merge_continuation", "is_merge_origin": false, "is_spanned": true, "is_blank": false, "is_header": true},
+    {"cell_id": "fixture-table-r0-c2", "row": 0, "column": 2, "rowspan": 1, "colspan": 1, "source_text": "Metric", "source_language": "en", "cell_state": "nonblank", "is_merge_origin": false, "is_spanned": false, "is_blank": false, "is_header": true},
+    {"cell_id": "fixture-table-r1-c0", "row": 1, "column": 0, "rowspan": 1, "colspan": 1, "source_text": "지역", "source_language": "ko", "cell_state": "nonblank", "is_merge_origin": false, "is_spanned": false, "is_blank": false, "is_header": true},
+    {"cell_id": "fixture-table-r1-c1", "row": 1, "column": 1, "rowspan": 1, "colspan": 1, "source_text": "Revenue", "source_language": "en", "cell_state": "nonblank", "is_merge_origin": false, "is_spanned": false, "is_blank": false, "is_header": true},
+    {"cell_id": "fixture-table-r1-c2", "row": 1, "column": 2, "rowspan": 1, "colspan": 1, "source_text": "Margin", "source_language": "en", "cell_state": "nonblank", "is_merge_origin": false, "is_spanned": false, "is_blank": false, "is_header": true},
+    {"cell_id": "fixture-table-r2-c0", "row": 2, "column": 0, "rowspan": 1, "colspan": 1, "source_text": "한국", "source_language": "ko", "cell_state": "nonblank", "is_merge_origin": false, "is_spanned": false, "is_blank": false, "is_header": false},
+    {"cell_id": "fixture-table-r2-c1", "row": 2, "column": 1, "rowspan": 1, "colspan": 1, "source_text": "USD 12 검토", "source_language": "mixed", "source_english_spans": ["USD 12"], "cell_state": "nonblank", "is_merge_origin": false, "is_spanned": false, "is_blank": false, "is_header": false},
+    {"cell_id": "fixture-table-r2-c2", "row": 2, "column": 2, "rowspan": 1, "colspan": 1, "source_text": "", "source_language": "unknown", "cell_state": "blank", "is_merge_origin": false, "is_spanned": false, "is_blank": true, "is_header": false}
+  ]
+}

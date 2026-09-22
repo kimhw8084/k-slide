@@ -1,0 +1,16 @@
+{
+  "elements": [
+    {"element_id": "fixture-group", "kind": "group", "bbox_px": [0, 0, 300, 80], "required": true},
+    {"element_id": "fixture-group-a", "kind": "shape", "group_id": "fixture-group", "bbox_px": [0, 0, 80, 60], "required": true},
+    {"element_id": "fixture-group-b", "kind": "shape", "group_id": "fixture-group", "bbox_px": [220, 0, 300, 60], "required": true},
+    {"element_id": "fixture-a", "kind": "shape", "bbox_px": [0, 100, 80, 160], "required": true},
+    {"element_id": "fixture-b", "kind": "shape", "bbox_px": [220, 100, 300, 160], "required": true}
+  ],
+  "connectors": [
+    {"element_id": "fixture-no-arrow", "kind": "connector", "bbox_px": [80, 30, 220, 30], "required": true, "connector": {"from_element_id": "fixture-group-a", "to_element_id": "fixture-group-b", "direction_evidence": "undirected", "direction_evidence_source": "ooxml", "start_arrow_type": "none", "end_arrow_type": "none"}},
+    {"element_id": "fixture-end-arrow", "kind": "connector", "bbox_px": [80, 130, 220, 130], "required": true, "connector": {"from_element_id": "fixture-a", "to_element_id": "fixture-b", "direction_evidence": "start_to_end", "direction_evidence_source": "ooxml", "start_arrow_type": "none", "end_arrow_type": "triangle"}},
+    {"element_id": "fixture-start-arrow", "kind": "connector", "bbox_px": [80, 130, 220, 130], "required": true, "connector": {"from_element_id": "fixture-a", "to_element_id": "fixture-b", "direction_evidence": "end_to_start", "direction_evidence_source": "ooxml", "start_arrow_type": "triangle", "end_arrow_type": "none"}},
+    {"element_id": "fixture-bidirectional", "kind": "connector", "bbox_px": [80, 130, 220, 130], "required": true, "connector": {"from_element_id": "fixture-a", "to_element_id": "fixture-b", "direction_evidence": "bidirectional", "direction_evidence_source": "ooxml", "start_arrow_type": "triangle", "end_arrow_type": "triangle"}},
+    {"element_id": "fixture-ambiguous", "kind": "connector", "bbox_px": [80, 130, 220, 130], "required": true, "connector": {"from_element_id": "fixture-a", "to_element_id": "fixture-b", "direction_evidence": "ambiguous", "direction_evidence_source": "ooxml", "start_arrow_type": "unknown", "end_arrow_type": "triangle"}}
+  ]
+}

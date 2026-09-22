@@ -1,0 +1,57 @@
+{
+  "bar_chart": {
+    "element_id": "fixture-bar-chart",
+    "kind": "chart",
+    "bbox_px": [0, 0, 640, 360],
+    "required": true,
+    "chart": {
+      "structure_version": "1.0",
+      "chart_type": "bar",
+      "title": "Revenue",
+      "categories": ["Q1", "Q2", "Q3"],
+      "series_order": ["North", "South"],
+      "series": [
+        {"series_index": 0, "name": "North", "points": [{"point_index": 0, "value": 10.0, "is_blank": false}, {"point_index": 1, "value": null, "is_blank": true}, {"point_index": 2, "value": 30.0, "is_blank": false}]},
+        {"series_index": 1, "name": "South", "points": [{"point_index": 0, "value": 8.0, "is_blank": false}, {"point_index": 1, "value": 12.0, "is_blank": false}, {"point_index": 2, "value": 15.0, "is_blank": false}]}
+      ],
+      "axis_labels": {"category": "Quarter", "value": "USD millions"},
+      "unit_labels": {"category": null, "value": "USD millions"}
+    }
+  },
+  "line_chart": {
+    "element_id": "fixture-line-chart",
+    "kind": "chart",
+    "bbox_px": [0, 0, 640, 360],
+    "required": true,
+    "chart": {
+      "structure_version": "1.0",
+      "chart_type": "line",
+      "title": "Pipeline",
+      "categories": ["Jan", "Feb", "Mar"],
+      "series_order": ["Pipeline"],
+      "series": [{"series_index": 0, "name": "Pipeline", "points": [{"point_index": 0, "value": 1.0, "is_blank": false}, {"point_index": 1, "value": 2.0, "is_blank": false}, {"point_index": 2, "value": 3.0, "is_blank": false}]}],
+      "axis_labels": {"category": "Month", "value": "Count"},
+      "unit_labels": {"category": null, "value": "count"}
+    }
+  },
+  "process_explicit_connector": {
+    "elements": [
+      {"element_id": "fixture-step-a", "kind": "shape", "bbox_px": [0, 0, 100, 60], "required": true, "source_text": "검토 Review"},
+      {"element_id": "fixture-step-b", "kind": "shape", "bbox_px": [180, 0, 280, 60], "required": true, "source_text": "실행 Execute"},
+      {"element_id": "fixture-edge", "kind": "connector", "bbox_px": [100, 30, 180, 30], "required": true, "connector": {"from_element_id": "fixture-step-a", "to_element_id": "fixture-step-b"}}
+    ]
+  },
+  "process_adjacent_without_connector": {
+    "elements": [
+      {"element_id": "fixture-adjacent-a", "kind": "shape", "bbox_px": [0, 0, 100, 60], "required": true},
+      {"element_id": "fixture-adjacent-b", "kind": "shape", "bbox_px": [180, 0, 280, 60], "required": true}
+    ]
+  },
+  "process_grouped_shapes": {
+    "elements": [
+      {"element_id": "fixture-group", "kind": "group", "bbox_px": [0, 0, 280, 60], "required": true},
+      {"element_id": "fixture-group-step-a", "kind": "shape", "group_id": "fixture-group", "bbox_px": [0, 0, 100, 60], "required": true, "source_text": "검토 Review"},
+      {"element_id": "fixture-group-step-b", "kind": "shape", "group_id": "fixture-group", "bbox_px": [180, 0, 280, 60], "required": true, "source_text": "결과 Result"}
+    ]
+  }
+}

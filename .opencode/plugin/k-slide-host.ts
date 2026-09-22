@@ -554,11 +554,24 @@ function sourceKindForLocator(locator: string, worktree: string): HostInputRefer
   }
 }
 
+function isRemoteFileLocator(locator: string): boolean {
+  if (locator.startsWith("//") || locator.startsWith("\\\\")) return true
+  const scheme = locator.match(URI_SCHEME)?.[0].slice(0, -1).toLowerCase()
+  if (scheme !== "file") return false
+  try {
+    const host = new URL(locator).hostname.toLowerCase()
+    return Boolean(host && host !== "localhost")
+  } catch {
+    return true
+  }
+}
+
 function localReference(part: FilePart, index: number, worktree: string, sourcePath?: string): HostInputReference {
   const locator = sourcePath || part.url
   if (typeof locator !== "string" || !locator || locator.includes("\x00")) throw new Error("K-Slide attachment was rejected.")
   const scheme = locator.match(URI_SCHEME)?.[0].slice(0, -1).toLowerCase()
   if (scheme && scheme !== "file") throw new Error("K-Slide attachment was rejected.")
+  if (isRemoteFileLocator(locator)) throw new Error("K-Slide attachment was rejected.")
   const logicalName = logicalNameForPart(part, index, undefined, sourcePath, locator)
   return { source_kind: sourceKindForLocator(locator, worktree), logical_name: logicalName, locator, classification: DEFAULT_CLASSIFICATION }
 }

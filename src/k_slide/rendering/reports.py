@@ -56,14 +56,26 @@ def _semantic_text(text: Any, state: Any, reason: Any = None) -> str:
 
 
 def _table_markdown(table: Any) -> list[str]:
-    lines = [f"#### Table `{table.table_id}`", ""]
+    lines = [f"#### Table `{table.table_id}`", "", f"Dimensions: `{table.row_count} × {table.column_count}`"]
+    if table.header_rows or table.header_columns:
+        lines.append(f"Header coordinates: rows `{', '.join(str(value + 1) for value in table.header_rows) or 'none'}`; columns `{', '.join(str(value + 1) for value in table.header_columns) or 'none'}`")
+    else:
+        lines.append("Header semantics: not proven by native source structure.")
+    if table.unit:
+        lines.append(f"Unit: `{table.unit}`")
+    if table.source_notes:
+        lines.append("Source notes / footnotes:")
+        lines.extend(f"- {note}" for note in table.source_notes)
+    lines.append("")
     if not table.cells:
         return lines + ["_No source cells were extracted._", ""]
-    lines.extend(["| Row | Column | Source | English | Provenance | Status |", "| ---: | ---: | --- | --- | --- | --- |"])
+    lines.extend(["| Row | Column | Span | Header | Cell state | Source | English | Provenance | Status |", "| ---: | ---: | ---: | --- | --- | --- | --- | --- | --- |"])
     for cell in sorted(table.cells, key=lambda item: (item.row, item.column)):
         status = "unresolved" if cell.unresolved else "translated"
         english = _semantic_text(cell.translation, cell.provenance, cell.unresolved_reason)
-        lines.append(f"| {cell.row + 1} | {cell.column + 1} | {cell.source_text or ''} | {english} | {_provenance_label(cell.provenance)} | {status} |")
+        header = "yes" if cell.is_header is True else ("no" if cell.is_header is False else "unknown")
+        source = cell.source_text or ""
+        lines.append(f"| {cell.row + 1} | {cell.column + 1} | {cell.rowspan}×{cell.colspan} | {header} | {cell.cell_state} | {source} | {english} | {_provenance_label(cell.provenance)} | {status} |")
     lines.append("")
     return lines
 
@@ -87,10 +99,21 @@ def _unit_sections(run_dir: Path, unit: Any, source_name: str) -> tuple[list[str
     lines.extend(["### Visual / Process Meaning", ""])
     relations = slide.visual_relations
     if relations:
-        lines.extend(f"- {_semantic_text(relation.interpretation, relation.provenance, relation.unresolved_reason)}" for relation in relations)
+        lines.extend(f"- `{relation.relation_id}` ({', '.join(relation.source_element_ids) or 'no explicit elements'}; direction: {relation.direction or 'unknown'}): {_semantic_text(relation.interpretation, relation.provenance, relation.unresolved_reason)}" for relation in relations)
     else:
         context = next((item for item in evidence.visual_elements if item.get("kind") == "context_image"), None)
         lines.append(f"- Whole-work-unit visual context is preserved at `{context.get('path')}`." if context else "- No structured visual relationship was extracted.")
+    charts = [item for item in evidence.visual_elements if item.get("kind") == "chart" and isinstance(item.get("chart"), dict)]
+    if charts:
+        lines.extend(["", "### Source Chart Facts", ""])
+        for item in charts:
+            chart = item["chart"]
+            lines.append(f"- `{item.get('element_id')}`: type `{chart.get('chart_type', 'unknown')}`, title `{chart.get('title') or ''}`, categories `{', '.join(str(value) for value in chart.get('categories', []))}`.")
+            if chart.get("axis_labels") or chart.get("unit_labels"):
+                lines.append(f"  - Axes/units: {chart.get('axis_labels', {})}; {chart.get('unit_labels', {})}")
+            for series in chart.get("series", []):
+                points = series.get("points", series.get("values", [])) if isinstance(series, dict) else []
+                lines.append(f"  - Series `{series.get('name', '')}`: {points}")
     lines.extend(["", "### Important Korean Business Terms", ""])
     term_lines = [term for region in slide.regions for term in region.term_matches]
     lines.extend(f"- `{term}`" for term in sorted(set(term_lines))) or lines.append("_No termbase matches recorded._")
