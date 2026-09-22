@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +14,7 @@ from .errors import ErrorCode, KSlideError
 from .evidence_ir import EvidenceIR, EvidenceRegion, EvidenceTable, EvidenceTableCell, save_evidence
 from .io import atomic_write_json, atomic_write_text, read_json
 from .locking import run_lock
-from .normalization import _load_normalization_result
+from .normalization import _derive_table_unit, _load_normalization_result, _table_header_cell, _table_unit_labels
 from .numeric import extract_numeric_facts
 from .fusion import fuse_literal_evidence
 from .ocr.policy import OCRProviderPolicy, OCRProviderSelection, create_ocr_provider, load_ocr_policy
@@ -108,18 +109,26 @@ def _unit_native(run_dir: Path, unit: Any) -> list[dict[str, Any]]:
 def _bind_table_unit(fact: dict[str, Any], unit: str | None) -> None:
     """Bind a native table unit to otherwise unit-less numeric cell facts."""
 
-    if not unit or fact.get("source_unit") is not None or fact.get("raw_value") is None:
+    if not unit or fact.get("raw_value") is None:
         return
     normalized = unit.casefold()
+    existing_unit = str(fact.get("source_unit") or "").casefold()
+    currency_only = existing_unit in {"usd", "krw", "eur", "jpy", "$", "€", "¥", "₩"}
+    if existing_unit and not currency_only:
+        return
     factor = 1.0
     if "trillion" in normalized or "조" in normalized:
         factor = 10**12
-    elif "billion" in normalized or "억" in normalized:
+    elif "billion" in normalized:
         factor = 10**9
+    elif "억" in normalized:
+        factor = 10**8
     elif "million" in normalized or "백만" in normalized:
         factor = 10**6
     elif "thousand" in normalized or "천" in normalized:
         factor = 10**3
+    elif "만원" in normalized or re.search(r"(?<![조억])만(?![원])", normalized):
+        factor = 10**4
     currency = next((value for value in ("USD", "KRW", "EUR", "JPY") if value.casefold() in normalized), None)
     fact["source_unit"] = unit
     fact["scale_factor"] = float(fact.get("scale_factor") or 1.0) * factor
@@ -127,6 +136,8 @@ def _bind_table_unit(fact: dict[str, Any], unit: str | None) -> None:
     if currency:
         fact["currency"] = currency
         fact["semantic_quantity"] = "currency"
+    elif "%" in normalized or "percent" in normalized:
+        fact["semantic_quantity"] = "percentage_point" if "point" in normalized else "percentage"
 
 
 def _tables(unit: Any, native_items: list[dict[str, Any]]) -> tuple[tuple[EvidenceTable, ...], list[dict[str, Any]]]:
@@ -138,22 +149,36 @@ def _tables(unit: Any, native_items: list[dict[str, Any]]) -> tuple[tuple[Eviden
             continue
         table_id = f"{item.get('source_id', f'{unit.work_unit_id}-table-001')}-table"
         unit_value = table_value.get("unit", table_value.get("units", table_value.get("unit_label")))
-        if isinstance(unit_value, (list, tuple)):
-            unit_value = ", ".join(str(value) for value in unit_value)
-        unit_text = str(unit_value) if isinstance(unit_value, str) and unit_value else None
         raw_cells = [cell for cell in table_value.get("cells", []) if isinstance(cell, dict) and "cell_id" in cell]
+        if isinstance(unit_value, (list, tuple)):
+            explicit_units = [str(value).strip() for value in unit_value if str(value).strip()]
+            unit_text = explicit_units[0] if len(explicit_units) == 1 else None
+        else:
+            unit_text = str(unit_value).strip() if isinstance(unit_value, str) and unit_value.strip() else None
+        if unit_text and len({value.casefold() for value in _table_unit_labels(unit_text)}) > 1:
+            unit_text = None
+        if unit_text is None:
+            unit_text = _derive_table_unit(table_value, raw_cells)
+        row_count = int(table_value.get("row_count", 0))
+        column_count = int(table_value.get("column_count", 0))
+        expected_coordinates = {(row, column) for row in range(row_count) for column in range(column_count)}
+        actual_coordinates = {(cell.get("row"), cell.get("column")) for cell in raw_cells}
+        if row_count < 1 or column_count < 1 or len(raw_cells) != row_count * column_count or actual_coordinates != expected_coordinates:
+            raise KSlideError(ErrorCode.SCHEMA_INVALID, "Native table extraction did not preserve exact row/column cardinality.", {"table_id": table_id})
         cell_values: list[EvidenceTableCell] = []
         for cell in raw_cells:
             cell_id = str(cell["cell_id"])
-            cell_facts = extract_numeric_facts(cell.get("text"), source_object_id=cell_id, source_table_id=table_id, source_cell_id=cell_id)
-            for fact in cell_facts:
-                _bind_table_unit(fact, unit_text)
-            facts.extend(cell_facts)
-            text = cell.get("text")
+            raw_text = cell.get("text")
             is_spanned = bool(cell.get("is_spanned", False))
             is_origin = bool(cell.get("is_merge_origin", False))
-            is_blank = bool(cell.get("is_blank", not is_spanned and not bool(text)))
-            state = str(cell.get("cell_state") or ("merge_continuation" if is_spanned else ("merge_origin" if is_origin else ("blank" if is_blank else "nonblank"))))
+            is_blank = False if is_spanned else (bool(cell.get("is_blank", False)) or not isinstance(raw_text, str) or not raw_text.strip())
+            text = None if is_spanned else ("" if is_blank else raw_text)
+            cell_facts = extract_numeric_facts(text, source_object_id=cell_id, source_table_id=table_id, source_cell_id=cell_id)
+            if not _table_header_cell(table_value, cell):
+                for fact in cell_facts:
+                    _bind_table_unit(fact, unit_text)
+            facts.extend(cell_facts)
+            state = "merge_continuation" if is_spanned else ("merge_origin" if is_origin else ("blank" if is_blank else str(cell.get("cell_state") or "nonblank")))
             cell_values.append(EvidenceTableCell(
                 cell_id=cell_id,
                 row=int(cell["row"]),
@@ -187,7 +212,7 @@ def _tables(unit: Any, native_items: list[dict[str, Any]]) -> tuple[tuple[Eviden
             notes = tuple(str(value) for value in notes_value if isinstance(value, str) and value.strip())
         else:
             notes = ()
-        tables.append(EvidenceTable(table_id=table_id, row_count=int(table_value.get("row_count", 0)), column_count=int(table_value.get("column_count", 0)), headers=headers, header_rows=header_rows, header_columns=header_columns, unit=unit_text, source_notes=notes, cells=cells))
+        tables.append(EvidenceTable(table_id=table_id, row_count=row_count, column_count=column_count, headers=headers, header_rows=header_rows, header_columns=header_columns, unit=unit_text, source_notes=notes, cells=cells))
     return tuple(tables), facts
 
 

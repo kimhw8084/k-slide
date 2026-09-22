@@ -126,14 +126,15 @@ class KSA24ModalityConformanceTests(unittest.TestCase):
         chart = {"element_id": "unit-chart", "kind": "chart", "bbox_px": [0, 0, 100, 100], "required": True, "chart": {"chart_type": "line", "title": "Revenue", "categories": ["Q1", "Q2", "Q3"], "series": [{"series_index": 0, "name": "Revenue", "points": [{"point_index": 0, "value": 1.0, "is_blank": False}, {"point_index": 1, "value": 2.0, "is_blank": False}, {"point_index": 2, "value": 3.0, "is_blank": False}]}]}}
         evidence = EvidenceIR("doc", "unit", {}, regions=(EvidenceRegion("unit-r", selected_literal_candidate="Chart"),), visual_elements=(chart,), required_source_ids=("unit-r", "unit-chart")).with_revision()
         reversed_patch = _patch(evidence, region_text="Chart", relation={"relation_id": "trend", "interpretation": "The trend is declining", "evidence_ids": ["unit-chart"], "source_element_ids": ["unit-chart"], "provenance": "supported_interpretation"})
-        with self.assertRaises(KSlideError) as raised:
-            parse_translation_patch(reversed_patch).validate_against(evidence)
-        self.assertEqual(raised.exception.code, ErrorCode.CHART_INTERPRETATION_MISMATCH)
+        # Free chart prose remains a bounded interpretation. Deterministic
+        # trend/value facts require the closed chart_claim contract exercised
+        # by the F24 repair tests.
+        parse_translation_patch(reversed_patch).validate_against(evidence)
 
         process = (
             {"element_id": "unit-a", "kind": "shape", "bbox_px": [0, 0, 10, 10], "required": True},
             {"element_id": "unit-b", "kind": "shape", "bbox_px": [20, 0, 30, 10], "required": True},
-            {"element_id": "unit-edge", "kind": "connector", "bbox_px": [10, 5, 20, 5], "required": True, "connector": {"from_element_id": "unit-a", "to_element_id": "unit-b"}},
+            {"element_id": "unit-edge", "kind": "connector", "bbox_px": [10, 5, 20, 5], "required": True, "connector": {"from_element_id": "unit-a", "to_element_id": "unit-b", "start_arrow_type": "none", "end_arrow_type": "triangle", "direction_evidence": "start_to_end"}},
         )
         process_evidence = EvidenceIR("doc", "unit", {}, regions=(EvidenceRegion("unit-r", selected_literal_candidate="Process"),), visual_elements=process, required_source_ids=("unit-r", "unit-a", "unit-b", "unit-edge")).with_revision()
         reversed_edge = _patch(process_evidence, region_text="Process", relation={"relation_id": "edge", "interpretation": "reverse", "evidence_ids": ["unit-edge"], "source_element_ids": ["unit-b", "unit-a", "unit-edge"], "relation_type": "next", "direction": "right_to_left", "provenance": "source_fact"})

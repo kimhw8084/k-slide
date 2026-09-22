@@ -244,20 +244,28 @@ class EvidenceIR:
                 connector = element.get("connector")
                 if not isinstance(connector, dict) or connector.get("from_element_id") not in visual_ids or connector.get("to_element_id") not in visual_ids:
                     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence connector endpoints must cite current visual elements.", {"element_id": element.get("element_id")})
+                direction_evidence = connector.get("direction_evidence")
+                if direction_evidence is not None and direction_evidence not in {"start_to_end", "end_to_start", "bidirectional", "undirected", "ambiguous"}:
+                    raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence connector direction evidence is not a closed value.", {"element_id": element.get("element_id")})
+                for arrow_key in ("start_arrow_type", "end_arrow_type"):
+                    if arrow_key in connector and not isinstance(connector[arrow_key], str):
+                        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence connector arrowhead properties must be strings.", {"element_id": element.get("element_id")})
             if kind == "chart":
                 chart = element.get("chart")
                 if not isinstance(chart, dict) or not isinstance(chart.get("chart_type"), str) or not isinstance(chart.get("categories", []), list) or not isinstance(chart.get("series", []), list):
                     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence chart structure is not typed and closed.", {"element_id": element.get("element_id")})
+                series_names: list[str] = []
                 for series_index, series in enumerate(chart["series"]):
-                    if not isinstance(series, dict) or series.get("series_index", series_index) != series_index or not isinstance(series.get("name", ""), str):
+                    if not isinstance(series, dict) or isinstance(series.get("series_index", series_index), bool) or series.get("series_index", series_index) != series_index or not isinstance(series.get("name", ""), str) or series.get("name", "") in series_names:
                         raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence chart series is invalid.", {"element_id": element.get("element_id")})
+                    series_names.append(series.get("name", ""))
                     points = series.get("points", [])
                     if not isinstance(points, list):
                         raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence chart points must be an array.", {"element_id": element.get("element_id")})
                     if chart.get("categories") and points and len(points) != len(chart["categories"]):
                         raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence chart point cardinality does not match category order.", {"element_id": element.get("element_id")})
                     for point_index, point in enumerate(points):
-                        if not isinstance(point, dict) or point.get("point_index", point_index) != point_index or not isinstance(point.get("is_blank"), bool) or (point.get("value") is not None and (not isinstance(point.get("value"), (int, float)) or isinstance(point.get("value"), bool))) or (point.get("value") is None) != point.get("is_blank"):
+                        if not isinstance(point, dict) or isinstance(point.get("point_index", point_index), bool) or point.get("point_index", point_index) != point_index or not isinstance(point.get("is_blank"), bool) or (point.get("value") is not None and (not isinstance(point.get("value"), (int, float)) or isinstance(point.get("value"), bool))) or (point.get("value") is None) != point.get("is_blank"):
                             raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence chart point order or value type is invalid.", {"element_id": element.get("element_id")})
                 if "series_order" in chart and chart["series_order"] != [series.get("name", "") for series in chart["series"]]:
                     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence chart series order does not match typed series facts.", {"element_id": element.get("element_id")})

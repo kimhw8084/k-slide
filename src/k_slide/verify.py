@@ -34,7 +34,7 @@ from .semantics import ProvenanceState, enum_value
 from .state import RunPhase, load_state, save_state
 from .storage import StorageArtifact, storage_path, workspace_mutation_guard
 from .terminology import Termbase, load_effective_termbase
-from .modality import classify_source_language, decision_bearing_status, modality_mismatch
+from .modality import classify_source_language, decision_bearing_status, english_modality_mismatch, modality_mismatch
 from .translation import _chart_elements, _source_fact_connector_relation, _validate_chart_interpretation
 
 
@@ -162,9 +162,12 @@ def _check_source_literal_and_modality(result: VerificationResult, slide: SlideI
         missing = [span for span in spans if span not in (region.translation or "")]
         if missing:
             _issue(result, "KSLIDE_SOURCE_ENGLISH_SPAN_MISSING", Severity.CRITICAL, "Engine-protected source-English span is missing from canonical output.", target=source.region_id, evidence_ids=[source.region_id])
-        mismatch = modality_mismatch(source_text, region.commitment_status, region.speech_act)
+        mismatch = modality_mismatch(source_text, region.commitment_status, region.speech_act, language_bound=language_policy_bound)
         if mismatch:
             _issue(result, ErrorCode.MODALITY_MISMATCH.value, Severity.CRITICAL, mismatch, target=source.region_id, evidence_ids=[source.region_id])
+        english_mismatch = english_modality_mismatch(source_text, region.translation, region.commitment_status, language_bound=language_policy_bound)
+        if english_mismatch:
+            _issue(result, ErrorCode.MODALITY_MISMATCH.value, Severity.CRITICAL, english_mismatch, target=source.region_id, evidence_ids=[source.region_id])
         if decision_bearing_status(region.commitment_status) and source.region_id not in region.provenance_evidence_ids:
             _issue(result, "KSLIDE_PROVENANCE_EVIDENCE_REQUIRED", Severity.CRITICAL, "Decision-bearing commitment classification must cite its direct source region.", target=source.region_id, evidence_ids=[source.region_id])
 
@@ -209,13 +212,19 @@ def _check_visual_evidence(result: VerificationResult, slide: SlideIR, evidence:
         unknown = sorted(set(relation.source_element_ids) - valid_ids)
         if unknown:
             _issue(result, ErrorCode.VISUAL_RELATION_MISMATCH.value, Severity.CRITICAL, "Visual relation references a fabricated engine element.", target=relation.relation_id, evidence_ids=unknown)
-        relation_value = {"source_element_ids": relation.source_element_ids, "direction": relation.direction, "provenance": relation.provenance}
-        if relation.provenance == ProvenanceState.SOURCE_FACT.value and not _source_fact_connector_relation(relation_value, evidence):
-            _issue(result, ErrorCode.VISUAL_RELATION_MISMATCH.value, Severity.CRITICAL, "Source-factual visual relation is not proven by an engine connector edge.", target=relation.relation_id, evidence_ids=relation.evidence)
+        relation_value = {"source_element_ids": relation.source_element_ids, "direction": relation.direction, "provenance": relation.provenance, "chart_claim": relation.chart_claim}
+        source_fact_allowed = _source_fact_connector_relation(relation_value, evidence)
         charts = _chart_elements(evidence, tuple(relation.source_element_ids))
         if charts:
+            chart_claim = relation.chart_claim
+            source_fact_allowed = isinstance(chart_claim, dict) and chart_claim.get("chart_element_id") in relation.source_element_ids and chart_claim.get("chart_element_id") in relation.evidence
+            if isinstance(chart_claim, dict) and (chart_claim.get("chart_element_id") not in relation.source_element_ids or chart_claim.get("chart_element_id") not in relation.evidence):
+                _issue(result, ErrorCode.CLAIM_UNSUPPORTED.value, Severity.CRITICAL, "Canonical chart claim does not cite its exact engine chart evidence.", target=relation.relation_id, evidence_ids=relation.evidence)
+        if relation.provenance == ProvenanceState.SOURCE_FACT.value and not source_fact_allowed:
+            _issue(result, ErrorCode.VISUAL_RELATION_MISMATCH.value, Severity.CRITICAL, "Source-factual visual relation is not proven by an engine connector edge.", target=relation.relation_id, evidence_ids=relation.evidence)
+        if charts:
             try:
-                _validate_chart_interpretation({"interpretation": relation.interpretation or ""}, charts)
+                _validate_chart_interpretation({"interpretation": relation.interpretation or "", "chart_claim": relation.chart_claim}, charts)
             except KSlideError as exc:
                 _issue(result, exc.code.value, Severity.CRITICAL, exc.message, target=relation.relation_id, evidence_ids=relation.evidence)
 
@@ -309,9 +318,12 @@ def _validate_canonical_provenance(result: VerificationResult, slide: SlideIR, e
             {
                 "source_element_ids": relation.source_element_ids,
                 "direction": relation.direction,
+                "chart_claim": relation.chart_claim,
             },
             evidence,
         )
+        if _chart_elements(evidence, tuple(relation.source_element_ids)):
+            source_fact_allowed = relation.chart_claim is not None
         state = _check_provenance(
             result,
             state=relation.provenance,
@@ -376,12 +388,28 @@ def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult
         for table in slide.tables:
             if table.row_count < 1 or table.column_count < 1:
                 _issue(result, "KSLIDE_TABLE_SHAPE_INVALID", Severity.CRITICAL, "Table dimensions must be positive.", target=table.table_id)
+            evidence_table = next((candidate for candidate in evidence.tables if candidate.table_id == table.table_id), None)
+            if evidence_table is not None:
+                canonical_cell_ids = [cell.cell_id for cell in table.cells]
+                evidence_cell_ids = [cell.cell_id for cell in evidence_table.cells]
+                if len(canonical_cell_ids) != len(set(canonical_cell_ids)) or set(canonical_cell_ids) != set(evidence_cell_ids):
+                    _issue(result, ErrorCode.TABLE_STRUCTURE_MISMATCH.value, Severity.CRITICAL, "Canonical table cell inventory does not match the engine-owned cell inventory.", target=table.table_id, evidence_ids=evidence_cell_ids)
             for cell in table.cells:
                 if cell.row < 0 or cell.column < 0 or cell.row >= table.row_count or cell.column >= table.column_count:
                     _issue(result, "KSLIDE_TABLE_CELL_OUT_OF_RANGE", Severity.CRITICAL, "Table cell is outside declared dimensions.", target=table.table_id)
                 if cell.rowspan < 1 or cell.colspan < 1 or cell.row + cell.rowspan > table.row_count or cell.column + cell.colspan > table.column_count:
                     _issue(result, ErrorCode.TABLE_STRUCTURE_MISMATCH.value, Severity.CRITICAL, "Table cell span exceeds current table dimensions.", target=cell.cell_id, evidence_ids=[cell.cell_id])
         facts = {fact.fact_id: fact for fact in slide.numeric_facts}
+        evidence_facts = {str(item.get("fact_id")): item for item in evidence.numeric_facts if isinstance(item, dict) and item.get("fact_id")}
+        if set(facts) != set(evidence_facts):
+            _issue(result, ErrorCode.NUMERIC_MISMATCH.value, Severity.CRITICAL, "Canonical numeric fact inventory does not match engine-owned numeric evidence.", target=work_unit_id, evidence_ids=sorted(set(facts) ^ set(evidence_facts)))
+        for fact_id, fact in facts.items():
+            expected_fact = evidence_facts.get(fact_id)
+            if expected_fact is None:
+                continue
+            actual_fact = asdict(fact)
+            if any(actual_fact.get(field) != expected_fact.get(field) for field in actual_fact):
+                _issue(result, ErrorCode.NUMERIC_MISMATCH.value, Severity.CRITICAL, "Canonical numeric fact changed an engine-owned value or unit binding.", target=fact_id, evidence_ids=[fact_id])
         region_text = {region.region_id: region.translation or "" for region in slide.regions}
         cell_text = {cell.cell_id: cell.translation or "" for table in slide.tables for cell in table.cells}
         for fact in facts.values():

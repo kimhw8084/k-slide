@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -280,6 +281,54 @@ def _table_header_flags(table: Any) -> tuple[bool | None, bool | None]:
         return None, None
 
 
+_TABLE_UNIT_RE = re.compile(
+    r"(?ix)(?<![A-Za-z])(?P<label>"
+    r"(?:(?:USD|KRW|EUR|JPY|\$|€|¥|₩)\s+)?"
+    r"(?:trillion(?:s)?|billion(?:s)?|million(?:s)?|thousand(?:s)?|mn|bn|tn|조원|억원|만원|천원|원|조|억|만|천|%|percent(?:age)?(?:\s+points?)?)"
+    r"|(?:USD|KRW|EUR|JPY|\$|€|¥|₩)"
+    r")(?![A-Za-z])"
+)
+
+
+def _table_unit_labels(text: Any) -> list[str]:
+    if not isinstance(text, str) or not text.strip():
+        return []
+    return [match.group("label").strip() for match in _TABLE_UNIT_RE.finditer(text)]
+
+
+def _table_header_cell(table_value: dict[str, Any], cell: dict[str, Any]) -> bool:
+    if cell.get("is_header") is True:
+        return True
+    header_rows = table_value.get("header_rows", [0] if table_value.get("first_row_header") is True else [])
+    header_columns = table_value.get("header_columns", [0] if table_value.get("first_column_header") is True else [])
+    if not isinstance(header_rows, (list, tuple)):
+        header_rows = []
+    if not isinstance(header_columns, (list, tuple)):
+        header_columns = []
+    row = cell.get("row")
+    column = cell.get("column")
+    return (isinstance(row, int) and row in header_rows) or (isinstance(column, int) and column in header_columns)
+
+
+def _derive_table_unit(table_value: dict[str, Any], cells: list[dict[str, Any]]) -> str | None:
+    """Derive one unit only from proven table headers or source notes."""
+
+    candidates: list[str] = []
+    for cell in cells:
+        if _table_header_cell(table_value, cell):
+            candidates.extend(_table_unit_labels(cell.get("text")))
+    notes = table_value.get("source_notes", table_value.get("footnotes", table_value.get("notes", [])))
+    if isinstance(notes, str):
+        notes = [notes]
+    if isinstance(notes, (list, tuple)):
+        for note in notes:
+            candidates.extend(_table_unit_labels(note))
+    normalized = {re.sub(r"\s+", " ", value).casefold() for value in candidates}
+    if len(normalized) != 1:
+        return None
+    return candidates[0]
+
+
 def _connector_endpoints(shape: Any, source_ids_by_shape_id: dict[int, str]) -> dict[str, Any] | None:
     try:
         element = shape._element
@@ -297,7 +346,42 @@ def _connector_endpoints(shape: Any, source_ids_by_shape_id: dict[int, str]) -> 
         end = source_ids_by_shape_id.get(values["endCxn"])
         if not start or not end:
             return None
-        return {"from_element_id": start, "to_element_id": end, "start_shape_id": values["stCxn"], "end_shape_id": values["endCxn"]}
+        line = next((item for item in element.iter() if item.tag.rsplit("}", 1)[-1] == "ln"), None)
+
+        def arrow_type(name: str) -> str:
+            if line is None:
+                return "none"
+            arrow = next((item for item in line if item.tag.rsplit("}", 1)[-1] == name), None)
+            if arrow is None:
+                return "none"
+            value = arrow.get("type")
+            return str(value).strip().lower() if value is not None else "ambiguous"
+
+        start_arrow_type = arrow_type("headEnd")
+        end_arrow_type = arrow_type("tailEnd")
+        no_arrow = {"", "none", "noarrow", "nil"}
+        start_arrow = start_arrow_type not in no_arrow and start_arrow_type != "ambiguous"
+        end_arrow = end_arrow_type not in no_arrow and end_arrow_type != "ambiguous"
+        if "ambiguous" in {start_arrow_type, end_arrow_type}:
+            direction_evidence = "ambiguous"
+        elif start_arrow and end_arrow:
+            direction_evidence = "bidirectional"
+        elif end_arrow:
+            direction_evidence = "start_to_end"
+        elif start_arrow:
+            direction_evidence = "end_to_start"
+        else:
+            direction_evidence = "undirected"
+        return {
+            "from_element_id": start,
+            "to_element_id": end,
+            "start_shape_id": values["stCxn"],
+            "end_shape_id": values["endCxn"],
+            "start_arrow_type": start_arrow_type,
+            "end_arrow_type": end_arrow_type,
+            "direction_evidence": direction_evidence,
+            "direction_evidence_source": "ooxml",
+        }
     except (AttributeError, TypeError, ValueError):
         return None
 
@@ -357,7 +441,8 @@ def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, r
                         cell = table.cell(row_index, column_index)
                         is_origin = bool(getattr(cell, "is_merge_origin", False))
                         is_spanned = bool(getattr(cell, "is_spanned", False))
-                        is_blank = not is_spanned and not bool(cell.text)
+                        raw_text = cell.text
+                        is_blank = not is_spanned and (not isinstance(raw_text, str) or not raw_text.strip())
                         state = "merge_continuation" if is_spanned else ("merge_origin" if is_origin else ("blank" if is_blank else "nonblank"))
                         is_header = None
                         if first_row is not None and row_index == 0:
@@ -370,7 +455,7 @@ def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, r
                             "cell_id": f"{work_unit_id}-table-{shape_index}-r{row_index + 1:02d}-c{column_index + 1:02d}",
                             "row": row_index,
                             "column": column_index,
-                            "text": None if is_spanned else cell.text,
+                            "text": None if is_spanned else ("" if is_blank else raw_text),
                             "rowspan": rowspan,
                             "colspan": colspan,
                             "is_merge_origin": is_origin,
@@ -388,6 +473,7 @@ def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, r
                     "header_rows": [0] if first_row is True else [],
                     "header_columns": [0] if first_column is True else [],
                     "headers": headers,
+                    "unit": _derive_table_unit({"source_notes": (), "header_rows": [0] if first_row is True else [], "header_columns": [0] if first_column is True else []}, cells),
                 }
             chart = _chart_metadata(shape)
             if chart is not None:
