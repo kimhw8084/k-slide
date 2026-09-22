@@ -1,0 +1,512 @@
+{
+  "accepted_at": "2026-09-22T01:01:27Z",
+  "changed_files": [
+    {
+      "additions": 3,
+      "deletions": 3,
+      "path": "schemas/evidence-ir.schema.json",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 2,
+      "path": "schemas/slide-ir.schema.json",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 102,
+      "deletions": 0,
+      "path": "src/k_slide/evidence_ir.py",
+      "status": "M"
+    },
+    {
+      "additions": 99,
+      "deletions": 8,
+      "path": "src/k_slide/extraction.py",
+      "status": "M"
+    },
+    {
+      "additions": 12,
+      "deletions": 0,
+      "path": "src/k_slide/ir.py",
+      "status": "M"
+    },
+    {
+      "additions": 157,
+      "deletions": 0,
+      "path": "src/k_slide/modality.py",
+      "status": "A"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/model.py",
+      "status": "M"
+    },
+    {
+      "additions": 143,
+      "deletions": 11,
+      "path": "src/k_slide/normalization.py",
+      "status": "M"
+    },
+    {
+      "additions": 11,
+      "deletions": 0,
+      "path": "src/k_slide/numeric.py",
+      "status": "M"
+    },
+    {
+      "additions": 27,
+      "deletions": 4,
+      "path": "src/k_slide/rendering/reports.py",
+      "status": "M"
+    },
+    {
+      "additions": 168,
+      "deletions": 11,
+      "path": "src/k_slide/translation.py",
+      "status": "M"
+    },
+    {
+      "additions": 100,
+      "deletions": 3,
+      "path": "src/k_slide/verify.py",
+      "status": "M"
+    },
+    {
+      "additions": 21,
+      "deletions": 0,
+      "path": "tests/fixtures/ksa24_table_fixture.json",
+      "status": "A"
+    },
+    {
+      "additions": 57,
+      "deletions": 0,
+      "path": "tests/fixtures/ksa24_visual_fixture.json",
+      "status": "A"
+    },
+    {
+      "additions": 152,
+      "deletions": 0,
+      "path": "tests/test_ksa24_modality_conformance.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short && rtk git diff --check && rtk rg -n \"source_english_spans|source_language_policy|cell_state|header_rows|source_notes|connector|chart\" src/k_slide schemas tests/test_ksa24_modality_conformance.py | head -400'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m unittest tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_ksa24_modality_conformance tests.test_phase11 tests.test_phase32 tests.test_phase34 tests.test_phase35 -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short && PYTHONPATH=src rtk python -m unittest discover -s tests -p 'test*.py' -v\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m compileall -q src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m unittest tests.test_chg16_opencode_plugin -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3.12 --version'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m json.tool schemas/evidence-ir.schema.json >/dev/null && rtk python -m json.tool schemas/slide-ir.schema.json >/dev/null && rtk python -m json.tool schemas/translation-patch.schema.json >/dev/null && rtk python -m json.tool tests/fixtures/ksa24_visual_fixture.json >/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files tests | rg -i 'open.?code|typed|tool' | head -80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,220p' tests/test_chg16_opencode_plugin.ts && rtk rg -n \\\"test_chg16_opencode_plugin|bun|tsc|opencode\\\" README.md Makefile pyproject.toml package.json tests | head -120\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk command -v bun; rtk command -v node; rtk command -v tsx; rtk command -v deno'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files -g 'package.json' -g 'tsconfig.json' -g 'bun.lock*' -g 'deno.json*' -g 'pnpm-lock.yaml' -g 'package-lock.json' -g 'yarn.lock' . | head -80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk command -v tsc; rtk command -v npx; rtk command -v npm; rtk node --version'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src rtk python3.12 -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --stat && rtk git status --short'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3.12 -m compileall -q src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python3.12 -m unittest tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_ksa24_modality_conformance tests.test_phase11 tests.test_phase32 tests.test_phase34 tests.test_phase35 -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' src/k_slide/modality.py; rtk sed -n '1,320p' tests/test_ksa24_modality_conformance.py; rtk git diff -- schemas/evidence-ir.schema.json schemas/slide-ir.schema.json src/k_slide/errors.py src/k_slide/ir.py src/k_slide/model.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"class EvidenceRegion|class EvidenceTableCell|class EvidenceTable|visual_elements|source_english|connector|chart|def validate|def from_dict\\\" src/k_slide/evidence_ir.py | head -160; rtk sed -n '1,300p' src/k_slide/evidence_ir.py; rtk sed -n '300,760p' src/k_slide/evidence_ir.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"EvidenceRegion\\\\([\"'^'\"\\\\n]*language=|language=\\\\\\\"(ko|en|mixed|unknown)\\\\\\\"|source_language=\\\" tests src | head -200\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' src/k_slide/translation.py; rtk sed -n '260,760p' src/k_slide/translation.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '200,430p' src/k_slide/translation.py; rtk sed -n '430,590p' src/k_slide/translation.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' src/k_slide/normalization.py; rtk sed -n '260,620p' src/k_slide/normalization.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,280p' src/k_slide/extraction.py; rtk sed -n '280,620p' src/k_slide/extraction.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,340p' src/k_slide/verify.py; rtk sed -n '340,760p' src/k_slide/verify.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '230,360p' src/k_slide/verify.py; rtk rg -n \\\"class VisualRelation|def as_dict\\\" src/k_slide/ir.py | head -40; rtk sed -n '120,220p' src/k_slide/ir.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,190p' src/k_slide/ir.py; rtk sed -n '190,340p' src/k_slide/ir.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n -C 3 \"axis_labels|regions = fused_regions|Pure-English table cells|for relation in slide.visual_relations\" src/k_slide/normalization.py src/k_slide/extraction.py src/k_slide/translation.py src/k_slide/verify.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' src/k_slide/numeric.py; rtk sed -n '1,260p' src/k_slide/rendering/reports.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"\\\\\\\"chart\\\\\\\"|points\\\\\\\":|series_order|visual_elements=.*chart|chart_type\\\" tests src | head -240\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m unittest tests.test_ksa24_modality_conformance tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_normalization -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '60,110p' tests/test_ksa23_conflicts.py; rtk sed -n '160,215p' tests/test_ksa23_conflicts.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m unittest tests.test_ksa24_modality_conformance tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_normalization -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff -- src/k_slide/verify.py src/k_slide/evidence_ir.py src/k_slide/translation.py src/k_slide/normalization.py | sed -n '1,520p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m unittest tests.test_ksa24_modality_conformance -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m json.tool schemas/evidence-ir.schema.json >/dev/null && rtk python -m json.tool schemas/slide-ir.schema.json >/dev/null && rtk python -m json.tool schemas/translation-patch.schema.json >/dev/null && rtk python -m json.tool tests/fixtures/ksa24_visual_fixture.json >/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src rtk python -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk node --help | rg -n 'strip|type|typescript'; rtk command -v bun || true; rtk command -v tsc || true; rtk git diff --check; rtk git status --short --branch; rtk git rev-parse HEAD; rtk git diff --name-only\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python3.12 -m compileall -q src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m unittest tests.test_phase34.Phase34Tests.test_translation_contract_json_python_typescript_parity tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript tests.test_ksa22_provenance.KSA22ProvenanceTests.test_schema_and_typed_tool_contract_expose_only_closed_provenance'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python3.12 -m unittest tests.test_ksa24_modality_conformance tests.test_ksa22_provenance tests.test_ksa23_conflicts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python3.12 -m unittest tests.test_ksa24_modality_conformance tests.test_ksa22_provenance tests.test_ksa23_conflicts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check; rtk git status --short --branch; rtk git rev-parse HEAD; rtk git diff --stat; rtk rg -n \"source_language_policy|source_english_spans|header_rows|chart_type|from_element_id|MODALITY_MISMATCH\" src/k_slide tests/test_ksa24_modality_conformance.py | head -120'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' tests/fixtures/ksa24_visual_fixture.json\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m json.tool tests/fixtures/ksa24_visual_fixture.json >/dev/null && rtk python -m json.tool tests/fixtures/ksa24_table_fixture.json >/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=src rtk python -m unittest tests.test_ksa24_modality_conformance -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"PYTHONPATH=src rtk python -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check; rtk python3.12 -m compileall -q src tests; rtk python -m json.tool schemas/evidence-ir.schema.json >/dev/null; rtk python -m json.tool schemas/slide-ir.schema.json >/dev/null; rtk python -m json.tool schemas/translation-patch.schema.json >/dev/null; rtk python -m json.tool tests/fixtures/ksa24_visual_fixture.json >/dev/null; rtk python -m json.tool tests/fixtures/ksa24_table_fixture.json >/dev/null; rtk git status --short --branch; rtk git rev-parse HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.155.1",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 327,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.96,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 23542016,
+      "fresh_input_tokens": 489128,
+      "input_tokens": 24031144,
+      "non_reasoning_output_tokens": 56502,
+      "output_tokens": 89566,
+      "reasoning_output_tokens": 33064,
+      "total_processed_tokens": 24120710
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "9e8867faea640377bcd4bc2acef62cd74a28f856",
+      "subject": "fabric: capture completed model changes [CF-0e2daacc470cd4069f84148a]"
+    }
+  ],
+  "diff": {
+    "additions": 1058,
+    "changed_files": 16,
+    "commit_count": 1,
+    "deletions": 43
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 5,
+    "items": [
+      {
+        "bytes": 3835,
+        "path": "schemas/evidence-ir.schema.json",
+        "sha256": "d4a8a306baf71738aee4a7602f6094e41443b9714e1774b8e72c7c9c3790c287"
+      },
+      {
+        "bytes": 3072,
+        "path": "schemas/slide-ir.schema.json",
+        "sha256": "db5e3bf1fe142b40b951ef7e5c2b793d1f7de64d20a592939444db456a4a21dc"
+      },
+      {
+        "bytes": 23496,
+        "path": "src/k_slide/evidence_ir.py",
+        "sha256": "7e7cec097ec2519718aed6b99811a8b2e39dd5847978456b3eab5c459c40eda8"
+      },
+      {
+        "bytes": 2613,
+        "path": "tests/fixtures/ksa24_table_fixture.json",
+        "sha256": "b44ba510cced8d82236d2926738cfee57d814df1cbba67cb8489d6c1e34e96a0"
+      },
+      {
+        "bytes": 2926,
+        "path": "tests/fixtures/ksa24_visual_fixture.json",
+        "sha256": "c914fc82aea424e7cef3905f1fa4c7b1a516ce64997d3b7ebbb12a415121ef0b"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.4-quota-recovery-candidate",
+  "fabric_capture": {
+    "applied": true,
+    "commit_message": "fabric: capture completed model changes [CF-0e2daacc470cd4069f84148a]",
+    "commit_sha": "9e8867faea640377bcd4bc2acef62cd74a28f856",
+    "paths_before": 16,
+    "status_before": [
+      " M schemas/evidence-ir.schema.json",
+      " M schemas/slide-ir.schema.json",
+      " M src/k_slide/errors.py",
+      " M src/k_slide/evidence_ir.py",
+      " M src/k_slide/extraction.py",
+      " M src/k_slide/ir.py",
+      " M src/k_slide/model.py",
+      " M src/k_slide/normalization.py",
+      " M src/k_slide/numeric.py",
+      " M src/k_slide/rendering/reports.py",
+      " M src/k_slide/translation.py",
+      " M src/k_slide/verify.py",
+      "?? src/k_slide/modality.py",
+      "?? tests/fixtures/ksa24_table_fixture.json",
+      "?? tests/fixtures/ksa24_visual_fixture.json",
+      "?? tests/test_ksa24_modality_conformance.py"
+    ],
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.4-quota-recovery-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-22T01:42:59Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "004cbcf3e2d36ea3bbb985868e57b59cbc645c6c",
+    "branch": "codex/k-slide-chg16-modality-conformance-01",
+    "detached_verify": false,
+    "head_sha": "9e8867faea640377bcd4bc2acef62cd74a28f856",
+    "remote_exact_head": true,
+    "remote_head_sha": "9e8867faea640377bcd4bc2acef62cd74a28f856",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "004cbcf3e2d36ea3bbb985868e57b59cbc645c6c",
+    "work_branch": "codex/k-slide-chg16-modality-conformance-01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-0e2daacc470cd4069f84148a",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-modality-conformance-01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-modality-conformance-01"
+  },
+  "operation": "BUILD",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.4-quota-recovery-candidate",
+    "policy_sha256": "a642c9f63bab2cb555704bdb0b9d1f28222591f133f934c1d0f93cc5a25ab8a1",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-modality-conformance-01",
+  "schema_version": 1,
+  "started_at": "2026-09-22T01:01:27Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 2492,
+    "queue_seconds": 0,
+    "total_seconds": 2492
+  },
+  "transport": {
+    "bytes": 8428,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 8107,
+    "prompt_sha256": "b8805883ac9b900dfb315bacbeccbfcf2a828497992000ce5da8b41920d80397",
+    "sha256": "0e2daacc470cd4069f84148ad72769b34cba5c443660e62694e7e1b346fb9f9d"
+  }
+}
