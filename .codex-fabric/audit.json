@@ -1,0 +1,339 @@
+{
+  "accepted_at": "2026-09-22T01:52:32Z",
+  "changed_files": [],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc 'rtk npx --yes tsx tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '175,210p' tests/test_chg16_opencode_plugin.ts && rtk sed -n '630,655p' tests/test_chg16_opencode_plugin.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '125,175p' tests/test_chg16_opencode_plugin.ts && rtk sed -n '1,125p' tests/test_chg16_opencode_plugin.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy command -v python3\nrtk proxy python3 -c 'import sys; print(sys.executable); import PIL; print(PIL.__version__)' 2>&1 || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show --stat --oneline a7db1f7196381ec529d7b4ac44561e7e4628336b && rtk git show --format= --name-only a7db1f7196381ec529d7b4ac44561e7e4628336b | sed -n '1,120p' && rtk git show --format= 9e8867faea640377bcd4bc2acef62cd74a28f856 | sed -n '1,40p' && rtk git show --format= --name-only 9e8867faea640377bcd4bc2acef62cd74a28f856 | sed -n '1,160p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' <(rtk git show a7db1f7196381ec529d7b4ac44561e7e4628336b:.codex-fabric/audit.json)\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n -C 10 \\\"engine_facts|facts = \\\\{fact\\\" src/k_slide/verify.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m compileall -q src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m json.tool schemas/evidence-ir.schema.json >/dev/null && rtk python -m json.tool schemas/slide-ir.schema.json >/dev/null && rtk python -m json.tool schemas/translation-patch.schema.json >/dev/null && rtk python -m json.tool schemas/conflict-registry.schema.json >/dev/null && rtk python -m json.tool schemas/translation-patch.schema.json >/dev/null && rtk echo json-schema-validation-pass'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_ksa24_f24_repairs tests.test_ksa24_modality_conformance tests.test_ksa23_conflicts tests.test_ksa22_provenance tests.test_ksa21_adversarial_security'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python -m unittest discover -s tests -p 'test_*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src /tmp/k-slide-py312-f24/bin/python -m unittest discover -s tests -p 'test_*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '170,215p' tests/test_chg16_opencode_plugin.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk command -v bun; rtk command -v node; rtk command -v npx; rtk find . -maxdepth 2 -type f \\\\( -name 'package.json' -o -name 'tsconfig.json' -o -name 'bun.lock*' -o -name 'package-lock.json' \\\\) -print\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk npx --yes tsx tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n -C 8 \"function runPrepare|const runPrepare|composer-cli-success|successBoundary\" tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n -C 6 \"def prepare|host-inputs-json|host_worktree|input_count|host_input\" src/k_slide/cli.py src/k_slide'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '150,240p' src/k_slide/host_adapter.py && rtk sed -n '280,330p' src/k_slide/ingest.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3 --version; rtk python --version; rtk python3 -c 'import sys; print(sys.executable); import PIL; print(PIL.__version__)'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files tests | rtk rg '\\\\.(png|pptx|pdf)\"'$'\"' | head -20\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files | rtk rg '\\\\.(png|pptx|pdf)\"'$'\"' | head -20\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --stat; rtk git diff --numstat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git log --oneline --decorate -3; rtk git show -s --format='%H%n%P' HEAD; rtk git rev-parse 004cbcf3e2d36ea3bbb985868e57b59cbc645c6c; rtk git rev-parse 9e8867faea640377bcd4bc2acef62cd74a28f856\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add .opencode/tools/kslide.ts schemas/evidence-ir.schema.json schemas/slide-ir.schema.json schemas/translation-patch.schema.json src/k_slide/evidence_ir.py src/k_slide/extraction.py src/k_slide/ir.py src/k_slide/modality.py src/k_slide/normalization.py src/k_slide/translation.py src/k_slide/translation_contract.py src/k_slide/verify.py tests/test_ksa24_modality_conformance.py tests/fixtures/ksa24_chart_claim_fixture.json tests/fixtures/ksa24_connector_fixture.json tests/test_ksa24_f24_repairs.py && rtk git commit -m \"fix(k-slide): repair KSA-24 F24 evidence paths\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk date -u +%Y-%m-%dT%H:%M:%SZ'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check HEAD''^ HEAD; rtk git diff --quiet main HEAD''^'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show -s --format='%H%n%P%n%s' HEAD; rtk git diff --numstat HEAD\"'^ HEAD; rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show a7db1f7:.codex-fabric/audit.json | rtk sed -n '1,80p'; rtk git show a7db1f7:.codex-fabric/audit.json | rtk tail -40\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk ls -la .codex-fabric'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mkdir -p .codex-fabric'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show a7db1f7:.codex-fabric/audit.json | rtk rg -n 'checks|command|result|test' | head -40\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show a7db1f7:.codex-fabric/audit.json | rtk sed -n '95,190p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m json.tool .codex-fabric/audit.json >/dev/null && rtk echo fabric-audit-json-pass'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch; rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add .codex-fabric/audit.json && rtk git commit -m \"chore(fabric): publish KSA-24 repair evidence\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --porcelain=v1 --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git log --oneline --decorate -4'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m json.tool .codex-fabric/audit.json >/dev/null && rtk echo final-audit-validation-pass'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show -s --format='%H%n%P' HEAD; rtk git rev-parse refs/heads/main; rtk git merge-base HEAD 004cbcf3e2d36ea3bbb985868e57b59cbc645c6c; rtk git diff --check HEAD\"'^ HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,170p' tests/test_chg16_opencode_plugin.ts; rtk rg -n -C 8 \\\"class HostInputReference|source_kind|DEFAULT_CLASSIFICATION|validate_input\\\" src/k_slide/host_adapter.py src/k_slide/ingest.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '540,610p' src/k_slide/cli.py; rtk rg -n \\\"return .*status|return 1|FAILED_INPUT|PROCESSING_FAILED\\\" src/k_slide/cli.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n -C 5 \"host_input_refs|source_kind|attachment|classification\" .opencode/plugin/k-slide-host.ts .opencode/tools/kslide.ts | head -180'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python3 -c 'from pathlib import Path; import tempfile, base64; from k_slide.ingest import prepare_run; from k_slide.state import load_state; td=tempfile.TemporaryDirectory(); root=Path(td.name)/\\\"cli-root\\\"; root.mkdir(); source=Path(td.name)/\\\"first-slide.png\\\"; source.write_bytes(base64.b64decode(\\\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=\\\")); run=prepare_run(root, session_id=\\\"composer-cli-success\\\", perform_processing=True, host_input_refs=[{\\\"source_kind\\\":\\\"attachment\\\",\\\"logical_name\\\":\\\"first-slide.png\\\",\\\"locator\\\":str(source),\\\"classification\\\":\\\"company_confidential\\\"}], approved_root=root); print(load_state(run).as_dict())'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m json.tool .codex-fabric/audit.json >/dev/null && rtk git add .codex-fabric/audit.json && rtk git commit -m \"chore(fabric): clarify OpenCode harness boundary\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --porcelain=v1 --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git log --oneline --decorate -5'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rev-parse HEAD''^2 2>/dev/null || true; rtk git show -s --format='\"'%H%n%P' bf8b7a9a9d0937cf309bec9f9cce29d7e48cc461; rtk git rev-parse refs/heads/main; rtk git merge-base HEAD 004cbcf3e2d36ea3bbb985868e57b59cbc645c6c\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check; rtk python -m json.tool .codex-fabric/audit.json >/dev/null && rtk echo clean-candidate-evidence-pass'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.155.1",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 284,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.64,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 18744576,
+      "fresh_input_tokens": 452899,
+      "input_tokens": 19197475,
+      "non_reasoning_output_tokens": 42804,
+      "output_tokens": 73442,
+      "reasoning_output_tokens": 30638,
+      "total_processed_tokens": 19270917
+    },
+    "warnings": []
+  },
+  "commits": [],
+  "diff": null,
+  "error_code": "WRONG_WORK_BRANCH",
+  "evidence_manifest": {
+    "count": 0,
+    "items": [],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.4-quota-recovery-candidate",
+  "fabric_capture": null,
+  "fabric_release": "1.2.4-quota-recovery-candidate",
+  "failure_class": "CONTROL_PLANE",
+  "finished_at": "2026-09-22T02:22:44Z",
+  "git": {},
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-6a552c3db7fea43598d3b9bb",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-modality-conformance-01-fix01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-modality-conformance-01-fix01"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.4-quota-recovery-candidate",
+    "policy_sha256": "a642c9f63bab2cb555704bdb0b9d1f28222591f133f934c1d0f93cc5a25ab8a1",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": true,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-modality-conformance-01-fix01",
+  "schema_version": 1,
+  "started_at": "2026-09-22T01:52:33Z",
+  "status": "FAILED_INFRA",
+  "timing": {
+    "execution_seconds": 1811,
+    "queue_seconds": 1,
+    "total_seconds": 1812
+  },
+  "transport": {
+    "bytes": 8060,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 7729,
+    "prompt_sha256": "84ef76bf48c9e9044a8cdc5d60705000ddb15a397b3974f02c8b3d63a80be86d",
+    "sha256": "6a552c3db7fea43598d3b9bb65279d06bcba053c627931e43a74000a35e43560"
+  }
+}
