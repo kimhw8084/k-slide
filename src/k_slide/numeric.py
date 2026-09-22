@@ -9,6 +9,7 @@ from typing import Any
 _TOKEN = re.compile(
     r"(?<![A-Za-z0-9가-힣])"
     r"(?P<sign>[+\-▲▼]?)\s*"
+    r"(?P<prefix>\$|€|¥|₩|USD|KRW|EUR|JPY)?\s*"
     r"(?P<open>\(?\s*)"
     r"(?P<number>\d[\d,]*(?:\.\d+)?)"
     r"(?P<close>\s*\)?)"
@@ -76,10 +77,20 @@ def extract_numeric_facts(
     facts: list[dict[str, Any]] = []
     matches: list[tuple[int, str, float | None, str | None, str, str]] = []
     for match in _TOKEN.finditer(text):
+        prefix = match.group("prefix")
         unit_display = match.group("unit")
         unit = _normal_unit(unit_display)
         raw = float(match.group("number").replace(",", ""))
         factor, quantity, currency = _UNIT_INFO.get(unit or "", (1.0, "number", None))
+        prefix_currency = {"$": "USD", "€": "EUR", "¥": "JPY", "₩": "KRW"}.get(prefix or "", prefix)
+        if prefix_currency:
+            currency = prefix_currency
+            if quantity == "number":
+                quantity = "currency"
+        if prefix and unit_display:
+            unit_display = f"{prefix} {unit_display}"
+        elif prefix:
+            unit_display = prefix
         canonical = raw * factor
         direction = _direction(match.group("sign"), match.group("open"), unit)
         matches.append((match.start(), match.group(0), canonical, unit_display, quantity, direction or ""))
@@ -132,7 +143,28 @@ def _target_facts(text: str | None) -> list[dict[str, Any]]:
     return extract_numeric_facts(text, source_object_id="target")
 
 
-def numeric_fact_matches(source: dict[str, Any], target_text: str | None) -> tuple[bool, str]:
+def table_numeric_target_text(target_text: str | None, table_unit: str | None) -> str | None:
+    """Apply a proven table unit for numeric validation without rewriting output."""
+
+    if not target_text or not table_unit or not target_text.strip():
+        return target_text
+    normalized = re.sub(r"\s+", " ", table_unit.strip())
+    currency = next((value for value in ("USD", "KRW", "EUR", "JPY") if re.search(rf"\b{value}\b", normalized, re.IGNORECASE)), None)
+    scale = None
+    for marker, singular in (("trillion", "trillion"), ("billion", "billion"), ("million", "million"), ("thousand", "thousand"), ("조", "조"), ("억", "억"), ("만", "만"), ("천", "천")):
+        if marker in normalized.casefold():
+            scale = singular
+            break
+    if currency and scale:
+        return f"{currency} {target_text} {scale}"
+    if currency:
+        return f"{currency} {target_text}"
+    if scale:
+        return f"{target_text} {scale}"
+    return f"{target_text} {normalized}"
+
+
+def numeric_fact_matches(source: dict[str, Any], target_text: str | None, *, table_unit: str | None = None) -> tuple[bool, str]:
     """Compare a source fact to translated text without requiring literal formatting."""
 
     if source.get("semantic_quantity") == "period":
@@ -145,7 +177,7 @@ def numeric_fact_matches(source: dict[str, Any], target_text: str | None) -> tup
         if any(alias in normalized for alias in aliases):
             return True, "period equivalent"
         return False, f"period {source.get('source_string')} is absent or changed"
-    targets = _target_facts(target_text)
+    targets = _target_facts(table_numeric_target_text(target_text, table_unit) if source.get("source_table_id") else target_text)
     canonical = source.get("canonical_value")
     quantity = source.get("semantic_quantity")
     direction = source.get("direction")

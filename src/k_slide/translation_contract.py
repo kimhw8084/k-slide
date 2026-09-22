@@ -13,9 +13,11 @@ REGION_OPTIONAL_FIELDS = frozenset({"commitment_status", "speech_act", "unresolv
 TABLE_REQUIRED_FIELDS = frozenset({"table_id", "cells"})
 TABLE_OPTIONAL_FIELDS = frozenset()
 CELL_REQUIRED_FIELDS = frozenset({"cell_id", "english", "unresolved"})
-CELL_OPTIONAL_FIELDS = frozenset({"unresolved_reason", "hangul_retention", "provenance", "evidence_ids"})
+CELL_OPTIONAL_FIELDS = frozenset({"commitment_status", "speech_act", "unresolved_reason", "hangul_retention", "provenance", "evidence_ids"})
 RELATION_REQUIRED_FIELDS = frozenset({"relation_id", "interpretation", "evidence_ids"})
-RELATION_OPTIONAL_FIELDS = frozenset({"source_element_ids", "relation_type", "direction", "hangul_retention", "provenance", "unresolved_reason"})
+RELATION_OPTIONAL_FIELDS = frozenset({"source_element_ids", "relation_type", "direction", "chart_claim", "hangul_retention", "provenance", "unresolved_reason"})
+CHART_CLAIM_REQUIRED_FIELDS = frozenset({"chart_element_id", "kind", "series_index", "series_name"})
+CHART_CLAIM_OPTIONAL_FIELDS = frozenset({"point_index", "category", "value", "is_blank", "direction", "ranking", "rank", "other_series_index", "other_series_name", "operator"})
 CLAIM_REQUIRED_FIELDS = frozenset({"claim_id", "kind", "text", "evidence_ids", "uncertainty"})
 CLAIM_OPTIONAL_FIELDS = frozenset({"hangul_retention", "provenance", "unresolved_reason"})
 HANGUL_RETENTION_REQUIRED_FIELDS = frozenset({"reason", "evidence_id"})
@@ -35,6 +37,7 @@ CONTRACT_FIELDS = {
     "table": (TABLE_REQUIRED_FIELDS, TABLE_OPTIONAL_FIELDS),
     "cell": (CELL_REQUIRED_FIELDS, CELL_OPTIONAL_FIELDS),
     "relation": (RELATION_REQUIRED_FIELDS, RELATION_OPTIONAL_FIELDS),
+    "chart_claim": (CHART_CLAIM_REQUIRED_FIELDS, CHART_CLAIM_OPTIONAL_FIELDS),
     "claim": (CLAIM_REQUIRED_FIELDS, CLAIM_OPTIONAL_FIELDS),
     "hangul_retention": (HANGUL_RETENTION_REQUIRED_FIELDS, HANGUL_RETENTION_OPTIONAL_FIELDS),
 }
