@@ -1,0 +1,360 @@
+{
+  "accepted_at": "2026-09-22T02:28:54Z",
+  "changed_files": [
+    {
+      "additions": 17,
+      "deletions": 0,
+      "path": ".opencode/tools/kslide.ts",
+      "status": "M"
+    },
+    {
+      "additions": 29,
+      "deletions": 3,
+      "path": "schemas/evidence-ir.schema.json",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 3,
+      "path": "schemas/slide-ir.schema.json",
+      "status": "M"
+    },
+    {
+      "additions": 21,
+      "deletions": 0,
+      "path": "schemas/translation-patch.schema.json",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 105,
+      "deletions": 0,
+      "path": "src/k_slide/evidence_ir.py",
+      "status": "M"
+    },
+    {
+      "additions": 112,
+      "deletions": 9,
+      "path": "src/k_slide/extraction.py",
+      "status": "M"
+    },
+    {
+      "additions": 13,
+      "deletions": 0,
+      "path": "src/k_slide/ir.py",
+      "status": "M"
+    },
+    {
+      "additions": 200,
+      "deletions": 0,
+      "path": "src/k_slide/modality.py",
+      "status": "A"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/model.py",
+      "status": "M"
+    },
+    {
+      "additions": 218,
+      "deletions": 11,
+      "path": "src/k_slide/normalization.py",
+      "status": "M"
+    },
+    {
+      "additions": 11,
+      "deletions": 0,
+      "path": "src/k_slide/numeric.py",
+      "status": "M"
+    },
+    {
+      "additions": 27,
+      "deletions": 4,
+      "path": "src/k_slide/rendering/reports.py",
+      "status": "M"
+    },
+    {
+      "additions": 318,
+      "deletions": 11,
+      "path": "src/k_slide/translation.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "src/k_slide/translation_contract.py",
+      "status": "M"
+    },
+    {
+      "additions": 128,
+      "deletions": 3,
+      "path": "src/k_slide/verify.py",
+      "status": "M"
+    },
+    {
+      "additions": 21,
+      "deletions": 0,
+      "path": "tests/fixtures/ksa24_chart_claim_fixture.json",
+      "status": "A"
+    },
+    {
+      "additions": 16,
+      "deletions": 0,
+      "path": "tests/fixtures/ksa24_connector_fixture.json",
+      "status": "A"
+    },
+    {
+      "additions": 21,
+      "deletions": 0,
+      "path": "tests/fixtures/ksa24_table_fixture.json",
+      "status": "A"
+    },
+    {
+      "additions": 57,
+      "deletions": 0,
+      "path": "tests/fixtures/ksa24_visual_fixture.json",
+      "status": "A"
+    },
+    {
+      "additions": 275,
+      "deletions": 0,
+      "path": "tests/test_ksa24_f24_repairs.py",
+      "status": "A"
+    },
+    {
+      "additions": 152,
+      "deletions": 0,
+      "path": "tests/test_ksa24_modality_conformance.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"pwd && sed -n '1,240p' /Users/haewonkim/.codex/RTK.md && sed -n '1,260p' /Users/haewonkim/.codex/law.md && git status --short --branch && git rev-parse --show-toplevel\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --porcelain=v1 && rtk git rev-parse --verify --quiet bf8b7a9a9d0937cf309bec9f9cce29d7e48cc461''^{commit} && rtk git rev-list --parents -n 1 bf8b7a9a9d0937cf309bec9f9cce29d7e48cc461 && rtk git cat-file -t bf8b7a9a9d0937cf309bec9f9cce29d7e48cc461 && rtk git merge-base --is-ancestor 004cbcf3e2d36ea3bbb985868e57b59cbc645c6c bf8b7a9a9d0937cf309bec9f9cce29d7e48cc461; printf '\"'accepted-base-ancestor-exit=%s\\\\n' \\\"\"'$?\" && rtk git diff-tree --no-commit-id --name-status -r 004cbcf3e2d36ea3bbb985868e57b59cbc645c6c bf8b7a9a9d0937cf309bec9f9cce29d7e48cc461'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files -g 'pyproject.toml' -g 'pytest.ini' -g 'tox.ini' -g 'setup.cfg' -g 'Makefile' -g 'README*' -g 'tests/**' | sort | sed -n '1,240p'\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 1383,
+        "output_sha256": "8664a8f433f5601d1eb9ced8c1c2facda7775b32a2d9c6405f6da6678cad23fb",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n -i 'KSA-24|F24-0[1-4]|ksa24|f24' --glob '\"'!*.lock'\"' .\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git show --no-ext-diff --stat --oneline --decorate --no-renames bf8b7a9a9d0937cf309bec9f9cce29d7e48cc461 && rtk git show --no-ext-diff --format=fuller --no-patch bf8b7a9a9d0937cf309bec9f9cce29d7e48cc461'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git switch --detach bf8b7a9a9d0937cf309bec9f9cce29d7e48cc461 && rtk git rev-parse --verify HEAD && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n -i 'KSA-24|F24-0[1-4]|ksa24|f24' tests src schemas .opencode\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' pyproject.toml && rtk sed -n '1,240p' README.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,360p' tests/test_ksa24_f24_repairs.py && rtk sed -n '1,260p' tests/test_ksa24_modality_conformance.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python3 -m unittest -v tests.test_ksa24_f24_repairs tests.test_ksa24_modality_conformance'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git rev-parse --verify HEAD\nrtk git rev-parse --abbrev-ref HEAD\nrtk git rev-list --parents -n 1 HEAD\nrtk git merge-base --is-ancestor 004cbcf3e2d36ea3bbb985868e57b59cbc645c6c HEAD\nrtk git diff-index --quiet HEAD --\nrtk git diff --cached --quiet\nrtk git diff --check 004cbcf3e2d36ea3bbb985868e57b59cbc645c6c HEAD\nrtk git status --porcelain=v1 --untracked-files=all\nrtk git status --short --branch\nrtk git ls-tree -r --name-only HEAD tests | rtk rg 'ksa24|test_ksa24'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.155.1",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 30,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 84.97,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 173824,
+      "fresh_input_tokens": 30742,
+      "input_tokens": 204566,
+      "non_reasoning_output_tokens": 2151,
+      "output_tokens": 4701,
+      "reasoning_output_tokens": 2550,
+      "total_processed_tokens": 209267
+    },
+    "warnings": []
+  },
+  "commits": [
+    {
+      "sha": "bf8b7a9a9d0937cf309bec9f9cce29d7e48cc461",
+      "subject": "fix(k-slide): repair KSA-24 F24 evidence paths"
+    },
+    {
+      "sha": "9e8867faea640377bcd4bc2acef62cd74a28f856",
+      "subject": "fabric: capture completed model changes [CF-0e2daacc470cd4069f84148a]"
+    }
+  ],
+  "diff": {
+    "additions": 1749,
+    "changed_files": 22,
+    "commit_count": 2,
+    "deletions": 46
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 8,
+    "items": [
+      {
+        "bytes": 4438,
+        "path": "schemas/evidence-ir.schema.json",
+        "sha256": "914a939a20c0659c3b7cc5becb119a5e0c9114b40845c2b366890a13afc770a2"
+      },
+      {
+        "bytes": 3107,
+        "path": "schemas/slide-ir.schema.json",
+        "sha256": "15bce69b7deb38788ea9957781e0830bd56905543750c5f4f2fd96c76ea8ff2f"
+      },
+      {
+        "bytes": 5910,
+        "path": "schemas/translation-patch.schema.json",
+        "sha256": "bc6e3381826b2139d14d7281225b233141dc844ace3502277cb2cd8ae965bdd6"
+      },
+      {
+        "bytes": 23898,
+        "path": "src/k_slide/evidence_ir.py",
+        "sha256": "7831f1b6ec45f78e387bf3bffc6035e1654085eca54f9abbc4e6961fbbbebb04"
+      },
+      {
+        "bytes": 1348,
+        "path": "tests/fixtures/ksa24_chart_claim_fixture.json",
+        "sha256": "2e1d7930b3925dff058c98b709d3dd58e1d30c9434973345b6fc52c4380b4ff6"
+      },
+      {
+        "bytes": 2063,
+        "path": "tests/fixtures/ksa24_connector_fixture.json",
+        "sha256": "ce0f5d8c3e7ae68c24f70ae5713bed3a102456e1ff80ad20e16f157ce21d6ead"
+      },
+      {
+        "bytes": 2613,
+        "path": "tests/fixtures/ksa24_table_fixture.json",
+        "sha256": "b44ba510cced8d82236d2926738cfee57d814df1cbba67cb8489d6c1e34e96a0"
+      },
+      {
+        "bytes": 2926,
+        "path": "tests/fixtures/ksa24_visual_fixture.json",
+        "sha256": "c914fc82aea424e7cef3905f1fa4c7b1a516ce64997d3b7ebbb12a415121ef0b"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.4-quota-recovery-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.4-quota-recovery-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-22T02:30:36Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "004cbcf3e2d36ea3bbb985868e57b59cbc645c6c",
+    "branch": "codex/k-slide-chg16-ksa24-f24-repair-01-verify01",
+    "detached_verify": true,
+    "head_sha": "bf8b7a9a9d0937cf309bec9f9cce29d7e48cc461",
+    "remote_exact_head": true,
+    "remote_head_sha": "bf8b7a9a9d0937cf309bec9f9cce29d7e48cc461",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "004cbcf3e2d36ea3bbb985868e57b59cbc645c6c",
+    "work_branch": "codex/k-slide-chg16-ksa24-f24-repair-01-verify01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-a68498a2fa58be6cbe987ffb",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-ksa24-f24-repair-01-verify01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-ksa24-f24-repair-01-verify01"
+  },
+  "operation": "VERIFY",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.4-quota-recovery-candidate",
+    "policy_sha256": "a642c9f63bab2cb555704bdb0b9d1f28222591f133f934c1d0f93cc5a25ab8a1",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-ksa24-f24-repair-01-verify01",
+  "schema_version": 1,
+  "started_at": "2026-09-22T02:28:54Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 102,
+    "queue_seconds": 0,
+    "total_seconds": 102
+  },
+  "transport": {
+    "bytes": 1406,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 1074,
+    "prompt_sha256": "453e90f343b0140999c45c599b918ca123b27c238e274b98d768518ad8893e12",
+    "sha256": "a68498a2fa58be6cbe987ffb953bba2b8a816bead10248f42b463b889517b77b"
+  }
+}
