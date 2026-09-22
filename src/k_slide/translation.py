@@ -559,7 +559,7 @@ class TranslationPatch:
             mismatch = modality_mismatch(source_text, patch.commitment_status, patch.speech_act)
             if mismatch:
                 raise KSlideError(ErrorCode.MODALITY_MISMATCH, mismatch, {"region_id": patch.region_id})
-            english_mismatch = english_modality_mismatch(source_text, patch.english, patch.commitment_status)
+            english_mismatch = english_modality_mismatch(source_text, patch.english, patch.commitment_status, require_status_marker=True)
             if english_mismatch:
                 raise KSlideError(ErrorCode.MODALITY_MISMATCH, english_mismatch, {"region_id": patch.region_id})
             if source_language == "en" and source_text is not None and patch.english != source_text:
@@ -582,6 +582,14 @@ class TranslationPatch:
             retention_evidence_id = patch.hangul_retention.get("evidence_id") if patch.hangul_retention else None
             if retention_evidence_id is not None and retention_evidence_id not in evidence_ids:
                 raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Hangul retention must cite evidence bound to its rendered region.", {"region_id": patch.region_id})
+            region_provenance = patch.provenance or (ProvenanceState.UNRESOLVED.value if patch.unresolved else ProvenanceState.SUPPORTED_INTERPRETATION.value)
+            _require_rendered_english(
+                patch.unresolved_reason if region_provenance == ProvenanceState.UNRESOLVED.value else patch.english,
+                patch.hangul_retention,
+                source_texts,
+                evidence_ids,
+                f"region {patch.region_id}",
+            )
         required_regions = {region.region_id for region in evidence.regions if region.required_for_translation}
         missing_regions = sorted(required_regions - seen_regions)
         if missing_regions:

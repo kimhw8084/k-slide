@@ -15,6 +15,8 @@ from k_slide.errors import KSlideError
 from k_slide.ingest import prepare_run
 from k_slide.io import atomic_write_json, read_json
 from k_slide.rendering.reports import render_run
+from k_slide.queue import WorkUnitStatus, load_queue, save_queue
+from k_slide.security import sha256_file
 from k_slide.storage import StorageArtifact, storage_path
 from k_slide.terminology import Termbase
 from k_slide.verify import VerificationResult, _validate_slide, finalize_run, verify_run
@@ -114,7 +116,13 @@ def _region_patch(evidence: object, region: object) -> dict[str, object]:
         "unresolved": False,
     }
     if source == "AI Platform 검토 중":
-        value.update({"english": "AI Platform under review", "commitment_status": "under_review", "speech_act": "status", "evidence_ids": [region.region_id]})
+        value.update({
+            "english": "AI Platform under review 검토 중",
+            "commitment_status": "under_review",
+            "speech_act": "status",
+            "evidence_ids": [region.region_id],
+            "hangul_retention": {"reason": "Retain the source wording alongside its translation.", "evidence_id": region.region_id},
+        })
     elif source == "출시 결정":
         value.update({"english": "Launch decided", "commitment_status": "decided", "speech_act": "decision", "evidence_ids": [region.region_id]})
     return value
@@ -336,6 +344,18 @@ class KSA24F24RealPathTests(unittest.TestCase):
             ]
             adversaries.append((strengthened, "KSLIDE_MODALITY_MISMATCH"))
 
+            neutralized_region = copy.deepcopy(valid)
+            next(region for region in neutralized_region["regions"] if region["region_id"] == under_review.region_id)["english"] = "AI Platform status"
+            adversaries.append((neutralized_region, "KSLIDE_MODALITY_MISMATCH"))
+
+            negated_region = copy.deepcopy(valid)
+            next(region for region in negated_region["regions"] if region["region_id"] == under_review.region_id)["english"] = "AI Platform is not under review"
+            adversaries.append((negated_region, "KSLIDE_MODALITY_MISMATCH"))
+
+            unretained_region_hangul = copy.deepcopy(valid)
+            unretained_region = next(region for region in unretained_region_hangul["regions"] if region["region_id"] == under_review.region_id)
+            unretained_region.pop("hangul_retention")
+
             table_cell_patch = next(cell for cell in valid["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id)
             omitted_cell_status = copy.deepcopy(valid)
             omitted_cell = next(cell for cell in omitted_cell_status["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id)
@@ -373,6 +393,13 @@ class KSA24F24RealPathTests(unittest.TestCase):
             hangul_claim["executive_claims"][0].pop("hangul_retention")
             adversaries.append((hangul_claim, "KSLIDE_REQUIRED_ENGLISH"))
 
+            with patch("k_slide.cli.render_run") as submit_render:
+                with self.assertRaises(KSlideError) as raised:
+                    _submit(root, run.name, json.dumps(unretained_region_hangul, ensure_ascii=False), None, environment)
+                self.assertEqual(raised.exception.code.value, "KSLIDE_REQUIRED_ENGLISH")
+                submit_render.assert_not_called()
+            self.assertFalse(storage_path(run, StorageArtifact.REPORT, "05_final_report.md").exists())
+
             for payload, expected_code in adversaries:
                 with self.subTest(expected_code=expected_code):
                     with self.assertRaises(KSlideError) as raised:
@@ -397,12 +424,19 @@ class KSA24F24RealPathTests(unittest.TestCase):
             canonical = read_json(canonical_path)
             canonical_cell = next(cell for cell in canonical["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id)
             self.assertEqual(canonical_cell["hangul_retention"]["evidence_id"], protected_cell.cell_id)
+            canonical_region = next(region for region in canonical["regions"] if region["region_id"] == under_review.region_id)
+            self.assertEqual(canonical_region["hangul_retention"]["evidence_id"], under_review.region_id)
             self.assertEqual(canonical["executive_semantics"]["executive_claims"][0]["hangul_retention"]["evidence_id"], under_review.region_id)
 
             def tamper_unretained_hangul(value: dict[str, object]) -> None:
                 cell = next(cell for cell in value["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id)  # type: ignore[index]
                 cell.update({"translation": "AI Platform under review 검토 중"})
                 cell.pop("hangul_retention", None)
+
+            def tamper_unretained_region_hangul(value: dict[str, object]) -> None:
+                region = next(region for region in value["regions"] if region["region_id"] == under_review.region_id)  # type: ignore[index]
+                region.update({"translation": "AI Platform under review 검토 중"})
+                region.pop("hangul_retention", None)
 
             for mutate, expected_code in (
                 (
@@ -416,6 +450,14 @@ class KSA24F24RealPathTests(unittest.TestCase):
                 (
                     lambda value: next(cell for cell in value["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id).update({"translation": "AI Platform approved"}),
                     "KSLIDE_MODALITY_MISMATCH",
+                ),
+                (
+                    lambda value: next(region for region in value["regions"] if region["region_id"] == under_review.region_id).update({"translation": "AI Platform status"}),
+                    "KSLIDE_MODALITY_MISMATCH",
+                ),
+                (
+                    tamper_unretained_region_hangul,
+                    "KSLIDE_REQUIRED_ENGLISH",
                 ),
                 (
                     tamper_unretained_hangul,
@@ -439,6 +481,26 @@ class KSA24F24RealPathTests(unittest.TestCase):
             finalized = finalize_run(run, environment_identity=environment)
             self.assertTrue(finalized.passed, finalized.as_dict())
             self.assertTrue((run / "RUN_COMPLETE.md").is_file())
+
+            tampered = copy.deepcopy(canonical)
+            next(region for region in tampered["regions"] if region["region_id"] == under_review.region_id)["translation"] = "AI Platform status"
+            atomic_write_json(canonical_path, tampered)
+            independently_verified = verify_run(run, environment_identity=environment)
+            self.assertFalse(independently_verified.passed)
+            self.assertIn("KSLIDE_MODALITY_MISMATCH", {issue.code for issue in independently_verified.issues})
+
+            # Make the tampered canonical IR the current queue revision so
+            # finalization must independently enforce source-bound modality.
+            queue = load_queue(run)
+            unit = queue.get(next_value["work_unit_id"])
+            unit.status = WorkUnitStatus.TRANSLATED
+            unit.canonical_ir_sha256 = sha256_file(canonical_path)
+            save_queue(run, queue)
+            with self.assertRaises(KSlideError) as raised:
+                finalize_run(run, environment_identity=environment)
+            self.assertEqual(raised.exception.code.value, "KSLIDE_COMPLETION_BLOCKED")
+            finalizer_result = read_json(storage_path(run, StorageArtifact.VERIFICATION, "verification/summary.json"))
+            self.assertIn("KSLIDE_MODALITY_MISMATCH", {issue["code"] for issue in finalizer_result["issues"]})
 
 
 if __name__ == "__main__":

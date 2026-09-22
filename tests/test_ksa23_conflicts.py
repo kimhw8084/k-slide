@@ -30,6 +30,7 @@ from k_slide.conflicts import (
 from k_slide.errors import ErrorCode, KSlideError
 from k_slide.evidence_ir import EvidenceIR, EvidenceRegion, EvidenceTable, EvidenceTableCell, save_evidence
 from k_slide.io import atomic_write_json
+from k_slide.modality import classify_source_language
 from k_slide.queue import WorkQueue, WorkUnit, WorkUnitStatus, load_queue, save_queue
 from k_slide.rendering.reports import render_run
 from k_slide.storage import StorageArtifact, storage_path
@@ -52,6 +53,12 @@ class KSA23ConflictTests(unittest.TestCase):
                     "unresolved": False,
                     "provenance": "source_fact",
                     "evidence_ids": [region.region_id],
+                    **({
+                        "hangul_retention": {
+                            "reason": "Keep the fixture's Korean assertion text alongside the English test context.",
+                            "evidence_id": region.region_id,
+                        }
+                    } if classify_source_language(region.selected_literal_candidate) in {"ko", "mixed"} else {}),
                 }
                 for region in evidence.regions
             ],

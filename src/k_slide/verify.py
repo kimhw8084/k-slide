@@ -182,7 +182,7 @@ def _check_source_literal_and_modality(result: VerificationResult, slide: SlideI
         mismatch = modality_mismatch(source_text, region.commitment_status, region.speech_act, language_bound=language_policy_bound)
         if mismatch:
             _issue(result, ErrorCode.MODALITY_MISMATCH.value, Severity.CRITICAL, mismatch, target=source.region_id, evidence_ids=[source.region_id])
-        english_mismatch = english_modality_mismatch(source_text, region.translation, region.commitment_status, language_bound=language_policy_bound)
+        english_mismatch = english_modality_mismatch(source_text, region.translation, region.commitment_status, language_bound=language_policy_bound, require_status_marker=True)
         if english_mismatch:
             _issue(result, ErrorCode.MODALITY_MISMATCH.value, Severity.CRITICAL, english_mismatch, target=source.region_id, evidence_ids=[source.region_id])
         if decision_bearing_status(region.commitment_status) and source.region_id not in region.provenance_evidence_ids:

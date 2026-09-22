@@ -127,6 +127,13 @@ _NEGATED_ENGLISH_STATE_MARKERS: dict[str, tuple[str, ...]] = {
     "planned": ("not planned", "no plan", "does not plan"),
     "scheduled": ("not scheduled", "not slated", "not set for"),
     "target": ("not a target", "not the goal", "not targeted"),
+    "proposed": ("not proposed", "not a proposal", "not recommended"),
+    "under_review": ("not under review", "not in review", "not being reviewed", "not pending review", "not in discussion"),
+    "possible": ("not possible", "impossible"),
+    "forecast": ("not forecast", "not forecasted", "not projected", "not expected", "not estimated"),
+    "tentative": ("not tentative", "not provisional"),
+    "completed": ("not completed", "not complete", "not done", "not finished", "incomplete"),
+    "in_progress": ("not in progress", "not underway", "not ongoing", "not being implemented"),
 }
 
 _HANGUL_FRAGMENT_RE = re.compile(r"[\u1100-\u11ff\u3130-\u318f\ua960-\ua97f\uac00-\ud7ff]+")
@@ -203,8 +210,8 @@ def executive_modality_mismatch(
     incompatible = observed - {status}
     if incompatible:
         return f"cited source cue {status!r} is incompatible with executive wording {sorted(incompatible)!r}"
-    if claim_kind in _STATUS_PURPORTING_CLAIM_KINDS and decision_bearing_status(status) and status not in observed:
-        return f"{claim_kind} claim citing {status!r} evidence must preserve that commitment status"
+    if claim_kind in _STATUS_PURPORTING_CLAIM_KINDS and status not in observed:
+        return f"{claim_kind} claim citing {status!r} evidence must preserve that status"
     return None
 
 

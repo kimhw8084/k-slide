@@ -122,6 +122,49 @@ class KSA24ModalityConformanceTests(unittest.TestCase):
             parse_translation_patch(_patch(evidence, region_text="Decided", status="decided", speech="decision")).validate_against(evidence)
         self.assertEqual(raised.exception.code, ErrorCode.MODALITY_MISMATCH)
 
+    def test_regions_require_compatible_english_markers_for_every_single_protected_cue(self) -> None:
+        cases = (
+            ("검토 중", "under_review", "status", "Launch under review", "Launch is not under review"),
+            ("가능", "possible", "risk", "Launch is possible", "Launch is not possible"),
+            ("전망", "forecast", "forecast", "Launch is forecast", "Launch is not forecast"),
+            ("제안", "proposed", "recommendation", "Launch is proposed", "Launch is not proposed"),
+            ("잠정", "tentative", "status", "Launch is tentative", "Launch is not tentative"),
+            ("완료", "completed", "status", "Launch is completed", "Launch is not completed"),
+            ("진행 중", "in_progress", "status", "Launch is in progress", "Launch is not in progress"),
+            ("확정", "decided", "decision", "Launch is decided", "Launch is not decided"),
+            ("약속", "committed", "plan", "Launch is committed", "Launch is not committed"),
+            ("계획", "planned", "plan", "Launch is planned", "Launch is not planned"),
+            ("예정", "scheduled", "plan", "Launch is scheduled", "Launch is not scheduled"),
+            ("목표", "target", "plan", "Launch is a target", "Launch is not a target"),
+        )
+        for source_text, status, speech, compatible, negated in cases:
+            with self.subTest(source_text=source_text):
+                evidence = EvidenceIR(
+                    "doc",
+                    "unit",
+                    {},
+                    regions=(EvidenceRegion("unit-r", selected_literal_candidate=source_text, language="ko"),),
+                    required_source_ids=("unit-r",),
+                ).with_revision()
+                parse_translation_patch(_patch(evidence, region_text=compatible, status=status, speech=speech)).validate_against(evidence)
+                incompatible = "Launch under review" if status == "decided" else "Launch is approved"
+                for wording in ("Launch status", incompatible, negated):
+                    with self.subTest(wording=wording):
+                        with self.assertRaises(KSlideError) as raised:
+                            parse_translation_patch(_patch(evidence, region_text=wording, status=status, speech=speech)).validate_against(evidence)
+                        self.assertEqual(raised.exception.code, ErrorCode.MODALITY_MISMATCH)
+
+        for source_text in ("검토", "검토 중 및 계획"):
+            with self.subTest(source_text=source_text):
+                evidence = EvidenceIR(
+                    "doc",
+                    "unit",
+                    {},
+                    regions=(EvidenceRegion("unit-r", selected_literal_candidate=source_text, language="ko"),),
+                    required_source_ids=("unit-r",),
+                ).with_revision()
+                parse_translation_patch(_patch(evidence, region_text="Launch status")).validate_against(evidence)
+
     def test_table_cell_modality_is_closed_persisted_and_checked_for_weakening(self) -> None:
         cues = (
             ("검토 중", "under_review", "Under review", "status"),
@@ -247,6 +290,59 @@ class KSA24ModalityConformanceTests(unittest.TestCase):
             with self.assertRaises(KSlideError) as raised:
                 parse_translation_patch(invalid).validate_against(conflicted_evidence)
             self.assertEqual(raised.exception.code, ErrorCode.MODALITY_MISMATCH)
+
+    def test_decision_status_claims_preserve_all_protected_cues_without_constraining_other_kinds(self) -> None:
+        cases = (
+            ("검토 중", "under_review", "status", "Launch remains under review", "Launch is not under review"),
+            ("제안", "proposed", "recommendation", "Launch is proposed", "Launch is not proposed"),
+            ("가능", "possible", "risk", "Launch may be possible", "Launch is not possible"),
+            ("전망", "forecast", "forecast", "Launch is forecast", "Launch is not forecast"),
+            ("잠정", "tentative", "status", "Launch is tentative", "Launch is not tentative"),
+            ("완료", "completed", "status", "Launch is completed", "Launch is not completed"),
+            ("진행 중", "in_progress", "status", "Launch is in progress", "Launch is not in progress"),
+        )
+
+        def claim(kind: str, text: str) -> dict[str, object]:
+            return {
+                "claim_id": "decision",
+                "kind": kind,
+                "text": text,
+                "evidence_ids": ["unit-r"],
+                "uncertainty": "medium",
+                "provenance": "supported_interpretation",
+            }
+
+        for source_text, status, speech, compatible, negated in cases:
+            with self.subTest(source_text=source_text):
+                evidence = EvidenceIR(
+                    "doc",
+                    "unit",
+                    {"source_language_policy": "unicode-script-v1"},
+                    regions=(EvidenceRegion("unit-r", selected_literal_candidate=source_text, language="ko"),),
+                    required_source_ids=("unit-r",),
+                ).with_revision()
+                base = _patch(evidence, region_text=compatible, status=status, speech=speech)
+                parse_translation_patch({**base, "executive_claims": [claim("decision_status", compatible)]}).validate_against(evidence)
+                for wording in ("Launch status", negated):
+                    with self.subTest(wording=wording):
+                        with self.assertRaises(KSlideError) as raised:
+                            parse_translation_patch({**base, "executive_claims": [claim("decision_status", wording)]}).validate_against(evidence)
+                        self.assertEqual(raised.exception.code, ErrorCode.MODALITY_MISMATCH)
+
+        evidence = EvidenceIR(
+            "doc",
+            "unit",
+            {"source_language_policy": "unicode-script-v1"},
+            regions=(EvidenceRegion("unit-r", selected_literal_candidate="검토 중", language="ko"),),
+            required_source_ids=("unit-r",),
+        ).with_revision()
+        base = _patch(evidence, region_text="Launch remains under review", status="under_review", speech="status")
+        for kind in ("key_number", "risk", "owner"):
+            with self.subTest(kind=kind):
+                parse_translation_patch({
+                    **base,
+                    "executive_claims": [claim(kind, "Launch status")],
+                }).validate_against(evidence)
 
     def test_chart_trend_and_process_direction_are_bound_to_engine_evidence(self) -> None:
         chart = {"element_id": "unit-chart", "kind": "chart", "bbox_px": [0, 0, 100, 100], "required": True, "chart": {"chart_type": "line", "title": "Revenue", "categories": ["Q1", "Q2", "Q3"], "series": [{"series_index": 0, "name": "Revenue", "points": [{"point_index": 0, "value": 1.0, "is_blank": False}, {"point_index": 1, "value": 2.0, "is_blank": False}, {"point_index": 2, "value": 3.0, "is_blank": False}]}]}}
