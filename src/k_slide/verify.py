@@ -30,12 +30,12 @@ from .policy import COMPLETION_POLICY
 from .queue import WorkQueue, WorkUnitStatus, load_queue, save_queue
 from .rendering import render_run
 from .security import sha256_file
-from .semantics import ProvenanceState, enum_value
+from .semantics import CommitmentStatus, ProvenanceState, SpeechAct, enum_value
 from .state import RunPhase, load_state, save_state
 from .storage import StorageArtifact, storage_path, workspace_mutation_guard
 from .terminology import Termbase, load_effective_termbase
-from .modality import classify_source_language, decision_bearing_status, english_modality_mismatch, modality_mismatch
-from .translation import _chart_elements, _source_fact_connector_relation, _validate_chart_interpretation
+from .modality import classify_source_language, decision_bearing_status, english_modality_mismatch, executive_modality_mismatch, modality_mismatch, required_english_mismatch
+from .translation import _chart_elements, _executive_source_texts, _source_evidence_texts, _source_fact_connector_relation, _validate_chart_interpretation
 
 
 class Severity(str, Enum):
@@ -136,7 +136,24 @@ def _check_table_cell_binding(result: VerificationResult, table: Any, cell: Any,
             _issue(result, "KSLIDE_PROVENANCE_FOREIGN_EVIDENCE", Severity.CRITICAL, "Table cell provenance cites evidence outside the bound EvidenceIR cell.", target=target, evidence_ids=foreign)
 
 
-def _check_source_literal_and_modality(result: VerificationResult, slide: SlideIR, evidence: Any, *, run_dir: Path | None = None) -> None:
+def _check_required_english(
+    result: VerificationResult,
+    text: str | None,
+    retention: Any,
+    evidence_ids: Any,
+    evidence: Any,
+    *,
+    target: str,
+    source_texts: dict[str, str] | None = None,
+) -> None:
+    allowed_ids = tuple(evidence_ids) if isinstance(evidence_ids, list) else ()
+    source_texts = source_texts if source_texts is not None else _source_evidence_texts(evidence)
+    mismatch = required_english_mismatch(text, retention, source_texts, allowed_ids)
+    if mismatch:
+        _issue(result, ErrorCode.REQUIRED_ENGLISH.value, Severity.CRITICAL, mismatch, target=target, evidence_ids=list(allowed_ids))
+
+
+def _check_source_literal_and_modality(result: VerificationResult, slide: SlideIR, evidence: Any, *, run_dir: Path | None = None, source_texts: dict[str, str] | None = None) -> None:
     # KSA-23 conflict fixtures may deliberately replace rendered context text
     # after merge so the conflict registry can retain a competing assertion.
     # That legacy surface has no KSA-24 language-policy marker and remains
@@ -202,13 +219,31 @@ def _check_source_literal_and_modality(result: VerificationResult, slide: SlideI
             spans = list(source_cell.source_english_spans)
             if any(span not in (cell.translation or "") for span in spans):
                 _issue(result, "KSLIDE_SOURCE_ENGLISH_SPAN_MISSING", Severity.CRITICAL, "Engine-protected table source-English span is missing from canonical output.", target=cell.cell_id, evidence_ids=[cell.cell_id])
+            rendered_cell_text = cell.unresolved_reason if cell.provenance == ProvenanceState.UNRESOLVED.value else cell.translation
+            _check_required_english(result, rendered_cell_text, cell.hangul_retention, cell.provenance_evidence_ids, evidence, target=cell.cell_id, source_texts=source_texts)
+            try:
+                if cell.commitment_status is not None:
+                    enum_value(cell.commitment_status, CommitmentStatus, "table-cell commitment_status")
+                if cell.speech_act is not None:
+                    enum_value(cell.speech_act, SpeechAct, "table-cell speech_act")
+            except KSlideError:
+                _issue(result, "KSLIDE_SCHEMA_INVALID", Severity.CRITICAL, "Canonical table-cell commitment metadata is outside the closed contract.", target=cell.cell_id, evidence_ids=[cell.cell_id])
+            if language_policy_bound:
+                mismatch = modality_mismatch(source_cell.source_text, cell.commitment_status, cell.speech_act)
+                if mismatch:
+                    _issue(result, ErrorCode.MODALITY_MISMATCH.value, Severity.CRITICAL, mismatch, target=cell.cell_id, evidence_ids=[cell.cell_id])
+                english_mismatch = english_modality_mismatch(source_cell.source_text, cell.translation, cell.commitment_status, require_status_marker=True)
+                if english_mismatch:
+                    _issue(result, ErrorCode.MODALITY_MISMATCH.value, Severity.CRITICAL, english_mismatch, target=cell.cell_id, evidence_ids=[cell.cell_id])
 
 
-def _check_visual_evidence(result: VerificationResult, slide: SlideIR, evidence: Any) -> None:
+def _check_visual_evidence(result: VerificationResult, slide: SlideIR, evidence: Any, *, source_texts: dict[str, str] | None = None) -> None:
     if slide.visual_elements != list(evidence.visual_elements):
         _issue(result, ErrorCode.VISUAL_RELATION_MISMATCH.value, Severity.CRITICAL, "Canonical visual elements do not exactly match current engine visual evidence.", target=slide.slide_id)
     valid_ids = {str(item.get("element_id")) for item in evidence.visual_elements if isinstance(item, dict) and item.get("element_id")}
     for relation in slide.visual_relations:
+        rendered_text = relation.unresolved_reason if relation.provenance == ProvenanceState.UNRESOLVED.value else relation.interpretation
+        _check_required_english(result, rendered_text, relation.hangul_retention, relation.evidence, evidence, target=relation.relation_id, source_texts=source_texts)
         unknown = sorted(set(relation.source_element_ids) - valid_ids)
         if unknown:
             _issue(result, ErrorCode.VISUAL_RELATION_MISMATCH.value, Severity.CRITICAL, "Visual relation references a fabricated engine element.", target=relation.relation_id, evidence_ids=unknown)
@@ -271,7 +306,15 @@ def _check_provenance(
     return effective
 
 
-def _validate_canonical_provenance(result: VerificationResult, slide: SlideIR, evidence: Any, work_unit_id: str) -> None:
+def _validate_canonical_provenance(
+    result: VerificationResult,
+    slide: SlideIR,
+    evidence: Any,
+    work_unit_id: str,
+    raw_slide: dict[str, Any] | None = None,
+    *,
+    source_texts: dict[str, str] | None = None,
+) -> None:
     unresolved_refs: set[str] = set()
     for item in slide.unresolved:
         source_id = item.get("region_id") or item.get("cell_id") or item.get("relation_id") or item.get("claim_id")
@@ -350,6 +393,24 @@ def _validate_canonical_provenance(result: VerificationResult, slide: SlideIR, e
         )
         if state == ProvenanceState.UNRESOLVED.value and claim_id:
             expected_unresolved.add(claim_id)
+        rendered_text = claim.get("unresolved_reason") if state == ProvenanceState.UNRESOLVED.value else claim.get("text")
+        evidence_ids = claim.get("evidence_ids", [])
+        _check_required_english(result, rendered_text, claim.get("hangul_retention"), evidence_ids, evidence, target=claim_id or work_unit_id, source_texts=source_texts)
+        if evidence.source.get("source_language_policy") == "unicode-script-v1":
+            sources = _executive_source_texts(evidence, tuple(item for item in evidence_ids if isinstance(item, str)), source_texts) if isinstance(evidence_ids, list) else ()
+            raw_semantics = (raw_slide or {}).get("executive_semantics")
+            raw_claims = raw_semantics.get("executive_claims", []) if isinstance(raw_semantics, dict) else []
+            if not isinstance(raw_claims, list):
+                raw_claims = []
+            raw_claim = next((item for item in raw_claims if isinstance(item, dict) and item.get("claim_id") == claim_id), {})
+            modality_issue = executive_modality_mismatch(
+                sources,
+                claim.get("text"),
+                claim_kind=claim.get("kind"),
+                provenance=raw_claim.get("provenance"),
+            )
+            if modality_issue:
+                _issue(result, ErrorCode.MODALITY_MISMATCH.value, Severity.CRITICAL, modality_issue, target=claim_id or work_unit_id, evidence_ids=list(evidence_ids) if isinstance(evidence_ids, list) else [])
     missing = sorted(expected_unresolved - unresolved_refs)
     extra = sorted(unresolved_refs - expected_unresolved)
     if missing:
@@ -366,14 +427,15 @@ def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult
             _issue(result, "KSLIDE_SCHEMA_INVALID", Severity.CRITICAL, "SlideIR schema version is missing or unsupported.", target=work_unit_id)
             return
         evidence = load_evidence(run_dir, work_unit_id)
+        source_texts = _source_evidence_texts(evidence)
         slide = SlideIR.from_dict(value, evidence=evidence)
         result.checked_slides += 1
         result.checked_regions += len(slide.regions)
         if slide.evidence_revision != evidence.evidence_revision:
             _issue(result, ErrorCode.STALE_EVIDENCE.value, Severity.CRITICAL, "SlideIR is linked to a stale EvidenceIR revision.", target=work_unit_id)
-        _validate_canonical_provenance(result, slide, evidence, work_unit_id)
-        _check_source_literal_and_modality(result, slide, evidence, run_dir=run_dir)
-        _check_visual_evidence(result, slide, evidence)
+        _validate_canonical_provenance(result, slide, evidence, work_unit_id, value, source_texts=source_texts)
+        _check_source_literal_and_modality(result, slide, evidence, run_dir=run_dir, source_texts=source_texts)
+        _check_visual_evidence(result, slide, evidence, source_texts=source_texts)
         source_regions = {region.region_id for region in evidence.regions}
         translated_regions = {region.region_id for region in slide.regions}
         missing = sorted(source_regions - translated_regions)
@@ -425,8 +487,8 @@ def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult
             for item in slide.unresolved:
                 _issue(result, "KSLIDE_UNRESOLVED_REQUIRED", Severity.CRITICAL, "A required source item remains unresolved; final certification is blocked.", target=work_unit_id, evidence_ids=[str(item.get("region_id") or item.get("cell_id") or work_unit_id)])
         for region in slide.regions:
-            if region.translation and any("\uac00" <= char <= "\ud7a3" for char in region.translation):
-                _issue(result, "KSLIDE_RESIDUAL_HANGUL", Severity.CRITICAL, "Unexpected Hangul remains in translated output.", target=region.region_id, evidence_ids=[region.region_id])
+            rendered_text = region.unresolved_reason if region.provenance == ProvenanceState.UNRESOLVED.value else region.translation
+            _check_required_english(result, rendered_text, region.hangul_retention, region.provenance_evidence_ids, evidence, target=region.region_id, source_texts=source_texts)
         if termbase is None:
             try:
                 termbase = load_effective_termbase(run_dir.parent.parent, authority=termbase_authority)

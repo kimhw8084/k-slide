@@ -65,6 +65,7 @@ class TextRegion:
     numeric_fact_ids: list[str] = field(default_factory=list)
     commitment_status: str | None = None
     speech_act: str | None = None
+    hangul_retention: dict[str, Any] | None = None
     unresolved_reason: str | None = None
 
 
@@ -90,6 +91,9 @@ class TableCell:
     unresolved_reason: str | None = None
     provenance: str | None = None
     provenance_evidence_ids: list[str] = field(default_factory=list)
+    commitment_status: str | None = None
+    speech_act: str | None = None
+    hangul_retention: dict[str, Any] | None = None
 
 
 @dataclass
@@ -138,6 +142,7 @@ class VisualRelation:
     evidence: list[str] = field(default_factory=list)
     provenance: str | None = None
     unresolved_reason: str | None = None
+    hangul_retention: dict[str, Any] | None = None
 
 
 @dataclass

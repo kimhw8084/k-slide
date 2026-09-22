@@ -122,6 +122,132 @@ class KSA24ModalityConformanceTests(unittest.TestCase):
             parse_translation_patch(_patch(evidence, region_text="Decided", status="decided", speech="decision")).validate_against(evidence)
         self.assertEqual(raised.exception.code, ErrorCode.MODALITY_MISMATCH)
 
+    def test_table_cell_modality_is_closed_persisted_and_checked_for_weakening(self) -> None:
+        cues = (
+            ("검토 중", "under_review", "Under review", "status"),
+            ("예정", "scheduled", "Scheduled", "plan"),
+            ("계획", "planned", "Planned", "plan"),
+            ("목표", "target", "Target", "plan"),
+            ("확정", "decided", "Decided", "decision"),
+            ("완료", "completed", "Completed", "status"),
+            ("진행 중", "in_progress", "In progress", "status"),
+            ("제안", "proposed", "Proposed", "recommendation"),
+            ("전망", "forecast", "Forecast", "forecast"),
+            ("가능", "possible", "Possible", "risk"),
+            ("잠정", "tentative", "Tentative", "status"),
+        )
+        cells = tuple(
+            EvidenceTableCell(f"unit-t-r{index}-c0", index, 0, source_text=source, source_language="ko", cell_state="nonblank")
+            for index, (source, _status, _english, _speech) in enumerate(cues)
+        )
+        table = EvidenceTable("unit-t", row_count=len(cells), column_count=1, cells=cells)
+        evidence = EvidenceIR(
+            "doc",
+            "unit",
+            {"source_language_policy": "unicode-script-v1"},
+            regions=(EvidenceRegion("unit-r", selected_literal_candidate="Title", language="en"),),
+            tables=(table,),
+            required_source_ids=("unit-r", "unit-t", *(cell.cell_id for cell in cells)),
+        ).with_revision()
+        patch = {
+            **_patch(evidence, region_text="Title"),
+            "tables": [{
+                "table_id": "unit-t",
+                "cells": [
+                    {"cell_id": cell.cell_id, "english": english, "commitment_status": status, "speech_act": speech, "unresolved": False}
+                    for cell, (_source, status, english, speech) in zip(cells, cues)
+                ],
+            }],
+        }
+        merged = merge_evidence_patch(evidence, parse_translation_patch(patch))
+        self.assertEqual([cell.commitment_status for cell in merged.tables[0].cells], [item[1] for item in cues])
+        self.assertEqual([cell.speech_act for cell in merged.tables[0].cells], [item[3] for item in cues])
+
+        missing = json.loads(json.dumps(patch))
+        missing["tables"][0]["cells"][0].pop("commitment_status")
+        with self.assertRaises(KSlideError) as raised:
+            parse_translation_patch(missing).validate_against(evidence)
+        self.assertEqual(raised.exception.code, ErrorCode.MODALITY_MISMATCH)
+
+        mismatch = json.loads(json.dumps(patch))
+        mismatch["tables"][0]["cells"][0].update({"commitment_status": "decided", "speech_act": "decision"})
+        with self.assertRaises(KSlideError) as raised:
+            parse_translation_patch(mismatch).validate_against(evidence)
+        self.assertEqual(raised.exception.code, ErrorCode.MODALITY_MISMATCH)
+
+        weakened = json.loads(json.dumps(patch))
+        weakened["tables"][0]["cells"][0]["english"] = "Launch status"
+        with self.assertRaises(KSlideError) as raised:
+            parse_translation_patch(weakened).validate_against(evidence)
+        self.assertEqual(raised.exception.code, ErrorCode.MODALITY_MISMATCH)
+
+        strengthened = json.loads(json.dumps(patch))
+        strengthened["tables"][0]["cells"][0]["english"] = "Launch approved"
+        with self.assertRaises(KSlideError) as raised:
+            parse_translation_patch(strengthened).validate_against(evidence)
+        self.assertEqual(raised.exception.code, ErrorCode.MODALITY_MISMATCH)
+
+    def test_executive_claim_modality_is_bound_to_cited_source_and_conflicts_stay_explicit(self) -> None:
+        def evidence_for(source_text: str) -> EvidenceIR:
+            return EvidenceIR(
+                "doc",
+                "unit",
+                {"source_language_policy": "unicode-script-v1"},
+                regions=(EvidenceRegion("unit-r", selected_literal_candidate=source_text, language="ko"),),
+                required_source_ids=("unit-r",),
+            ).with_revision()
+
+        evidence = evidence_for("검토 중")
+        base = _patch(evidence, region_text="Under review", status="under_review", speech="status")
+
+        def claim(text: str, **changes: object) -> dict[str, object]:
+            value: dict[str, object] = {
+                "claim_id": "decision",
+                "kind": "decision_status",
+                "text": text,
+                "evidence_ids": ["unit-r"],
+                "uncertainty": "low",
+                "provenance": "supported_interpretation",
+            }
+            value.update(changes)
+            return value
+
+        compatible = {**base, "executive_claims": [claim("Launch remains under review")]}
+        parse_translation_patch(compatible).validate_against(evidence)
+        parse_translation_patch({**base, "executive_claims": [claim("Launch remains under review and is not approved")]}).validate_against(evidence)
+        for text in ("Launch approved", "Launch decided", "Launch committed"):
+            with self.subTest(text=text):
+                invalid = {**base, "executive_claims": [claim(text)]}
+                with self.assertRaises(KSlideError) as raised:
+                    parse_translation_patch(invalid).validate_against(evidence)
+                self.assertEqual(raised.exception.code, ErrorCode.MODALITY_MISMATCH)
+
+        planned_evidence = evidence_for("출시 계획")
+        planned_base = _patch(planned_evidence, region_text="Launch planned", status="planned", speech="plan")
+        for text in ("Launch is scheduled", "Launch status"):
+            with self.subTest(text=text):
+                invalid = {**planned_base, "executive_claims": [claim(text)]}
+                with self.assertRaises(KSlideError) as raised:
+                    parse_translation_patch(invalid).validate_against(planned_evidence)
+                self.assertEqual(raised.exception.code, ErrorCode.MODALITY_MISMATCH)
+        with self.assertRaises(KSlideError) as raised:
+            parse_translation_patch({**planned_base, "executive_claims": [claim("Launch in Q3", kind="timing")]}).validate_against(planned_evidence)
+        self.assertEqual(raised.exception.code, ErrorCode.MODALITY_MISMATCH)
+        parse_translation_patch({**planned_base, "executive_claims": [claim("Launch remains planned")]}).validate_against(planned_evidence)
+
+        conflicted_evidence = evidence_for("검토 중 및 계획")
+        conflicted_base = _patch(conflicted_evidence, region_text="Under review and planned")
+        fully_bound = {**conflicted_base, "executive_claims": [claim("Launch is under review and planned", uncertainty="high")]}
+        parse_translation_patch(fully_bound).validate_against(conflicted_evidence)
+        for invalid_claim in (
+            claim("Launch is under review", uncertainty="high", provenance="supported_interpretation"),
+            claim("Launch is under review and planned", uncertainty="high", provenance=None),
+        ):
+            invalid = {**conflicted_base, "executive_claims": [invalid_claim]}
+            with self.assertRaises(KSlideError) as raised:
+                parse_translation_patch(invalid).validate_against(conflicted_evidence)
+            self.assertEqual(raised.exception.code, ErrorCode.MODALITY_MISMATCH)
+
     def test_chart_trend_and_process_direction_are_bound_to_engine_evidence(self) -> None:
         chart = {"element_id": "unit-chart", "kind": "chart", "bbox_px": [0, 0, 100, 100], "required": True, "chart": {"chart_type": "line", "title": "Revenue", "categories": ["Q1", "Q2", "Q3"], "series": [{"series_index": 0, "name": "Revenue", "points": [{"point_index": 0, "value": 1.0, "is_blank": False}, {"point_index": 1, "value": 2.0, "is_blank": False}, {"point_index": 2, "value": 3.0, "is_blank": False}]}]}}
         evidence = EvidenceIR("doc", "unit", {}, regions=(EvidenceRegion("unit-r", selected_literal_candidate="Chart"),), visual_elements=(chart,), required_source_ids=("unit-r", "unit-chart")).with_revision()

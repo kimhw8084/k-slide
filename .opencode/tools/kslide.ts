@@ -37,6 +37,8 @@ const translationRegion = tool.schema.object({
 const translationCell = tool.schema.object({
   cell_id: tool.schema.string(),
   english: tool.schema.string(),
+  commitment_status: tool.schema.enum(["decided", "committed", "planned", "scheduled", "target", "proposed", "under_review", "needs_review", "discussion_required", "expected", "forecast", "possible", "tentative", "not_decided", "completed", "in_progress", "unknown"]).optional(),
+  speech_act: tool.schema.enum(["fact", "status", "decision", "plan", "request", "recommendation", "risk", "dependency", "forecast", "question", "unknown"]).optional(),
   unresolved: tool.schema.boolean(),
   unresolved_reason: tool.schema.string().optional(),
   hangul_retention: hangulRetention.optional(),

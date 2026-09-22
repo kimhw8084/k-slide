@@ -49,6 +49,8 @@
       "properties": {
         "cell_id": {"type": "string"},
         "english": {"type": "string"},
+        "commitment_status": {"$ref": "#/$defs/commitment"},
+        "speech_act": {"$ref": "#/$defs/speech"},
         "unresolved": {"type": "boolean"},
         "unresolved_reason": {"type": "string"},
         "provenance": {"$ref": "#/$defs/provenance"},

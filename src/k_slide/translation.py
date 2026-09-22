@@ -10,7 +10,7 @@ from typing import Any
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import EvidenceIR, stable_revision
 from .ir import CoverageEntry, NumericFact, SlideIR, TableCell, TableIR, TextRegion, VisualRelation
-from .modality import classify_source_language, decision_bearing_status, english_modality_mismatch, modality_mismatch, source_english_spans
+from .modality import classify_source_language, decision_bearing_status, english_modality_mismatch, executive_modality_mismatch, modality_mismatch, required_english_mismatch, source_english_spans
 from .semantics import ClaimKind, CommitmentStatus, CoverageStatus, ProvenanceState, RelationDirection, RelationType, SpeechAct, Uncertainty, enum_value
 from .translation_contract import (
     CELL_OPTIONAL_FIELDS,
@@ -91,6 +91,53 @@ def _valid_evidence_ids(evidence: EvidenceIR) -> set[str]:
         | {str(item.get("fact_id")) for item in evidence.numeric_facts if isinstance(item, dict) and item.get("fact_id")}
         | {str(item.get("element_id")) for item in evidence.visual_elements if isinstance(item, dict) and item.get("element_id")}
     )
+
+
+def _source_evidence_texts(evidence: EvidenceIR) -> dict[str, str]:
+    texts: dict[str, str] = {}
+    for region in evidence.regions:
+        if isinstance(region.selected_literal_candidate, str):
+            texts[region.region_id] = region.selected_literal_candidate
+    for table in evidence.tables:
+        cell_texts = [cell.source_text for cell in table.cells if isinstance(cell.source_text, str)]
+        texts[table.table_id] = "\n".join(cell_texts)
+        for cell in table.cells:
+            if isinstance(cell.source_text, str):
+                texts[cell.cell_id] = cell.source_text
+    for fact in evidence.numeric_facts:
+        if not isinstance(fact, dict) or not fact.get("fact_id"):
+            continue
+        source_id = fact.get("source_cell_id") or fact.get("source_region_id")
+        if source_id in texts:
+            texts[str(fact["fact_id"])] = texts[str(source_id)]
+        elif isinstance(fact.get("source_string"), str):
+            texts[str(fact["fact_id"])] = fact["source_string"]
+
+    def string_values(value: Any) -> list[str]:
+        if isinstance(value, str):
+            return [value]
+        if isinstance(value, dict):
+            return [item for nested in value.values() for item in string_values(nested)]
+        if isinstance(value, (list, tuple)):
+            return [item for nested in value for item in string_values(nested)]
+        return []
+
+    for element in evidence.visual_elements:
+        element_id = element.get("element_id") if isinstance(element, dict) else None
+        if element_id:
+            texts[str(element_id)] = "\n".join(string_values(element))
+    return texts
+
+
+def _require_rendered_english(text: str | None, retention: Any, source_texts: dict[str, str], evidence_ids: tuple[str, ...], label: str) -> None:
+    mismatch = required_english_mismatch(text, retention, source_texts, evidence_ids)
+    if mismatch:
+        raise KSlideError(ErrorCode.REQUIRED_ENGLISH, f"Rendered {label} must use English or cite explicitly retained source text.", {"target": label})
+
+
+def _executive_source_texts(evidence: EvidenceIR, evidence_ids: tuple[str, ...], source_texts: dict[str, str] | None = None) -> tuple[str, ...]:
+    source_texts = source_texts if source_texts is not None else _source_evidence_texts(evidence)
+    return tuple(source_texts[item] for item in evidence_ids if item in source_texts)
 
 
 def _validate_provenance(
@@ -416,6 +463,8 @@ class TranslationRegionPatch:
 class TranslationCellPatch:
     cell_id: str
     english: str
+    commitment_status: str | None = None
+    speech_act: str | None = None
     unresolved: bool = False
     unresolved_reason: str | None = None
     hangul_retention: dict[str, Any] | None = None
@@ -475,6 +524,7 @@ class TranslationPatch:
             raise KSlideError(ErrorCode.STALE_EVIDENCE, "TranslationPatch references stale EvidenceIR.", {"expected": evidence.evidence_revision, "actual": self.evidence_revision})
         if not re.fullmatch(r"[a-f0-9]{64}", self.evidence_revision):
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "TranslationPatch evidence_revision must be a SHA-256 hex revision.")
+        source_texts = _source_evidence_texts(evidence)
         region_map = {region.region_id: region for region in evidence.regions}
         table_map = {table.table_id: table for table in evidence.tables}
         valid_source_ids = (
@@ -529,6 +579,9 @@ class TranslationPatch:
             )
             if patch.hangul_retention is not None and patch.hangul_retention.get("evidence_id") not in valid_source_ids:
                 raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Hangul retention references unknown evidence.", {"region_id": patch.region_id})
+            retention_evidence_id = patch.hangul_retention.get("evidence_id") if patch.hangul_retention else None
+            if retention_evidence_id is not None and retention_evidence_id not in evidence_ids:
+                raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Hangul retention must cite evidence bound to its rendered region.", {"region_id": patch.region_id})
         required_regions = {region.region_id for region in evidence.regions if region.required_for_translation}
         missing_regions = sorted(required_regions - seen_regions)
         if missing_regions:
@@ -558,6 +611,16 @@ class TranslationPatch:
                     raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Blank and merge-continuation table cells cannot receive invented content.", {"cell_id": cell_patch.cell_id})
                 if cell_patch.unresolved and not cell_patch.unresolved_reason:
                     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Unresolved table cells require an explicit reason.", {"cell_id": cell_patch.cell_id})
+                if cell_patch.commitment_status is not None:
+                    enum_value(cell_patch.commitment_status, CommitmentStatus, "table-cell commitment_status")
+                if cell_patch.speech_act is not None:
+                    enum_value(cell_patch.speech_act, SpeechAct, "table-cell speech_act")
+                mismatch = modality_mismatch(source_cell.source_text, cell_patch.commitment_status, cell_patch.speech_act)
+                if mismatch:
+                    raise KSlideError(ErrorCode.MODALITY_MISMATCH, mismatch, {"cell_id": cell_patch.cell_id})
+                english_mismatch = english_modality_mismatch(source_cell.source_text, cell_patch.english, cell_patch.commitment_status, require_status_marker=True)
+                if english_mismatch:
+                    raise KSlideError(ErrorCode.MODALITY_MISMATCH, english_mismatch, {"cell_id": cell_patch.cell_id})
                 if source_language == "en" and source_cell.source_text is not None and cell_patch.english != source_cell.source_text:
                     raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Pure-English table cells must preserve literal source text.", {"cell_id": cell_patch.cell_id})
                 protected_spans = source_cell.source_english_spans or source_english_spans(source_cell.source_text)
@@ -577,6 +640,16 @@ class TranslationPatch:
                 )
                 if cell_patch.hangul_retention is not None and cell_patch.hangul_retention.get("evidence_id") not in valid_source_ids:
                     raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Hangul retention references unknown evidence.", {"cell_id": cell_patch.cell_id})
+                if cell_patch.hangul_retention is not None and cell_patch.hangul_retention.get("evidence_id") not in evidence_ids:
+                    raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Hangul retention must cite evidence bound to its rendered table cell.", {"cell_id": cell_patch.cell_id})
+                cell_state = cell_patch.provenance or (ProvenanceState.UNRESOLVED.value if cell_patch.unresolved else ProvenanceState.SUPPORTED_INTERPRETATION.value)
+                _require_rendered_english(
+                    cell_patch.unresolved_reason if cell_state == ProvenanceState.UNRESOLVED.value else cell_patch.english,
+                    cell_patch.hangul_retention,
+                    source_texts,
+                    evidence_ids,
+                    f"table cell {cell_patch.cell_id}",
+                )
             missing_cells = sorted(cell_id for cell_id, cell in cells.items() if cell.required_for_translation and cell_id not in seen_cells)
             if missing_cells:
                 raise KSlideError(ErrorCode.EVIDENCE_INCOMPLETE, "TranslationPatch omitted required table cells.", {"cell_ids": missing_cells})
@@ -617,6 +690,16 @@ class TranslationPatch:
             retention = relation.get("hangul_retention")
             if retention is not None and (not isinstance(retention, dict) or retention.get("evidence_id") not in valid_source_ids):
                 raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Hangul retention references unknown evidence.")
+            if retention is not None and retention.get("evidence_id") not in evidence_ids:
+                raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Hangul retention must cite evidence bound to its visual interpretation.")
+            relation_state = relation.get("provenance") or ProvenanceState.SUPPORTED_INTERPRETATION.value
+            _require_rendered_english(
+                relation.get("unresolved_reason") if relation_state == ProvenanceState.UNRESOLVED.value else relation.get("interpretation"),
+                retention,
+                source_texts,
+                evidence_ids,
+                f"visual interpretation {relation.get('relation_id')}",
+            )
             if charts:
                 _validate_chart_interpretation(relation, charts)
         seen_claims: set[str] = set()
@@ -638,9 +721,27 @@ class TranslationPatch:
                 label=f"Executive claim {claim_id}",
                 unresolved_reason=claim.get("unresolved_reason"),
             )
+            claim_provenance = claim.get("provenance") or ProvenanceState.SUPPORTED_INTERPRETATION.value
+            modality_issue = executive_modality_mismatch(
+                _executive_source_texts(evidence, evidence_ids, source_texts),
+                claim.get("text"),
+                claim_kind=claim.get("kind"),
+                provenance=claim.get("provenance"),
+            )
+            if modality_issue:
+                raise KSlideError(ErrorCode.MODALITY_MISMATCH, modality_issue, {"claim_id": claim_id})
             retention = claim.get("hangul_retention")
             if retention is not None and (not isinstance(retention, dict) or retention.get("evidence_id") not in valid_source_ids):
                 raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Hangul retention references unknown evidence.", {"claim_id": claim_id})
+            if retention is not None and retention.get("evidence_id") not in evidence_ids:
+                raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Hangul retention must cite evidence bound to its executive claim.", {"claim_id": claim_id})
+            _require_rendered_english(
+                claim.get("unresolved_reason") if claim_provenance == ProvenanceState.UNRESOLVED.value else claim.get("text"),
+                retention,
+                source_texts,
+                evidence_ids,
+                f"executive claim {claim_id}",
+            )
 
 
 def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
@@ -694,6 +795,8 @@ def parse_translation_patch(value: dict[str, Any]) -> TranslationPatch:
             cells.append(TranslationCellPatch(
                 cell_id=_id(cell.get("cell_id"), "cell_id"),
                 english=english,
+                commitment_status=_optional_present(cell, "commitment_status", "table-cell commitment_status"),
+                speech_act=_optional_present(cell, "speech_act", "table-cell speech_act"),
                 unresolved=_boolean(cell.get("unresolved"), "unresolved"),
                 unresolved_reason=_optional_present(cell, "unresolved_reason", "unresolved_reason"),
                 hangul_retention=_hangul_retention(cell.get("hangul_retention"), "table cell hangul_retention"),
@@ -778,6 +881,7 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
             numeric_fact_ids=list(source.numeric_fact_ids),
             commitment_status=item.commitment_status,
             speech_act=item.speech_act,
+            hangul_retention=item.hangul_retention,
             unresolved_reason=item.unresolved_reason,
         ))
     tables: list[TableIR] = []
@@ -810,6 +914,9 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
                 unresolved_reason=patch_cell.unresolved_reason,
                 provenance=provenance,
                 provenance_evidence_ids=provenance_evidence_ids,
+                commitment_status=patch_cell.commitment_status,
+                speech_act=patch_cell.speech_act,
+                hangul_retention=patch_cell.hangul_retention,
             ))
         tables.append(TableIR(table_id=source_table.table_id, bbox=list(source_table.bbox_px), row_count=source_table.row_count, column_count=source_table.column_count, headers=list(source_table.headers), header_rows=list(source_table.header_rows), header_columns=list(source_table.header_columns), unit=source_table.unit, source_notes=list(source_table.source_notes), cells=cells))
     numeric_facts = [NumericFact(**item) for item in evidence.numeric_facts if isinstance(item, dict)]
@@ -823,6 +930,7 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
         evidence=list(item.get("evidence_ids", [])),
         provenance=str(item.get("provenance") or ProvenanceState.SUPPORTED_INTERPRETATION.value),
         unresolved_reason=item.get("unresolved_reason"),
+        hangul_retention=dict(item["hangul_retention"]) if isinstance(item.get("hangul_retention"), dict) else None,
     ) for item in patch.visual_interpretations]
     claims: list[dict[str, Any]] = []
     for item in patch.executive_claims:

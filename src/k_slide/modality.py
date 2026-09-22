@@ -91,6 +91,7 @@ _DECISION_BEARING = frozenset({
     "scheduled",
     "target",
 })
+_STATUS_PURPORTING_CLAIM_KINDS = frozenset({"decision_status", "timing", "next_step"})
 
 # This is deliberately a closed compatibility matrix.  It prevents a
 # protected cue from being relabeled as a different commitment state while
@@ -120,6 +121,16 @@ _ENGLISH_STATE_MARKERS: dict[str, tuple[str, ...]] = {
     "in_progress": ("in progress", "underway", "ongoing", "being implemented"),
 }
 
+_NEGATED_ENGLISH_STATE_MARKERS: dict[str, tuple[str, ...]] = {
+    "decided": ("not approved", "not decided", "not finalized", "not confirmed", "unapproved", "undecided"),
+    "committed": ("not committed", "not guaranteed", "will not execute", "will not implement", "will not proceed", "uncommitted"),
+    "planned": ("not planned", "no plan", "does not plan"),
+    "scheduled": ("not scheduled", "not slated", "not set for"),
+    "target": ("not a target", "not the goal", "not targeted"),
+}
+
+_HANGUL_FRAGMENT_RE = re.compile(r"[\u1100-\u11ff\u3130-\u318f\ua960-\ua97f\uac00-\ud7ff]+")
+
 
 def modality_cues(text: str | None) -> frozenset[str]:
     if not isinstance(text, str):
@@ -141,6 +152,85 @@ def decision_bearing_status(status: str | None) -> bool:
     return status in _DECISION_BEARING
 
 
+def english_modality_cues(rendered_text: str | None) -> frozenset[str]:
+    if not isinstance(rendered_text, str):
+        return frozenset()
+    lowered = rendered_text.casefold()
+    observed = frozenset(
+        status
+        for status, markers in _ENGLISH_STATE_MARKERS.items()
+        if any(marker in lowered for marker in markers)
+    )
+    return observed - english_negated_modality_cues(rendered_text)
+
+
+def english_negated_modality_cues(rendered_text: str | None) -> frozenset[str]:
+    if not isinstance(rendered_text, str):
+        return frozenset()
+    lowered = rendered_text.casefold()
+    return frozenset(
+        status
+        for status, markers in _NEGATED_ENGLISH_STATE_MARKERS.items()
+        if any(marker in lowered for marker in markers)
+    )
+
+
+def executive_modality_mismatch(
+    source_texts: tuple[str | None, ...],
+    rendered_text: str | None,
+    *,
+    claim_kind: str | None,
+    provenance: str | None,
+) -> str | None:
+    """Bind a narrow set of executive-claim status words to cited source cues."""
+
+    if provenance == "unresolved":
+        return None
+    expected = frozenset().union(*(modality_cues(text) for text in source_texts))
+    if not expected:
+        return None
+    observed = english_modality_cues(rendered_text)
+    negated = expected & english_negated_modality_cues(rendered_text)
+    if negated:
+        return f"executive wording negates cited protected source cues {sorted(negated)!r}"
+    if len(expected) > 1:
+        if provenance != "supported_interpretation":
+            return "multiple protected source cues require unresolved or supported_interpretation treatment"
+        if observed != expected:
+            return f"multiple protected source cues {sorted(expected)!r} require compatible evidence-bound wording; rendered cues are {sorted(observed)!r}"
+        return None
+    status = next(iter(expected))
+    incompatible = observed - {status}
+    if incompatible:
+        return f"cited source cue {status!r} is incompatible with executive wording {sorted(incompatible)!r}"
+    if claim_kind in _STATUS_PURPORTING_CLAIM_KINDS and decision_bearing_status(status) and status not in observed:
+        return f"{claim_kind} claim citing {status!r} evidence must preserve that commitment status"
+    return None
+
+
+def required_english_mismatch(
+    rendered_text: str | None,
+    retention: object,
+    source_text_by_id: dict[str, str],
+    allowed_evidence_ids: tuple[str, ...] | list[str],
+) -> str | None:
+    """Reject rendered Hangul unless it is explicitly retained from cited source."""
+
+    if not any_hangul(rendered_text):
+        return None
+    if not isinstance(retention, dict):
+        return "rendered English contains Hangul without explicit source-retention evidence"
+    evidence_id = retention.get("evidence_id")
+    reason = retention.get("reason")
+    if not isinstance(evidence_id, str) or evidence_id not in set(allowed_evidence_ids) or not isinstance(reason, str) or not reason.strip():
+        return "Hangul retention requires a reason and a cited source evidence ID"
+    source_text = source_text_by_id.get(evidence_id)
+    fragments = _HANGUL_FRAGMENT_RE.findall(rendered_text or "")
+    if not isinstance(source_text, str) or not fragments or any(fragment not in source_text for fragment in fragments):
+        return "rendered Hangul is not present in the specifically cited source evidence"
+    return None
+
+
 def modality_mismatch(source_text: str | None, commitment_status: str | None, speech_act: str | None, *, language_bound: bool = True) -> str | None:
     """Return a bounded modality mismatch, including omitted metadata."""
 
@@ -160,21 +250,27 @@ def modality_mismatch(source_text: str | None, commitment_status: str | None, sp
     return None
 
 
-def english_modality_mismatch(source_text: str | None, rendered_text: str | None, commitment_status: str | None, *, language_bound: bool = True) -> str | None:
-    """Reject a narrow set of English modality strengthening markers."""
+def english_modality_mismatch(
+    source_text: str | None,
+    rendered_text: str | None,
+    commitment_status: str | None,
+    *,
+    language_bound: bool = True,
+    require_status_marker: bool = False,
+) -> str | None:
+    """Reject incompatible English modality, optionally requiring its source state."""
 
     expected_status, _ = deterministic_modality(source_text) if language_bound else (None, None)
     if expected_status is None or commitment_status != expected_status or not isinstance(rendered_text, str):
         return None
-    lowered = rendered_text.casefold()
-    observed = {
-        status
-        for status, markers in _ENGLISH_STATE_MARKERS.items()
-        if any(marker in lowered for marker in markers)
-    }
+    observed = english_modality_cues(rendered_text)
+    if expected_status in english_negated_modality_cues(rendered_text):
+        return f"rendered English negates the protected source status {expected_status!r}"
     incompatible = observed - {expected_status}
     if incompatible:
         return f"source cue {expected_status!r} is incompatible with rendered English modality {sorted(incompatible)!r}"
+    if require_status_marker and expected_status not in observed:
+        return f"rendered English must preserve the protected source status {expected_status!r}"
     return None
 
 
@@ -189,7 +285,11 @@ __all__ = [
     "decision_bearing_status",
     "deterministic_modality",
     "english_modality_mismatch",
+    "english_modality_cues",
+    "english_negated_modality_cues",
+    "executive_modality_mismatch",
     "modality_cues",
     "modality_mismatch",
+    "required_english_mismatch",
     "source_english_spans",
 ]

@@ -13,8 +13,11 @@ from k_slide.cli import _conflict_assess, _next, _submit
 from k_slide.evidence_ir import load_evidence
 from k_slide.errors import KSlideError
 from k_slide.ingest import prepare_run
+from k_slide.io import atomic_write_json, read_json
+from k_slide.rendering.reports import render_run
 from k_slide.storage import StorageArtifact, storage_path
-from k_slide.verify import finalize_run, verify_run
+from k_slide.terminology import Termbase
+from k_slide.verify import VerificationResult, _validate_slide, finalize_run, verify_run
 from tests.reference_fixtures import reference_environment
 
 
@@ -85,7 +88,7 @@ def _representative_pptx(path: Path) -> None:
     table.cell(1, 1).text = "Revenue"
     table.cell(1, 2).text = "   "
     table.cell(2, 0).text = "2.25"
-    table.cell(2, 1).text = "AI Platform 검토"
+    table.cell(2, 1).text = "AI Platform 검토 중"
     table.cell(2, 2).text = "7"
 
     presentation.save(path)
@@ -188,8 +191,26 @@ def _valid_patch(evidence: object) -> dict[str, object]:
     cells = []
     for cell in table.cells:
         source = cell.source_text
-        english = "" if cell.cell_state in {"blank", "merge_continuation"} else ("AI Platform under review" if source == "AI Platform 검토" else source or "")
-        cells.append({"cell_id": cell.cell_id, "english": english, "unresolved": False})
+        english = "" if cell.cell_state in {"blank", "merge_continuation"} else ("AI Platform under review 검토 중" if source == "AI Platform 검토 중" else source or "")
+        cell_patch: dict[str, object] = {"cell_id": cell.cell_id, "english": english, "unresolved": False}
+        if source == "AI Platform 검토 중":
+            cell_patch.update({
+                "commitment_status": "under_review",
+                "speech_act": "status",
+                "evidence_ids": [cell.cell_id],
+                "hangul_retention": {"reason": "Retain the source label alongside its translation.", "evidence_id": cell.cell_id},
+            })
+        cells.append(cell_patch)
+    under_review_region = next(region for region in evidence.regions if region.selected_literal_candidate == "AI Platform 검토 중")
+    claim = {
+        "claim_id": "real-status-claim",
+        "kind": "decision_status",
+        "text": "AI Platform remains under review; source wording: 검토 중",
+        "evidence_ids": [under_review_region.region_id],
+        "uncertainty": "low",
+        "provenance": "supported_interpretation",
+        "hangul_retention": {"reason": "Retain the source wording alongside the translated status.", "evidence_id": under_review_region.region_id},
+    }
     return {
         "schema_version": "1.0",
         "work_unit_id": evidence.work_unit_id,
@@ -197,7 +218,7 @@ def _valid_patch(evidence: object) -> dict[str, object]:
         "regions": [_region_patch(evidence, region) for region in evidence.regions],
         "tables": [{"table_id": table.table_id, "cells": cells}],
         "visual_interpretations": [forward_relation, *chart_relations],
-        "executive_claims": [],
+        "executive_claims": [claim],
     }
 
 
@@ -225,6 +246,9 @@ class KSA24F24RealPathTests(unittest.TestCase):
             self.assertIn("merge_continuation", {cell.cell_state for cell in table.cells})
             self.assertIn("blank", {cell.cell_state for cell in table.cells})
             self.assertIn("nonblank", {cell.cell_state for cell in table.cells})
+            protected_cell = next(cell for cell in table.cells if cell.source_text == "AI Platform 검토 중")
+            self.assertEqual(protected_cell.source_language, "mixed")
+            self.assertIn("AI Platform", protected_cell.source_english_spans)
             numeric = {fact.get("source_cell_id"): fact for fact in evidence.numeric_facts}
             self.assertEqual(numeric[next(cell.cell_id for cell in table.cells if cell.source_text == "1.5")]["canonical_value"], 1.5 * 10**6)
 
@@ -312,6 +336,43 @@ class KSA24F24RealPathTests(unittest.TestCase):
             ]
             adversaries.append((strengthened, "KSLIDE_MODALITY_MISMATCH"))
 
+            table_cell_patch = next(cell for cell in valid["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id)
+            omitted_cell_status = copy.deepcopy(valid)
+            omitted_cell = next(cell for cell in omitted_cell_status["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id)
+            omitted_cell.pop("commitment_status")
+            omitted_cell.pop("speech_act")
+            adversaries.append((omitted_cell_status, "KSLIDE_MODALITY_MISMATCH"))
+
+            mismatched_cell_status = copy.deepcopy(valid)
+            next(cell for cell in mismatched_cell_status["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id).update({"commitment_status": "decided", "speech_act": "decision"})
+            adversaries.append((mismatched_cell_status, "KSLIDE_MODALITY_MISMATCH"))
+
+            strengthened_cell = copy.deepcopy(valid)
+            next(cell for cell in strengthened_cell["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id)["english"] = "AI Platform approved"
+            adversaries.append((strengthened_cell, "KSLIDE_MODALITY_MISMATCH"))
+
+            weakened_cell = copy.deepcopy(valid)
+            next(cell for cell in weakened_cell["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id)["english"] = "AI Platform status"
+            adversaries.append((weakened_cell, "KSLIDE_MODALITY_MISMATCH"))
+
+            approved_claim = copy.deepcopy(valid)
+            approved_claim["executive_claims"][0]["text"] = "AI Platform approved"
+            adversaries.append((approved_claim, "KSLIDE_MODALITY_MISMATCH"))
+
+            hangul_cell = copy.deepcopy(valid)
+            next(cell for cell in hangul_cell["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id)["english"] = "AI Platform under review 검토 중"
+            next(cell for cell in hangul_cell["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id).pop("hangul_retention")
+            adversaries.append((hangul_cell, "KSLIDE_REQUIRED_ENGLISH"))
+
+            hangul_visual = copy.deepcopy(valid)
+            hangul_visual["visual_interpretations"][0]["interpretation"] = "A flows to B 한글"
+            adversaries.append((hangul_visual, "KSLIDE_REQUIRED_ENGLISH"))
+
+            hangul_claim = copy.deepcopy(valid)
+            hangul_claim["executive_claims"][0]["text"] = "AI Platform remains under review 검토 중"
+            hangul_claim["executive_claims"][0].pop("hangul_retention")
+            adversaries.append((hangul_claim, "KSLIDE_REQUIRED_ENGLISH"))
+
             for payload, expected_code in adversaries:
                 with self.subTest(expected_code=expected_code):
                     with self.assertRaises(KSlideError) as raised:
@@ -320,13 +381,59 @@ class KSA24F24RealPathTests(unittest.TestCase):
 
             accepted = _submit(root, run.name, json.dumps(valid, ensure_ascii=False), None, environment)
             self.assertEqual(accepted["status"], "ACCEPTED")
+            self.assertEqual(table_cell_patch["english"], "AI Platform under review 검토 중")
             self.assertTrue(storage_path(run, StorageArtifact.REPORT, "05_final_report.md").is_file())
-            self.assertIn("USD millions", storage_path(run, StorageArtifact.REPORT, "05_final_report.md").read_text(encoding="utf-8"))
+            report = storage_path(run, StorageArtifact.REPORT, "05_final_report.md").read_text(encoding="utf-8")
+            self.assertIn("USD millions", report)
+            self.assertIn("AI Platform 검토 중", report)  # Raw source display remains intact.
 
             self.assertEqual(_next(root, run.name, None, environment)["status"], "CONFLICT_ASSESSMENT_REQUIRED")
             assessed = _conflict_assess(root, run.name, json.dumps({"schema_version": "1.0", "candidate_groups": []}), None, environment)
             self.assertEqual(assessed["status"], "ASSESSED_ZERO_CONFLICTS")
             self.assertEqual(_next(root, run.name, None, environment)["status"], "ALL_TRANSLATED")
+
+            render_run(run)
+            canonical_path = storage_path(run, StorageArtifact.CANONICAL_IR, f"ir/{next_value['work_unit_id']}.json")
+            canonical = read_json(canonical_path)
+            canonical_cell = next(cell for cell in canonical["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id)
+            self.assertEqual(canonical_cell["hangul_retention"]["evidence_id"], protected_cell.cell_id)
+            self.assertEqual(canonical["executive_semantics"]["executive_claims"][0]["hangul_retention"]["evidence_id"], under_review.region_id)
+
+            def tamper_unretained_hangul(value: dict[str, object]) -> None:
+                cell = next(cell for cell in value["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id)  # type: ignore[index]
+                cell.update({"translation": "AI Platform under review 검토 중"})
+                cell.pop("hangul_retention", None)
+
+            for mutate, expected_code in (
+                (
+                    lambda value: next(cell for cell in value["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id).update({"commitment_status": "invented"}),
+                    "KSLIDE_SCHEMA_INVALID",
+                ),
+                (
+                    lambda value: next(cell for cell in value["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id).update({"commitment_status": "decided", "speech_act": "decision"}),
+                    "KSLIDE_MODALITY_MISMATCH",
+                ),
+                (
+                    lambda value: next(cell for cell in value["tables"][0]["cells"] if cell["cell_id"] == protected_cell.cell_id).update({"translation": "AI Platform approved"}),
+                    "KSLIDE_MODALITY_MISMATCH",
+                ),
+                (
+                    tamper_unretained_hangul,
+                    "KSLIDE_REQUIRED_ENGLISH",
+                ),
+                (
+                    lambda value: value["executive_semantics"]["executive_claims"][0].update({"text": "AI Platform approved"}),
+                    "KSLIDE_MODALITY_MISMATCH",
+                ),
+            ):
+                tampered = copy.deepcopy(canonical)
+                mutate(tampered)
+                atomic_write_json(canonical_path, tampered)
+                result = VerificationResult(status="PASS", run_id=run.name)
+                _validate_slide(run, next_value["work_unit_id"], result, termbase=Termbase("1.0", ()))
+                self.assertIn(expected_code, {issue.code for issue in result.issues})
+            atomic_write_json(canonical_path, canonical)
+
             verified = verify_run(run, environment_identity=environment)
             self.assertTrue(verified.passed, verified.as_dict())
             finalized = finalize_run(run, environment_identity=environment)
