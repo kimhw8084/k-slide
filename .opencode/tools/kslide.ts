@@ -49,6 +49,22 @@ const translationTable = tool.schema.object({
   cells: tool.schema.array(translationCell),
 }).strict()
 
+const chartClaim = tool.schema.object({
+  chart_element_id: tool.schema.string(),
+  kind: tool.schema.enum(["trend", "value", "ranking", "comparison"]),
+  series_index: tool.schema.number(),
+  series_name: tool.schema.string(),
+  point_index: tool.schema.number().optional(),
+  category: tool.schema.string().optional(),
+  value: tool.schema.number().optional(),
+  direction: tool.schema.enum(["increasing", "decreasing", "flat"]).optional(),
+  ranking: tool.schema.enum(["highest", "lowest"]).optional(),
+  rank: tool.schema.number().optional(),
+  other_series_index: tool.schema.number().optional(),
+  other_series_name: tool.schema.string().optional(),
+  operator: tool.schema.enum(["greater_than", "less_than", "equal_to"]).optional(),
+}).strict()
+
 const visualInterpretation = tool.schema.object({
   relation_id: tool.schema.string(),
   interpretation: tool.schema.string(),
@@ -56,6 +72,7 @@ const visualInterpretation = tool.schema.object({
   source_element_ids: tool.schema.array(tool.schema.string()).optional(),
   relation_type: tool.schema.enum(["next", "depends_on", "contains", "before", "after", "causes", "mitigates", "compares_to", "part_of", "flows_to", "highlights", "other"]).optional(),
   direction: tool.schema.enum(["left_to_right", "right_to_left", "top_to_bottom", "bottom_to_top", "bidirectional", "none", "unknown"]).optional(),
+  chart_claim: chartClaim.optional(),
   hangul_retention: hangulRetention.optional(),
   provenance: tool.schema.enum(["source_fact", "supported_interpretation", "unresolved"]).optional(),
   unresolved_reason: tool.schema.string().optional(),

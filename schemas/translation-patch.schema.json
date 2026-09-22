@@ -67,6 +67,7 @@
         "source_element_ids": {"type": "array", "items": {"type": "string"}},
         "relation_type": {"enum": ["next", "depends_on", "contains", "before", "after", "causes", "mitigates", "compares_to", "part_of", "flows_to", "highlights", "other"]},
         "direction": {"enum": ["left_to_right", "right_to_left", "top_to_bottom", "bottom_to_top", "bidirectional", "none", "unknown"]},
+        "chart_claim": {"$ref": "#/$defs/chart_claim"},
         "provenance": {"$ref": "#/$defs/provenance"},
         "unresolved_reason": {"type": "string"},
         "hangul_retention": {"$ref": "#/$defs/hangul_retention"}
@@ -85,6 +86,26 @@
         "provenance": {"$ref": "#/$defs/provenance"},
         "unresolved_reason": {"type": "string"},
         "hangul_retention": {"$ref": "#/$defs/hangul_retention"}
+      }
+    },
+    "chart_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chart_element_id", "kind", "series_index", "series_name"],
+      "properties": {
+        "chart_element_id": {"type": "string"},
+        "kind": {"enum": ["trend", "value", "ranking", "comparison"]},
+        "series_index": {"type": "integer", "minimum": 0},
+        "series_name": {"type": "string"},
+        "point_index": {"type": "integer", "minimum": 0},
+        "category": {"type": "string"},
+        "value": {"type": "number"},
+        "direction": {"enum": ["increasing", "decreasing", "flat"]},
+        "ranking": {"enum": ["highest", "lowest"]},
+        "rank": {"type": "integer", "minimum": 1},
+        "other_series_index": {"type": "integer", "minimum": 0},
+        "other_series_name": {"type": "string"},
+        "operator": {"enum": ["greater_than", "less_than", "equal_to"]}
       }
     },
     "hangul_retention": {

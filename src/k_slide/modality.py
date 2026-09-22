@@ -70,7 +70,7 @@ def source_english_spans(text: str | None) -> tuple[str, ...]:
 # Ordered from the most specific cue to less specific cues.  These are
 # deliberately phrase-level checks, not a broad classifier.
 _CUES: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("under_review", ("검토 중", "검토중", "검토", "논의 중", "논의중")),
+    ("under_review", ("검토 중", "검토중", "논의 중", "논의중")),
     ("possible", ("가능", "수 있음", "수있음", "할 수 있다", "할수있다")),
     ("forecast", ("전망", "예상", "예측", "전망치")),
     ("proposed", ("제안", "제시안", "제안됨")),
@@ -83,6 +83,43 @@ _CUES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("planned", ("계획", "추진 예정", "할 계획")),
     ("target", ("목표", "타깃")),
 )
+
+# A cue is deterministic only when all matching phrases resolve to one
+# protected status.  This deliberately leaves mixed phrases such as
+# ``추진 예정`` (which contains both plan and schedule language) to the
+# interpretation/unresolved path.
+_EXPECTED_SPEECH: dict[str, str] = {
+    "decided": "decision",
+}
+
+_ENGLISH_STATE_MARKERS: dict[str, tuple[str, ...]] = {
+    "decided": ("decided", "approved", "finalized", "confirmed"),
+    "committed": ("committed", "guaranteed", "will execute", "will implement", "will proceed"),
+    "planned": ("planned", "plan to", "plans to", "intends to"),
+    "scheduled": ("scheduled", "slated", "set for", "due to"),
+    "target": ("target", "goal", "aim"),
+    "proposed": ("proposed", "proposal", "recommended"),
+    "under_review": ("under review", "in review", "being reviewed", "pending review", "in discussion"),
+    "possible": ("possible", "may", "might", "could"),
+    "tentative": ("tentative", "provisional", "subject to change"),
+    "forecast": ("forecast", "forecasted", "projected", "expected", "estimated"),
+    "completed": ("completed", "complete", "done", "finished"),
+    "in_progress": ("in progress", "underway", "ongoing", "being implemented"),
+}
+
+
+def deterministic_modality(text: str | None) -> tuple[str | None, str | None]:
+    """Return one protected Korean status and optional speech act.
+
+    This is intentionally a closed phrase table, not a Korean semantic
+    classifier.  Multiple distinct matching statuses are ambiguous.
+    """
+
+    matches = modality_cues(text)
+    if len(matches) != 1:
+        return None, None
+    status = next(iter(matches))
+    return status, _EXPECTED_SPEECH.get(status)
 
 _DECISION_BEARING = frozenset({
     "decided",
@@ -103,42 +140,46 @@ def decision_bearing_status(status: str | None) -> bool:
     return status in _DECISION_BEARING
 
 
-def modality_mismatch(source_text: str | None, commitment_status: str | None, speech_act: str | None) -> str | None:
+def modality_mismatch(source_text: str | None, commitment_status: str | None, speech_act: str | None, *, language_bound: bool = True) -> str | None:
     """Return a concise mismatch reason, or ``None`` for an allowed case."""
 
-    cues = modality_cues(source_text)
-    if not cues:
+    expected_status, expected_speech = deterministic_modality(source_text) if language_bound else (None, None)
+    if expected_status is None:
         return None
     status = commitment_status
     speech = speech_act
+    if status is None:
+        return f"deterministic source cue {expected_status!r} requires commitment_status"
+    if status != expected_status:
+        return f"source cue {expected_status!r} requires compatible commitment_status {expected_status!r}, not {status!r}"
+    if expected_speech is not None:
+        if speech is None:
+            return f"deterministic source cue {expected_status!r} requires speech_act {expected_speech!r}"
+        if speech != expected_speech:
+            return f"source cue {expected_status!r} requires speech_act {expected_speech!r}, not {speech!r}"
+    return None
 
-    weakening: dict[str, frozenset[str]] = {
-        "under_review": frozenset({"decided", "committed"}),
-        "possible": frozenset({"decided", "committed", "planned", "scheduled", "target"}),
-        "forecast": frozenset({"decided", "committed", "planned", "scheduled", "target"}),
-        "proposed": frozenset({"decided", "committed"}),
-        "tentative": frozenset({"decided", "committed"}),
+
+def english_modality_mismatch(source_text: str | None, rendered_text: str | None, commitment_status: str | None, *, language_bound: bool = True) -> str | None:
+    """Reject a small set of stronger/swapped English modalities.
+
+    Only deterministic protected Korean cues participate.  Ordinary English
+    prose remains outside this guard unless it contains one of these closed
+    markers.
+    """
+
+    expected_status, _ = deterministic_modality(source_text) if language_bound else (None, None)
+    if expected_status is None or commitment_status != expected_status or not isinstance(rendered_text, str):
+        return None
+    lowered = rendered_text.casefold()
+    observed = {
+        status
+        for status, markers in _ENGLISH_STATE_MARKERS.items()
+        if any(marker in lowered for marker in markers)
     }
-    for cue, forbidden in weakening.items():
-        if cue in cues and status in forbidden:
-            return f"source cue {cue!r} cannot be strengthened to {status!r}"
-
-    if "completed" in cues and status is not None and status != "completed" and "scheduled" not in cues:
-        return f"completed source state cannot be changed to {status!r}"
-    if "in_progress" in cues and status is not None and status != "in_progress" and "scheduled" not in cues:
-        return f"in_progress source state cannot be changed to {status!r}"
-    if "decided" in cues and status in {"under_review", "possible", "tentative", "proposed", "planned", "scheduled", "target"}:
-        return f"decided source state cannot be weakened or swapped to {status!r}"
-    if "under_review" in cues and speech == "decision":
-        return "review language cannot become a decision speech act"
-    if "possible" in cues and speech in {"decision", "plan"}:
-        return "possibility language cannot become a decision or plan"
-    if "forecast" in cues and speech == "decision":
-        return "forecast language cannot become a decision"
-    if "proposed" in cues and speech == "decision":
-        return "proposal language cannot become a decision"
-    if "tentative" in cues and speech in {"decision", "plan"}:
-        return "tentative language cannot become a decision or plan"
+    incompatible = observed - {expected_status}
+    if incompatible:
+        return f"source cue {expected_status!r} is incompatible with rendered English modality {sorted(incompatible)!r}"
     return None
 
 
@@ -151,6 +192,8 @@ __all__ = [
     "any_hangul",
     "classify_source_language",
     "decision_bearing_status",
+    "deterministic_modality",
+    "english_modality_mismatch",
     "modality_cues",
     "modality_mismatch",
     "source_english_spans",

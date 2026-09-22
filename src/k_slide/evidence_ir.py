@@ -244,6 +244,9 @@ class EvidenceIR:
                 connector = element.get("connector")
                 if not isinstance(connector, dict) or connector.get("from_element_id") not in visual_ids or connector.get("to_element_id") not in visual_ids:
                     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence connector endpoints must cite current visual elements.", {"element_id": element.get("element_id")})
+                direction_evidence = connector.get("direction_evidence")
+                if direction_evidence is not None and direction_evidence not in {"start_to_end", "end_to_start", "bidirectional", "undirected", "ambiguous"}:
+                    raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence connector direction evidence is not a closed value.", {"element_id": element.get("element_id")})
             if kind == "chart":
                 chart = element.get("chart")
                 if not isinstance(chart, dict) or not isinstance(chart.get("chart_type"), str) or not isinstance(chart.get("categories", []), list) or not isinstance(chart.get("series", []), list):

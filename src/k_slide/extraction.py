@@ -13,7 +13,7 @@ from .errors import ErrorCode, KSlideError
 from .evidence_ir import EvidenceIR, EvidenceRegion, EvidenceTable, EvidenceTableCell, save_evidence
 from .io import atomic_write_json, atomic_write_text, read_json
 from .locking import run_lock
-from .normalization import _load_normalization_result
+from .normalization import _derive_table_unit, _load_normalization_result
 from .numeric import extract_numeric_facts
 from .fusion import fuse_literal_evidence
 from .ocr.policy import OCRProviderPolicy, OCRProviderSelection, create_ocr_provider, load_ocr_policy
@@ -114,13 +114,19 @@ def _bind_table_unit(fact: dict[str, Any], unit: str | None) -> None:
     factor = 1.0
     if "trillion" in normalized or "조" in normalized:
         factor = 10**12
-    elif "billion" in normalized or "억" in normalized:
+    elif "billion" in normalized:
         factor = 10**9
     elif "million" in normalized or "백만" in normalized:
         factor = 10**6
     elif "thousand" in normalized or "천" in normalized:
         factor = 10**3
+    elif "억" in normalized:
+        factor = 10**8
+    elif "만" in normalized:
+        factor = 10**4
     currency = next((value for value in ("USD", "KRW", "EUR", "JPY") if value.casefold() in normalized), None)
+    if currency is None and any(symbol in unit for symbol in ("$", "€", "¥", "₩")):
+        currency = {"$": "USD", "€": "EUR", "¥": "JPY", "₩": "KRW"}.get(next(symbol for symbol in ("$", "€", "¥", "₩") if symbol in unit))
     fact["source_unit"] = unit
     fact["scale_factor"] = float(fact.get("scale_factor") or 1.0) * factor
     fact["canonical_value"] = float(fact["raw_value"]) * fact["scale_factor"]
@@ -138,22 +144,28 @@ def _tables(unit: Any, native_items: list[dict[str, Any]]) -> tuple[tuple[Eviden
             continue
         table_id = f"{item.get('source_id', f'{unit.work_unit_id}-table-001')}-table"
         unit_value = table_value.get("unit", table_value.get("units", table_value.get("unit_label")))
-        if isinstance(unit_value, (list, tuple)):
-            unit_value = ", ".join(str(value) for value in unit_value)
-        unit_text = str(unit_value) if isinstance(unit_value, str) and unit_value else None
         raw_cells = [cell for cell in table_value.get("cells", []) if isinstance(cell, dict) and "cell_id" in cell]
+        if isinstance(unit_value, (list, tuple)):
+            unit_text = str(unit_value[0]) if len(unit_value) == 1 and str(unit_value[0]).strip() else None
+        else:
+            unit_text = str(unit_value).strip() if isinstance(unit_value, str) and unit_value.strip() else None
+        if unit_text is None:
+            unit_text = _derive_table_unit(table_value, raw_cells)
         cell_values: list[EvidenceTableCell] = []
         for cell in raw_cells:
             cell_id = str(cell["cell_id"])
             cell_facts = extract_numeric_facts(cell.get("text"), source_object_id=cell_id, source_table_id=table_id, source_cell_id=cell_id)
-            for fact in cell_facts:
-                _bind_table_unit(fact, unit_text)
+            if cell.get("is_header") is not True:
+                for fact in cell_facts:
+                    _bind_table_unit(fact, unit_text)
             facts.extend(cell_facts)
             text = cell.get("text")
             is_spanned = bool(cell.get("is_spanned", False))
             is_origin = bool(cell.get("is_merge_origin", False))
-            is_blank = bool(cell.get("is_blank", not is_spanned and not bool(text)))
-            state = str(cell.get("cell_state") or ("merge_continuation" if is_spanned else ("merge_origin" if is_origin else ("blank" if is_blank else "nonblank"))))
+            is_blank = False if is_spanned else (bool(cell.get("is_blank", False)) or not isinstance(text, str) or not text.strip())
+            if not is_spanned and is_blank:
+                text = ""
+            state = "merge_continuation" if is_spanned else ("merge_origin" if is_origin else ("blank" if is_blank else str(cell.get("cell_state") or "nonblank")))
             cell_values.append(EvidenceTableCell(
                 cell_id=cell_id,
                 row=int(cell["row"]),
