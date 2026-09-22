@@ -54,6 +54,7 @@ class TextRegion:
     ocr_candidates: list[dict[str, Any]] = field(default_factory=list)
     selected_source_text: str | None = None
     source_language: str | None = None
+    source_english_spans: list[str] = field(default_factory=list)
     source_confidence: float | None = None
     translation: str | None = None
     translation_confidence: float | None = None
@@ -64,6 +65,7 @@ class TextRegion:
     numeric_fact_ids: list[str] = field(default_factory=list)
     commitment_status: str | None = None
     speech_act: str | None = None
+    hangul_retention: dict[str, Any] | None = None
     unresolved_reason: str | None = None
 
 
@@ -76,12 +78,22 @@ class TableCell:
     translation: str | None = None
     rowspan: int = 1
     colspan: int = 1
+    source_language: str | None = None
+    source_english_spans: list[str] = field(default_factory=list)
+    cell_state: str = "unknown"
+    is_merge_origin: bool | None = None
+    is_spanned: bool | None = None
+    is_blank: bool | None = None
+    is_header: bool | None = None
     evidence_region_ids: list[str] = field(default_factory=list)
     numeric_fact_ids: list[str] = field(default_factory=list)
     unresolved: bool = False
     unresolved_reason: str | None = None
     provenance: str | None = None
     provenance_evidence_ids: list[str] = field(default_factory=list)
+    commitment_status: str | None = None
+    speech_act: str | None = None
+    hangul_retention: dict[str, Any] | None = None
 
 
 @dataclass
@@ -91,6 +103,10 @@ class TableIR:
     row_count: int = 0
     column_count: int = 0
     headers: list[str] = field(default_factory=list)
+    header_rows: list[int] = field(default_factory=list)
+    header_columns: list[int] = field(default_factory=list)
+    unit: str | None = None
+    source_notes: list[str] = field(default_factory=list)
     cells: list[TableCell] = field(default_factory=list)
     unresolved_reason: str | None = None
 
@@ -121,10 +137,12 @@ class VisualRelation:
     relation_type: str = "unknown"
     direction: str | None = None
     interpretation: str | None = None
+    chart_claim: dict[str, Any] | None = None
     confidence: float | None = None
     evidence: list[str] = field(default_factory=list)
     provenance: str | None = None
     unresolved_reason: str | None = None
+    hangul_retention: dict[str, Any] | None = None
 
 
 @dataclass
