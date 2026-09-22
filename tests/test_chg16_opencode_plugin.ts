@@ -132,25 +132,38 @@ function hostInvocation(refs: unknown[]): string {
 }
 
 function runPrepare(root: string, sessionID: string, refs: unknown[]): { status: number | null; output: Record<string, unknown>; stderr: string } {
+  const script = [
+    "import sys",
+    "from unittest.mock import patch",
+    "from tests.reference_fixtures import reference_environment",
+    "from k_slide import cli",
+    "real_prepare = cli.prepare_run",
+    "def prepare_with_reference(root, **kwargs):",
+    "    return real_prepare(root, environment_identity=reference_environment('opencode-plugin'), **kwargs)",
+    "with patch.object(cli, 'prepare_run', side_effect=prepare_with_reference):",
+    "    raise SystemExit(cli.main(sys.argv[2:]))",
+  ].join("\n")
   const result = spawnSync(
     "python3",
-    ["-m", "k_slide.cli", "prepare", "--root", root, "--json", "--session-id", sessionID, "--host-inputs-json", hostInvocation(refs), "--host-worktree", root],
-    { cwd: ROOT, env: { ...process.env, PYTHONPATH: path.join(ROOT, "src") }, encoding: "utf8" },
+    ["-c", script, "k-slide", "prepare", "--root", root, "--json", "--session-id", sessionID, "--host-inputs-json", hostInvocation(refs), "--host-worktree", root],
+    { cwd: ROOT, env: { ...process.env, PYTHONPATH: `${path.join(ROOT, "src")}${path.delimiter}${ROOT}` }, encoding: "utf8" },
   )
+  if (!result.stdout.trim()) throw new Error(`reference CLI harness produced no JSON (status=${result.status}): ${result.stderr}`)
   return { status: result.status, output: JSON.parse(result.stdout), stderr: result.stderr }
 }
 
 async function runCoreSnapshot(root: string, sessionID: string, refs: unknown[]): Promise<string> {
   const script = [
     "import sys",
+    "from tests.reference_fixtures import reference_environment",
     "from k_slide.ingest import prepare_run",
-    "run = prepare_run(__import__('pathlib').Path(sys.argv[1]), host_input_refs=__import__('json').loads(sys.argv[3])['input_refs'], approved_root=__import__('pathlib').Path(sys.argv[1]), session_id=sys.argv[2])",
+    "run = prepare_run(__import__('pathlib').Path(sys.argv[1]), host_input_refs=__import__('json').loads(sys.argv[3])['input_refs'], approved_root=__import__('pathlib').Path(sys.argv[1]), environment_identity=reference_environment('opencode-plugin-snapshot'))",
     "print(run)",
   ].join("; ")
   const result = spawnSync(
     "python3",
     ["-c", script, root, sessionID, hostInvocation(refs)],
-    { cwd: ROOT, env: { ...process.env, PYTHONPATH: path.join(ROOT, "src") }, encoding: "utf8" },
+    { cwd: ROOT, env: { ...process.env, PYTHONPATH: `${path.join(ROOT, "src")}${path.delimiter}${ROOT}` }, encoding: "utf8" },
   )
   assert.equal(result.status, 0, result.stderr)
   return result.stdout.trim()
@@ -228,7 +241,7 @@ async function successBoundary(): Promise<void> {
       env: { ...process.env, PYTHONPATH: path.join(ROOT, "src") },
       encoding: "utf8",
     })
-    assert.equal(support.status, 0, support.stderr)
+    assert.equal(support.status, 0, `${support.stdout}\n${support.stderr}`)
     const supportMetadata = spawnSync("unzip", ["-p", supportPath, "support-metadata.json"], { encoding: "utf8" })
     assert.equal(supportMetadata.status, 0, supportMetadata.stderr)
     assert.ok(!args.host_input_refs.some((ref) => supportMetadata.stdout.includes(ref.locator)))
@@ -265,7 +278,7 @@ async function failureBoundary(): Promise<void> {
     assert.ok(!JSON.stringify(messageOutput).includes(String(part.url)))
     const args = output.args as unknown as { host_input_refs: Array<{ locator: string }> }
     assert.equal(args.host_input_refs.length, 1)
-    assert.ok(!JSON.stringify(output.args).includes(String(part.url)))
+    assert.ok(!JSON.stringify(output.args).includes(String(part.url)), JSON.stringify(output.args))
     assert.ok(!JSON.stringify(output.args).includes("base64,"))
     const failureRoot = await mkdtemp(path.join(path.resolve(tmpdir()), "k-slide-host-failure-"))
     try {

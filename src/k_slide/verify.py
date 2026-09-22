@@ -417,7 +417,8 @@ def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult
             if not target_text:
                 _issue(result, ErrorCode.NUMERIC_MISMATCH.value, Severity.CRITICAL, "Source numeric fact has no translated target text.", target=fact.fact_id, evidence_ids=[fact.source_region_id or fact.source_cell_id or fact.fact_id])
                 continue
-            matched, reason = numeric_fact_matches(asdict(fact), target_text)
+            table_unit = next((table.unit for table in evidence.tables if table.table_id == fact.source_table_id), None)
+            matched, reason = numeric_fact_matches(asdict(fact), target_text, table_unit=table_unit)
             if not matched:
                 _issue(result, ErrorCode.NUMERIC_MISMATCH.value, Severity.CRITICAL, reason, target=fact.fact_id, evidence_ids=[fact.source_region_id or fact.source_cell_id or fact.fact_id])
         if slide.unresolved:
