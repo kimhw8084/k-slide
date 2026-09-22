@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "kind": "codex-fabric-audit-evidence",
+  "operation": "BUILD",
+  "status": "EXECUTED_CHANGE",
+  "generated_at": "2026-09-22T12:33:23Z",
+  "project_id": "k-slide",
+  "request": "chg16-ksa24-f24-repair-03",
+  "job_id": "CF-k-slide-chg16-modality-conformance-01-fix03",
+  "candidate": {
+    "branch": "codex/k-slide-chg16-modality-conformance-01-fix03",
+    "commit": "fd753ccb765568765e3646d9374c022d7aad62a3",
+    "predecessor": "9e8867faea640377bcd4bc2acef62cd74a28f856",
+    "target_base": "004cbcf3e2d36ea3bbb985868e57b59cbc645c6c"
+  },
+  "ancestry": {
+    "head_parent_is_exact_predecessor": true,
+    "predecessor_parent_is_target_base": true,
+    "target_base_preserved": true,
+    "main_moved": false,
+    "local_main": "af5836540304b424289bedbe57a87dbb5d02763f",
+    "origin_main": "004cbcf3e2d36ea3bbb985868e57b59cbc645c6c"
+  },
+  "changed_files": [
+    ".opencode/tools/kslide.ts",
+    "schemas/evidence-ir.schema.json",
+    "schemas/slide-ir.schema.json",
+    "schemas/translation-patch.schema.json",
+    "src/k_slide/evidence_ir.py",
+    "src/k_slide/extraction.py",
+    "src/k_slide/ir.py",
+    "src/k_slide/modality.py",
+    "src/k_slide/normalization.py",
+    "src/k_slide/translation.py",
+    "src/k_slide/translation_contract.py",
+    "src/k_slide/verify.py",
+    "tests/fixtures/ksa24_chart_claim_fixture.json",
+    "tests/fixtures/ksa24_connector_fixture.json",
+    "tests/test_ksa24_f24_repairs.py",
+    "tests/test_ksa24_modality_conformance.py"
+  ],
+  "checks": [
+    {
+      "command": "PYTHONPATH=src:. python3 -m unittest discover -s tests -q",
+      "exit_code": 0,
+      "result": "483 tests passed; 4 skipped on Python 3.11"
+    },
+    {
+      "command": "PYTHONPATH=src:. /tmp/k-slide-py312-f24/bin/python -m unittest discover -s tests -q",
+      "exit_code": 0,
+      "result": "483 tests passed on Python 3.12 isolated dependency environment"
+    },
+    {
+      "command": "PYTHONPATH=src:. python3 -m compileall -q src tests",
+      "exit_code": 0,
+      "result": "Python 3.11 compile check passed"
+    },
+    {
+      "command": "PYTHONPATH=src:. /tmp/k-slide-py312-f24/bin/python -m compileall -q src tests",
+      "exit_code": 0,
+      "result": "Python 3.12 compile check passed"
+    },
+    {
+      "command": "TranslationPatch and EvidenceIR/SlideIR JSON schema validation",
+      "exit_code": 0,
+      "result": "All schema JSON parsed; Draft 2020-12 TranslationPatch schema validated"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "No whitespace errors"
+    },
+    {
+      "command": "npx --yes tsx tests/test_chg16_opencode_plugin.ts",
+      "exit_code": 1,
+      "result": "CAPABILITY_BLOCK: typed bundle loaded, but the isolated CLI success-boundary fixture lacks the repository release-candidate environment prerequisite; no candidate artifact was certified"
+    }
+  ],
+  "scope": {
+    "included": [
+      "CHG-16 / KSA-24 F24-01 connector direction evidence",
+      "CHG-16 / KSA-24 F24-02 closed chart claims",
+      "CHG-16 / KSA-24 F24-03 bounded Korean modality and English strength guard",
+      "CHG-16 / KSA-24 F24-04 native extraction, table units, runtime lifecycle",
+      "KSA-23 conflict assessment lifecycle",
+      "KSA-22 provenance and exact table-cell identity",
+      "KSA-21 adversarial security and KSA-15 through KSA-20 compatibility regressions"
+    ],
+    "excluded": [
+      "KSA-25 and later",
+      "live company or Gemma qualification",
+      "release and production certification"
+    ]
+  },
+  "notes": [
+    "The implementation was based on the exact predecessor commit and does not depend on failed FIX01/FIX02 retained-worktree state.",
+    "The system Python 3.12 interpreter lacked Pillow; the declared dependency-isolated Python 3.12 environment passed the complete suite.",
+    "No merge was performed and neither local main nor origin/main was moved."
+  ],
+  "locator": {
+    "branch": "codex/k-slide-chg16-modality-conformance-01-fix03",
+    "ref": "refs/heads/codex/k-slide-chg16-modality-conformance-01-fix03",
+    "path": ".codex-fabric/audit.json"
+  }
+}
