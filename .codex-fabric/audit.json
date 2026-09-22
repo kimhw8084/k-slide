@@ -3,25 +3,27 @@
   "kind": "codex-fabric-audit-evidence",
   "operation": "BUILD",
   "status": "EXECUTED_CHANGE",
-  "generated_at": "2026-09-22T12:33:23Z",
+  "generated_at": "2026-09-22T14:01:50Z",
   "project_id": "k-slide",
-  "request": "chg16-ksa24-f24-repair-03",
-  "job_id": "CF-k-slide-chg16-modality-conformance-01-fix03",
+  "request": "chg16-ksa24-f24-repair-04",
+  "job_id": "CF-k-slide-chg16-modality-conformance-01-fix04",
   "candidate": {
-    "branch": "codex/k-slide-chg16-modality-conformance-01-fix03",
-    "commit": "fd753ccb765568765e3646d9374c022d7aad62a3",
-    "predecessor": "9e8867faea640377bcd4bc2acef62cd74a28f856",
+    "branch": "codex/k-slide-chg16-modality-conformance-01-fix04",
+    "commit": "e9831e46f1b6293f0a4b74022f1c9d91142d0636",
+    "predecessor": "ba3179d9338d912470a34c91a2510c96c08ac0d5",
     "target_base": "004cbcf3e2d36ea3bbb985868e57b59cbc645c6c"
   },
   "ancestry": {
-    "head_parent_is_exact_predecessor": true,
-    "predecessor_parent_is_target_base": true,
+    "candidate_parent_is_exact_predecessor": true,
+    "predecessor_parent": "fd753ccb765568765e3646d9374c022d7aad62a3",
+    "predecessor_is_descendant_of_target_base": true,
     "target_base_preserved": true,
     "main_moved": false,
     "local_main": "af5836540304b424289bedbe57a87dbb5d02763f",
     "origin_main": "004cbcf3e2d36ea3bbb985868e57b59cbc645c6c"
   },
   "changed_files": [
+    ".opencode/plugin/k-slide-host.ts",
     ".opencode/tools/kslide.ts",
     "schemas/evidence-ir.schema.json",
     "schemas/slide-ir.schema.json",
@@ -31,24 +33,42 @@
     "src/k_slide/ir.py",
     "src/k_slide/modality.py",
     "src/k_slide/normalization.py",
+    "src/k_slide/numeric.py",
     "src/k_slide/translation.py",
     "src/k_slide/translation_contract.py",
     "src/k_slide/verify.py",
     "tests/fixtures/ksa24_chart_claim_fixture.json",
     "tests/fixtures/ksa24_connector_fixture.json",
+    "tests/test_chg16_opencode_plugin.ts",
+    "tests/test_ksa24_f24_real_path.py",
     "tests/test_ksa24_f24_repairs.py",
     "tests/test_ksa24_modality_conformance.py"
   ],
   "checks": [
     {
+      "command": "rtk git merge --ff-only ba3179d9338d912470a34c91a2510c96c08ac0d5",
+      "exit_code": 0,
+      "result": "Exact predecessor fast-forwarded onto the target-base branch before new work; resulting HEAD was ba3179d9338d912470a34c91a2510c96c08ac0d5"
+    },
+    {
+      "command": "rtk env PYTHONPATH=src:. python3 -m pytest -q tests/test_ksa24_f24_real_path.py tests/test_ksa24_f24_repairs.py tests/test_ksa24_modality_conformance.py",
+      "exit_code": 0,
+      "result": "13 passed in 16.84s"
+    },
+    {
+      "command": "rtk env PYTHONPATH=src:. python3 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_phase35 tests.test_ksa24_f24_repairs tests.test_ksa24_modality_conformance tests.test_ksa24_f24_real_path",
+      "exit_code": 0,
+      "result": "98 tests passed; 1 skipped"
+    },
+    {
       "command": "PYTHONPATH=src:. python3 -m unittest discover -s tests -q",
       "exit_code": 0,
-      "result": "483 tests passed; 4 skipped on Python 3.11"
+      "result": "484 tests passed; 4 skipped on Python 3.11"
     },
     {
       "command": "PYTHONPATH=src:. /tmp/k-slide-py312-f24/bin/python -m unittest discover -s tests -q",
       "exit_code": 0,
-      "result": "483 tests passed on Python 3.12 isolated dependency environment"
+      "result": "484 tests passed on isolated Python 3.12"
     },
     {
       "command": "PYTHONPATH=src:. python3 -m compileall -q src tests",
@@ -63,7 +83,7 @@
     {
       "command": "TranslationPatch and EvidenceIR/SlideIR JSON schema validation",
       "exit_code": 0,
-      "result": "All schema JSON parsed; Draft 2020-12 TranslationPatch schema validated"
+      "result": "3 Draft 2020-12 schemas parsed and checked"
     },
     {
       "command": "git diff --check",
@@ -72,8 +92,8 @@
     },
     {
       "command": "npx --yes tsx tests/test_chg16_opencode_plugin.ts",
-      "exit_code": 1,
-      "result": "CAPABILITY_BLOCK: typed bundle loaded, but the isolated CLI success-boundary fixture lacks the repository release-candidate environment prerequisite; no candidate artifact was certified"
+      "exit_code": 0,
+      "result": "OpenCode host attachment regression tests passed under the deterministic reference environment; bundle, routing, failure-boundary, support-bundle, and release-staging checks passed"
     }
   ],
   "scope": {
@@ -81,7 +101,7 @@
       "CHG-16 / KSA-24 F24-01 connector direction evidence",
       "CHG-16 / KSA-24 F24-02 closed chart claims",
       "CHG-16 / KSA-24 F24-03 bounded Korean modality and English strength guard",
-      "CHG-16 / KSA-24 F24-04 native extraction, table units, runtime lifecycle",
+      "CHG-16 / KSA-24 F24-04 generated native PPTX extraction, table units, real runtime lifecycle, and adversarial boundary assertions",
       "KSA-23 conflict assessment lifecycle",
       "KSA-22 provenance and exact table-cell identity",
       "KSA-21 adversarial security and KSA-15 through KSA-20 compatibility regressions"
@@ -89,17 +109,21 @@
     "excluded": [
       "KSA-25 and later",
       "live company or Gemma qualification",
-      "release and production certification"
+      "merge, release, and production certification"
     ]
   },
   "notes": [
     "The implementation was based on the exact predecessor commit and does not depend on failed FIX01/FIX02 retained-worktree state.",
-    "The system Python 3.12 interpreter lacked Pillow; the declared dependency-isolated Python 3.12 environment passed the complete suite.",
+    "The new protected test generates a native PPTX with mixed English/Korean text, proven table units, merged/blank/data cells, opposing and null/negative/formatted chart series, grouped connectors with arrow/no-arrow semantics, and commitment-strength adversaries; it carries the extracted EvidenceIR through prepare/next, translation submission, conflict assessment, verify, render, and finalize.",
+    "The optional office renderer is replaced by a deterministic test image because LibreOffice is unavailable in this environment; native PPTX parsing/extraction and the employee runtime boundary remain real.",
+    "The verifier applies only the engine-proven table unit during numeric comparison without rewriting translated table text.",
+    "The OpenCode test harness injects the repository reference environment explicitly in its isolated CLI subprocess; production environment checks were not weakened. Remote file URLs and UNC-style paths are rejected at the host boundary.",
+    "A parallel full-discovery attempt was discarded because it caused process-boundary OpenCode timeouts; the required Python 3.11 and isolated Python 3.12 discoveries were rerun serially and passed.",
     "No merge was performed and neither local main nor origin/main was moved."
   ],
   "locator": {
-    "branch": "codex/k-slide-chg16-modality-conformance-01-fix03",
-    "ref": "refs/heads/codex/k-slide-chg16-modality-conformance-01-fix03",
+    "branch": "codex/k-slide-chg16-modality-conformance-01-fix04",
+    "ref": "refs/heads/codex/k-slide-chg16-modality-conformance-01-fix04",
     "path": ".codex-fabric/audit.json"
   }
 }
