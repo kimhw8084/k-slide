@@ -133,7 +133,7 @@ class KSA24ModalityConformanceTests(unittest.TestCase):
         process = (
             {"element_id": "unit-a", "kind": "shape", "bbox_px": [0, 0, 10, 10], "required": True},
             {"element_id": "unit-b", "kind": "shape", "bbox_px": [20, 0, 30, 10], "required": True},
-            {"element_id": "unit-edge", "kind": "connector", "bbox_px": [10, 5, 20, 5], "required": True, "connector": {"from_element_id": "unit-a", "to_element_id": "unit-b"}},
+            {"element_id": "unit-edge", "kind": "connector", "bbox_px": [10, 5, 20, 5], "required": True, "connector": {"from_element_id": "unit-a", "to_element_id": "unit-b", "start_arrow_type": "none", "end_arrow_type": "triangle", "direction_evidence": "start_to_end", "direction_evidence_source": "fixture"}},
         )
         process_evidence = EvidenceIR("doc", "unit", {}, regions=(EvidenceRegion("unit-r", selected_literal_candidate="Process"),), visual_elements=process, required_source_ids=("unit-r", "unit-a", "unit-b", "unit-edge")).with_revision()
         reversed_edge = _patch(process_evidence, region_text="Process", relation={"relation_id": "edge", "interpretation": "reverse", "evidence_ids": ["unit-edge"], "source_element_ids": ["unit-b", "unit-a", "unit-edge"], "relation_type": "next", "direction": "right_to_left", "provenance": "source_fact"})

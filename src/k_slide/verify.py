@@ -34,7 +34,7 @@ from .semantics import ProvenanceState, enum_value
 from .state import RunPhase, load_state, save_state
 from .storage import StorageArtifact, storage_path, workspace_mutation_guard
 from .terminology import Termbase, load_effective_termbase
-from .modality import classify_source_language, decision_bearing_status, modality_mismatch
+from .modality import classify_source_language, decision_bearing_status, english_modality_mismatch, modality_mismatch
 from .translation import _chart_elements, _source_fact_connector_relation, _validate_chart_interpretation
 
 
@@ -162,9 +162,12 @@ def _check_source_literal_and_modality(result: VerificationResult, slide: SlideI
         missing = [span for span in spans if span not in (region.translation or "")]
         if missing:
             _issue(result, "KSLIDE_SOURCE_ENGLISH_SPAN_MISSING", Severity.CRITICAL, "Engine-protected source-English span is missing from canonical output.", target=source.region_id, evidence_ids=[source.region_id])
-        mismatch = modality_mismatch(source_text, region.commitment_status, region.speech_act)
+        mismatch = modality_mismatch(source_text, region.commitment_status, region.speech_act, language_bound=language_policy_bound)
         if mismatch:
             _issue(result, ErrorCode.MODALITY_MISMATCH.value, Severity.CRITICAL, mismatch, target=source.region_id, evidence_ids=[source.region_id])
+        english_mismatch = english_modality_mismatch(source_text, region.translation, region.commitment_status, language_bound=language_policy_bound)
+        if english_mismatch:
+            _issue(result, ErrorCode.MODALITY_MISMATCH.value, Severity.CRITICAL, english_mismatch, target=source.region_id, evidence_ids=[source.region_id])
         if decision_bearing_status(region.commitment_status) and source.region_id not in region.provenance_evidence_ids:
             _issue(result, "KSLIDE_PROVENANCE_EVIDENCE_REQUIRED", Severity.CRITICAL, "Decision-bearing commitment classification must cite its direct source region.", target=source.region_id, evidence_ids=[source.region_id])
 
@@ -209,13 +212,15 @@ def _check_visual_evidence(result: VerificationResult, slide: SlideIR, evidence:
         unknown = sorted(set(relation.source_element_ids) - valid_ids)
         if unknown:
             _issue(result, ErrorCode.VISUAL_RELATION_MISMATCH.value, Severity.CRITICAL, "Visual relation references a fabricated engine element.", target=relation.relation_id, evidence_ids=unknown)
-        relation_value = {"source_element_ids": relation.source_element_ids, "direction": relation.direction, "provenance": relation.provenance}
-        if relation.provenance == ProvenanceState.SOURCE_FACT.value and not _source_fact_connector_relation(relation_value, evidence):
+        relation_value = {"source_element_ids": relation.source_element_ids, "direction": relation.direction, "provenance": relation.provenance, "chart_claim": relation.chart_claim}
+        source_fact_allowed = _source_fact_connector_relation(relation_value, evidence)
+        if charts := _chart_elements(evidence, tuple(relation.source_element_ids)):
+            source_fact_allowed = relation.chart_claim is not None
+        if relation.provenance == ProvenanceState.SOURCE_FACT.value and not source_fact_allowed:
             _issue(result, ErrorCode.VISUAL_RELATION_MISMATCH.value, Severity.CRITICAL, "Source-factual visual relation is not proven by an engine connector edge.", target=relation.relation_id, evidence_ids=relation.evidence)
-        charts = _chart_elements(evidence, tuple(relation.source_element_ids))
         if charts:
             try:
-                _validate_chart_interpretation({"interpretation": relation.interpretation or ""}, charts)
+                _validate_chart_interpretation({"interpretation": relation.interpretation or "", "chart_claim": relation.chart_claim}, charts)
             except KSlideError as exc:
                 _issue(result, exc.code.value, Severity.CRITICAL, exc.message, target=relation.relation_id, evidence_ids=relation.evidence)
 
@@ -309,9 +314,12 @@ def _validate_canonical_provenance(result: VerificationResult, slide: SlideIR, e
             {
                 "source_element_ids": relation.source_element_ids,
                 "direction": relation.direction,
+                "chart_claim": relation.chart_claim,
             },
             evidence,
         )
+        if _chart_elements(evidence, tuple(relation.source_element_ids)):
+            source_fact_allowed = relation.chart_claim is not None
         state = _check_provenance(
             result,
             state=relation.provenance,

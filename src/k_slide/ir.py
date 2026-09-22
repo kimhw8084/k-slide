@@ -133,6 +133,7 @@ class VisualRelation:
     relation_type: str = "unknown"
     direction: str | None = None
     interpretation: str | None = None
+    chart_claim: dict[str, Any] | None = None
     confidence: float | None = None
     evidence: list[str] = field(default_factory=list)
     provenance: str | None = None

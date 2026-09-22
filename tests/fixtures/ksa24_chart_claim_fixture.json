@@ -1,0 +1,21 @@
+{
+  "element_id": "fixture-chart",
+  "kind": "chart",
+  "bbox_px": [0, 0, 640, 360],
+  "required": true,
+  "chart": {
+    "structure_version": "1.0",
+    "chart_type": "bar",
+    "title": "Regional revenue",
+    "categories": ["Q1", "Q2", "Q3"],
+    "series_order": ["North", "South", "Flat", "Nullable"],
+    "series": [
+      {"series_index": 0, "name": "North", "points": [{"point_index": 0, "value": -1234.5, "is_blank": false}, {"point_index": 1, "value": -1000.0, "is_blank": false}, {"point_index": 2, "value": -500.0, "is_blank": false}]},
+      {"series_index": 1, "name": "South", "points": [{"point_index": 0, "value": 900.0, "is_blank": false}, {"point_index": 1, "value": 700.0, "is_blank": false}, {"point_index": 2, "value": 500.0, "is_blank": false}]},
+      {"series_index": 2, "name": "Flat", "points": [{"point_index": 0, "value": 10.0, "is_blank": false}, {"point_index": 1, "value": 10.0, "is_blank": false}, {"point_index": 2, "value": 10.0, "is_blank": false}]},
+      {"series_index": 3, "name": "Nullable", "points": [{"point_index": 0, "value": 1.0, "is_blank": false}, {"point_index": 1, "value": null, "is_blank": true}, {"point_index": 2, "value": 3.0, "is_blank": false}]}
+    ],
+    "axis_labels": {"category": "Quarter", "value": "USD millions"},
+    "unit_labels": {"category": null, "value": "USD millions"}
+  }
+}

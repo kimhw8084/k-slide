@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -280,6 +281,44 @@ def _table_header_flags(table: Any) -> tuple[bool | None, bool | None]:
         return None, None
 
 
+_TABLE_UNIT_RE = re.compile(
+    r"(?ix)(?<![A-Za-z])"
+    r"(?:USD|KRW|EUR|JPY|\$|€|¥|₩)?\s*"
+    r"(?:trillion|trillions|billion|billions|million|millions|thousand|thousands|mn|bn|tn|조원|억원|만원|원|조|억|만|천)"
+    r"(?![A-Za-z])"
+)
+
+
+def _table_unit_label(text: Any) -> str | None:
+    if not isinstance(text, str) or not text.strip():
+        return None
+    match = _TABLE_UNIT_RE.search(text.strip())
+    return match.group(0).strip() if match else None
+
+
+def _derive_table_unit(table_value: dict[str, Any], cells: list[dict[str, Any]]) -> str | None:
+    """Derive one unit only from explicit table headers or source notes."""
+
+    candidates: list[str] = []
+    for cell in cells:
+        if cell.get("is_header") is True:
+            label = _table_unit_label(cell.get("text"))
+            if label:
+                candidates.append(label)
+    notes = table_value.get("source_notes", table_value.get("footnotes", table_value.get("notes", [])))
+    if isinstance(notes, str):
+        notes = [notes]
+    if isinstance(notes, (list, tuple)):
+        for note in notes:
+            label = _table_unit_label(note)
+            if label:
+                candidates.append(label)
+    normalized = {re.sub(r"\s+", " ", value).casefold() for value in candidates}
+    if len(normalized) != 1:
+        return None
+    return candidates[0]
+
+
 def _connector_endpoints(shape: Any, source_ids_by_shape_id: dict[int, str]) -> dict[str, Any] | None:
     try:
         element = shape._element
@@ -297,7 +336,41 @@ def _connector_endpoints(shape: Any, source_ids_by_shape_id: dict[int, str]) -> 
         end = source_ids_by_shape_id.get(values["endCxn"])
         if not start or not end:
             return None
-        return {"from_element_id": start, "to_element_id": end, "start_shape_id": values["stCxn"], "end_shape_id": values["endCxn"]}
+
+        line = next((item for item in element.iter() if item.tag.rsplit("}", 1)[-1] == "ln"), None)
+
+        def arrow_type(name: str) -> str:
+            if line is None:
+                return "none"
+            arrow = next((item for item in line if item.tag.rsplit("}", 1)[-1] == name), None)
+            if arrow is None:
+                return "none"
+            value = str(arrow.get("type") or "none").strip().lower()
+            return value or "none"
+
+        start_arrow_type = arrow_type("headEnd")
+        end_arrow_type = arrow_type("tailEnd")
+        known_none = {"", "none", "noarrow", "nil"}
+        has_start_arrow = start_arrow_type not in known_none
+        has_end_arrow = end_arrow_type not in known_none
+        if has_start_arrow and has_end_arrow:
+            direction_evidence = "bidirectional"
+        elif has_end_arrow:
+            direction_evidence = "start_to_end"
+        elif has_start_arrow:
+            direction_evidence = "end_to_start"
+        else:
+            direction_evidence = "undirected"
+        return {
+            "from_element_id": start,
+            "to_element_id": end,
+            "start_shape_id": values["stCxn"],
+            "end_shape_id": values["endCxn"],
+            "start_arrow_type": start_arrow_type,
+            "end_arrow_type": end_arrow_type,
+            "direction_evidence": direction_evidence,
+            "direction_evidence_source": "ooxml",
+        }
     except (AttributeError, TypeError, ValueError):
         return None
 
@@ -357,7 +430,8 @@ def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, r
                         cell = table.cell(row_index, column_index)
                         is_origin = bool(getattr(cell, "is_merge_origin", False))
                         is_spanned = bool(getattr(cell, "is_spanned", False))
-                        is_blank = not is_spanned and not bool(cell.text)
+                        raw_text = cell.text
+                        is_blank = not is_spanned and (not isinstance(raw_text, str) or not raw_text.strip())
                         state = "merge_continuation" if is_spanned else ("merge_origin" if is_origin else ("blank" if is_blank else "nonblank"))
                         is_header = None
                         if first_row is not None and row_index == 0:
@@ -370,7 +444,7 @@ def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, r
                             "cell_id": f"{work_unit_id}-table-{shape_index}-r{row_index + 1:02d}-c{column_index + 1:02d}",
                             "row": row_index,
                             "column": column_index,
-                            "text": None if is_spanned else cell.text,
+                            "text": None if is_spanned else ("" if is_blank else raw_text),
                             "rowspan": rowspan,
                             "colspan": colspan,
                             "is_merge_origin": is_origin,
@@ -388,6 +462,7 @@ def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, r
                     "header_rows": [0] if first_row is True else [],
                     "header_columns": [0] if first_column is True else [],
                     "headers": headers,
+                    "unit": _derive_table_unit({"source_notes": ()}, cells),
                 }
             chart = _chart_metadata(shape)
             if chart is not None:
