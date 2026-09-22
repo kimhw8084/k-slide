@@ -1,0 +1,339 @@
+{
+  "accepted_at": "2026-09-22T03:05:01Z",
+  "changed_files": [],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '330,410p' src/k_slide/normalization.py; rtk sed -n '1,120p' tests/test_normalization.py; rtk sed -n '120,260p' tests/test_normalization.py; rtk rg -n \\\"KSA-23|conflict assessment|submit_translation|prepare|render_run|finalize\\\" tests/test_ksa24* tests/test_ksa23_conflicts.py src/k_slide/cli.py src/k_slide/runtime.py src/k_slide/session.py | sed -n '1,320p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff --stat 9e8867f..1d3f113 && rtk git diff 9e8867f..1d3f113 -- src tests schemas | sed -n '1,360p'; rtk git log --all --oneline --grep='F24\\\\|chart\\\\|arrow\\\\|modality' -30\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show 1d3f113:tests/test_ksa24_f24_repairs.py | sed -n '1,420p'; rtk git show 1d3f113:src/k_slide/translation.py | sed -n '150,620p'; rtk git show 1d3f113:src/k_slide/normalization.py | sed -n '270,390p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show 1d3f113:tests/fixtures/ksa24_connector_fixture.json; rtk git show 1d3f113:tests/fixtures/ksa24_chart_claim_fixture.json; rtk git show 1d3f113:src/k_slide/translation.py | sed -n '165,330p'; rtk git show 1d3f113:src/k_slide/translation.py | sed -n '430,540p'; rtk git show 1d3f113:src/k_slide/translation.py | sed -n '660,735p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show 1d3f113:src/k_slide/translation.py | sed -n '300,430p'; rtk git show 1d3f113:src/k_slide/translation.py | sed -n '520,680p'; rtk git show 1d3f113:src/k_slide/verify.py | sed -n '20,240p'; rtk git show 1d3f113:src/k_slide/verify.py | sed -n '300,345p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,300p' src/k_slide/numeric.py; rtk sed -n '1,190p' src/k_slide/modality.py; rtk git show 1d3f113:src/k_slide/modality.py | sed -n '1,260p'; rtk git show 1d3f113:src/k_slide/extraction.py | sed -n '100,210p'; rtk git show 1d3f113:src/k_slide/normalization.py | sed -n '285,345p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'selected_literal_candidate=\\\"|source_text\\\": \\\"|source_text=' tests | rg '검토|결정|계획|예정|목표|약속|가능|전망|제안|잠정|완료|진행' | sed -n '1,240p'; rtk rg -n 'modality_mismatch\\\\(|deterministic_modality|english_modality_mismatch' src tests | sed -n '1,200p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '100,155p' tests/test_phase34.py; rtk sed -n '25,75p' tests/test_phase11.py; rtk sed -n '300,330p' tests/test_chg16_environment_binding.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '315,345p' src/k_slide/normalization.py; rtk sed -n '350,405p' src/k_slide/normalization.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '100,205p' src/k_slide/extraction.py; rtk sed -n '1,18p' src/k_slide/extraction.py; rtk sed -n '390,430p' src/k_slide/normalization.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '410,470p' src/k_slide/normalization.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,120p' schemas/evidence-ir.schema.json; rtk sed -n '50,115p' schemas/translation-patch.schema.json; rtk sed -n '1,45p' schemas/slide-ir.schema.json; rtk rg -n \\\"RELATION_OPTIONAL_FIELDS|chart_claim\\\" .opencode src tests schemas -g '*.ts' -g '*.py' -g '*.json' | sed -n '1,200p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m compileall -q src tests && rtk python -m unittest tests.test_ksa24_modality_conformance -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_ksa24_modality_conformance -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_ksa24_modality_conformance -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '145,220p' src/k_slide/ingest.py; rtk sed -n '220,350p' src/k_slide/ingest.py; rtk sed -n '250,330p' src/k_slide/cli.py; rtk sed -n '520,600p' src/k_slide/cli.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_ksa24_f24_repairs -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nimport json\nfrom tests.test_ksa24_f24_repairs import _evidence\nfrom k_slide.translation import _source_fact_connector_relation, _direction_evidence, _connector_geometry_direction\nfixture=json.load(open('tests/fixtures/ksa24_connector_fixture.json'))\ne=_evidence(tuple(fixture['elements']+fixture['connectors']))\nrel={'source_element_ids':['fixture-b','fixture-a','fixture-start-arrow'],'direction':'right_to_left'}\nels={str(x['element_id']):x for x in e.visual_elements}\nc=els['fixture-start-arrow']['connector']\nprint(c, _direction_evidence(c), _connector_geometry_direction({**c,'from_element_id':'fixture-b','to_element_id':'fixture-a'},els), _source_fact_connector_relation(rel,e))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '215,285p' src/k_slide/translation.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nfrom tests.test_ksa24_f24_repairs import _evidence,_patch\nfrom k_slide.translation import parse_translation_patch\ncases=((\\\"결정\\\", \\\"decided\\\", \\\"decision\\\", \\\"The decision is approved.\\\"), (\\\"약속\\\", \\\"committed\\\", \\\"status\\\", \\\"The work is committed.\\\"), (\\\"계획\\\", \\\"planned\\\", \\\"status\\\", \\\"The work is planned.\\\"), (\\\"예정\\\", \\\"scheduled\\\", \\\"status\\\", \\\"The work is scheduled.\\\"), (\\\"목표\\\", \\\"target\\\", \\\"status\\\", \\\"The target is the target.\\\"), (\\\"제안\\\", \\\"proposed\\\", \\\"status\\\", \\\"The proposal is proposed.\\\"), (\\\"검토 중\\\", \\\"under_review\\\", \\\"status\\\", \\\"The work is under review.\\\"), (\\\"가능\\\", \\\"possible\\\", \\\"status\\\", \\\"The work is possible.\\\"), (\\\"잠정\\\", \\\"tentative\\\", \\\"status\\\", \\\"The result is tentative.\\\"), (\\\"전망\\\", \\\"forecast\\\", \\\"status\\\", \\\"The forecast is projected.\\\"), (\\\"완료\\\", \\\"completed\\\", \\\"status\\\", \\\"The work is completed.\\\"), (\\\"진행 중\\\", \\\"in_progress\\\", \\\"status\\\", \\\"The work is in progress.\\\"))\nfor source,status,speech,english in cases:\n e=_evidence((),source_text=source,language='ko'); r={'region_id':'unit-r','english':english,'term_ids':[],'unresolved':False,'commitment_status':status,'speech_act':speech,'evidence_ids':['unit-r']}\n p=parse_translation_patch({**_patch(e), 'regions':[r]})\n try:\n  p.validate_against(e)\n  o=dict(r);o.pop('commitment_status');parse_translation_patch({**_patch(e),'regions':[o]}).validate_against(e)\n  print('NOT RAISED',source)\n except Exception as x:\n  print('raised',source,type(x).__name__,getattr(x,'code',None),str(x))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nfrom tests.test_ksa24_f24_repairs import _evidence,_patch\nfrom k_slide.translation import parse_translation_patch\ncases=((\\\"결정\\\", \\\"decided\\\", \\\"decision\\\", \\\"The decision is approved.\\\"), (\\\"약속\\\", \\\"committed\\\", \\\"status\\\", \\\"The work is committed.\\\"), (\\\"계획\\\", \\\"planned\\\", \\\"status\\\", \\\"The work is planned.\\\"), (\\\"예정\\\", \\\"scheduled\\\", \\\"status\\\", \\\"The work is scheduled.\\\"), (\\\"목표\\\", \\\"target\\\", \\\"status\\\", \\\"The target is the target.\\\"), (\\\"제안\\\", \\\"proposed\\\", \\\"status\\\", \\\"The proposal is proposed.\\\"), (\\\"검토 중\\\", \\\"under_review\\\", \\\"status\\\", \\\"The work is under review.\\\"), (\\\"가능\\\", \\\"possible\\\", \\\"status\\\", \\\"The work is possible.\\\"), (\\\"잠정\\\", \\\"tentative\\\", \\\"status\\\", \\\"The result is tentative.\\\"), (\\\"전망\\\", \\\"forecast\\\", \\\"status\\\", \\\"The forecast is projected.\\\"), (\\\"완료\\\", \\\"completed\\\", \\\"status\\\", \\\"The work is completed.\\\"), (\\\"진행 중\\\", \\\"in_progress\\\", \\\"status\\\", \\\"The work is in progress.\\\"))\nfor source,status,speech,english in cases:\n e=_evidence((),source_text=source,language='ko');r={'region_id':'unit-r','english':english,'term_ids':[],'unresolved':False,'commitment_status':status,'speech_act':speech,'evidence_ids':['unit-r']}\n try: parse_translation_patch({**_patch(e),'regions':[r]}).validate_against(e); print('valid',source)\n except Exception as x: print('BAD',source,getattr(x,'code',None),str(x))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk nl -ba tests/test_ksa24_f24_repairs.py | sed -n '120,145p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_ksa24_f24_repairs tests.test_ksa24_modality_conformance -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python - <<'PY'\nfrom k_slide.translation import _CHART_NUMBER\nfor s in ['The value is -1,234.5%','The value is -1,234.4%']:\n print(s,_CHART_NUMBER.findall(s.casefold()))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"translation-patch|visual_interpretations|chart_claim|TranslationPatch|commitment_status|evidence-ir\\\" .opencode scripts src tests -g '*.ts' -g '*.json' -g '*.py' | sed -n '1,320p'; rtk find .opencode -maxdepth 3 -type f -print 2>/dev/null | sort | sed -n '1,160p'; rtk git status --short\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,125p' .opencode/tools/kslide.ts; rtk sed -n '125,240p' .opencode/tools/kslide.ts; rtk rg -n \\\"schema|translationPatch|visualInterpretation|relation\\\" .opencode/tools/kslide.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,130p' tests/test_phase35.py; rtk sed -n '35,100p' tests/test_phase34.py; rtk rg -n \\\"opencode|TypeScript|typed|kslide.ts\\\" tests scripts .opencode | sed -n '1,240p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show 1d3f113:.opencode/tools/kslide.ts | sed -n '45,100p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk command -v python3.12 || true; rtk command -v python3.11 || true; rtk git diff --check; rtk python -m json.tool schemas/evidence-ir.schema.json >/dev/null && rtk python -m json.tool schemas/translation-patch.schema.json >/dev/null && rtk python -m json.tool schemas/slide-ir.schema.json >/dev/null; rtk env PYTHONPATH=src python -m unittest tests.test_phase34.Phase34Tests.test_translation_contract_json_python_typescript_parity tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python3.12 -m unittest discover -s tests -p 'test*.py'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src python -m compileall -q src tests && rtk env PYTHONPATH=src python3.12 -m compileall -q src tests && rtk env PYTHONPATH=src python - <<'PY'\nimport json\nfrom pathlib import Path\ntry:\n    import jsonschema\nexcept ImportError:\n    print('jsonschema=UNAVAILABLE')\nelse:\n    schema=json.loads(Path('schemas/translation-patch.schema.json').read_text())\n    patch={\n      'schema_version':'1.0','work_unit_id':'unit','evidence_revision':'a'*64,\n      'regions':[{'region_id':'unit-r','english':'Chart','term_ids':[],'unresolved':False}],\n      'tables':[],\n      'visual_interpretations':[{'relation_id':'trend','interpretation':'North is increasing','evidence_ids':['chart'],'source_element_ids':['chart'],'provenance':'source_fact','chart_claim':{'chart_element_id':'chart','kind':'trend','series_index':0,'series_name':'North','direction':'increasing'}}],\n      'executive_claims':[]\n    }\n    jsonschema.validate(patch,schema)\n    print('jsonschema=PASS')\nPY\nrtk git diff --check && rtk git diff --stat && rtk git status --short --branch && rtk git merge-base --is-ancestor 004cbcf3e2d36ea3bbb985868e57b59cbc645c6c HEAD; printf 'target_base_ancestor=%s\\\\n' \\\"\"'$?\"; rtk git merge-base --is-ancestor 9e8867faea640377bcd4bc2acef62cd74a28f856 HEAD; printf '\"'predecessor_ancestor=%s\\\\n' \\\"\"'$?\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git diff -- .opencode/tools/kslide.ts src/k_slide/modality.py src/k_slide/normalization.py src/k_slide/extraction.py src/k_slide/translation.py src/k_slide/verify.py | sed -n '1,900p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk find . -maxdepth 3 -type f \\\\( -iname '*audit*' -o -iname '*evidence*' -o -iname '*candidate*' \\\\) -print | sort | sed -n '1,200p'; rtk git ls-files | rg 'codex-fabric|audit|candidate|evidence' | sed -n '1,200p'; rtk git show 1d3f113:.codex-fabric/audit.json | sed -n '1,180p' 2>/dev/null || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add .opencode/tools/kslide.ts schemas/evidence-ir.schema.json schemas/slide-ir.schema.json schemas/translation-patch.schema.json src/k_slide/evidence_ir.py src/k_slide/extraction.py src/k_slide/ir.py src/k_slide/modality.py src/k_slide/normalization.py src/k_slide/translation.py src/k_slide/translation_contract.py src/k_slide/verify.py tests/test_ksa24_modality_conformance.py tests/fixtures/ksa24_chart_claim_fixture.json tests/fixtures/ksa24_connector_fixture.json tests/test_ksa24_f24_repairs.py && rtk git commit -m \"fix(k-slide): close KSA-24 F24 repair gaps\" && rtk git status --short --branch && rtk git log --oneline --decorate -4'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git log --oneline --decorate -5 && rtk git show --stat --oneline HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git ls-files '.codex-fabric/*' && rtk git status --short --ignored .codex-fabric\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git show 1d3f113:.codex-fabric/audit.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files tests | rtk rg 'ksa(1[5-9]|20|21|22|23)|opencode|phase34|phase35'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files tests | rtk rg 'ksa|phase|compat|host|security' | rtk head -80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,220p' tests/test_chg16_opencode_plugin.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n 'successBoundary|typed|kslide_' tests/test_chg16_opencode_plugin.ts .opencode/tools/kslide.ts | rtk head -80 && rtk ls -la | rtk head -80 && rtk find .opencode -maxdepth 2 -type f -print\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src python -m unittest tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support tests.test_chg18_opencode_bootstrap tests.test_chg16_host_integration tests.test_phase34.Phase34Tests.test_translation_contract_json_python_typescript_parity tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '220,690p' tests/test_chg16_opencode_plugin.ts | rtk rg -n -C 4 'KSA|candidate|runPrepare|status|assert.equal' | rtk head -200\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk npx --yes tsx tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mkdir -p .codex-fabric'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk date -u +%Y-%m-%dT%H:%M:%SZ'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git show --format= --numstat HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk python -m json.tool .codex-fabric/audit.json >/dev/null && rtk git diff --check && rtk git add .codex-fabric/audit.json && rtk git commit -m \"chore(k-slide): record KSA-24 audit evidence\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git log --oneline --decorate -4 && rtk git rev-parse origin/main && rtk git merge-base --is-ancestor 004cbcf3e2d36ea3bbb985868e57b59cbc645c6c HEAD; rtk git merge-base --is-ancestor 9e8867faea640377bcd4bc2acef62cd74a28f856 23863c6; rtk git rev-parse 23863c6''^; rtk git diff --check 004cbcf3e2d36ea3bbb985868e57b59cbc645c6c..HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.155.1",
+    "configured_model": "gpt-5.6-luna",
+    "event_count": 183,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.31,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 12913920,
+      "fresh_input_tokens": 357355,
+      "input_tokens": 13271275,
+      "non_reasoning_output_tokens": 35780,
+      "output_tokens": 53981,
+      "reasoning_output_tokens": 18201,
+      "total_processed_tokens": 13325256
+    },
+    "warnings": []
+  },
+  "commits": [],
+  "diff": null,
+  "error_code": "WRONG_WORK_BRANCH",
+  "evidence_manifest": {
+    "count": 0,
+    "items": [],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.4-quota-recovery-candidate",
+  "fabric_capture": null,
+  "fabric_release": "1.2.4-quota-recovery-candidate",
+  "failure_class": "CONTROL_PLANE",
+  "finished_at": "2026-09-22T03:26:24Z",
+  "git": {},
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-3cce2fd4a3ed3ba844c3081e",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-modality-conformance-01-fix02",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-modality-conformance-01-fix02"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.4-quota-recovery-candidate",
+    "policy_sha256": "a642c9f63bab2cb555704bdb0b9d1f28222591f133f934c1d0f93cc5a25ab8a1",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": true,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-modality-conformance-01-fix02",
+  "schema_version": 1,
+  "started_at": "2026-09-22T03:05:01Z",
+  "status": "FAILED_INFRA",
+  "timing": {
+    "execution_seconds": 1283,
+    "queue_seconds": 0,
+    "total_seconds": 1283
+  },
+  "transport": {
+    "bytes": 7134,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 6803,
+    "prompt_sha256": "193d4010485f444ac3c1602e608a1da0633ac989df2d5c764abe4b70a057c6cd",
+    "sha256": "3cce2fd4a3ed3ba844c3081e8ff0fd46f3eca53580feb53598bdca19f788ce6a"
+  }
+}
