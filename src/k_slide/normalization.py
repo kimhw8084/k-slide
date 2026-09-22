@@ -196,29 +196,110 @@ def _iter_shapes(shapes: Any, prefix: str = "") -> list[tuple[str, Any]]:
     return result
 
 
+def _enum_name(value: Any, default: str = "unknown") -> str:
+    name = getattr(value, "name", None)
+    if not name:
+        name = str(value)
+    name = str(name).split("(", 1)[0].strip().lower()
+    return name or default
+
+
+def _safe_shape_text(shape: Any) -> str | None:
+    if not getattr(shape, "has_text_frame", False):
+        return None
+    try:
+        return "\n".join(paragraph.text for paragraph in shape.text_frame.paragraphs)
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def _axis_text(axis: Any) -> str | None:
+    try:
+        return axis.axis_title.text_frame.text if axis.has_title else None
+    except (AttributeError, ValueError):
+        return None
+
+
 def _chart_metadata(shape: Any) -> dict[str, Any] | None:
     if not getattr(shape, "has_chart", False):
         return None
     chart = shape.chart
-    value: dict[str, Any] = {"chart_type": str(getattr(chart, "chart_type", "unknown"))}
+    value: dict[str, Any] = {"structure_version": "1.0", "chart_type": _enum_name(getattr(chart, "chart_type", "unknown"))}
     try:
         value["title"] = chart.chart_title.text_frame.text if chart.has_title else None
     except (AttributeError, ValueError):
         value["title"] = None
     series_values: list[dict[str, Any]] = []
-    for series in getattr(chart, "series", []):
-        item: dict[str, Any] = {"name": str(getattr(series, "name", ""))}
+    for series_index, series in enumerate(getattr(chart, "series", [])):
+        name = getattr(series, "name", "")
+        item: dict[str, Any] = {"series_index": series_index, "name": str(name) if name is not None else ""}
         try:
-            item["values"] = [float(number) if number is not None else None for number in series.values]
+            raw_values = list(series.values)
+            points = []
+            for index, number in enumerate(raw_values):
+                if number is None or number == "":
+                    points.append({"point_index": index, "value": None, "is_blank": True})
+                else:
+                    points.append({"point_index": index, "value": float(number), "is_blank": False})
+            item["points"] = points
+            # Keep the legacy field for readers written before KSA-24.
+            item["values"] = [point["value"] for point in points]
         except (AttributeError, TypeError, ValueError):
+            item["points"] = []
             item["values"] = []
         series_values.append(item)
     value["series"] = series_values
+    value["series_order"] = [item["name"] for item in series_values]
     try:
-        value["categories"] = [str(category) for category in chart.plots[0].categories]
+        value["categories"] = [None if category is None else str(category) for category in chart.plots[0].categories]
     except (AttributeError, IndexError, TypeError):
         value["categories"] = []
+    try:
+        category_axis = chart.category_axis
+        value_axis = chart.value_axis
+        value["axis_labels"] = {"category": _axis_text(category_axis), "value": _axis_text(value_axis)}
+        value["unit_labels"] = {"category": None, "value": getattr(value_axis.tick_labels, "number_format", None)}
+    except (AttributeError, ValueError):
+        value["axis_labels"] = {"category": None, "value": None}
+        value["unit_labels"] = {"category": None, "value": None}
     return value
+
+
+def _table_header_flags(table: Any) -> tuple[bool | None, bool | None]:
+    """Read explicit PowerPoint first-row/first-column table semantics."""
+
+    try:
+        properties = table._tbl.tblPr
+        def flag(name: str) -> bool | None:
+            value = properties.get(name)
+            if value is None:
+                return None
+            return str(value).lower() in {"1", "true", "on"}
+        return flag("firstRow"), flag("firstCol")
+    except (AttributeError, TypeError, ValueError):
+        return None, None
+
+
+def _connector_endpoints(shape: Any, source_ids_by_shape_id: dict[int, str]) -> dict[str, Any] | None:
+    try:
+        element = shape._element
+        properties = next((item for item in element.iter() if item.tag.rsplit("}", 1)[-1] == "cNvCxnSpPr"), None)
+        if properties is None:
+            return None
+        values: dict[str, int] = {}
+        for child in properties:
+            local = child.tag.rsplit("}", 1)[-1]
+            if local in {"stCxn", "endCxn"} and child.get("id") is not None:
+                values[local] = int(child.get("id"))
+        if "stCxn" not in values or "endCxn" not in values:
+            return None
+        start = source_ids_by_shape_id.get(values["stCxn"])
+        end = source_ids_by_shape_id.get(values["endCxn"])
+        if not start or not end:
+            return None
+        return {"from_element_id": start, "to_element_id": end, "start_shape_id": values["stCxn"], "end_shape_id": values["endCxn"]}
+    except (AttributeError, TypeError, ValueError):
+        return None
 
 
 def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, rendered_pages: list[Path]) -> list[DocumentUnit]:
@@ -249,21 +330,72 @@ def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, r
         except (ImportError, OSError) as exc:
             raise KSlideError(ErrorCode.PPTX_RENDER_UNAVAILABLE, "Unable to inspect the canonical PPTX render dimensions.", {"input": source.name}) from exc
         objects: list[dict[str, Any]] = []
-        for shape_index, shape in _iter_shapes(slide.shapes):
-            item: dict[str, Any] = {"source_id": f"{work_unit_id}-shape-{shape_index}", "shape_type": str(getattr(shape, "shape_type", "unknown")), "bbox_px": list(_shape_bbox(shape, slide_width_emu, slide_height_emu, render_width, render_height))}
-            if getattr(shape, "has_text_frame", False):
-                item["text"] = "\n".join(paragraph.text for paragraph in shape.text_frame.paragraphs)
+        shape_records = _iter_shapes(slide.shapes)
+        source_ids_by_shape_id = {
+            int(getattr(shape, "shape_id")): f"{work_unit_id}-shape-{shape_index}"
+            for shape_index, shape in shape_records
+            if getattr(shape, "shape_id", None) is not None
+        }
+        for shape_index, shape in shape_records:
+            source_id = f"{work_unit_id}-shape-{shape_index}"
+            shape_type = _enum_name(getattr(shape, "shape_type", "unknown"))
+            item: dict[str, Any] = {
+                "source_id": source_id,
+                "shape_id": getattr(shape, "shape_id", None),
+                "shape_type": shape_type,
+                "bbox_px": list(_shape_bbox(shape, slide_width_emu, slide_height_emu, render_width, render_height)),
+            }
+            text = _safe_shape_text(shape)
+            if text is not None:
+                item["text"] = text
             if getattr(shape, "has_table", False):
                 table = shape.table
+                first_row, first_column = _table_header_flags(table)
                 cells = []
                 for row_index in range(len(table.rows)):
                     for column_index in range(len(table.columns)):
                         cell = table.cell(row_index, column_index)
-                        cells.append({"cell_id": f"{work_unit_id}-table-{shape_index}-r{row_index + 1:02d}-c{column_index + 1:02d}", "row": row_index, "column": column_index, "text": cell.text, "rowspan": int(getattr(cell, "span_height", 1) or 1), "colspan": int(getattr(cell, "span_width", 1) or 1), "is_merge_origin": bool(getattr(cell, "is_merge_origin", False)), "is_spanned": bool(getattr(cell, "is_spanned", False))})
-                item["table"] = {"row_count": len(table.rows), "column_count": len(table.columns), "cells": cells}
+                        is_origin = bool(getattr(cell, "is_merge_origin", False))
+                        is_spanned = bool(getattr(cell, "is_spanned", False))
+                        is_blank = not is_spanned and not bool(cell.text)
+                        state = "merge_continuation" if is_spanned else ("merge_origin" if is_origin else ("blank" if is_blank else "nonblank"))
+                        is_header = None
+                        if first_row is not None and row_index == 0:
+                            is_header = first_row
+                        if first_column is not None and column_index == 0:
+                            is_header = bool(is_header or first_column)
+                        rowspan = int(getattr(cell, "span_height", 1) or 1) if not is_spanned else 1
+                        colspan = int(getattr(cell, "span_width", 1) or 1) if not is_spanned else 1
+                        cells.append({
+                            "cell_id": f"{work_unit_id}-table-{shape_index}-r{row_index + 1:02d}-c{column_index + 1:02d}",
+                            "row": row_index,
+                            "column": column_index,
+                            "text": None if is_spanned else cell.text,
+                            "rowspan": rowspan,
+                            "colspan": colspan,
+                            "is_merge_origin": is_origin,
+                            "is_spanned": is_spanned,
+                            "is_blank": is_blank,
+                            "is_header": is_header,
+                        })
+                headers = [cell["text"] for cell in cells if cell["is_header"] is True and cell["text"]]
+                item["table"] = {
+                    "row_count": len(table.rows),
+                    "column_count": len(table.columns),
+                    "cells": cells,
+                    "first_row_header": first_row,
+                    "first_column_header": first_column,
+                    "header_rows": [0] if first_row is True else [],
+                    "header_columns": [0] if first_column is True else [],
+                    "headers": headers,
+                }
             chart = _chart_metadata(shape)
             if chart is not None:
                 item["chart"] = chart
+            if shape_type in {"connector", "line"}:
+                connector = _connector_endpoints(shape, source_ids_by_shape_id)
+                if connector is not None:
+                    item["connector"] = connector
             objects.append(item)
         native_path = storage_path(run_dir, StorageArtifact.NATIVE_EXTRACTION, f"native/{work_unit_id}.json", create_parent=True)
         atomic_write_json(native_path, {"provider": "python-pptx", "slide_index": slide_index, "slide_width_px": render_width, "slide_height_px": render_height, "objects": objects}, mode=0o600)

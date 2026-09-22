@@ -9,6 +9,7 @@ from typing import Any
 _TOKEN = re.compile(
     r"(?<![A-Za-z0-9가-힣])"
     r"(?P<sign>[+\-▲▼]?)\s*"
+    r"(?P<prefix>\$|€|¥|₩|USD|KRW|EUR|JPY)?\s*"
     r"(?P<open>\(?\s*)"
     r"(?P<number>\d[\d,]*(?:\.\d+)?)"
     r"(?P<close>\s*\)?)"
@@ -76,10 +77,20 @@ def extract_numeric_facts(
     facts: list[dict[str, Any]] = []
     matches: list[tuple[int, str, float | None, str | None, str, str]] = []
     for match in _TOKEN.finditer(text):
+        prefix = match.group("prefix")
         unit_display = match.group("unit")
         unit = _normal_unit(unit_display)
         raw = float(match.group("number").replace(",", ""))
         factor, quantity, currency = _UNIT_INFO.get(unit or "", (1.0, "number", None))
+        prefix_currency = {"$": "USD", "€": "EUR", "¥": "JPY", "₩": "KRW"}.get(prefix or "", prefix)
+        if prefix_currency:
+            currency = prefix_currency
+            if quantity == "number":
+                quantity = "currency"
+        if prefix and unit_display:
+            unit_display = f"{prefix} {unit_display}"
+        elif prefix:
+            unit_display = prefix
         canonical = raw * factor
         direction = _direction(match.group("sign"), match.group("open"), unit)
         matches.append((match.start(), match.group(0), canonical, unit_display, quantity, direction or ""))

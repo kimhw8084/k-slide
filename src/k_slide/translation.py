@@ -10,6 +10,7 @@ from typing import Any
 from .errors import ErrorCode, KSlideError
 from .evidence_ir import EvidenceIR, stable_revision
 from .ir import CoverageEntry, NumericFact, SlideIR, TableCell, TableIR, TextRegion, VisualRelation
+from .modality import classify_source_language, decision_bearing_status, modality_mismatch, source_english_spans
 from .semantics import ClaimKind, CommitmentStatus, CoverageStatus, ProvenanceState, RelationDirection, RelationType, SpeechAct, Uncertainty, enum_value
 from .translation_contract import (
     CELL_OPTIONAL_FIELDS,
@@ -147,6 +148,122 @@ def _validate_table_cell_evidence_binding(
         raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, f"{label} provenance must cite its exact EvidenceIR cell ID.", {"cell_id": cell_id})
 
 
+def _region_source_language(source: Any) -> str:
+    return source.language or classify_source_language(source.selected_literal_candidate)
+
+
+def _cell_source_language(source: Any) -> str:
+    return source.source_language or classify_source_language(source.source_text)
+
+
+def _structural_blank(source: Any) -> bool:
+    return source.cell_state in {"blank", "merge_continuation"} or source.is_blank is True or source.source_text in (None, "")
+
+
+def _chart_elements(evidence: EvidenceIR, source_element_ids: tuple[str, ...]) -> list[dict[str, Any]]:
+    requested = set(source_element_ids)
+    return [
+        item for item in evidence.visual_elements
+        if isinstance(item, dict) and item.get("element_id") in requested and item.get("kind") == "chart" and isinstance(item.get("chart"), dict)
+    ]
+
+
+def _connector_direction(connector: dict[str, Any], elements: dict[str, dict[str, Any]]) -> str | None:
+    start = elements.get(str(connector.get("from_element_id")))
+    end = elements.get(str(connector.get("to_element_id")))
+    if not start or not end:
+        return None
+    try:
+        start_box = [float(value) for value in start["bbox_px"]]
+        end_box = [float(value) for value in end["bbox_px"]]
+        start_center = ((start_box[0] + start_box[2]) / 2, (start_box[1] + start_box[3]) / 2)
+        end_center = ((end_box[0] + end_box[2]) / 2, (end_box[1] + end_box[3]) / 2)
+    except (KeyError, TypeError, ValueError):
+        return None
+    dx = end_center[0] - start_center[0]
+    dy = end_center[1] - start_center[1]
+    if abs(dx) >= abs(dy) and dx != 0:
+        return "left_to_right" if dx > 0 else "right_to_left"
+    if dy != 0:
+        return "top_to_bottom" if dy > 0 else "bottom_to_top"
+    return "none"
+
+
+def _source_fact_connector_relation(relation: dict[str, Any], evidence: EvidenceIR) -> bool:
+    source_ids = tuple(relation.get("source_element_ids", []))
+    elements = {str(item.get("element_id")): item for item in evidence.visual_elements if isinstance(item, dict) and item.get("element_id")}
+    for connector_id in source_ids:
+        connector_element = elements.get(connector_id)
+        connector = connector_element.get("connector") if connector_element else None
+        if not isinstance(connector, dict):
+            continue
+        start = str(connector.get("from_element_id", ""))
+        end = str(connector.get("to_element_id", ""))
+        if not start or not end or start not in source_ids or end not in source_ids:
+            continue
+        if source_ids[:2] != (start, end):
+            # Endpoint order is semantic; a reversed source list is not the
+            # same edge even when the same connector is cited.
+            continue
+        direction = relation.get("direction")
+        expected_direction = _connector_direction(connector, elements)
+        if direction is not None and expected_direction is not None and direction != expected_direction:
+            continue
+        return True
+    return False
+
+
+def _chart_values(chart: dict[str, Any]) -> list[float]:
+    values: list[float] = []
+    for series in chart.get("series", []):
+        points = series.get("points") if isinstance(series, dict) else None
+        if not isinstance(points, list):
+            points = [{"value": value} for value in series.get("values", [])] if isinstance(series, dict) else []
+        values.extend(float(point["value"]) for point in points if isinstance(point, dict) and isinstance(point.get("value"), (int, float)) and not isinstance(point.get("value"), bool))
+    return values
+
+
+def _chart_trend(chart: dict[str, Any]) -> str | None:
+    trends: set[str] = set()
+    for series in chart.get("series", []):
+        points = series.get("points") if isinstance(series, dict) else None
+        if not isinstance(points, list):
+            points = [{"value": value} for value in series.get("values", [])] if isinstance(series, dict) else []
+        if any(not isinstance(point, dict) or point.get("value") is None or point.get("is_blank") is True for point in points):
+            return None
+        values = [float(point["value"]) for point in points if isinstance(point, dict) and isinstance(point.get("value"), (int, float)) and not isinstance(point.get("value"), bool)]
+        if len(values) < 2:
+            continue
+        if all(left <= right for left, right in zip(values, values[1:])) and any(left < right for left, right in zip(values, values[1:])):
+            trends.add("increasing")
+        elif all(left >= right for left, right in zip(values, values[1:])) and any(left > right for left, right in zip(values, values[1:])):
+            trends.add("decreasing")
+    if len(trends) == 1:
+        return next(iter(trends))
+    return None
+
+
+def _validate_chart_interpretation(relation: dict[str, Any], charts: list[dict[str, Any]]) -> None:
+    interpretation = str(relation.get("interpretation", ""))
+    lowered = interpretation.casefold()
+    upward = bool(re.search(r"\b(increas(?:e|ed|ing)|ris(?:e|en|ing)|grew|growth|upward|up)\b", lowered))
+    downward = bool(re.search(r"\b(decreas(?:e|ed|ing)|fall(?:en|ing)?|declin(?:e|ed|ing)|downward|down)\b", lowered))
+    if upward and downward:
+        return
+    for chart_element in charts:
+        chart = chart_element["chart"]
+        proven_trend = _chart_trend(chart)
+        if proven_trend == "increasing" and downward:
+            raise KSlideError(ErrorCode.CHART_INTERPRETATION_MISMATCH, "Chart interpretation reverses the engine-proven increasing trend.", {"element_id": chart_element.get("element_id")})
+        if proven_trend == "decreasing" and upward:
+            raise KSlideError(ErrorCode.CHART_INTERPRETATION_MISMATCH, "Chart interpretation reverses the engine-proven decreasing trend.", {"element_id": chart_element.get("element_id")})
+        values = _chart_values(chart)
+        if values and re.search(r"\b(?:value|values|at|from|to|of|was|is)\s+\$?\d+(?:\.\d+)?", lowered):
+            mentioned = [float(value) for value in re.findall(r"\b(?:value|values|at|from|to|of|was|is)\s+\$?(\d+(?:\.\d+)?)", lowered)]
+            if any(value not in values for value in mentioned):
+                raise KSlideError(ErrorCode.CHART_INTERPRETATION_MISMATCH, "Chart interpretation contains a value not present in engine chart evidence.", {"element_id": chart_element.get("element_id")})
+
+
 @dataclass(frozen=True)
 class TranslationRegionPatch:
     region_id: str
@@ -248,7 +365,10 @@ class TranslationPatch:
             seen_regions.add(patch.region_id)
             if patch.region_id not in region_map:
                 raise KSlideError(ErrorCode.UNKNOWN_REGION, "TranslationPatch references an unknown region.", {"region_id": patch.region_id})
-            if not isinstance(patch.english, str) or not patch.english.strip():
+            source = region_map[patch.region_id]
+            source_text = source.selected_literal_candidate
+            source_language = _region_source_language(source)
+            if not isinstance(patch.english, str) or (not patch.english.strip() and source_text is not None and source_text.strip()):
                 raise KSlideError(ErrorCode.SCHEMA_INVALID, "Every translated region needs non-empty English.", {"region_id": patch.region_id})
             if patch.unresolved and not patch.unresolved_reason:
                 raise KSlideError(ErrorCode.SCHEMA_INVALID, "Unresolved regions require an explicit reason.", {"region_id": patch.region_id})
@@ -257,6 +377,17 @@ class TranslationPatch:
             if patch.speech_act is not None:
                 enum_value(patch.speech_act, SpeechAct, "speech_act")
             evidence_ids = tuple(patch.evidence_ids if patch.evidence_ids is not None else (patch.region_id,))
+            if decision_bearing_status(patch.commitment_status) and (patch.evidence_ids is None or patch.region_id not in evidence_ids):
+                raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Decision-bearing commitment classifications require explicit direct evidence linkage.", {"region_id": patch.region_id})
+            mismatch = modality_mismatch(source_text, patch.commitment_status, patch.speech_act)
+            if mismatch:
+                raise KSlideError(ErrorCode.MODALITY_MISMATCH, mismatch, {"region_id": patch.region_id})
+            if source_language == "en" and source_text is not None and patch.english != source_text:
+                raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Pure-English source regions must preserve literal source text.", {"region_id": patch.region_id})
+            protected_spans = source.source_english_spans or source_english_spans(source_text)
+            missing_spans = [span for span in protected_spans if span not in patch.english]
+            if missing_spans:
+                raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Mixed-language source-English spans must survive translation.", {"region_id": patch.region_id, "spans": missing_spans})
             _validate_provenance(
                 patch.provenance,
                 evidence_ids,
@@ -288,10 +419,21 @@ class TranslationPatch:
                 seen_cells.add(cell_patch.cell_id)
                 if cell_patch.cell_id not in cells:
                     raise KSlideError(ErrorCode.UNKNOWN_TABLE_CELL, "TranslationPatch references an unknown table cell.", {"cell_id": cell_patch.cell_id})
-                if not cell_patch.english.strip():
-                    raise KSlideError(ErrorCode.SCHEMA_INVALID, "Every translated table cell needs non-empty English.", {"cell_id": cell_patch.cell_id})
+                source_cell = cells[cell_patch.cell_id]
+                source_language = _cell_source_language(source_cell)
+                structural_blank = _structural_blank(source_cell)
+                if not cell_patch.english.strip() and not structural_blank:
+                    raise KSlideError(ErrorCode.SCHEMA_INVALID, "Every nonblank translated table cell needs non-empty English.", {"cell_id": cell_patch.cell_id})
+                if structural_blank and cell_patch.english != "":
+                    raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Blank and merge-continuation table cells cannot receive invented content.", {"cell_id": cell_patch.cell_id})
                 if cell_patch.unresolved and not cell_patch.unresolved_reason:
                     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Unresolved table cells require an explicit reason.", {"cell_id": cell_patch.cell_id})
+                if source_language == "en" and source_cell.source_text is not None and cell_patch.english != source_cell.source_text:
+                    raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Pure-English table cells must preserve literal source text.", {"cell_id": cell_patch.cell_id})
+                protected_spans = source_cell.source_english_spans or source_english_spans(source_cell.source_text)
+                missing_spans = [span for span in protected_spans if span not in cell_patch.english]
+                if missing_spans:
+                    raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Mixed-language table source-English spans must survive translation.", {"cell_id": cell_patch.cell_id, "spans": missing_spans})
                 evidence_ids = tuple(cell_patch.evidence_ids if cell_patch.evidence_ids is not None else (cell_patch.cell_id,))
                 _validate_table_cell_evidence_binding(cell_patch.cell_id, table, evidence_ids, label=f"Table cell {cell_patch.cell_id}")
                 _validate_provenance(
@@ -315,18 +457,23 @@ class TranslationPatch:
             _only_fields(relation, _MODEL_RELATION_FIELDS, "visual interpretation")
             _id(relation.get("relation_id"), "relation_id")
             evidence_ids = _string_list(relation.get("evidence_ids", []), "visual interpretation evidence_ids")
+            source_element_ids = _string_list(relation.get("source_element_ids", []), "visual interpretation source_element_ids")
+            unknown_elements = sorted(set(source_element_ids) - valid_source_ids)
+            if unknown_elements:
+                raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Visual interpretation references unknown source elements.", {"source_element_ids": unknown_elements})
+            charts = _chart_elements(evidence, source_element_ids)
+            for chart in charts:
+                if chart.get("element_id") not in evidence_ids:
+                    raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Chart interpretations must cite the current engine chart evidence ID.", {"element_id": chart.get("element_id")})
+            source_fact_allowed = _source_fact_connector_relation(relation, evidence)
             _validate_provenance(
                 relation.get("provenance"),
                 evidence_ids,
                 evidence,
                 label=f"Visual interpretation {relation.get('relation_id')}",
                 unresolved_reason=relation.get("unresolved_reason"),
-                source_fact_allowed=False,
+                source_fact_allowed=source_fact_allowed,
             )
-            source_element_ids = _string_list(relation.get("source_element_ids", []), "visual interpretation source_element_ids")
-            unknown_elements = sorted(set(source_element_ids) - valid_source_ids)
-            if unknown_elements:
-                raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Visual interpretation references unknown source elements.", {"source_element_ids": unknown_elements})
             if relation.get("relation_type") is not None:
                 enum_value(relation.get("relation_type"), RelationType, "relation_type")
             if relation.get("direction") is not None:
@@ -334,6 +481,8 @@ class TranslationPatch:
             retention = relation.get("hangul_retention")
             if retention is not None and (not isinstance(retention, dict) or retention.get("evidence_id") not in valid_source_ids):
                 raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Hangul retention references unknown evidence.")
+            if charts:
+                _validate_chart_interpretation(relation, charts)
         seen_claims: set[str] = set()
         for claim in self.executive_claims:
             _only_fields(claim, _MODEL_CLAIM_FIELDS, "executive claim")
@@ -481,8 +630,9 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
             ocr_candidates=list(source.ocr_candidates),
             selected_source_text=source.selected_literal_candidate,
             source_language=source.language,
+            source_english_spans=list(source.source_english_spans),
             source_confidence=source.literal_confidence,
-            translation=item.english,
+            translation=source.selected_literal_candidate if _region_source_language(source) == "en" and source.selected_literal_candidate is not None else item.english,
             evidence_sources=provenance_evidence_ids,
             provenance=provenance,
             provenance_evidence_ids=provenance_evidence_ids,
@@ -506,9 +656,16 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
                 row=cell.row,
                 column=cell.column,
                 source_text=cell.source_text,
-                translation=patch_cell.english,
+                translation=cell.source_text if _cell_source_language(cell) == "en" and cell.source_text is not None else patch_cell.english,
                 rowspan=cell.rowspan,
                 colspan=cell.colspan,
+                source_language=cell.source_language,
+                source_english_spans=list(cell.source_english_spans),
+                cell_state=cell.cell_state,
+                is_merge_origin=cell.is_merge_origin,
+                is_spanned=cell.is_spanned,
+                is_blank=cell.is_blank,
+                is_header=cell.is_header,
                 evidence_region_ids=list(cell.evidence_region_ids),
                 numeric_fact_ids=list(cell.numeric_fact_ids),
                 unresolved=patch_cell.unresolved,
@@ -516,7 +673,7 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
                 provenance=provenance,
                 provenance_evidence_ids=provenance_evidence_ids,
             ))
-        tables.append(TableIR(table_id=source_table.table_id, bbox=list(source_table.bbox_px), row_count=source_table.row_count, column_count=source_table.column_count, headers=list(source_table.headers), cells=cells))
+        tables.append(TableIR(table_id=source_table.table_id, bbox=list(source_table.bbox_px), row_count=source_table.row_count, column_count=source_table.column_count, headers=list(source_table.headers), header_rows=list(source_table.header_rows), header_columns=list(source_table.header_columns), unit=source_table.unit, source_notes=list(source_table.source_notes), cells=cells))
     numeric_facts = [NumericFact(**item) for item in evidence.numeric_facts if isinstance(item, dict)]
     relations = [VisualRelation(
         relation_id=str(item["relation_id"]),

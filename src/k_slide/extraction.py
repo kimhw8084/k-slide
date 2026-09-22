@@ -22,6 +22,7 @@ from .runtime import discover_runtime
 from .storage import StorageArtifact, storage_path
 from .state import RunPhase, load_state, save_state
 from .redaction import safe_diagnostic_text_or_placeholder
+from .modality import classify_source_language, source_english_spans
 
 
 CROP_PADDING = 0.10
@@ -72,7 +73,9 @@ def _crop_regions(run_dir: Path, unit: Any, native_items: list[dict[str, Any]]) 
         native_candidates = ({"text": str(text), "confidence": 1.0, "source": "native"},) if text and native_source else ()
         normalized = (crop_box[0] / width, crop_box[1] / height, crop_box[2] / width, crop_box[3] / height)
         durable_root = Path(run_dir).resolve()
-        regions.append(EvidenceRegion(region_id=region_id, bbox_px=crop_box, bbox_normalized=normalized, reading_order=order, region_type=str(item.get("region_type", "TEXT" if text else "IMAGE")), native_text_candidates=native_candidates, selected_literal_candidate=str(text) if text and native_source else None, literal_confidence=1.0 if text and native_source else None, language="ko" if text else None, crop_original_path=str(original_path.relative_to(durable_root)), crop_model_path=str(model_path.relative_to(durable_root)), required_for_translation=True))
+        literal = str(text) if text is not None and native_source else None
+        language = classify_source_language(literal)
+        regions.append(EvidenceRegion(region_id=region_id, bbox_px=crop_box, bbox_normalized=normalized, reading_order=order, region_type=str(item.get("region_type", "TEXT" if text else "IMAGE")), native_text_candidates=native_candidates, selected_literal_candidate=literal, literal_confidence=1.0 if literal is not None else None, language=language, source_english_spans=source_english_spans(literal), crop_original_path=str(original_path.relative_to(durable_root)), crop_model_path=str(model_path.relative_to(durable_root)), required_for_translation=True))
     return regions
 
 
@@ -102,6 +105,30 @@ def _unit_native(run_dir: Path, unit: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _bind_table_unit(fact: dict[str, Any], unit: str | None) -> None:
+    """Bind a native table unit to otherwise unit-less numeric cell facts."""
+
+    if not unit or fact.get("source_unit") is not None or fact.get("raw_value") is None:
+        return
+    normalized = unit.casefold()
+    factor = 1.0
+    if "trillion" in normalized or "조" in normalized:
+        factor = 10**12
+    elif "billion" in normalized or "억" in normalized:
+        factor = 10**9
+    elif "million" in normalized or "백만" in normalized:
+        factor = 10**6
+    elif "thousand" in normalized or "천" in normalized:
+        factor = 10**3
+    currency = next((value for value in ("USD", "KRW", "EUR", "JPY") if value.casefold() in normalized), None)
+    fact["source_unit"] = unit
+    fact["scale_factor"] = float(fact.get("scale_factor") or 1.0) * factor
+    fact["canonical_value"] = float(fact["raw_value"]) * fact["scale_factor"]
+    if currency:
+        fact["currency"] = currency
+        fact["semantic_quantity"] = "currency"
+
+
 def _tables(unit: Any, native_items: list[dict[str, Any]]) -> tuple[tuple[EvidenceTable, ...], list[dict[str, Any]]]:
     tables: list[EvidenceTable] = []
     facts: list[dict[str, Any]] = []
@@ -110,15 +137,57 @@ def _tables(unit: Any, native_items: list[dict[str, Any]]) -> tuple[tuple[Eviden
         if not isinstance(table_value, dict):
             continue
         table_id = f"{item.get('source_id', f'{unit.work_unit_id}-table-001')}-table"
+        unit_value = table_value.get("unit", table_value.get("units", table_value.get("unit_label")))
+        if isinstance(unit_value, (list, tuple)):
+            unit_value = ", ".join(str(value) for value in unit_value)
+        unit_text = str(unit_value) if isinstance(unit_value, str) and unit_value else None
         raw_cells = [cell for cell in table_value.get("cells", []) if isinstance(cell, dict) and "cell_id" in cell]
         cell_values: list[EvidenceTableCell] = []
         for cell in raw_cells:
             cell_id = str(cell["cell_id"])
             cell_facts = extract_numeric_facts(cell.get("text"), source_object_id=cell_id, source_table_id=table_id, source_cell_id=cell_id)
+            for fact in cell_facts:
+                _bind_table_unit(fact, unit_text)
             facts.extend(cell_facts)
-            cell_values.append(EvidenceTableCell(cell_id=cell_id, row=int(cell["row"]), column=int(cell["column"]), rowspan=int(cell.get("rowspan", 1) or 1), colspan=int(cell.get("colspan", 1) or 1), source_text=cell.get("text"), numeric_fact_ids=tuple(item["fact_id"] for item in cell_facts), required_for_translation=True))
+            text = cell.get("text")
+            is_spanned = bool(cell.get("is_spanned", False))
+            is_origin = bool(cell.get("is_merge_origin", False))
+            is_blank = bool(cell.get("is_blank", not is_spanned and not bool(text)))
+            state = str(cell.get("cell_state") or ("merge_continuation" if is_spanned else ("merge_origin" if is_origin else ("blank" if is_blank else "nonblank"))))
+            cell_values.append(EvidenceTableCell(
+                cell_id=cell_id,
+                row=int(cell["row"]),
+                column=int(cell["column"]),
+                rowspan=int(cell.get("rowspan", 1) or 1),
+                colspan=int(cell.get("colspan", 1) or 1),
+                source_text=text,
+                source_language=classify_source_language(text),
+                source_english_spans=source_english_spans(text),
+                cell_state=state,
+                is_merge_origin=is_origin,
+                is_spanned=is_spanned,
+                is_blank=is_blank,
+                is_header=cell.get("is_header"),
+                numeric_fact_ids=tuple(item["fact_id"] for item in cell_facts),
+                required_for_translation=True,
+            ))
         cells = tuple(cell_values)
-        tables.append(EvidenceTable(table_id=table_id, row_count=int(table_value.get("row_count", 0)), column_count=int(table_value.get("column_count", 0)), cells=cells))
+        header_rows_value = table_value.get("header_rows", [0] if table_value.get("first_row_header") is True else [])
+        header_columns_value = table_value.get("header_columns", [0] if table_value.get("first_column_header") is True else [])
+        header_rows = tuple(int(value) for value in header_rows_value if isinstance(value, int) and not isinstance(value, bool))
+        header_columns = tuple(int(value) for value in header_columns_value if isinstance(value, int) and not isinstance(value, bool))
+        headers_value = table_value.get("headers")
+        if not isinstance(headers_value, list):
+            headers_value = [cell.get("text") for cell in raw_cells if cell.get("is_header") is True and cell.get("text")]
+        headers = tuple(str(value) for value in headers_value if isinstance(value, str))
+        notes_value = table_value.get("source_notes", table_value.get("footnotes", table_value.get("notes", [])))
+        if isinstance(notes_value, str):
+            notes = (notes_value,) if notes_value.strip() else ()
+        elif isinstance(notes_value, (list, tuple)):
+            notes = tuple(str(value) for value in notes_value if isinstance(value, str) and value.strip())
+        else:
+            notes = ()
+        tables.append(EvidenceTable(table_id=table_id, row_count=int(table_value.get("row_count", 0)), column_count=int(table_value.get("column_count", 0)), headers=headers, header_rows=header_rows, header_columns=header_columns, unit=unit_text, source_notes=notes, cells=cells))
     return tuple(tables), facts
 
 
@@ -206,7 +275,7 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None, ocr_p
                 for region in regions:
                     candidates = ocr_by_region[region.region_id]
                     selected, confidence, evidence_state = fuse_literal_evidence(list(region.native_text_candidates), candidates)
-                    updated = EvidenceRegion(**{**region.__dict__, "ocr_candidates": tuple(candidates), "selected_literal_candidate": selected, "literal_confidence": confidence, "evidence_state": evidence_state})
+                    updated = EvidenceRegion(**{**region.__dict__, "ocr_candidates": tuple(candidates), "selected_literal_candidate": selected, "literal_confidence": confidence, "evidence_state": evidence_state, "language": classify_source_language(selected), "source_english_spans": source_english_spans(selected)})
                     fused_regions.append(updated)
                 regions = fused_regions
                 for region in regions:
@@ -221,12 +290,34 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None, ocr_p
                 context_id = f"{unit.work_unit_id}-visual-context"
                 visual_values: list[dict[str, Any]] = [{"element_id": context_id, "kind": "context_image", "path": unit.canonical_render_path, "sha256": unit.render_sha256, "bbox_px": [0, 0, unit.width_px, unit.height_px], "required": True}]
                 for native_item in native_items:
-                    chart = native_item.get("chart") if isinstance(native_item, dict) else None
-                    if isinstance(chart, dict) and native_item.get("source_id"):
-                        visual_values.append({"element_id": f"{native_item['source_id']}-chart", "kind": "chart", "source_id": native_item["source_id"], "chart": chart, "bbox_px": list(native_item.get("bbox_px", [0, 0, unit.width_px, unit.height_px])), "required": True})
+                    if not isinstance(native_item, dict) or not native_item.get("source_id"):
+                        continue
+                    source_id = str(native_item["source_id"])
+                    shape_type = str(native_item.get("shape_type", "shape"))
+                    kind = "connector" if isinstance(native_item.get("connector"), dict) else ("chart" if isinstance(native_item.get("chart"), dict) else "shape")
+                    visual: dict[str, Any] = {
+                        "element_id": source_id if kind != "chart" else f"{source_id}-chart",
+                        "kind": kind,
+                        "source_id": source_id,
+                        "shape_type": shape_type,
+                        "bbox_px": list(native_item.get("bbox_px", [0, 0, unit.width_px, unit.height_px])),
+                        "required": True,
+                    }
+                    if native_item.get("text") is not None:
+                        visual["source_text"] = native_item.get("text")
+                    if kind == "chart":
+                        visual["chart"] = native_item["chart"]
+                    if kind == "connector":
+                        visual["connector"] = native_item["connector"]
+                    visual_values.append(visual)
+                    if kind == "chart":
+                        # Preserve the shape identity as a separate stable node
+                        # so chart geometry and chart facts cannot be replaced by
+                        # a model-authored relation endpoint.
+                        visual_values.append({"element_id": source_id, "kind": "shape", "source_id": source_id, "shape_type": shape_type, "bbox_px": list(native_item.get("bbox_px", [0, 0, unit.width_px, unit.height_px])), "required": True})
                 visual_elements = tuple(visual_values)
                 required_source_ids.append(context_id)
-                source = {"input_id": unit.input_id, "document_id": document.document_id, "classification": input_classifications.get(unit.input_id, DEFAULT_CLASSIFICATION), "input_sha256": document.source_sha256, "page_or_slide_index": unit.source_index, "width_px": unit.width_px, "height_px": unit.height_px, "canonical_render_sha256": unit.render_sha256, "canonical_render_path": unit.canonical_render_path, "context_image_path": unit.canonical_render_path, "context_image_sha256": unit.render_sha256, "ocr_policy_requested": selection.requested, "ocr_provider_effective": selection.effective, "ocr_provider_version": selection.version}
+                source = {"input_id": unit.input_id, "document_id": document.document_id, "classification": input_classifications.get(unit.input_id, DEFAULT_CLASSIFICATION), "input_sha256": document.source_sha256, "page_or_slide_index": unit.source_index, "width_px": unit.width_px, "height_px": unit.height_px, "canonical_render_sha256": unit.render_sha256, "canonical_render_path": unit.canonical_render_path, "context_image_path": unit.canonical_render_path, "context_image_sha256": unit.render_sha256, "source_language_policy": "unicode-script-v1", "ocr_policy_requested": selection.requested, "ocr_provider_effective": selection.effective, "ocr_provider_version": selection.version}
                 evidence = EvidenceIR(document.document_id, unit.work_unit_id, source, tuple(regions), tables, tuple(facts), visual_elements, tuple(unit.native_evidence), tuple(required_source_ids)).with_revision()
                 save_evidence(run_dir, evidence)
                 evidence_values.append(evidence)
