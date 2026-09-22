@@ -1,146 +1,675 @@
 {
-  "schema_version": 1,
-  "kind": "codex-fabric-audit-evidence",
-  "operation": "BUILD",
-  "status": "EXECUTED_CHANGE",
-  "generated_at": "2026-09-22T22:08:17Z",
-  "project_id": "k-slide",
-  "request": "chg16-ksa24-f24-07-f24-08-region-required-english",
-  "job_id": "CF-k-slide-chg16-modality-conformance-01-fix06",
-  "candidate": {
-    "branch": "codex/k-slide-chg16-modality-conformance-01-fix06",
-    "base_merge_commit": "4cdc2d3a3162b8d811b899cac71953616fbcbdd3",
-    "target_base": "004cbcf3e2d36ea3bbb985868e57b59cbc645c6c",
-    "predecessor_fix05_candidate": "4fe51670670da5812e5c0ffc4bc0cd813763346c"
-  },
-  "ancestry": {
-    "base_merge_first_parent_is_exact_target_base": true,
-    "base_merge_second_parent_is_exact_fix05_candidate": true,
-    "fix05_candidate_is_descendant_of_target_base": true,
-    "fix05_candidate_ancestry_preserved": true,
-    "failed_fix01_fix02_retained_worktree_state_used": false,
-    "origin_main": "004cbcf3e2d36ea3bbb985868e57b59cbc645c6c",
-    "main_moved": false
-  },
+  "accepted_at": "2026-09-22T21:54:06Z",
   "changed_files": [
-    ".codex-fabric/audit.json",
-    "src/k_slide/modality.py",
-    "src/k_slide/translation.py",
-    "src/k_slide/verify.py",
-    "tests/test_ksa23_conflicts.py",
-    "tests/test_ksa24_f24_real_path.py",
-    "tests/test_ksa24_modality_conformance.py"
+    {
+      "additions": 146,
+      "deletions": 0,
+      "path": ".codex-fabric/audit.json",
+      "status": "A"
+    },
+    {
+      "additions": 13,
+      "deletions": 0,
+      "path": ".opencode/plugin/k-slide-host.ts",
+      "status": "M"
+    },
+    {
+      "additions": 20,
+      "deletions": 0,
+      "path": ".opencode/tools/kslide.ts",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 3,
+      "path": "schemas/evidence-ir.schema.json",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 4,
+      "path": "schemas/slide-ir.schema.json",
+      "status": "M"
+    },
+    {
+      "additions": 24,
+      "deletions": 0,
+      "path": "schemas/translation-patch.schema.json",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 110,
+      "deletions": 0,
+      "path": "src/k_slide/evidence_ir.py",
+      "status": "M"
+    },
+    {
+      "additions": 126,
+      "deletions": 10,
+      "path": "src/k_slide/extraction.py",
+      "status": "M"
+    },
+    {
+      "additions": 18,
+      "deletions": 0,
+      "path": "src/k_slide/ir.py",
+      "status": "M"
+    },
+    {
+      "additions": 302,
+      "deletions": 0,
+      "path": "src/k_slide/modality.py",
+      "status": "A"
+    },
+    {
+      "additions": 3,
+      "deletions": 2,
+      "path": "src/k_slide/model.py",
+      "status": "M"
+    },
+    {
+      "additions": 229,
+      "deletions": 11,
+      "path": "src/k_slide/normalization.py",
+      "status": "M"
+    },
+    {
+      "additions": 34,
+      "deletions": 2,
+      "path": "src/k_slide/numeric.py",
+      "status": "M"
+    },
+    {
+      "additions": 27,
+      "deletions": 4,
+      "path": "src/k_slide/rendering/reports.py",
+      "status": "M"
+    },
+    {
+      "additions": 424,
+      "deletions": 12,
+      "path": "src/k_slide/translation.py",
+      "status": "M"
+    },
+    {
+      "additions": 5,
+      "deletions": 2,
+      "path": "src/k_slide/translation_contract.py",
+      "status": "M"
+    },
+    {
+      "additions": 197,
+      "deletions": 9,
+      "path": "src/k_slide/verify.py",
+      "status": "M"
+    },
+    {
+      "additions": 21,
+      "deletions": 0,
+      "path": "tests/fixtures/ksa24_chart_claim_fixture.json",
+      "status": "A"
+    },
+    {
+      "additions": 16,
+      "deletions": 0,
+      "path": "tests/fixtures/ksa24_connector_fixture.json",
+      "status": "A"
+    },
+    {
+      "additions": 21,
+      "deletions": 0,
+      "path": "tests/fixtures/ksa24_table_fixture.json",
+      "status": "A"
+    },
+    {
+      "additions": 57,
+      "deletions": 0,
+      "path": "tests/fixtures/ksa24_visual_fixture.json",
+      "status": "A"
+    },
+    {
+      "additions": 19,
+      "deletions": 6,
+      "path": "tests/test_chg16_opencode_plugin.ts",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 0,
+      "path": "tests/test_ksa23_conflicts.py",
+      "status": "M"
+    },
+    {
+      "additions": 507,
+      "deletions": 0,
+      "path": "tests/test_ksa24_f24_real_path.py",
+      "status": "A"
+    },
+    {
+      "additions": 255,
+      "deletions": 0,
+      "path": "tests/test_ksa24_f24_repairs.py",
+      "status": "A"
+    },
+    {
+      "additions": 375,
+      "deletions": 0,
+      "path": "tests/test_ksa24_modality_conformance.py",
+      "status": "A"
+    }
   ],
   "checks": [
     {
-      "command": "rtk git merge --no-ff --no-edit 4fe51670670da5812e5c0ffc4bc0cd813763346c",
+      "command": "/bin/zsh -lc \"rtk sed -n '1,330p' src/k_slide/modality.py && rtk sed -n '530,755p' src/k_slide/translation.py && rtk sed -n '155,270p' src/k_slide/verify.py && rtk sed -n '460,515p' src/k_slide/verify.py && rtk sed -n '1,180p' src/k_slide/cli.py\"",
       "exit_code": 0,
-      "result": "Created 4cdc2d3a3162b8d811b899cac71953616fbcbdd3 with exact target base 004cbcf3e2d36ea3bbb985868e57b59cbc645c6c as first parent and exact FIX05 candidate 4fe51670670da5812e5c0ffc4bc0cd813763346c as second parent."
+      "type": "command_execution"
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. python3 -m pytest -q tests/test_ksa24_f24_real_path.py tests/test_ksa24_f24_repairs.py tests/test_ksa24_modality_conformance.py",
+      "command": "/bin/zsh -lc \"rtk sed -n '1,145p' src/k_slide/translation.py && rtk sed -n '540,600p' src/k_slide/translation.py && rtk sed -n '700,752p' src/k_slide/translation.py && rtk sed -n '165,202p' src/k_slide/verify.py && rtk sed -n '370,410p' src/k_slide/verify.py && rtk sed -n '1,260p' tests/test_ksa24_modality_conformance.py\"",
       "exit_code": 0,
-      "result": "17 passed in 2.66s."
+      "type": "command_execution"
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_phase35 tests.test_ksa24_f24_repairs tests.test_ksa24_modality_conformance tests.test_ksa24_f24_real_path",
+      "command": "/bin/zsh -lc \"rtk sed -n '420,540p' src/k_slide/translation.py && rtk sed -n '650,705p' src/k_slide/translation.py && rtk sed -n '745,950p' src/k_slide/translation.py && rtk sed -n '1,120p' src/k_slide/errors.py && rtk sed -n '1,260p' tests/test_ksa24_f24_real_path.py && rtk cat .codex-fabric/audit.json\"",
       "exit_code": 0,
-      "result": "102 tests ran in 5.857s; OK, 1 skipped. Covers KSA-21 security, KSA-22 provenance/table regressions, KSA-23 conflict/supersession lifecycle, and KSA-24."
+      "type": "command_execution"
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_classification_admission tests.test_chg16_host_integration tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support",
+      "command": "/bin/zsh -lc \"rtk sed -n '260,460p' tests/test_ksa24_f24_real_path.py && rtk sed -n '260,500p' tests/test_ksa24_modality_conformance.py && rtk sed -n '330,430p' src/k_slide/verify.py && rtk sed -n '650,750p' src/k_slide/verify.py && rtk sed -n '1,110p' src/k_slide/verify.py\"",
       "exit_code": 0,
-      "result": "120 tests ran in 5.528s; OK. Covers KSA-15 through KSA-20 compatibility, security, and host regressions."
+      "type": "command_execution"
     },
     {
-      "command": "rtk proxy npx --yes tsx tests/test_chg16_opencode_plugin.ts",
+      "command": "/bin/zsh -lc \"rtk sed -n '1,150p' src/k_slide/semantics.py && rtk sed -n '1,180p' src/k_slide/state.py && rtk rg -n \\\"def _check_required_english|def _check_regions|regions\\\" src/k_slide/verify.py | head -40 && rtk rg -n \\\"RUN_COMPLETE|workspace_mutation_guard\\\" src/k_slide/storage.py src/k_slide/verify.py\"",
       "exit_code": 0,
-      "result": "OpenCode host attachment regression tests passed."
+      "type": "command_execution"
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest discover -s tests -q",
+      "command": "/bin/zsh -lc \"rtk sed -n '125,200p' src/k_slide/verify.py && rtk sed -n '228,290p' src/k_slide/storage.py && rtk sed -n '595,680p' src/k_slide/verify.py && rtk sed -n '710,745p' src/k_slide/verify.py\"",
       "exit_code": 0,
-      "result": "488 tests ran in 21.291s; OK, 4 skipped on Python 3.11.7. A fontTools deprecation warning was emitted."
+      "type": "command_execution"
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m unittest discover -s tests -q",
+      "command": "/bin/zsh -lc \"rtk sed -n '90,160p' tests/test_ksa24_modality_conformance.py && rtk sed -n '190,275p' tests/test_ksa24_modality_conformance.py\"",
       "exit_code": 0,
-      "result": "488 tests ran in 22.948s; OK on isolated Python 3.12.9. Optional PyMuPDF deprecation warnings were emitted."
+      "type": "command_execution"
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. python3 -m compileall -q src tests",
-      "exit_code": 0,
-      "result": "Python 3.11 compile check passed."
-    },
-    {
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m compileall -q src tests",
-      "exit_code": 0,
-      "result": "Python 3.12 compile check passed."
-    },
-    {
-      "command": "rtk proxy python3 - <<'PY'\nimport json\nfrom pathlib import Path\nfrom jsonschema import Draft202012Validator\nfor name in ('translation-patch', 'evidence-ir', 'slide-ir'):\n    schema = json.loads(Path(f'schemas/{name}.schema.json').read_text(encoding='utf-8'))\n    Draft202012Validator.check_schema(schema)\nprint('3 Draft 2020-12 schemas validated')\nPY",
-      "exit_code": 0,
-      "result": "TranslationPatch, EvidenceIR, and SlideIR schemas validated with Draft 2020-12."
-    },
-    {
-      "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript",
-      "exit_code": 0,
-      "result": "TranslationPatch schema, Python contract, and OpenCode TypeScript surface contract test passed (1 test)."
-    },
-    {
-      "command": "rtk git diff --check",
-      "exit_code": 0,
-      "result": "No whitespace errors."
-    },
-    {
-      "command": "rtk git rev-parse HEAD && rtk git rev-parse HEAD^1 && rtk git rev-parse HEAD^2 && rtk git rev-parse origin/main && rtk git merge-base --is-ancestor 4fe51670670da5812e5c0ffc4bc0cd813763346c HEAD",
-      "exit_code": 0,
-      "result": "HEAD 4cdc2d3a3162b8d811b899cac71953616fbcbdd3; first parent 004cbcf3e2d36ea3bbb985868e57b59cbc645c6c; second parent 4fe51670670da5812e5c0ffc4bc0cd813763346c; origin/main remains 004cbcf3e2d36ea3bbb985868e57b59cbc645c6c; exact FIX05 candidate is an ancestor."
-    }
-  ],
-  "diagnostic_checks": [
-    {
-      "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_phase35 tests.test_ksa24_f24_repairs tests.test_ksa24_modality_conformance tests.test_ksa24_f24_real_path",
+      "command": "/bin/zsh -lc \"rtk sed -n '1,60p' tests/test_ksa24_f24_real_path.py && rtk sed -n '1,120p' src/k_slide/queue.py && rtk rg -n \\\"def _next|def _conflict_assess\\\" tests/test_ksa24_f24_real_path.py\"",
       "exit_code": 1,
-      "result": "Initial attempt failed with KSA-23 fixture errors because existing synthetic region patches placed Korean source literals in the rendered english field without source-retention metadata. The KSA-23 fixture helper was updated to cite those literals as source-bound Hangul retention; the identical final command then passed all 102 tests with 1 skip."
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '8,22p' tests/test_ksa24_f24_real_path.py && rtk sed -n '88,110p' tests/test_ksa24_f24_real_path.py && rtk sed -n '300,365p' tests/test_ksa24_f24_real_path.py && rtk sed -n '370,445p' tests/test_ksa24_f24_real_path.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '110,145p' tests/test_ksa24_f24_real_path.py && rtk sed -n '350,390p' tests/test_ksa24_f24_real_path.py && rtk sed -n '430,465p' tests/test_ksa24_f24_real_path.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3 -m pytest -q tests/test_ksa24_modality_conformance.py tests/test_ksa24_f24_real_path.py'",
+      "exit_code": 1,
+      "test_result": {
+        "counts": {
+          "failed": 1,
+          "passed": 9
+        },
+        "exit_code": 1,
+        "failing_test_ids": [
+          "tests/test_ksa24_f24_real_path.py::KSA24F24RealPathTests::test_generated_pptx_survives_employee_runtime_and_rejects_adversaries"
+        ],
+        "framework": "pytest",
+        "outcome": "test_failures",
+        "output_bytes": 14249,
+        "output_sha256": "d39c990172a0b41dc7e657ffebe9d58d9d3668a35d3345c79a42c5cd13d64e7a",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3 -m pytest -q tests/test_ksa24_modality_conformance.py tests/test_ksa24_f24_real_path.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 10
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 99,
+        "output_sha256": "e66d27a8f6efd523f74f91015d92639effb3903cd17764f922354d5f8f389392",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3 -m pytest -q tests/test_ksa24_f24_real_path.py tests/test_ksa24_f24_repairs.py tests/test_ksa24_modality_conformance.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 17
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 99,
+        "output_sha256": "1cee13ce099c57dfc0262aac46a1d87218b0b7d54c4bda7cd7a6cf948c052f8f",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_phase35 tests.test_ksa24_f24_repairs tests.test_ksa24_modality_conformance tests.test_ksa24_f24_real_path'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '52,125p' tests/test_ksa23_conflicts.py && rtk sed -n '155,210p' tests/test_ksa23_conflicts.py && rtk sed -n '280,325p' tests/test_ksa23_conflicts.py && rtk sed -n '440,485p' tests/test_ksa23_conflicts.py && rtk sed -n '35,100p' src/k_slide/conflicts.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '20,75p' tests/test_ksa23_conflicts.py && rtk sed -n '135,170p' tests/test_ksa23_conflicts.py && rtk rg -n \\\"_source_language_policy|language_policy\\\" tests/test_ksa23_conflicts.py src/k_slide/translation.py\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,28p' tests/test_ksa23_conflicts.py && rtk rg -n \\\"english.*selected_literal_candidate|hangul_retention\\\" tests/test_ksa23_conflicts.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_phase35 tests.test_ksa24_f24_repairs tests.test_ksa24_modality_conformance tests.test_ksa24_f24_real_path'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_classification_admission tests.test_chg16_host_integration tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy npx --yes tsx tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3 -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3 -m compileall -q src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m compileall -q src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3 - <<'PY'\nimport json\nfrom pathlib import Path\nfrom jsonschema import Draft202012Validator\nfor name in ('translation-patch', 'evidence-ir', 'slide-ir'):\n    schema = json.loads(Path(f'schemas/{name}.schema.json').read_text(encoding='utf-8'))\n    Draft202012Validator.check_schema(schema)\nprint('3 Draft 2020-12 schemas validated')\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git diff --stat && rtk git diff -- src/k_slide/modality.py src/k_slide/translation.py src/k_slide/verify.py tests/test_ksa24_modality_conformance.py tests/test_ksa24_f24_real_path.py tests/test_ksa23_conflicts.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"under_review_region|decision_bearing_status\\\\(status\\\\)\\\" tests/test_ksa24_f24_real_path.py src/k_slide/modality.py && rtk git diff --check && rtk git status --short --branch && rtk git diff --stat\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rev-parse HEAD && rtk git rev-parse HEAD''^1 && rtk git rev-parse HEAD''^2 && rtk git rev-parse origin/main && rtk git merge-base --is-ancestor 4fe51670670da5812e5c0ffc4bc0cd813763346c HEAD && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy python3 --version && rtk proxy /tmp/k-slide-py312-fix05/bin/python --version'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3 -m pytest -q tests/test_ksa24_f24_real_path.py tests/test_ksa24_f24_repairs.py tests/test_ksa24_modality_conformance.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 17
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 99,
+        "output_sha256": "0c32a22099c378164754b282ac6146ca53e751d08db060ba1aff56d1e86d1906",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_phase35 tests.test_ksa24_f24_repairs tests.test_ksa24_modality_conformance tests.test_ksa24_f24_real_path'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_classification_admission tests.test_chg16_host_integration tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy npx --yes tsx tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3 -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3 -m compileall -q src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m compileall -q src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3 - <<'PY'\nimport json\nfrom pathlib import Path\nfrom jsonschema import Draft202012Validator\nfor name in ('translation-patch', 'evidence-ir', 'slide-ir'):\n    schema = json.loads(Path(f'schemas/{name}.schema.json').read_text(encoding='utf-8'))\n    Draft202012Validator.check_schema(schema)\nprint('3 Draft 2020-12 schemas validated')\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rev-parse HEAD && rtk git rev-parse HEAD''^1 && rtk git rev-parse HEAD''^2 && rtk git rev-parse origin/main && rtk git merge-base --is-ancestor 4fe51670670da5812e5c0ffc4bc0cd813763346c HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3 - <<'PY'\nimport json\nfrom pathlib import Path\n\npath = Path('.codex-fabric/audit.json')\nrecord = {\n    'schema_version': 1,\n    'kind': 'codex-fabric-audit-evidence',\n    'operation': 'BUILD',\n    'status': 'EXECUTED_CHANGE',\n    'generated_at': '2026-09-22T22:08:17Z',\n    'project_id': 'k-slide',\n    'request': 'chg16-ksa24-f24-07-f24-08-region-required-english',\n    'job_id': 'CF-k-slide-chg16-modality-conformance-01-fix06',\n    'candidate': {\n        'branch': 'codex/k-slide-chg16-modality-conformance-01-fix06',\n        'base_merge_commit': '4cdc2d3a3162b8d811b899cac71953616fbcbdd3',\n        'target_base': '004cbcf3e2d36ea3bbb985868e57b59cbc645c6c',\n        'predecessor_fix05_candidate': '4fe51670670da5812e5c0ffc4bc0cd813763346c',\n    },\n    'ancestry': {\n        'base_merge_first_parent_is_exact_target_base': True,\n        'base_merge_second_parent_is_exact_fix05_candidate': True,\n        'fix05_candidate_is_descendant_of_target_base': True,\n        'fix05_candidate_ancestry_preserved': True,\n        'failed_fix01_fix02_retained_worktree_state_used': False,\n        'origin_main': '004cbcf3e2d36ea3bbb985868e57b59cbc645c6c',\n        'main_moved': False,\n    },\n    'changed_files': [\n        '.codex-fabric/audit.json',\n        'src/k_slide/modality.py',\n        'src/k_slide/translation.py',\n        'src/k_slide/verify.py',\n        'tests/test_ksa23_conflicts.py',\n        'tests/test_ksa24_f24_real_path.py',\n        'tests/test_ksa24_modality_conformance.py',\n    ],\n    'checks': [\n        {\n            'command': 'rtk git merge --no-ff --no-edit 4fe51670670da5812e5c0ffc4bc0cd813763346c',\n            'exit_code': 0,\n            'result': 'Created 4cdc2d3a3162b8d811b899cac71953616fbcbdd3 with exact target base 004cbcf3e2d36ea3bbb985868e57b59cbc645c6c as first parent and exact FIX05 candidate 4fe51670670da5812e5c0ffc4bc0cd813763346c as second parent.',\n        },\n        {\n            'command': 'rtk proxy env PYTHONPATH=src:. python3 -m pytest -q tests/test_ksa24_f24_real_path.py tests/test_ksa24_f24_repairs.py tests/test_ksa24_modality_conformance.py',\n            'exit_code': 0,\n            'result': '17 passed in 2.66s.',\n        },\n        {\n            'command': 'rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_phase35 tests.test_ksa24_f24_repairs tests.test_ksa24_modality_conformance tests.test_ksa24_f24_real_path',\n            'exit_code': 0,\n            'result': '102 tests ran in 5.857s; OK, 1 skipped. Covers KSA-21 security, KSA-22 provenance/table regressions, KSA-23 conflict/supersession lifecycle, and KSA-24.',\n        },\n        {\n            'command': 'rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_classification_admission tests.test_chg16_host_integration tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support',\n            'exit_code': 0,\n            'result': '120 tests ran in 5.528s; OK. Covers KSA-15 through KSA-20 compatibility, security, and host regressions.',\n        },\n        {\n            'command': 'rtk proxy npx --yes tsx tests/test_chg16_opencode_plugin.ts',\n            'exit_code': 0,\n            'result': 'OpenCode host attachment regression tests passed.',\n        },\n        {\n            'command': 'rtk proxy env PYTHONPATH=src:. python3 -m unittest discover -s tests -q',\n            'exit_code': 0,\n            'result': '488 tests ran in 21.291s; OK, 4 skipped on Python 3.11.7. A fontTools deprecation warning was emitted.',\n        },\n        {\n            'command': 'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m unittest discover -s tests -q',\n            'exit_code': 0,\n            'result': '488 tests ran in 22.948s; OK on isolated Python 3.12.9. Optional PyMuPDF deprecation warnings were emitted.',\n        },\n        {\n            'command': 'rtk proxy env PYTHONPATH=src:. python3 -m compileall -q src tests',\n            'exit_code': 0,\n            'result': 'Python 3.11 compile check passed.',\n        },\n        {\n            'command': 'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m compileall -q src tests',\n            'exit_code': 0,\n            'result': 'Python 3.12 compile check passed.',\n        },\n        {\n            'command': \\\"rtk proxy python3 - <<'PY'\\\\nimport json\\\\nfrom pathlib import Path\\\\nfrom jsonschema import Draft202012Validator\\\\nfor name in ('translation-patch', 'evidence-ir', 'slide-ir'):\\\\n    schema = json.loads(Path(f'schemas/{name}.schema.json').read_text(encoding='utf-8'))\\\\n    Draft202012Validator.check_schema(schema)\\\\nprint('3 Draft 2020-12 schemas validated')\\\\nPY\\\",\n            'exit_code': 0,\n            'result': 'TranslationPatch, EvidenceIR, and SlideIR schemas validated with Draft 2020-12.',\n        },\n        {\n            'command': 'rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript',\n            'exit_code': 0,\n            'result': 'TranslationPatch schema, Python contract, and OpenCode TypeScript surface contract test passed (1 test).',\n        },\n        {\n            'command': 'rtk git diff --check',\n            'exit_code': 0,\n            'result': 'No whitespace errors.',\n        },\n        {\n            'command': 'rtk git rev-parse HEAD && rtk git rev-parse HEAD\"'^1 && rtk git rev-parse HEAD''^2 && rtk git rev-parse origin/main && rtk git merge-base --is-ancestor 4fe51670670da5812e5c0ffc4bc0cd813763346c HEAD'\"',\n            'exit_code': 0,\n            'result': 'HEAD 4cdc2d3a3162b8d811b899cac71953616fbcbdd3; first parent 004cbcf3e2d36ea3bbb985868e57b59cbc645c6c; second parent 4fe51670670da5812e5c0ffc4bc0cd813763346c; origin/main remains 004cbcf3e2d36ea3bbb985868e57b59cbc645c6c; exact FIX05 candidate is an ancestor.',\n        },\n    ],\n    'diagnostic_checks': [\n        {\n            'command': 'rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_phase35 tests.test_ksa24_f24_repairs tests.test_ksa24_modality_conformance tests.test_ksa24_f24_real_path',\n            'exit_code': 1,\n            'result': 'Initial attempt ran 102 tests and reported 25 KSA-23 fixture errors because existing synthetic region patches placed Korean source literals in the rendered english field without source-retention metadata. The KSA-23 fixture helper was updated to cite those literals as source-bound Hangul retention; the identical final command then passed all 102 tests with 1 skip.',\n        },\n    ],\n    'scope': {\n        'included': [\n            'F24-07: all 12 deterministic protected Korean modality cues require compatible closed-vocabulary English markers in ordinary rendered regions; neutralization, incompatible states, and recognized negations fail. Zero-cue and multi-cue region text remains outside the single-status guard.',\n            'F24-08: decision_status, timing, and next_step claims preserve single protected modalities in cited evidence across the full closed vocabulary; multiple-cue evidence remains unresolved or exactly supported_interpretation-bound. key_number, risk, and owner claims are not forced to state a status when they do not purport to do so.',\n            'Required-English and Hangul-retention validation runs during TranslationPatch validation for ordinary regions before canonical writes and render_run; explicitly source-bound retention and raw source display remain supported.',\n            'Generated native PPTX real employee path covers prepare, next, submit, pre-render rejection, conflict assessment, rendering, verification, finalization, and independent canonical tampering rejection by verifier and finalizer.',\n            'Preserves predecessor FIX03-FIX05 behavior: source-proven connector direction, closed chart claims, native table structure/unit/blank/merge semantics, table-cell commitment metadata and output-strength checks, executive source binding, required-English checks for tables/visual interpretations/executive claims, generated-PPTX runtime coverage, OpenCode behavior, and KSA-01 through KSA-23.',\n        ],\n        'excluded': [\n            'KSA-25 and later.',\n            'Live company or Gemma qualification.',\n            'Release, merge to main, and production certification.',\n        ],\n    },\n    'environment': {\n        'python_3_11': 'System Python 3.11.7.',\n        'python_3_12': 'Isolated /tmp/k-slide-py312-fix05 venv using Python 3.12.9.',\n        'python_3_12_test_extras': ['Pillow 12.3.0', 'PyMuPDF 1.28.2', 'python-pptx 1.0.2', 'pytest 8.4.2', 'fonttools 4.65.0'],\n        'generated_pptx_renderer': 'Fixture replaces optional LibreOffice rendering with a deterministic image; native PPTX parse/extract and employee runtime paths are exercised.',\n    },\n    'notes': [\n        'The exact FIX05 candidate was merged onto the exact requested target base before FIX06 edits; main was not merged or moved.',\n        'The generated-PPTX lifecycle test exercises prepare -> next -> submit -> conflict assessment -> render/verify -> finalize, then tampers with canonical region English and confirms verification and finalization both reject it.',\n        'KSA-23 synthetic source literals in rendered english fields now cite explicit matching EvidenceIR region IDs for Hangul retention so lifecycle fixtures remain valid under the new submit-time English guard.',\n        'Full-suite release and certification messages are isolated synthetic test fixture outputs. No live company or Gemma qualification, release, or production certification was performed or claimed.',\n        'Implementation and evidence changes remain in the FIX06 worktree; they are not committed or pushed.',\n    ],\n    'locator': {\n        'branch': 'codex/k-slide-chg16-modality-conformance-01-fix06',\n        'base_merge_commit': '4cdc2d3a3162b8d811b899cac71953616fbcbdd3',\n        'path': '.codex-fabric/audit.json',\n    },\n}\npath.write_text(json.dumps(record, indent=2, ensure_ascii=False) + '\\\\n', encoding='utf-8')\nPY\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3 - <<'PY'\nimport json\nfrom pathlib import Path\nvalue = json.loads(Path('.codex-fabric/audit.json').read_text(encoding='utf-8'))\nassert value['candidate']['predecessor_fix05_candidate'] == '4fe51670670da5812e5c0ffc4bc0cd813763346c'\nassert value['candidate']['target_base'] == '004cbcf3e2d36ea3bbb985868e57b59cbc645c6c'\nassert all(item['exit_code'] == 0 for item in value['checks'])\nprint(f\\\"audit JSON valid; {len(value['checks'])} final checks, {len(value['diagnostic_checks'])} diagnostic record\\\")\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --stat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3 - <<'PY'\nimport json\nfrom pathlib import Path\npath = Path('.codex-fabric/audit.json')\nvalue = json.loads(path.read_text(encoding='utf-8'))\nvalue['diagnostic_checks'][0]['result'] = (\n    'Initial attempt failed with KSA-23 fixture errors because existing synthetic region patches '\n    'placed Korean source literals in the rendered english field without source-retention metadata. '\n    'The KSA-23 fixture helper was updated to cite those literals as source-bound Hangul retention; '\n    'the identical final command then passed all 102 tests with 1 skip.'\n)\npath.write_text(json.dumps(value, indent=2, ensure_ascii=False) + '\\\\n', encoding='utf-8')\nprint('Fabric evidence updated')\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"_NEGATED_ENGLISH_STATE_MARKERS|claim citing|require_status_marker=True|_require_rendered_english\\\\(|test_regions_require|test_decision_status_claims|unretained_region_hangul|independently_verified|predecessor_fix05_candidate\\\" src/k_slide/modality.py src/k_slide/translation.py src/k_slide/verify.py tests/test_ksa24_modality_conformance.py tests/test_ksa24_f24_real_path.py .codex-fabric/audit.json && rtk proxy python3 -c \\\"import json; json.load(open('.codex-fabric/audit.json', encoding='utf-8')); print('audit JSON valid')\\\" && rtk git diff --check && rtk git status --short --branch && rtk git rev-parse HEAD\"",
+      "exit_code": 0,
+      "type": "command_execution"
     }
   ],
-  "scope": {
-    "included": [
-      "F24-07: all 12 deterministic protected Korean modality cues require compatible closed-vocabulary English markers in ordinary rendered regions; neutralization, incompatible states, and recognized negations fail. Zero-cue and multi-cue region text remains outside the single-status guard.",
-      "F24-08: decision_status, timing, and next_step claims preserve single protected modalities in cited evidence across the full closed vocabulary; multiple-cue evidence remains unresolved or exactly supported_interpretation-bound. key_number, risk, and owner claims are not forced to state a status when they do not purport to do so.",
-      "Required-English and Hangul-retention validation runs during TranslationPatch validation for ordinary regions before canonical writes and render_run; explicitly source-bound retention and raw source display remain supported.",
-      "Generated native PPTX real employee path covers prepare, next, submit, pre-render rejection, conflict assessment, rendering, verification, finalization, and independent canonical tampering rejection by verifier and finalizer.",
-      "Preserves predecessor FIX03-FIX05 behavior: source-proven connector direction, closed chart claims, native table structure/unit/blank/merge semantics, table-cell commitment metadata and output-strength checks, executive source binding, required-English checks for tables/visual interpretations/executive claims, generated-PPTX runtime coverage, OpenCode behavior, and KSA-01 through KSA-23."
-    ],
-    "excluded": [
-      "KSA-25 and later.",
-      "Live company or Gemma qualification.",
-      "Release, merge to main, and production certification."
-    ]
+  "codex": {
+    "cli_version": "codex-cli 0.155.1",
+    "configured_model": "gpt-6-luna",
+    "event_count": 138,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 96.56,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 4603136,
+      "fresh_input_tokens": 163861,
+      "input_tokens": 4766997,
+      "non_reasoning_output_tokens": 19959,
+      "output_tokens": 45542,
+      "reasoning_output_tokens": 25583,
+      "total_processed_tokens": 4812539
+    },
+    "warnings": []
   },
-  "environment": {
-    "python_3_11": "System Python 3.11.7.",
-    "python_3_12": "Isolated /tmp/k-slide-py312-fix05 venv using Python 3.12.9.",
-    "python_3_12_test_extras": [
-      "Pillow 12.3.0",
-      "PyMuPDF 1.28.2",
-      "python-pptx 1.0.2",
-      "pytest 8.4.2",
-      "fonttools 4.65.0"
-    ],
-    "generated_pptx_renderer": "Fixture replaces optional LibreOffice rendering with a deterministic image; native PPTX parse/extract and employee runtime paths are exercised."
-  },
-  "notes": [
-    "The exact FIX05 candidate was merged onto the exact requested target base before FIX06 edits; main was not merged or moved.",
-    "The generated-PPTX lifecycle test exercises prepare -> next -> submit -> conflict assessment -> render/verify -> finalize, then tampers with canonical region English and confirms verification and finalization both reject it.",
-    "KSA-23 synthetic source literals in rendered english fields now cite explicit matching EvidenceIR region IDs for Hangul retention so lifecycle fixtures remain valid under the new submit-time English guard.",
-    "Full-suite release and certification messages are isolated synthetic test fixture outputs. No live company or Gemma qualification, release, or production certification was performed or claimed.",
-    "Implementation and evidence changes remain in the FIX06 worktree; they are not committed or pushed."
+  "commits": [
+    {
+      "sha": "973a918b4073b1d732820012550700ae18a12036",
+      "subject": "fabric: capture completed model changes [CF-6bb18e3189a3f1d3938dbd9a]"
+    },
+    {
+      "sha": "4cdc2d3a3162b8d811b899cac71953616fbcbdd3",
+      "subject": "Merge commit '4fe51670670da5812e5c0ffc4bc0cd813763346c' into codex/k-slide-chg16-modality-conformance-01-fix06"
+    },
+    {
+      "sha": "4fe51670670da5812e5c0ffc4bc0cd813763346c",
+      "subject": "fabric: capture completed model changes [CF-dc3468a73f491764f690bd9a]"
+    },
+    {
+      "sha": "da61651d4f8f181822fed23db3a720d7dff95c21",
+      "subject": "Merge exact K-Slide KSA-24 FIX04 predecessor"
+    },
+    {
+      "sha": "59079c7282f3d85efdae834c948f359667852b92",
+      "subject": "audit(k-slide): record KSA-24 acceptance evidence"
+    },
+    {
+      "sha": "e9831e46f1b6293f0a4b74022f1c9d91142d0636",
+      "subject": "fix(k-slide): close KSA-24 real-path boundary gaps"
+    },
+    {
+      "sha": "ba3179d9338d912470a34c91a2510c96c08ac0d5",
+      "subject": "chore(fabric): record KSA-24 repair evidence"
+    },
+    {
+      "sha": "fd753ccb765568765e3646d9374c022d7aad62a3",
+      "subject": "fix(k-slide): close KSA-24 F24 repairs"
+    },
+    {
+      "sha": "9e8867faea640377bcd4bc2acef62cd74a28f856",
+      "subject": "fabric: capture completed model changes [CF-0e2daacc470cd4069f84148a]"
+    }
   ],
-  "locator": {
+  "diff": {
+    "additions": 2967,
+    "changed_files": 27,
+    "commit_count": 9,
+    "deletions": 65
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 9,
+    "items": [
+      {
+        "bytes": 9628,
+        "path": ".codex-fabric/audit.json",
+        "sha256": "ed8466ac712008ca98f4dd39e83e4cfb9ca445f3c23212e052965a86319ab4ec"
+      },
+      {
+        "bytes": 4164,
+        "path": "schemas/evidence-ir.schema.json",
+        "sha256": "6289e5d92a26ae6dbc4c12fd4be8d0854e39c48a32aa6e1555824c97874e154c"
+      },
+      {
+        "bytes": 4633,
+        "path": "schemas/slide-ir.schema.json",
+        "sha256": "7258f9109bdc86f67124e439afc1ad8ca0ec6bd8caa9bcb1acae6bb3b92d3bf2"
+      },
+      {
+        "bytes": 6068,
+        "path": "schemas/translation-patch.schema.json",
+        "sha256": "b1fa0f97f4031830e39d2ef66bd137fb2e2aaabdef3c55f6753cbc93d8b8d71a"
+      },
+      {
+        "bytes": 24507,
+        "path": "src/k_slide/evidence_ir.py",
+        "sha256": "b389a863e41ca91808383687993e2632a815ea57e8abe2dee756a986f6dd7397"
+      },
+      {
+        "bytes": 1348,
+        "path": "tests/fixtures/ksa24_chart_claim_fixture.json",
+        "sha256": "2e1d7930b3925dff058c98b709d3dd58e1d30c9434973345b6fc52c4380b4ff6"
+      },
+      {
+        "bytes": 2236,
+        "path": "tests/fixtures/ksa24_connector_fixture.json",
+        "sha256": "a7b5155f8fb2537b68c869dd5e15d04f08ffd3b1cece9a66cb2ad074be85893a"
+      },
+      {
+        "bytes": 2613,
+        "path": "tests/fixtures/ksa24_table_fixture.json",
+        "sha256": "b44ba510cced8d82236d2926738cfee57d814df1cbba67cb8489d6c1e34e96a0"
+      },
+      {
+        "bytes": 2926,
+        "path": "tests/fixtures/ksa24_visual_fixture.json",
+        "sha256": "c914fc82aea424e7cef3905f1fa4c7b1a516ce64997d3b7ebbb12a415121ef0b"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.4-quota-recovery-candidate",
+  "fabric_capture": {
+    "applied": true,
+    "commit_message": "fabric: capture completed model changes [CF-6bb18e3189a3f1d3938dbd9a]",
+    "commit_sha": "973a918b4073b1d732820012550700ae18a12036",
+    "paths_before": 7,
+    "status_before": [
+      " M .codex-fabric/audit.json",
+      " M src/k_slide/modality.py",
+      " M src/k_slide/translation.py",
+      " M src/k_slide/verify.py",
+      " M tests/test_ksa23_conflicts.py",
+      " M tests/test_ksa24_f24_real_path.py",
+      " M tests/test_ksa24_modality_conformance.py"
+    ],
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.4-quota-recovery-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-22T22:11:22Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "004cbcf3e2d36ea3bbb985868e57b59cbc645c6c",
     "branch": "codex/k-slide-chg16-modality-conformance-01-fix06",
-    "base_merge_commit": "4cdc2d3a3162b8d811b899cac71953616fbcbdd3",
-    "path": ".codex-fabric/audit.json"
+    "detached_verify": false,
+    "head_sha": "973a918b4073b1d732820012550700ae18a12036",
+    "remote_exact_head": true,
+    "remote_head_sha": "973a918b4073b1d732820012550700ae18a12036",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "004cbcf3e2d36ea3bbb985868e57b59cbc645c6c",
+    "work_branch": "codex/k-slide-chg16-modality-conformance-01-fix06",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-6bb18e3189a3f1d3938dbd9a",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-modality-conformance-01-fix06",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-modality-conformance-01-fix06"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.4-quota-recovery-candidate",
+    "policy_sha256": "123615bf2f6e57dcac197e49ca98ceac59ada86a55e2c84445ea5d00812c0833",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-modality-conformance-01-fix06",
+  "schema_version": 1,
+  "started_at": "2026-09-22T21:54:07Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1035,
+    "queue_seconds": 1,
+    "total_seconds": 1036
+  },
+  "transport": {
+    "bytes": 4173,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 3842,
+    "prompt_sha256": "31f19f12c36d8ff90415f147c396f0f69ae8964181539b1bb725dde5afcaf5bb",
+    "sha256": "6bb18e3189a3f1d3938dbd9a1ae3bcbdb3d23a06fa185fb62196e4df03637ba0"
   }
 }
