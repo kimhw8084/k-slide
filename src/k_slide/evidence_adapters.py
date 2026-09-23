@@ -33,7 +33,21 @@ from .certification import (
     validate_ocr_asset_manifest,
 )
 from .model_policy import load_model_policy
+from .corpus_governance import (
+    CorpusGovernanceError,
+    is_certification_corpus_ready,
+    canonical_manifest,
+    manifest_identity,
+    require_set_purpose,
+    set_identity_for_role,
+    validate_contamination_report,
+    canonical_bytes,
+    sha256_bytes,
+    validate_corpus_bundle,
+)
 
+# 2.7 binds model evidence to the candidate's four governed corpus identities
+# and re-derives the source-free corpus membership/contamination contract.
 # 2.6 retains and re-derives the exact PaddleX configuration selected by the
 # heavy OCR runtime. 2.5 retains and re-derives the heavy image dependency and
 # OCR asset subjects alongside the portable security evidence bundle. 2.3 binds the resolved production lock
@@ -42,7 +56,7 @@ from .model_policy import load_model_policy
 # candidate-bound identity/provenance contract introduced in 2.1.
 # separation and exact frozen scenario matrices. No production-certified v1
 # or 2.0 evidence exists, so ambiguous development envelopes are not migrated.
-ADAPTER_VERSION = "2.6"
+ADAPTER_VERSION = "2.7"
 
 _ROLES: dict[str, tuple[str, ...]] = {
     "runtime": ("diagnostic_ladder", "simple_run", "three_slide", "five_slide"),
@@ -75,7 +89,7 @@ def _read_json(path: Path) -> Any:
         raise AdapterError(f"source result is missing or symlinked: {path.name}")
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-        if isinstance(value, dict) and value.get("schema_version") not in (None, "1.0", "2.0", "2.1", "2.2"):
+        if isinstance(value, dict) and value.get("schema_version") not in (None, "1.0", "2.0", "2.1", "2.2", "2.3"):
             raise AdapterError(f"unsupported source result schema version: {path.name}")
         return value
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
@@ -683,9 +697,75 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
     }
 
 
+def _model_corpus_context(summary: dict[str, Any], experiment: dict[str, Any], *, evidence_type: str) -> dict[str, Any]:
+    contracts = {
+        "model_validation": ("private_representative", "private_evaluation"),
+        "model_high_risk_stability": ("frozen_high_risk", "comparison"),
+        "model_held_out": ("sealed_held_out", "promotion"),
+    }
+    role, purpose = contracts[evidence_type]
+    try:
+        consumed = require_set_purpose(experiment.get("corpus_set_identity"), experiment.get("evaluation_purpose"))
+    except CorpusGovernanceError as exc:
+        raise AdapterError(f"{evidence_type} corpus role or purpose is ineligible") from exc
+    try:
+        source_manifest = canonical_manifest(experiment.get("corpus_manifest"))
+        corpus_manifests = validate_corpus_bundle(
+            experiment.get("governed_corpus_manifests"),
+            history=experiment.get("governed_corpus_history", []),
+        )
+    except CorpusGovernanceError as exc:
+        raise AdapterError("model experiment governed corpus manifests are missing or invalid") from exc
+    if manifest_identity(source_manifest) != consumed:
+        raise AdapterError("model experiment manifest does not match its governed set identity")
+    if consumed["role"] != role or experiment.get("evaluation_purpose") != purpose:
+        raise AdapterError(f"{evidence_type} evidence used the wrong governed corpus role or purpose")
+    if summary.get("corpus_set_identity") != consumed or summary.get("evaluation_purpose") != purpose:
+        raise AdapterError("model summary corpus identity or evaluation purpose disagrees with experiment")
+    candidate_values = [item.get("candidate_spec") for item in (summary, experiment) if isinstance(item.get("candidate_spec"), dict)]
+    if any(item != candidate_values[0] for item in candidate_values[1:]):
+        raise AdapterError("model evidence does not bind one candidate corpus identity")
+    bundled_identities = {item["role"]: manifest_identity(item) for item in corpus_manifests}
+    if candidate_values:
+        from .certification import canonical_corpus_identity
+
+        candidate_corpus = canonical_corpus_identity(candidate_values[0].get("corpus_identity"))
+        if not is_certification_corpus_ready(candidate_corpus):
+            raise AdapterError("model certification candidate does not bind four eligible governed corpus roles")
+        try:
+            expected = set_identity_for_role(candidate_corpus, role)
+        except (CorpusGovernanceError, StopIteration) as exc:
+            raise AdapterError("candidate is missing the required governed corpus role") from exc
+        if expected != consumed:
+            raise AdapterError("model evidence corpus identity does not match the candidate-bound set")
+        expected_identities = {item["role"]: item for item in candidate_corpus["sets"]}
+        if bundled_identities != expected_identities:
+            raise AdapterError("model experiment corpus bundle does not match all candidate-bound identities")
+    if not any(item["role"] == role and manifest_identity(item) == consumed for item in corpus_manifests):
+        raise AdapterError("model experiment corpus bundle does not contain the evaluated set")
+    active_item_ids = {item["item_id"] for item in source_manifest["items"] if item["state"] == "active"}
+    scenario_ids = experiment.get("scenario_ids")
+    if not isinstance(scenario_ids, list) or not scenario_ids or len(scenario_ids) != len(set(scenario_ids)) or not set(scenario_ids) <= active_item_ids:
+        raise AdapterError("model experiment uses unknown or retired corpus membership")
+    if evidence_type in {"model_validation", "model_held_out"} and set(scenario_ids) != active_item_ids:
+        raise AdapterError("authoritative model evidence must use every active item in its governed set")
+    context = {"corpus_set_identity": consumed, "evaluation_purpose": purpose}
+    if evidence_type == "model_held_out":
+        report = experiment.get("contamination_report")
+        try:
+            contamination_ids = validate_contamination_report(report, set_identity=consumed, manifest=source_manifest)
+        except CorpusGovernanceError as exc:
+            raise AdapterError("held-out contamination report is missing or invalid") from exc
+        if contamination_ids:
+            raise AdapterError("held-out corpus contains contaminated items")
+        context["contamination_report_sha256"] = sha256_bytes(canonical_bytes(report))
+    return context
+
+
 def _derive_validation(sources: dict[str, Path], *, root: Path | None) -> dict[str, Any]:
     payload = _aggregate_model(sources, expected_split="validation", root=root)
-    _summary, experiment, rows = _model_rows(sources)
+    summary, experiment, rows = _model_rows(sources)
+    payload.update(_model_corpus_context(summary, experiment, evidence_type="model_validation"))
     _model_matrix(experiment, rows, expected_split="validation", require_full_split=True, root=root)
     plan = experiment["experiment_plan"]
     if plan.get("limit") is not None or plan.get("categories") or plan.get("scenario_filter") or plan.get("filters"):
@@ -706,11 +786,12 @@ def _derive_validation(sources: dict[str, Path], *, root: Path | None) -> dict[s
 
 def _derive_high_risk(sources: dict[str, Path], *, root: Path | None) -> dict[str, Any]:
     payload = _aggregate_model(sources, expected_split="validation", root=root)
+    summary, experiment, _ = _model_rows(sources)
+    payload.update(_model_corpus_context(summary, experiment, evidence_type="model_high_risk_stability"))
     try:
         from evals.scenarios import PROTECTED_CATEGORIES
     except ImportError as exc:
         raise AdapterError("high-risk adapter requires repository evaluation policy") from exc
-    _summary, experiment, _ = _model_rows(sources)
     rows = _read_jsonl(sources["results_jsonl"])
     matrix = _model_matrix(experiment, rows, expected_split="validation", require_full_split=False, root=root)
     groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
@@ -763,6 +844,8 @@ def _derive_high_risk(sources: dict[str, Path], *, root: Path | None) -> dict[st
 
 def _derive_held_out(sources: dict[str, Path], *, root: Path | None) -> dict[str, Any]:
     payload = _aggregate_model(sources, expected_split="held_out", root=root)
+    summary, experiment, _ = _model_rows(sources)
+    payload.update(_model_corpus_context(summary, experiment, evidence_type="model_held_out"))
     try:
         from evals.scenarios import split_manifest
     except ImportError as exc:

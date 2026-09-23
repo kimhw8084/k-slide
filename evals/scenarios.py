@@ -233,6 +233,8 @@ def split_manifest(scenarios: list[Scenario] | None = None) -> dict[str, Any]:
         category: {split: sum(item["category"] == category and item["split"] == split for item in entries) for split in SPLITS}
         for category, _count in _DISTRIBUTION
     }
+    from .corpus_governance import public_synthetic_set_identity
+
     return {
         "schema_version": "1.0",
         "dataset_version": DATASET_VERSION,
@@ -245,6 +247,9 @@ def split_manifest(scenarios: list[Scenario] | None = None) -> dict[str, Any]:
         "compound": {"total": sum(item["compound"] for item in entries), "held_out": sum(item["compound"] and item["split"] == "held_out" for item in entries)},
         "corpus_fingerprint": _corpus_fingerprint(selected),
         "held_out_fingerprint": _held_out_fingerprint(selected),
+        # The public split named ``held_out`` remains a public regression
+        # partition; it has no sealed promotion authority.
+        "governed_set_identity": public_synthetic_set_identity(selected),
         "scenarios": entries,
     }
 

@@ -37,6 +37,7 @@ from .model_results import aggregate_model_results, write_results
 from .model_scorers import score_deck_consistency, score_translation_patch
 from .opencode_runner import OpenCodeEvalRunner, _latest_run
 from .scenarios import DATASET_VERSION, Scenario, scenario_specs, split_manifest
+from .corpus_governance import public_synthetic_manifest
 
 
 def is_target_gemma(model: str, *, effective_model: str | None = None, policy: Any | None = None) -> bool:
@@ -153,7 +154,7 @@ class ModelEvaluationRunner:
         return selected[: self.limit] if self.limit is not None else selected
 
     def _candidate_spec(self, repo_root: Path, subject_sha: str, manifest: dict[str, Any], model_policy: Any) -> dict[str, Any]:
-        corpus = canonical_corpus_identity(manifest)
+        corpus = manifest
         if self.candidate_profile is not None:
             spec = load_candidate_spec(self.candidate_profile, root=repo_root, require_identity=False, strict=True)
         else:
@@ -275,6 +276,10 @@ class ModelEvaluationRunner:
             "split_manifest_hash": sha256_bytes(canonical_bytes(manifest)),
             "corpus_fingerprint": manifest["corpus_fingerprint"],
             "held_out_fingerprint": manifest["held_out_fingerprint"],
+            "corpus_set_identity": manifest["governed_set_identity"],
+            "corpus_manifest": public_synthetic_manifest(),
+            "governed_corpus_manifests": [public_synthetic_manifest()],
+            "evaluation_purpose": "regression",
             "model_policy": model_policy.as_dict(),
             "execution_runtime_provenance": discover_runtime(repo_root).as_dict(),
         }
@@ -388,6 +393,8 @@ class ModelEvaluationRunner:
         summary["experiment_plan_hash"] = run_manifest["experiment_plan_hash"]
         summary["corpus_fingerprint"] = manifest["corpus_fingerprint"]
         summary["held_out_fingerprint"] = manifest["held_out_fingerprint"]
+        summary["corpus_set_identity"] = manifest["governed_set_identity"]
+        summary["evaluation_purpose"] = "regression"
         summary["repetitions"] = self.repeats
         summary["subject_git_sha"] = subject_sha
         summary["deployment_fingerprint"] = final_deployment

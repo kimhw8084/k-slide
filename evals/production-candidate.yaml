@@ -61,6 +61,9 @@ egress_policy_hash: UNSET
 egress_policy_identity: UNSET
 inference_endpoint_identity: UNSET
 corpus_identity:
+  # Legacy public-regression identity. It remains readable for DEVELOPMENT and
+  # cannot qualify a four-set certification candidate. Private identities are
+  # populated only by an approved internal evaluation environment.
   version: "1.0"
   corpus_fingerprint: "698b471fa9dffe9f79af40a61c3546d6455889b90063a02bc2e270b90402f7ac"
   held_out_fingerprint: "c2dee1ba1b03fead1a6641cfa8c7ceea27eb51b0ed80c0879c07bc3ee29bcc4e"

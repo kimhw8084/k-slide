@@ -105,4 +105,9 @@ target Gemma validation result satisfies protected-category promotion rules.
 
 The corpus is dataset version `1.0`. `write_specs` emits `splits.json` with
 stratified membership, `corpus_fingerprint`, and `held_out_fingerprint`.
-Changing held-out membership or gold requires a dataset version bump.
+Changing held-out membership or gold requires a dataset version bump. Its
+public split named `held_out` is wrapped as
+`public_synthetic_regression`; it is regression material and never the sealed
+promotion set. A release candidate needs exact source-free identities for all
+four governed roles. The legacy three-field identity remains readable in
+DEVELOPMENT but is incomplete for certification.
