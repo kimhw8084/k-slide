@@ -1,229 +1,514 @@
 {
-  "schema_version": 1,
-  "kind": "codex-fabric-audit-evidence",
-  "operation": "BUILD",
-  "status": "EXECUTED_CHANGE",
-  "generated_at": "2026-09-23T00:46:18Z",
-  "project_id": "k-slide",
-  "request": "chg16-ksa25-unreadable-decorative-cross-document-recovery-law",
-  "job_id": "CHG-16-KSA-25",
-  "candidate": {
-    "branch": "codex/k-slide-chg16-recovery-law-01",
-    "base_integrated_main": "b9f109c1b92c26cb3cf5611b3d9c82659c56da40",
-    "candidate_commit": null,
-    "changes_committed": false
-  },
-  "ancestry": {
-    "starting_head_is_exact_requested_base": true,
-    "head_at_final_identity_check": "b9f109c1b92c26cb3cf5611b3d9c82659c56da40",
-    "merge_to_main_performed": false
-  },
+  "accepted_at": "2026-09-23T02:24:19Z",
   "changed_files": [
-    ".codex-fabric/audit.json",
-    "schemas/evidence-ir.schema.json",
-    "src/k_slide/cli.py",
-    "src/k_slide/conflicts.py",
-    "src/k_slide/evidence_ir.py",
-    "src/k_slide/extraction.py",
-    "src/k_slide/fusion.py",
-    "src/k_slide/model.py",
-    "src/k_slide/translation.py",
-    "src/k_slide/verify.py",
-    "tests/test_ksa24_f24_real_path.py",
-    "tests/test_ksa24_f24_repairs.py",
-    "tests/test_ksa25_recovery_law.py"
+    {
+      "additions": 75,
+      "deletions": 0,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 6,
+      "deletions": 1,
+      "path": "evals/README.md",
+      "status": "M"
+    },
+    {
+      "additions": 67,
+      "deletions": 0,
+      "path": "evals/corpus_governance.py",
+      "status": "A"
+    },
+    {
+      "additions": 8,
+      "deletions": 1,
+      "path": "evals/model_eval.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/opencode_diagnostics.py",
+      "status": "M"
+    },
+    {
+      "additions": 4,
+      "deletions": 0,
+      "path": "evals/production-candidate.example.yaml",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 0,
+      "path": "evals/production-candidate.yaml",
+      "status": "M"
+    },
+    {
+      "additions": 8,
+      "deletions": 3,
+      "path": "evals/release.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "evals/run_engine_eval.py",
+      "status": "M"
+    },
+    {
+      "additions": 5,
+      "deletions": 0,
+      "path": "evals/scenarios.py",
+      "status": "M"
+    },
+    {
+      "additions": 44,
+      "deletions": 5,
+      "path": "private-evals/README.md",
+      "status": "M"
+    },
+    {
+      "additions": 102,
+      "deletions": 7,
+      "path": "src/k_slide/certification.py",
+      "status": "M"
+    },
+    {
+      "additions": 629,
+      "deletions": 0,
+      "path": "src/k_slide/corpus_governance.py",
+      "status": "A"
+    },
+    {
+      "additions": 87,
+      "deletions": 4,
+      "path": "src/k_slide/evidence_adapters.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 2,
+      "path": "src/k_slide/production.py",
+      "status": "M"
+    },
+    {
+      "additions": 58,
+      "deletions": 10,
+      "path": "tests/test_certification_closure.py",
+      "status": "M"
+    },
+    {
+      "additions": 313,
+      "deletions": 0,
+      "path": "tests/test_ksa26_corpus_governance.py",
+      "status": "A"
+    }
   ],
   "checks": [
     {
-      "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_ksa25_recovery_law tests.test_ksa24_modality_conformance tests.test_ksa24_f24_repairs tests.test_ksa24_f24_real_path tests.test_ksa23_conflicts tests.test_ksa22_provenance tests.test_ksa21_adversarial_security",
+      "command": "/bin/zsh -lc \"rtk nl -ba tests/test_ksa26_corpus_governance.py | rtk sed -n '283,300p' && rtk sed -n '450,490p' src/k_slide/corpus_governance.py\"",
       "exit_code": 0,
-      "result": "89 tests ran in 3.555s; OK, 1 skipped. Includes unreadable, partial/cropped OCR, low-confidence, native/OCR disagreement, no-literal, extraction failure, attempted decorative escape, model-authored source_fact, fabricated completion, multi-document conflict, and failed employee recovery lifecycle cases."
+      "type": "command_execution"
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_chg16_foundation tests.test_chg16_storage_planes tests.test_chg16_durable_execution tests.test_chg16_accesskey_nonleakage tests.test_chg16_deletion tests.test_chg16_host_integration tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support tests.test_chg16_environment_binding tests.test_chg16_classification_admission tests.test_chg16_retention_policy tests.test_chg16_scoped_admission tests.test_chg16_paas_worker tests.test_chg16_authentication_transport",
+      "command": "/bin/zsh -lc \"rtk sed -n '15,50p' private-evals/README.md\"",
       "exit_code": 0,
-      "result": "216 tests ran in 10.083s; OK, 1 skipped. KSA-15 through KSA-20 compatibility, security, and host regression group."
+      "type": "command_execution"
     },
     {
-      "command": "rtk proxy npx --yes tsx tests/test_chg16_opencode_plugin.ts",
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_ksa26_corpus_governance tests.test_certification_closure -q && rtk git diff --check'",
       "exit_code": 0,
-      "result": "OpenCode host attachment regression tests passed."
+      "type": "command_execution"
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript",
-      "exit_code": 0,
-      "result": "1 test ran; OK. TranslationPatch schema, Python contract, and OpenCode TypeScript surface contract passed."
+      "command": "/bin/zsh -lc \"rtk rg --files tests | rtk rg 'ksa(21|22|23|24|25)|phase|opencode|host' && rtk rg -n 'TranslationPatch|schema check|schema validator|TypeScript contract|opencode regression|test_chg16_opencode_plugin' tests pyproject.toml scripts .github\"",
+      "exit_code": 1,
+      "type": "command_execution"
     },
     {
-      "command": "rtk proxy python3 -c 'import json; from jsonschema import Draft202012Validator; p=\"schemas/evidence-ir.schema.json\"; s=json.load(open(p)); Draft202012Validator.check_schema(s); print(\"EvidenceIR JSON Schema: valid Draft 2020-12\")'",
+      "command": "/bin/zsh -lc \"rtk rg --files tests | rtk rg 'chg16|ksa1[5-9]|security|runtime|environment' && rtk cat pyproject.toml\"",
       "exit_code": 0,
-      "result": "EvidenceIR JSON Schema: valid Draft 2020-12."
+      "type": "command_execution"
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. python3 -m compileall -q src tests",
-      "exit_code": 0,
-      "result": "Python 3.11 compile check passed."
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"jsonschema|Draft2020|ajv|translation-patch.schema|schemas/\\\" scripts tests .github --glob '*.py' --glob '*.sh' --glob '*.yml' --glob '*.yaml' --glob '*.json' | head -200 && rtk rg -n \\\"TranslationPatch\\\" tests/test_phase35.py tests/test_chg16_opencode_plugin.ts scripts\"",
+      "exit_code": 1,
+      "type": "command_execution"
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m compileall -q src tests",
-      "exit_code": 0,
-      "result": "Python 3.12 compile check passed."
+      "command": "/bin/zsh -lc \"rtk sed -n '45,70p' .github/workflows/k-slide-phase32.yml && rtk sed -n '1,80p' tests/test_phase35.py && rtk rg -n '\\\"\\\\\"'$schema\"|'\"\\\\.schema\\\\.json' --glob '*.json' . | head -100 && rtk command -v python3.12 && rtk command -v python3.11 && rtk command -v node && rtk command -v bun && rtk command -v npx && rtk command -v ajv\"",
+      "exit_code": 1,
+      "type": "command_execution"
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest discover -s tests -p 'test_*.py' -q",
+      "command": "/bin/zsh -lc 'rtk command -v node'",
       "exit_code": 0,
-      "result": "496 tests ran in 21.516s; OK, 4 skipped on Python 3.11.7. Suite output includes isolated synthetic release/certification fixture messages; no live qualification or certification was performed."
+      "type": "command_execution"
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m unittest discover -s tests -p 'test_*.py' -q",
+      "command": "/bin/zsh -lc 'rtk command -v python3.12'",
       "exit_code": 0,
-      "result": "496 tests ran in 23.243s; OK on isolated Python 3.12.9. Suite output includes isolated synthetic release/certification fixture messages; no live qualification or certification was performed."
+      "type": "command_execution"
     },
     {
-      "command": "rtk git diff --check",
-      "exit_code": 0,
-      "result": "No whitespace errors."
+      "command": "/bin/zsh -lc 'rtk command -v bun'",
+      "exit_code": 1,
+      "type": "command_execution"
     },
     {
-      "command": "rtk proxy python3 --version && rtk proxy /tmp/k-slide-py312-fix05/bin/python --version",
-      "exit_code": 0,
-      "result": "Python 3.11.7; Python 3.12.9."
+      "command": "/bin/zsh -lc 'rtk command -v ajv'",
+      "exit_code": 1,
+      "type": "command_execution"
     },
     {
-      "command": "rtk git rev-parse HEAD && rtk git branch --show-current && rtk git status --short",
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"test_chg16_opencode_plugin|esbuild|tsx|tsc|opencode.*plugin\\\" README.md scripts tests .github package.json .opencode --glob '*.md' --glob '*.sh' --glob '*.json' --glob '*.yml' --glob '*.yaml' --glob '*.ts' 2>/dev/null\"",
+      "exit_code": 2,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk command -v npx'",
       "exit_code": 0,
-      "result": "HEAD remained b9f109c1b92c26cb3cf5611b3d9c82659c56da40 on codex/k-slide-chg16-recovery-law-01. Source/schema/test changes were uncommitted; no merge to main was performed."
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk command -v python3.11'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk cat .opencode/package.json && rtk rg -n \\\"test_chg16_opencode_plugin\\\" README.md scripts .github --glob '*.md' --glob '*.sh' --glob '*.yml' --glob '*.yaml' && rtk rg --files | rtk rg 'fabric|evidence|IMPLEMENTATION_STATUS.md' | head -100 && rtk git status --short\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '85,120p' evals/README.md && rtk sed -n '35,47p' private-evals/README.md && rtk sed -n '158,183p' src/k_slide/corpus_governance.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '290,350p' evals/release.py && rtk sed -n '395,445p' evals/release.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_ksa24_modality_conformance tests.test_ksa24_f24_repairs tests.test_ksa24_f24_real_path tests.test_ksa25_recovery_law -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_classification_admission tests.test_chg16_deletion tests.test_chg16_durable_execution tests.test_chg16_environment_binding tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_chg16_paas_worker tests.test_chg16_retention_policy tests.test_chg16_scoped_admission tests.test_chg16_storage_planes tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_runtime_artifact -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk npx --no-install tsx --version'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk npx --no-install tsx tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. python -c 'import json, pathlib, jsonschema; paths=sorted(pathlib.Path(\\\"schemas\\\").glob(\\\"*.schema.json\\\")); [jsonschema.Draft202012Validator.check_schema(json.loads(p.read_text(encoding=\\\"utf-8\\\"))) for p in paths]; print(f\\\"{len(paths)} JSON schemas valid: {\\\", \\\".join(p.name for p in paths)}\\\")'\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m evals.generate_corpus --output /tmp/k-slide-ksa26-public-smoke --formats png --limit 1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. python -c 'import json; from pathlib import Path; from evals.scenarios import EXPECTED_CORPUS_FINGERPRINT_V1, EXPECTED_HELD_OUT_FINGERPRINT_V1; value=json.loads(Path(\\\"/tmp/k-slide-ksa26-public-smoke/specs/MANIFEST.json\\\").read_text(encoding=\\\"utf-8\\\")); assert value[\\\"corpus_fingerprint\\\"] == EXPECTED_CORPUS_FINGERPRINT_V1; assert value[\\\"held_out_fingerprint\\\"] == EXPECTED_HELD_OUT_FINGERPRINT_V1; print(value[\\\"dataset_version\\\"], value[\\\"corpus_fingerprint\\\"], value[\\\"held_out_fingerprint\\\"])'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. python -c 'import json, pathlib, jsonschema; paths=sorted(pathlib.Path(\\\"schemas\\\").glob(\\\"*.schema.json\\\")); [jsonschema.Draft202012Validator.check_schema(json.loads(p.read_text(encoding=\\\"utf-8\\\"))) for p in paths]; print(len(paths), \\\"JSON schemas valid:\\\", [p.name for p in paths])'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_ksa26_corpus_governance -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3.11 -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3.12 -m unittest discover -s tests -q'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"Pillow|dependencies|python_requires\" pyproject.toml requirements* setup.cfg setup.py'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short && rtk git diff --stat && rtk git rev-parse HEAD && rtk rg -n \"KSA-26|KSA-25|KSA-24|KSA-23\" IMPLEMENTATION_STATUS.md'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3.11 -m unittest tests.test_ksa26_corpus_governance tests.test_certification_closure tests.test_phase32 tests.test_phase33 tests.test_phase35 -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk ls -la && rtk find . -maxdepth 2 -name 'pyproject.toml' -o -name 'requirements*.txt' -o -name 'setup.cfg' -o -name 'setup.py' && rtk env python3.12 -m pip --version && rtk sed -n '1,220p' IMPLEMENTATION_STATUS.md\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk cat pyproject.toml'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk tail -n 180 IMPLEMENTATION_STATUS.md'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python3.11 -m compileall -q src evals tests && rtk env PYTHONPATH=src:. python3.12 -m compileall -q src evals tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env python3.12 -m pip --version'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env python3.12 -m venv /tmp/k-slide-ksa26-py312'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env /tmp/k-slide-ksa26-py312/bin/python -m pip install 'Pillow>=10,<13'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,320p' src/k_slide/corpus_governance.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '320,680p' src/k_slide/corpus_governance.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,220p' evals/corpus_governance.py && rtk git diff -- src/k_slide/certification.py src/k_slide/evidence_adapters.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '260,560p' src/k_slide/corpus_governance.py && rtk sed -n '1,280p' tests/test_ksa26_corpus_governance.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '430,680p' src/k_slide/corpus_governance.py && rtk sed -n '280,560p' tests/test_ksa26_corpus_governance.py && rtk rg -n \\\"corpus_identity|governed_corpus\\\" evals/model_eval.py evals/release.py src/k_slide/certification.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ksa26-py312/bin/python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files -g '*.schema.json' -g '*.jsonschema' -g '*.schema.yaml' -g '*.schema.yml'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk cat evals/champion.json && rtk git branch --show-current && rtk git rev-parse HEAD && rtk git status --short'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short && rtk git rev-parse HEAD && rtk git diff --stat && rtk cat evals/champion.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. python -m unittest tests.test_ksa26_corpus_governance tests.test_certification_closure tests.test_phase32 tests.test_phase33 tests.test_phase35 -q'",
+      "exit_code": 0,
+      "type": "command_execution"
     }
   ],
-  "diagnostic_checks": [],
-  "scope": {
-    "included": [
-      "Engine-owned risky-literal recovery permits one hashed, bounded crop OCR reread. A successful recovery must have a complete, non-boundary candidate with confidence from 0.80 through 1.00 and durable provider/crop evidence; otherwise required content remains empty, actionable NEEDS_REVIEW.",
-      "Evidence state, recovery status, semantic provenance, and required coverage are bound in EvidenceIR and checked during patch validation, canonical merge, verification, and finalization. Model-authored source literals, source_fact promotion from risky evidence, and unreadable-content completion are rejected.",
-      "NOT_APPLICABLE_NATIVE_VISUAL is restricted to deterministic engine-owned native typed visual/table objects, bound to matching native evidence, and retained in required source accounting. OCR failure and model preference cannot create a decorative exemption.",
-      "Cross-document work packets reject raw deck context. Conflict assessment requires current canonical artifacts for each document/work unit and builds assertions from independently grounded, evidence-bound claims. Conflicting claims remain unresolved unless existing KSA-23 authority/supersession rules resolve them.",
-      "Employee lifecycle recovery test covers prepare, next, evidence, submit, conflict assessment, verification, and finalization; failed material recovery leaves NEEDS_REVIEW and prevents RUN_COMPLETE.",
-      "Preserves KSA-22 provenance and table identity/migration, KSA-23 conflict assessment and authority/supersession behavior, KSA-24 semantic/modality/table/chart/connector/mixed-language/real-path protections, and KSA-01 through KSA-21 compatibility/security behavior."
-    ],
-    "excluded": [
-      "KSA-26 and later.",
-      "Merge to main.",
-      "Live company or Gemma qualification.",
-      "Release and production certification."
-    ]
+  "codex": {
+    "cli_version": "codex-cli 0.155.1",
+    "configured_model": "gpt-6-luna",
+    "event_count": 331,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 98.5,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 26294528,
+      "fresh_input_tokens": 401044,
+      "input_tokens": 26695572,
+      "non_reasoning_output_tokens": 53224,
+      "output_tokens": 112217,
+      "reasoning_output_tokens": 58993,
+      "total_processed_tokens": 26807789
+    },
+    "warnings": []
   },
-  "environment": {
-    "python_3_11": "System Python 3.11.7.",
-    "python_3_12": "Isolated /tmp/k-slide-py312-fix05 interpreter, Python 3.12.9."
-  },
-  "notes": [
-    "Implementation started from the exact integrated main commit requested by the user, b9f109c1b92c26cb3cf5611b3d9c82659c56da40.",
-    "The KSA-24 blank-image fixture now asserts NEEDS_REVIEW and blocked finalization because it has no recoverable literal evidence.",
-    "Full-suite messages that print PRODUCTION_CERTIFIED are isolated synthetic fixture output; no live company or Gemma qualification, release, or production certification occurred or is claimed.",
-    "Changes remain uncommitted on the task branch."
+  "commits": [
+    {
+      "sha": "28be285b08859bdcbb6e910e94af6f5c161d248a",
+      "subject": "fabric: capture completed model changes [CF-06ed6121a7554f14d8e15da3]"
+    }
   ],
-  "continuation": {
-    "request": "CHG-16 / KSA-25 F25-01 semantic-evidence indirection recovery-law closure",
-    "candidate": {
-      "branch": "codex/k-slide-chg16-recovery-law-01-fix01",
-      "base_integrated_main": "b9f109c1b92c26cb3cf5611b3d9c82659c56da40",
-      "predecessor_candidate": "85aa7ee2cf4c2a93dfa026d4bf9f6bc80436b972",
-      "predecessor_parent": "b9f109c1b92c26cb3cf5611b3d9c82659c56da40",
-      "carried_forward_commit": "f4e192f03155460aa59575342641e2de166b6cd2",
-      "predecessor_tree": "7a18beb87df77f435ed56e67076de72cf8e9f4e1",
-      "carried_forward_tree": "7a18beb87df77f435ed56e67076de72cf8e9f4e1",
-      "f25_01_changes_committed": false,
-      "merge_to_main_performed": false
-    },
-    "f25_01": {
-      "status": "CLOSED",
-      "summary": [
-        "Semantic evidence eligibility now fails closed for unrecognized IDs, raw context images, risky literal regions, dependent numeric facts, and table containers whose constituent cells or linked numeric facts are not all eligible.",
-        "Patch admission and canonical verification apply the same evidence composition rule to regions, cells, visual interpretations, and executive claims. Direct grounded subsets remain usable by exact ID.",
-        "Typed chart, connector, shape/group, and policy-bound native non-text visual evidence remain available to visual interpretations under existing chart-claim and connector source-fact validation.",
-        "Conflict assertion rebuilding rechecks current canonical evidence composition, rejecting context-only claims and candidate groups that reference them.",
-        "Failed recovery remains NEEDS REVIEW, blocks completion, and leaves no raw-context-only decision claim in the Executive Brief."
-      ],
-      "changed_files": [
-        ".codex-fabric/audit.json",
-        "src/k_slide/conflicts.py",
-        "src/k_slide/translation.py",
-        "src/k_slide/verify.py",
-        "tests/test_ksa25_recovery_law.py"
-      ]
-    },
-    "checks": [
+  "diff": {
+    "additions": 1413,
+    "changed_files": 17,
+    "commit_count": 1,
+    "deletions": 35
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 4,
+    "items": [
       {
-        "command": "rtk env PYTHONPATH=src python3 -m unittest tests.test_ksa25_recovery_law -v",
-        "exit_code": 0,
-        "result": "12 KSA-25 recovery-law tests passed in 6.485s, including adversarial evidence alias, canonical tampering, conflict rebuild, employee NEEDS REVIEW/report, exact evidence, grounded container, typed chart/connector, and native visual cases."
+        "bytes": 41718,
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "6cddd67427148c2f415af8cc60f12023fe373f12775d07d88dc5d14ccb44b375"
       },
       {
-        "command": "rtk env PYTHONPATH=src:. python3 -m unittest -q tests.test_ksa25_recovery_law tests.test_ksa24_modality_conformance tests.test_ksa24_f24_repairs tests.test_ksa24_f24_real_path tests.test_ksa23_conflicts tests.test_ksa22_provenance tests.test_ksa21_adversarial_security",
-        "exit_code": 0,
-        "result": "93 tests passed in 3.862s; 1 skipped. KSA-25, KSA-24 modality/real-path/F24, KSA-23 conflicts/supersession, KSA-22 provenance/table identity, and KSA-21 adversarial security."
+        "bytes": 4507,
+        "path": "evals/README.md",
+        "sha256": "ccdb332beb10f43f11a81254386b01cc62475b4260cf2a2aefe9c9ca66450b8c"
       },
       {
-        "command": "rtk env PYTHONPATH=src:. python3 -m unittest -q tests.test_chg16_foundation tests.test_chg16_storage_planes tests.test_chg16_durable_execution tests.test_chg16_accesskey_nonleakage tests.test_chg16_deletion tests.test_chg16_host_integration tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support tests.test_chg16_environment_binding tests.test_chg16_classification_admission tests.test_chg16_retention_policy tests.test_chg16_scoped_admission tests.test_chg16_paas_worker tests.test_chg16_authentication_transport",
-        "exit_code": 0,
-        "result": "216 tests passed in 20.180s; 1 skipped. KSA-15 through KSA-20 security and host compatibility regression group."
+        "bytes": 2935,
+        "path": "private-evals/README.md",
+        "sha256": "a9183fbb092f3c9fa7747b4651ed10b5938aa780f2cad96d235fe07a49e11b55"
       },
       {
-        "command": "rtk proxy npx --yes tsx tests/test_chg16_opencode_plugin.ts",
-        "exit_code": 0,
-        "result": "OpenCode host attachment regression tests passed."
-      },
-      {
-        "command": "rtk env PYTHONPATH=src:. python3 -m unittest -q tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript",
-        "exit_code": 0,
-        "result": "1 test passed. TranslationPatch schema, Python contract, and OpenCode TypeScript surface contract passed."
-      },
-      {
-        "command": "rtk proxy python3 -c 'import json; from pathlib import Path; from jsonschema import Draft202012Validator; paths=sorted(Path(\"schemas\").glob(\"*.schema.json\")); [Draft202012Validator.check_schema(json.loads(path.read_text(encoding=\"utf-8\"))) for path in paths]; print(f\"{len(paths)} JSON Schemas: valid Draft 2020-12\")'",
-        "exit_code": 0,
-        "result": "All 4 JSON Schemas validated as Draft 2020-12."
-      },
-      {
-        "command": "rtk env PYTHONPATH=src:. python3 -m compileall -q src tests evals && rtk env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m compileall -q src tests evals && rtk proxy python3 --version && rtk proxy /tmp/k-slide-py312-fix05/bin/python --version",
-        "exit_code": 0,
-        "result": "Compile checks passed on Python 3.11.7 and isolated Python 3.12.9."
-      },
-      {
-        "command": "rtk env PYTHONPATH=src:. python3 -m unittest discover -s tests -p 'test_*.py' -q",
-        "exit_code": 0,
-        "result": "500 tests passed in 53.590s; 4 skipped on Python 3.11.7. Fixture output includes synthetic release-state examples; no live qualification or certification was performed."
-      },
-      {
-        "command": "rtk env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m unittest discover -s tests -p 'test_*.py' -q",
-        "exit_code": 0,
-        "result": "500 tests passed in 56.705s on isolated Python 3.12.9. Fixture output includes synthetic release-state examples; no live qualification or certification was performed."
-      },
-      {
-        "command": "rtk git diff --check",
-        "exit_code": 0,
-        "result": "No whitespace errors."
-      },
-      {
-        "command": "rtk proxy python3 -c 'import json; json.load(open(\".codex-fabric/audit.json\", encoding=\"utf-8\")); print(\"Fabric audit JSON: valid\")'",
-        "exit_code": 0,
-        "result": "Fabric audit JSON parsed successfully."
-      },
-      {
-        "command": "rtk git rev-parse HEAD && rtk git branch --show-current && rtk git status --short && rtk git show -s --format='commit=%H%nparent=%P%nsubject=%s' HEAD && rtk git rev-parse 85aa7ee2cf4c2a93dfa026d4bf9f6bc80436b972^{tree} f4e192f^{tree}",
-        "exit_code": 0,
-        "result": "Branch codex/k-slide-chg16-recovery-law-01-fix01 remains on carried-forward commit f4e192f03155460aa59575342641e2de166b6cd2, whose direct parent is b9f109c1b92c26cb3cf5611b3d9c82659c56da40. Original predecessor and carried-forward tree hashes are both 7a18beb87df77f435ed56e67076de72cf8e9f4e1. F25-01 source/test/audit changes are uncommitted; no merge to main."
+        "bytes": 80544,
+        "path": "src/k_slide/evidence_adapters.py",
+        "sha256": "ba8ad1953bd0f2df17fca71005fadf69c4dd6a570bf14877169459d5e3af509c"
       }
     ],
-    "notes": [
-      "The predecessor commit 85aa7ee2cf4c2a93dfa026d4bf9f6bc80436b972 was based directly on b9f109c1b92c26cb3cf5611b3d9c82659c56da40. Cherry-pick f4e192f03155460aa59575342641e2de166b6cd2 is its direct child on the requested branch and has the identical tree hash.",
-      "No merge to main, KSA-26+ work, live company or Gemma qualification, release, or production certification was performed. Synthetic suite text mentioning PRODUCTION_CERTIFIED is fixture output only and is not a qualification claim.",
-      "An initial KSA-24 adversarial run caught a changed unknown-source error order; patch validation was reordered and the final KSA-24 combined group passed.",
-      "F25-01 source and test changes remain uncommitted on the task branch."
-    ]
+    "version": 1
   },
+  "evidence_publisher_release": "1.2.4-quota-recovery-candidate",
+  "fabric_capture": {
+    "applied": true,
+    "commit_message": "fabric: capture completed model changes [CF-06ed6121a7554f14d8e15da3]",
+    "commit_sha": "28be285b08859bdcbb6e910e94af6f5c161d248a",
+    "paths_before": 17,
+    "status_before": [
+      " M IMPLEMENTATION_STATUS.md",
+      " M evals/README.md",
+      " M evals/model_eval.py",
+      " M evals/opencode_diagnostics.py",
+      " M evals/production-candidate.example.yaml",
+      " M evals/production-candidate.yaml",
+      " M evals/release.py",
+      " M evals/run_engine_eval.py",
+      " M evals/scenarios.py",
+      " M private-evals/README.md",
+      " M src/k_slide/certification.py",
+      " M src/k_slide/evidence_adapters.py",
+      " M src/k_slide/production.py",
+      " M tests/test_certification_closure.py",
+      "?? evals/corpus_governance.py",
+      "?? src/k_slide/corpus_governance.py",
+      "?? tests/test_ksa26_corpus_governance.py"
+    ],
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.4-quota-recovery-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-23T03:13:52Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "847c8e760b13b3eb6aeff22106d54ada324a9c1b",
+    "branch": "codex/k-slide-chg16-corpus-governance-01",
+    "detached_verify": false,
+    "head_sha": "28be285b08859bdcbb6e910e94af6f5c161d248a",
+    "remote_exact_head": true,
+    "remote_head_sha": "28be285b08859bdcbb6e910e94af6f5c161d248a",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "847c8e760b13b3eb6aeff22106d54ada324a9c1b",
+    "work_branch": "codex/k-slide-chg16-corpus-governance-01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-06ed6121a7554f14d8e15da3",
+  "kind": "codex-fabric-audit-evidence",
   "locator": {
-    "branch": "codex/k-slide-chg16-recovery-law-01-fix01",
-    "base_integrated_main": "b9f109c1b92c26cb3cf5611b3d9c82659c56da40",
-    "path": ".codex-fabric/audit.json"
+    "branch": "codex-fabric/evidence/k-slide/chg16-corpus-governance-01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-corpus-governance-01"
+  },
+  "operation": "BUILD",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.4-quota-recovery-candidate",
+    "policy_sha256": "123615bf2f6e57dcac197e49ca98ceac59ada86a55e2c84445ea5d00812c0833",
+    "registry_sha256": "cfc765f3211c37c7967a138f3b2d89a99341939b15b2623f92744d007f625d6f"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-corpus-governance-01",
+  "schema_version": 1,
+  "started_at": "2026-09-23T02:24:19Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 2973,
+    "queue_seconds": 0,
+    "total_seconds": 2973
+  },
+  "transport": {
+    "bytes": 18853,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 18537,
+    "prompt_sha256": "b101cc023df2bc6536ac1dcd728a5b825228db796fef15d3497ce7bbb104895b",
+    "sha256": "06ed6121a7554f14d8e15da338df7d379cf1189495c524b86d94e4a634e25883"
   }
 }
