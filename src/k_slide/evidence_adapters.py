@@ -9,8 +9,10 @@ release gate while retaining hashes for every underlying result file.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
+import re
 from pathlib import Path
 from typing import Any, Callable
 
@@ -521,9 +523,11 @@ def _model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]], *, exp
         )
     try:
         from evals.scenarios import scenario_specs
+        from evals.noncritical_semantics import public_assertion_ids_by_scenario
     except ImportError as exc:
         raise AdapterError("model matrix requires the frozen scenario manifest") from exc
     frozen = {item.scenario_id: item for item in scenario_specs()}
+    public_assertions = public_assertion_ids_by_scenario()
     if any(item not in frozen for item in scenario_ids):
         raise AdapterError("model experiment contains an unknown scenario_id")
     if any(frozen[item].split != expected_split for item in scenario_ids):
@@ -549,6 +553,10 @@ def _model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]], *, exp
         scenario = frozen.get(scenario_id)
         if scenario is None or row.get("category") != scenario.category:
             raise AdapterError(f"model result category does not match frozen scenario: {scenario_id}")
+        expected_assertion_ids = public_assertions.get(scenario_id, [])
+        semantic = row.get("semantic") if isinstance(row.get("semantic"), dict) else {}
+        if semantic.get("noncritical_semantic_assertion_ids") != expected_assertion_ids:
+            raise AdapterError("public result assertion IDs do not match the repository-controlled scenario gold")
     missing = sorted(declared - observed)
     extra = sorted(observed - declared)
     if missing or extra:
@@ -593,7 +601,7 @@ def _governed_model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]
         raise AdapterError("governed case matrix lacks the candidate-bound public regression manifest") from exc
     public_ids = {item["item_id"] for item in public_manifest["items"]}
     public_gold_hashes = {item["gold_sha256"] for item in public_manifest["items"]}
-    allowed_fields = {"item_id", "category", "protected_group", "split", "source_sha256", "gold_sha256", "gold_contract_sha256", "formats"}
+    allowed_fields = {"item_id", "category", "protected_group", "split", "source_sha256", "gold_sha256", "gold_contract_sha256", "noncritical_semantic_assertion_ids", "formats"}
     for item in case_matrix:
         if not isinstance(item, dict) or set(item) != allowed_fields:
             raise AdapterError("governed case matrix item has an unsupported shape")
@@ -607,6 +615,9 @@ def _governed_model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]
             raise AdapterError("governed case metadata reuses a public synthetic item or gold contract")
         if not isinstance(item.get("gold_contract_sha256"), str) or len(item["gold_contract_sha256"]) != 64 or set(item["gold_contract_sha256"]) - set("0123456789abcdef"):
             raise AdapterError("governed case gold contract identity is malformed")
+        assertion_ids = item.get("noncritical_semantic_assertion_ids")
+        if not isinstance(assertion_ids, list) or any(not isinstance(value, str) or not re.fullmatch(r"ncs-[0-9a-f]{24}", value) for value in assertion_ids) or assertion_ids != sorted(set(assertion_ids)):
+            raise AdapterError("governed case non-critical semantic assertion IDs are malformed")
         if item.get("split") != expected_split:
             raise AdapterError("governed case matrix split disagrees with its role contract")
         try:
@@ -645,6 +656,9 @@ def _governed_model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]
         matrix_item = matrix_items.get(scenario_id)
         if matrix_item is None or row.get("category") != matrix_item["category"]:
             raise AdapterError("model result category does not match governed case metadata")
+        semantic = row.get("semantic") if isinstance(row.get("semantic"), dict) else {}
+        if semantic.get("noncritical_semantic_assertion_ids") != matrix_item["noncritical_semantic_assertion_ids"]:
+            raise AdapterError("model result assertion IDs do not match the hash-bound governed gold contract")
         if row.get("case_identity_sha256") != case_matrix_item_fingerprint(matrix_item):
             raise AdapterError("model result case identity does not match governed case metadata")
     missing = sorted(declared - observed)
@@ -716,7 +730,56 @@ def _string_list(value: Any, label: str) -> list[str]:
     return value
 
 
-def _rederive_unit_semantics(unit_semantic: dict[str, Any], *, work_unit_id: str) -> tuple[set[str], float, set[str], set[str], set[str]]:
+def _rederive_noncritical_observations(semantic: dict[str, Any], *, label: str, work_unit_id: str, verify_anchor: bool = True) -> tuple[list[dict[str, str]], int, int]:
+    observations = semantic.get("noncritical_semantic_observations")
+    if not isinstance(observations, list):
+        raise AdapterError(f"{label} is missing non-critical semantic observations")
+    ids: list[str] = []
+    normalized: list[dict[str, str]] = []
+    required = correct = 0
+    for item in observations:
+        if not isinstance(item, dict) or set(item) != {"assertion_id", "source_object_id", "anchor_kind", "anchor_sha256", "outcome"}:
+            raise AdapterError(f"{label} has an unknown non-critical semantic observation shape")
+        assertion_id = item.get("assertion_id")
+        source_object_id = item.get("source_object_id")
+        anchor_kind = item.get("anchor_kind")
+        anchor_sha256 = item.get("anchor_sha256")
+        outcome = item.get("outcome")
+        if not isinstance(assertion_id, str) or not re.fullmatch(r"ncs-[0-9a-f]{24}", assertion_id):
+            raise AdapterError(f"{label} has a malformed non-critical semantic assertion ID")
+        if not isinstance(source_object_id, str) or not source_object_id or anchor_kind not in {"region", "table_cell", "visual_element"}:
+            raise AdapterError(f"{label} has a malformed non-critical semantic source anchor")
+        if not isinstance(anchor_sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", anchor_sha256):
+            raise AdapterError(f"{label} has a malformed non-critical semantic anchor digest")
+        expected_anchor = hashlib.sha256(f"{work_unit_id}\0{anchor_kind}\0{source_object_id}".encode("utf-8")).hexdigest()
+        if verify_anchor and anchor_sha256 != expected_anchor:
+            raise AdapterError(f"{label} non-critical semantic anchor digest disagrees with its source identity")
+        if outcome not in {"CORRECT", "INCORRECT", "UNRESOLVED_EXEMPT"}:
+            raise AdapterError(f"{label} has an unknown non-critical semantic outcome")
+        ids.append(assertion_id)
+        normalized.append({
+            "assertion_id": assertion_id,
+            "source_object_id": source_object_id,
+            "anchor_kind": anchor_kind,
+            "anchor_sha256": anchor_sha256,
+            "outcome": outcome,
+        })
+        if outcome != "UNRESOLVED_EXEMPT":
+            required += 1
+            correct += int(outcome == "CORRECT")
+    if len(ids) != len(set(ids)):
+        raise AdapterError(f"{label} duplicates a non-critical semantic assertion ID")
+    if _nonnegative_int(semantic.get("noncritical_semantic_required_count"), f"{label} required count") != required:
+        raise AdapterError(f"{label} non-critical semantic required count disagrees with observations")
+    if _nonnegative_int(semantic.get("noncritical_semantic_correct_count"), f"{label} correct count") != correct:
+        raise AdapterError(f"{label} non-critical semantic correct count disagrees with observations")
+    rate = correct / required if required else 1.0
+    if abs(_quality_rate(semantic.get("noncritical_semantic_equivalence"), f"{label} equivalence") - rate) > 1e-12:
+        raise AdapterError(f"{label} non-critical semantic rate disagrees with observations")
+    return normalized, required, correct
+
+
+def _rederive_unit_semantics(unit_semantic: dict[str, Any], *, work_unit_id: str) -> tuple[set[str], float, set[str], set[str], set[str], list[dict[str, str]], int, int]:
     """Rebuild scorer-critical codes and unresolved observations from persisted facts."""
 
     evidence = unit_semantic.get("hard_gate_evidence")
@@ -745,7 +808,7 @@ def _rederive_unit_semantics(unit_semantic: dict[str, Any], *, work_unit_id: str
         raise AdapterError("Hangul violation count is invalid")
     if not isinstance(unsupported_count, int) or isinstance(unsupported_count, bool) or unsupported_count < 0:
         raise AdapterError("unsupported claim count is invalid")
-    if not isinstance(evidence.get("modality_source_binding_failure"), bool) or not isinstance(evidence.get("table_cardinality_mismatch"), bool):
+    if not isinstance(evidence.get("modality_source_binding_failure"), bool) or not isinstance(evidence.get("noncritical_semantic_source_binding_failure"), bool) or not isinstance(evidence.get("table_cardinality_mismatch"), bool):
         raise AdapterError("source-local binding/table structure facts are invalid")
 
     expected_critical: set[str] = set(exec_codes) | chart_codes | process_codes
@@ -755,7 +818,7 @@ def _rederive_unit_semantics(unit_semantic: dict[str, Any], *, work_unit_id: str
         expected_critical.add("CRITICAL_NUMERIC_MISMATCH")
     if modality < 1.0:
         expected_critical.add("CRITICAL_MODALITY_MISMATCH")
-    if evidence["modality_source_binding_failure"] or duplicate_regions:
+    if evidence["modality_source_binding_failure"] or evidence["noncritical_semantic_source_binding_failure"] or duplicate_regions:
         expected_critical.add("SCORER_SOURCE_BINDING_FAILURE")
     if hangul_count:
         expected_critical.add("UNEXPECTED_HANGUL")
@@ -781,8 +844,19 @@ def _rederive_unit_semantics(unit_semantic: dict[str, Any], *, work_unit_id: str
     metrics = ("coverage", "numeric_fidelity", "modality", "table_cell_fidelity", "visual_relation_recall")
     values = [_quality_rate(unit_semantic.get(name), f"semantic.{name}") for name in metrics]
     fidelity = min(values)
-    if abs(_quality_rate(unit_semantic.get("source_backed_semantic_fidelity"), "semantic.source_backed_semantic_fidelity") - fidelity) > 1e-12:
-        raise AdapterError("source-backed semantic fidelity is not rederived from scorer metrics")
+    if abs(_quality_rate(unit_semantic.get("critical_axis_minimum_diagnostic"), "semantic.critical_axis_minimum_diagnostic") - fidelity) > 1e-12:
+        raise AdapterError("critical-axis diagnostic is not rederived from scorer metrics")
+    noncritical_observations, noncritical_required, noncritical_correct = _rederive_noncritical_observations(
+        unit_semantic, label="unit semantic", work_unit_id=work_unit_id,
+    )
+    for observation in noncritical_observations:
+        if observation["outcome"] == "UNRESOLVED_EXEMPT" and (
+            observation["source_object_id"] not in required_unresolved
+            or observation["source_object_id"] not in unresolved_ids
+        ):
+            raise AdapterError("non-critical semantic unresolved exemption is not bound to an observed material unresolved source")
+        if observation["outcome"] == "CORRECT" and observation["source_object_id"] in unresolved_ids:
+            raise AdapterError("unresolved source output cannot satisfy a non-critical semantic assertion")
     false_negative = required_unresolved - unresolved_ids
     false_positive = unresolved_ids - required_unresolved
     if set(_string_list(unit_semantic.get("material_unresolved_false_negative_ids"), "material unresolved false negatives")) != false_negative:
@@ -807,10 +881,10 @@ def _rederive_unit_semantics(unit_semantic: dict[str, Any], *, work_unit_id: str
                 raise AdapterError(f"unit semantic {field} disagrees with source-local unresolved observations")
         elif abs(_quality_rate(value, f"semantic.{field}") - derived) > 1e-12:
             raise AdapterError(f"unit semantic {field} disagrees with source-local unresolved observations")
-    return finding_codes, fidelity, required_unresolved, observed_material, false_positive
+    return finding_codes, fidelity, required_unresolved, observed_material, false_positive, noncritical_observations, noncritical_required, noncritical_correct
 
 
-def _derive_case_hard_gates(row: dict[str, Any], *, model_policy: Any) -> tuple[list[dict[str, str]], float, int, int, int, int]:
+def _derive_case_hard_gates(row: dict[str, Any], *, model_policy: Any) -> tuple[list[dict[str, str]], float, int, int, int, int, int, int]:
     """Independently rederive one persisted result row's gates and floors."""
 
     findings: dict[tuple[str, str, str], dict[str, str]] = {}
@@ -836,6 +910,9 @@ def _derive_case_hard_gates(row: dict[str, Any], *, model_policy: Any) -> tuple[
     true_positive = 0
     observed_unresolved = 0
     unnecessary_unresolved = 0
+    noncritical_observations: list[dict[str, str]] = []
+    noncritical_required = 0
+    noncritical_correct = 0
     for unit in units:
         if not isinstance(unit, dict) or not isinstance(unit.get("work_unit_id"), str) or not unit.get("work_unit_id") or not isinstance(unit.get("semantic"), dict):
             raise AdapterError("model result unit score is malformed")
@@ -843,13 +920,16 @@ def _derive_case_hard_gates(row: dict[str, Any], *, model_policy: Any) -> tuple[
         if unit_id in source_unit_ids:
             raise AdapterError("model result contains duplicate work-unit ownership")
         source_unit_ids.add(unit_id)
-        codes, fidelity, expected, observed, extra = _rederive_unit_semantics(unit["semantic"], work_unit_id=unit_id)
+        codes, fidelity, expected, observed, extra, observations, semantic_required, semantic_correct = _rederive_unit_semantics(unit["semantic"], work_unit_id=unit_id)
         case_codes.update(codes)
         fidelities.append(fidelity)
         required_unresolved += len(expected)
         true_positive += len(observed)
         observed_unresolved += len(_string_list(unit["semantic"].get("unresolved_ids"), "unresolved source IDs"))
         unnecessary_unresolved += len(extra)
+        noncritical_observations.extend(observations)
+        noncritical_required += semantic_required
+        noncritical_correct += semantic_correct
         for code in codes:
             add(code, unit_id)
 
@@ -863,8 +943,24 @@ def _derive_case_hard_gates(row: dict[str, Any], *, model_policy: Any) -> tuple[
         add(code)
 
     case_fidelity = deterministic_mean(fidelities)
-    if row.get("semantic_scored") is True and abs(_quality_rate(semantic.get("source_backed_semantic_fidelity"), "source_backed_semantic_fidelity") - case_fidelity) > 1e-12:
-        raise AdapterError("case semantic fidelity disagrees with its work-unit scorer results")
+    if row.get("semantic_scored") is True:
+        case_observations, case_required, case_correct = _rederive_noncritical_observations(
+            semantic, label="case semantic", work_unit_id="", verify_anchor=False,
+        )
+        # Case observations repeat work-unit facts and are compared structurally;
+        # their anchor digests were already rederived with each real work-unit ID.
+        if case_observations != sorted(noncritical_observations, key=lambda item: item["assertion_id"]):
+            raise AdapterError("case non-critical semantic observations disagree with work-unit scorer results")
+        if (case_required, case_correct) != (noncritical_required, noncritical_correct):
+            raise AdapterError("case non-critical semantic counts disagree with work-unit observations")
+        expected_assertion_ids = _string_list(semantic.get("noncritical_semantic_assertion_ids"), "non-critical semantic expected assertion IDs")
+        if any(not re.fullmatch(r"ncs-[0-9a-f]{24}", value) for value in expected_assertion_ids) or expected_assertion_ids != sorted(expected_assertion_ids):
+            raise AdapterError("case non-critical semantic assertion membership is malformed")
+        observed_assertion_ids = sorted(item["assertion_id"] for item in noncritical_observations)
+        if expected_assertion_ids != observed_assertion_ids:
+            raise AdapterError("case non-critical semantic assertion IDs were dropped, duplicated, or changed")
+    elif noncritical_observations or noncritical_required or noncritical_correct:
+        raise AdapterError("unscored model result contains non-critical semantic observations")
 
     opencode = row.get("opencode")
     if not isinstance(opencode, dict):
@@ -1075,7 +1171,7 @@ def _derive_case_hard_gates(row: dict[str, Any], *, model_policy: Any) -> tuple[
     findings = sorted(findings.values(), key=lambda item: (item["category"], item["code"], item.get("work_unit_id", ""), item.get("unknown_code_sha256", "")))
     if row.get("hard_gate_findings") != findings:
         raise AdapterError("result-row hard-gate findings do not match independently rederived evidence")
-    return findings, case_fidelity, required_unresolved, true_positive, observed_unresolved, unnecessary_unresolved
+    return findings, case_fidelity, required_unresolved, true_positive, observed_unresolved, unnecessary_unresolved, noncritical_required, noncritical_correct
 
 
 def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path | None) -> dict[str, Any]:
@@ -1126,16 +1222,17 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
     if summary.get("quality_metrics_authoritative") is not authoritative:
         raise AdapterError("summary quality authority disagrees with case results")
     case_findings: dict[int, list[dict[str, str]]] = {}
-    case_fidelities: list[float] = []
     material_required = material_true_positive = unresolved_observed = unnecessary_unresolved = 0
+    noncritical_semantic_required = noncritical_semantic_correct = 0
     for index, item in enumerate(rows):
-        findings, fidelity, expected_count, true_positive_count, observed_count, false_positive_count = _derive_case_hard_gates(item, model_policy=policy)
+        findings, _axis_diagnostic, expected_count, true_positive_count, observed_count, false_positive_count, semantic_required, semantic_correct = _derive_case_hard_gates(item, model_policy=policy)
         case_findings[index] = findings
-        case_fidelities.append(fidelity)
         material_required += expected_count
         material_true_positive += true_positive_count
         unresolved_observed += observed_count
         unnecessary_unresolved += false_positive_count
+        noncritical_semantic_required += semantic_required
+        noncritical_semantic_correct += semantic_correct
         execution = item.get("persisted_execution", {})
         contract = item.get("work_unit_contract", {})
         units = item.get("units", [])
@@ -1216,27 +1313,27 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
         raise AdapterError("model summary is missing unexpected_unresolved_rate")
     if abs(_quality_rate(summary["unexpected_unresolved_rate"], "summary.unexpected_unresolved_rate") - derived_unexpected) > 1e-12:
         raise AdapterError("model summary unexpected unresolved rate disagrees with case results")
-    if any("source_backed_semantic_fidelity" not in item.get("semantic", {}) for item in rows):
-        raise AdapterError("model result is missing source-backed semantic fidelity")
-    derived_semantic_fidelity = deterministic_mean(case_fidelities)
+    derived_semantic_equivalence = noncritical_semantic_correct / noncritical_semantic_required if noncritical_semantic_required else 1.0
     material_recall = material_true_positive / material_required if material_required else 1.0
     precision = material_true_positive / unresolved_observed if unresolved_observed else 1.0
     floor_pass = (
         material_recall >= QUALITY_FLOORS["material_unresolved_recall_min"]
-        and derived_semantic_fidelity >= QUALITY_FLOORS["noncritical_semantic_equivalence_min"]
+        and derived_semantic_equivalence >= QUALITY_FLOORS["noncritical_semantic_equivalence_min"]
         and precision >= QUALITY_FLOORS["unresolved_precision_min"]
         and derived_terminology >= QUALITY_FLOORS["locked_terminology_recall_min"]
     )
     for field, derived in (
         ("material_unresolved_recall", material_recall),
         ("unresolved_precision", precision),
-        ("noncritical_semantic_fidelity", derived_semantic_fidelity),
+        ("noncritical_semantic_equivalence", derived_semantic_equivalence),
     ):
         value = summary.get(field)
         if abs(_quality_rate(value, f"summary.{field}") - derived) > 1e-12:
             raise AdapterError(f"model summary {field} disagrees with per-case observations")
     if summary.get("noncritical_floor_pass") is not floor_pass:
         raise AdapterError("model summary non-critical floor result was edited")
+    if summary.get("noncritical_semantic_required_count") != noncritical_semantic_required or summary.get("noncritical_semantic_correct_count") != noncritical_semantic_correct:
+        raise AdapterError("model summary non-critical semantic counts disagree with scorer observations")
     if summary.get("unresolved_observed_count") != unresolved_observed or summary.get("unnecessary_unresolved_count") != unnecessary_unresolved:
         raise AdapterError("model summary unresolved precision counts disagree with result rows")
     if authoritative and (hard_gate_failure_count or not floor_pass):
@@ -1264,7 +1361,9 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
         "hard_gate_failure_types": hard_gate_failure_types,
         "hard_gate_pass": hard_gate_failure_count == 0,
         "noncritical_floor_pass": floor_pass,
-        "noncritical_semantic_fidelity": derived_semantic_fidelity,
+        "noncritical_semantic_required_count": noncritical_semantic_required,
+        "noncritical_semantic_correct_count": noncritical_semantic_correct,
+        "noncritical_semantic_equivalence": derived_semantic_equivalence,
         "material_unresolved_recall": material_recall,
         "unresolved_precision": precision,
         "unresolved_observed_count": unresolved_observed,

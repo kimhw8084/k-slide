@@ -122,12 +122,12 @@ class Phase33CertificationTests(unittest.TestCase):
         self.assertIn("SCORER_SOURCE_BINDING_FAILURE", score["critical_failures"])
 
     def test_repeated_critical_frequency_is_computed(self):
-        rows = [{"scenario_id": "s1", "format": "png", "category": "financial_table", "semantic_scored": True, "semantic": {"coverage": 1, "critical_failures": (["CRITICAL"] if index == 0 else [])}, "status": "PASS", "quality_metrics_authoritative": True, "engine_gate": "PASS"} for index in range(5)]
+        rows = [{"scenario_id": "s1", "format": "png", "category": "financial_table", "semantic_scored": True, "semantic": {"coverage": 1, "critical_failures": (["CRITICAL"] if index == 0 else []), "noncritical_semantic_assertion_ids": [], "noncritical_semantic_observations": [], "noncritical_semantic_required_count": 0, "noncritical_semantic_correct_count": 0, "noncritical_semantic_equivalence": 1.0}, "status": "PASS", "quality_metrics_authoritative": True, "engine_gate": "PASS"} for index in range(5)]
         summary = aggregate_model_results(rows, model="google/gemma-4-31b-it", split="validation")
         self.assertEqual(summary["stability_groups"]["s1/png"]["critical_frequency"], 0.2)
 
     def test_authoritative_critical_measurement_is_certification_failure(self):
-        rows = [{"scenario_id": "s1", "format": "png", "category": "modality_decision_state", "semantic_scored": True, "semantic": {"coverage": 1, "critical_failures": ["CRITICAL_MODALITY_MISMATCH"]}, "status": "PASS", "quality_metrics_authoritative": True, "engine_gate": "PASS", "opencode": {"mode": "quality"}}]
+        rows = [{"scenario_id": "s1", "format": "png", "category": "modality_decision_state", "semantic_scored": True, "semantic": {"coverage": 1, "critical_failures": ["CRITICAL_MODALITY_MISMATCH"], "noncritical_semantic_assertion_ids": [], "noncritical_semantic_observations": [], "noncritical_semantic_required_count": 0, "noncritical_semantic_correct_count": 0, "noncritical_semantic_equivalence": 1.0}, "status": "PASS", "quality_metrics_authoritative": True, "engine_gate": "PASS", "opencode": {"mode": "quality"}}]
         summary = aggregate_model_results(rows, model="google/gemma-4-31b-it", split="validation")
         self.assertEqual(summary["evaluation_state"], EvaluationState.CERTIFICATION_FAIL.value)
 

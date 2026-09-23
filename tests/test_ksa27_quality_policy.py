@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from evals.model_results import aggregate_model_results, derive_result_hard_gate_findings
+from evals.governed_corpus import case_matrix_fingerprint, case_matrix_item_fingerprint
 from evals.model_scorers import score_translation_patch
 from k_slide.certification import EvidenceValidationError, load_evidence, validate_evidence_payload
 from k_slide.evidence_adapters import AdapterError, build_machine_evidence
-from k_slide.evidence_ir import EvidenceIR, EvidenceTable, EvidenceTableCell
+from k_slide.evidence_ir import EvidenceIR, EvidenceRegion, EvidenceTable, EvidenceTableCell
 from k_slide.quality_policy import (
     HARD_GATE_REGISTRY,
     QUALITY_FLOORS,
@@ -21,6 +24,7 @@ from k_slide.quality_policy import (
     policy_identity_record,
     quality_policy_identity,
 )
+from evals.noncritical_semantics import public_gold_contract_sha256
 from tests.test_certification_closure import _model_result_row, _model_sources, _write
 
 
@@ -101,11 +105,77 @@ def _configure_unresolved(row: dict, required_count: int, observed_count: int) -
 
 
 def _refresh_model_sources(root: Path, sources: dict[str, Path], rows: list[dict]) -> None:
+    experiment = json.loads(sources["experiment_manifest"].read_text(encoding="utf-8"))
+    matrix_by_id = {item["item_id"]: item for item in experiment["case_matrix"]}
+    rows_by_id: dict[str, list[dict]] = {}
+    for row in rows:
+        rows_by_id.setdefault(row["scenario_id"], []).append(row)
+    for item_id, matrix_item in matrix_by_id.items():
+        case_rows = rows_by_id[item_id]
+        assertion_ids = case_rows[0]["semantic"]["noncritical_semantic_assertion_ids"]
+        if any(row["semantic"]["noncritical_semantic_assertion_ids"] != assertion_ids for row in case_rows):
+            raise AssertionError("test rows disagree on bound assertion IDs")
+        matrix_item["noncritical_semantic_assertion_ids"] = assertion_ids
+        identity = case_matrix_item_fingerprint(matrix_item)
+        for row in case_rows:
+            row["case_identity_sha256"] = identity
+    matrix_hash = case_matrix_fingerprint(experiment["case_matrix"])
+    experiment["case_matrix_sha256"] = matrix_hash
+    experiment["case_descriptor_identity"]["case_matrix_sha256"] = matrix_hash
     summary = json.loads(sources["model_summary"].read_text(encoding="utf-8"))
     derived = aggregate_model_results(rows, model="google/gemma-4-31b-it", split=summary["split"])
     summary.update(derived)
+    summary["case_matrix_sha256"] = matrix_hash
+    summary["case_descriptor_identity"] = experiment["case_descriptor_identity"]
     (root / "results.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
     _write(sources["model_summary"], summary)
+    _write(sources["experiment_manifest"], experiment)
+
+
+def _custom_assertion_case(total: int, correct: int, *, scenario_id: str = "custom-assertions") -> tuple[SimpleNamespace, EvidenceIR, dict]:
+    assertions = []
+    regions = []
+    patch_regions = []
+    for index in range(total):
+        source_text = f"근거 설명 {index}"
+        assertion_id = "ncs-" + hashlib.sha256(f"{scenario_id}:{index}".encode()).hexdigest()[:24]
+        assertions.append({
+            "assertion_id": assertion_id,
+            "surface": "region",
+            "source_text": source_text,
+            "accepted_phrases": [f"business meaning {index}", f"business interpretation {index}"],
+        })
+        region_id = f"region-{index:05d}"
+        regions.append(EvidenceRegion(region_id, selected_literal_candidate=source_text))
+        english = f"business meaning {index}" if index < correct else f"clear adjacent business wording {index}"
+        patch_regions.append({"region_id": region_id, "english": english})
+    scenario = SimpleNamespace(scenario_id=scenario_id, gold={"noncritical_semantic_assertions": assertions})
+    evidence = EvidenceIR("doc", "unit", {}, tuple(regions), required_source_ids=tuple(item.region_id for item in regions)).with_revision()
+    score = score_translation_patch(scenario, evidence, {"regions": patch_regions})
+    return scenario, evidence, score
+
+
+def _apply_observations(row: dict, assertion_ids: list[str], correct: int) -> None:
+    observations = []
+    for index, assertion_id in enumerate(assertion_ids):
+        source_object_id = f"anchor-{index:05d}"
+        anchor_kind = "region"
+        anchor_sha256 = hashlib.sha256(f"u1\0{anchor_kind}\0{source_object_id}".encode()).hexdigest()
+        observations.append({
+            "assertion_id": assertion_id,
+            "source_object_id": source_object_id,
+            "anchor_kind": anchor_kind,
+            "anchor_sha256": anchor_sha256,
+            "outcome": "CORRECT" if index < correct else "INCORRECT",
+        })
+    for semantic in (row["units"][0]["semantic"], row["semantic"]):
+        semantic.update({
+            "noncritical_semantic_observations": observations,
+            "noncritical_semantic_required_count": len(observations),
+            "noncritical_semantic_correct_count": correct,
+            "noncritical_semantic_equivalence": correct / len(observations) if observations else 1.0,
+        })
+    row["semantic"]["noncritical_semantic_assertion_ids"] = assertion_ids
 
 
 def _bilingual_payload(**overrides) -> dict:
@@ -139,6 +209,15 @@ class KSA27QualityPolicyTests(unittest.TestCase):
         changed_membership["hard_gate_registry"]["required_coverage"].remove("SILENT_REGION_OMISSION")
         self.assertNotEqual(original, quality_policy_identity(changed_membership))
         self.assertEqual(QUALITY_POLICY_IDENTITY, original)
+        self.assertEqual(policy["policy_version"], "ksa-27.2")
+        self.assertEqual(policy["constraints"]["public_noncritical_gold_sha256"], public_gold_contract_sha256())
+
+    def test_public_assertion_sidecar_preserves_ksa26_corpus_fingerprints(self):
+        from evals.scenarios import EXPECTED_CORPUS_FINGERPRINT_V1, EXPECTED_HELD_OUT_FINGERPRINT_V1, scenario_specs, split_manifest
+
+        manifest = split_manifest(scenario_specs())
+        self.assertEqual(manifest["corpus_fingerprint"], EXPECTED_CORPUS_FINGERPRINT_V1)
+        self.assertEqual(manifest["held_out_fingerprint"], EXPECTED_HELD_OUT_FINGERPRINT_V1)
 
     def test_policy_rejects_unknown_fields_states_and_gate_codes(self):
         for mutate in (
@@ -163,7 +242,123 @@ class KSA27QualityPolicyTests(unittest.TestCase):
         summary = aggregate_model_results(rows, model="google/gemma-4-31b-it", split="validation")
         self.assertEqual(summary["mean_scores"], {"coverage": 1.0, "numeric_fidelity": 1.0, "modality": 1.0, "table_cell_fidelity": 1.0, "visual_relation_recall": 1.0})
         self.assertEqual(summary["critical_failure_count"], 1)
+        self.assertEqual(summary["noncritical_semantic_equivalence"], 1.0)
+        self.assertFalse(summary["hard_gate_pass"])
         self.assertEqual(summary["evaluation_state"], "CERTIFICATION_FAIL")
+
+    def test_public_source_bound_assertions_miss_without_creating_a_hard_gate(self):
+        from evals.noncritical_semantics import public_assertions_for
+        from evals.scenarios import scenario_specs
+
+        scenario = next(item for item in scenario_specs() if item.scenario_id == "scenario-0001")
+        assertions = public_assertions_for(scenario.scenario_id)
+        regions = (scenario.title_ko, *scenario.body_ko)
+        evidence = EvidenceIR(
+            "doc", "u-public", {},
+            tuple(EvidenceRegion(f"region-{index}", selected_literal_candidate=text) for index, text in enumerate(regions)),
+        ).with_revision()
+        translations = {
+            scenario.title_ko: "Operating plan and key risks",
+            "KPI 개선 추진": "KPI improvement initiative",
+            "Revenue 성장률 및 주요 리스크 검토": "review of revenue growth and key risks",
+            "2H 적용 가능성 협의 필요": "discussion of possible 2H application",
+        }
+        patch = {"regions": [
+            {"region_id": f"region-{index}", "english": translations[text]}
+            for index, text in enumerate(regions)
+        ]}
+        clean = score_translation_patch(scenario, evidence, patch)
+        self.assertEqual(len(assertions), 2)
+        self.assertEqual(clean["critical_failures"], [])
+        self.assertEqual(clean["noncritical_semantic_equivalence"], 1.0)
+
+        patch["regions"][1]["english"] = "KPI declined after the pilot"
+        missed = score_translation_patch(scenario, evidence, patch)
+        self.assertEqual(missed["critical_failures"], [])
+        self.assertEqual(missed["noncritical_semantic_required_count"], 2)
+        self.assertEqual(missed["noncritical_semantic_correct_count"], 1)
+        self.assertEqual(missed["noncritical_semantic_equivalence"], 0.5)
+        self.assertEqual(missed["critical_axis_minimum_diagnostic"], 1.0)
+
+    def test_approved_paraphrase_passes_fluent_wrong_meaning_fails_and_other_region_cannot_satisfy(self):
+        from evals.noncritical_semantics import public_assertions_for
+        from evals.scenarios import scenario_specs
+
+        scenario = next(item for item in scenario_specs() if item.scenario_id == "scenario-0001")
+        texts = (scenario.title_ko, *scenario.body_ko)
+        evidence = EvidenceIR("doc", "u-public", {}, tuple(
+            EvidenceRegion(f"region-{index}", selected_literal_candidate=text) for index, text in enumerate(texts)
+        )).with_revision()
+        accepted = {item["source_text"]: item["accepted_phrases"][0] for item in public_assertions_for(scenario.scenario_id)}
+        accepted["KPI 개선 추진"] = "initiative to improve KPIs"
+        patch = {"regions": [
+            {"region_id": f"region-{index}", "english": accepted.get(text, "Operating plan and related business context")}
+            for index, text in enumerate(texts)
+        ]}
+        paraphrase = score_translation_patch(scenario, evidence, patch)
+        self.assertEqual(paraphrase["noncritical_semantic_equivalence"], 1.0)
+
+        patch["regions"][1]["english"] = "not a KPI improvement initiative"
+        contradictory = score_translation_patch(scenario, evidence, patch)
+        self.assertEqual(contradictory["noncritical_semantic_observations"][0]["outcome"], "INCORRECT")
+
+        patch["regions"][1]["english"] = "KPI reduced spend in the pilot"
+        fluent_wrong = score_translation_patch(scenario, evidence, patch)
+        self.assertEqual(fluent_wrong["noncritical_semantic_observations"][0]["outcome"], "INCORRECT")
+        self.assertEqual(fluent_wrong["critical_failures"], [])
+
+        patch["regions"][1]["english"] = public_assertions_for(scenario.scenario_id)[1]["accepted_phrases"][0]
+        patch["regions"][2]["english"] = "Revenue growth and risks were deferred"
+        wrong_region = score_translation_patch(scenario, evidence, patch)
+        outcomes = {item["assertion_id"]: item["outcome"] for item in wrong_region["noncritical_semantic_observations"]}
+        self.assertEqual(outcomes[public_assertions_for(scenario.scenario_id)[0]["assertion_id"]], "INCORRECT")
+        self.assertEqual(wrong_region["critical_failures"], [])
+
+    def test_scorer_observations_drive_exact_floor_and_below_floor_aggregation(self):
+        for total, correct, expected_floor in ((100, 99, True), (1000, 989, False)):
+            with self.subTest(total=total, correct=correct):
+                scenario, _evidence, score = _custom_assertion_case(total, correct, scenario_id=f"custom-{total}")
+                self.assertEqual(score["critical_failures"], [])
+                row = _model_result_row(
+                    scenario_id=scenario.scenario_id, category="simple_mixed_text", split="validation", repeat=1,
+                    item_identity="a" * 64, subject="a" * 40, deployment="b" * 64,
+                )
+                score["noncritical_semantic_assertion_ids"] = sorted(item["assertion_id"] for item in scenario.gold["noncritical_semantic_assertions"])
+                score.update({"term_consistency_recall": 1.0, "inconsistent_alternate_count": 0})
+                row["semantic"] = copy.deepcopy(score)
+                row["units"][0]["semantic"] = copy.deepcopy(score)
+                summary = aggregate_model_results([row], model="google/gemma-4-31b-it", split="validation")
+                self.assertTrue(summary["hard_gate_pass"])
+                self.assertEqual(summary["noncritical_semantic_equivalence"], correct / total)
+                self.assertEqual(summary["noncritical_floor_pass"], expected_floor)
+
+    def test_gold_approved_unresolved_is_exempt_but_missed_material_unresolved_stays_critical(self):
+        assertion_id = "ncs-0123456789abcdef01234567"
+        scenario = SimpleNamespace(scenario_id="unresolved-contract", gold={
+            "allowed_unresolved": True,
+            "noncritical_semantic_assertions": [{
+                "assertion_id": assertion_id, "surface": "region", "source_text": "흐린 보조 설명",
+                "accepted_phrases": ["supporting descriptive note"],
+            }],
+        })
+        region = EvidenceRegion(
+            "region-blurred", selected_literal_candidate="흐린 보조 설명", evidence_state="LOW_CONFIDENCE",
+            recovery_status="NEEDS_REVIEW", recovery_reason="Synthetic ambiguity fixture.",
+        )
+        evidence = EvidenceIR("doc", "u-unresolved", {}, (region,)).with_revision()
+        review = score_translation_patch(scenario, evidence, {
+            "regions": [{"region_id": region.region_id, "english": "", "unresolved": True, "unresolved_reason": "unclear source"}],
+        })
+        self.assertEqual(review["noncritical_semantic_observations"][0]["outcome"], "UNRESOLVED_EXEMPT")
+        self.assertEqual(review["noncritical_semantic_required_count"], 0)
+        self.assertEqual(review["noncritical_semantic_equivalence"], 1.0)
+        self.assertEqual(review["material_unresolved_recall"], 1.0)
+        self.assertEqual(review["critical_failures"], [])
+
+        false_resolved = score_translation_patch(scenario, evidence, {
+            "regions": [{"region_id": region.region_id, "english": "supporting note", "unresolved": False}],
+        })
+        self.assertIn("MATERIAL_UNRESOLVED_MISSED", false_resolved["critical_failures"])
 
     def test_authority_precedes_quality_and_hard_gates_precede_floors(self):
         row = _model_result_row(scenario_id="case", category="simple_mixed_text", split="validation", repeat=1,
@@ -187,6 +382,7 @@ class KSA27QualityPolicyTests(unittest.TestCase):
                 _inject_semantic_gate(row, gate)
                 summary = aggregate_model_results([row], model="google/gemma-4-31b-it", split="validation")
                 self.assertFalse(summary["hard_gate_pass"])
+                self.assertEqual(summary["noncritical_semantic_equivalence"], 1.0)
                 self.assertIn(gate, summary["hard_gate_failure_types"])
 
     def test_table_cell_cardinality_is_source_identity_based_and_noncompensable(self):
@@ -201,6 +397,7 @@ class KSA27QualityPolicyTests(unittest.TestCase):
         self.assertIn("TABLE_CARDINALITY_MISMATCH", score["critical_failures"])
         self.assertIn("MISSING_CELL:tbl-c2", score["table_failures"])
         self.assertEqual(score["hard_gate_evidence"]["table_cardinality_mismatch"], True)
+        self.assertEqual(score["noncritical_semantic_equivalence"], 1.0)
 
     def test_table_cardinality_gate_fails_even_when_other_case_scores_are_perfect(self):
         row = _model_result_row(scenario_id="table", category="financial_table", split="validation", repeat=1,
@@ -306,20 +503,14 @@ class KSA27QualityPolicyTests(unittest.TestCase):
         self.assertTrue(summary["noncritical_floor_pass"])
 
     def test_exact_machine_floors_pass_and_one_ulp_lower_floor_fails(self):
-        for fidelity, precision_count, expected_pass in ((0.99, (19, 20), True), (0.9899999999999999, (19, 20), False), (0.99, (9499, 10_000), False)):
-            with self.subTest(fidelity=fidelity, precision=precision_count), tempfile.TemporaryDirectory() as directory:
+        for total, correct, precision_count, expected_pass in ((100, 99, (19, 20), True), (1000, 989, (19, 20), False), (100, 99, (9499, 10_000), False)):
+            with self.subTest(total=total, correct=correct, precision=precision_count), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 sources = _model_sources(root, split="validation", repeats=3)
                 rows = [json.loads(line) for line in sources["results_jsonl"].read_text(encoding="utf-8").splitlines()]
+                assertion_ids = sorted("ncs-" + hashlib.sha256(f"machine-contract:{index}".encode()).hexdigest()[:24] for index in range(total))
                 for row in rows:
-                    semantic = row["semantic"]
-                    semantic["numeric_fidelity"] = fidelity
-                    semantic["source_backed_semantic_fidelity"] = fidelity
-                    unit = row["units"][0]["semantic"]
-                    unit["numeric_fidelity"] = fidelity
-                    unit["source_backed_semantic_fidelity"] = fidelity
-                    semantic["term_consistency_recall"] = 0.995
-                rows[0]["semantic"]["numeric_fidelity"] = fidelity
+                    _apply_observations(row, assertion_ids, correct)
                 _configure_unresolved(rows[0], *precision_count)
                 _refresh_model_sources(root, sources, rows)
                 evidence = root / "evidence.json"
@@ -327,7 +518,9 @@ class KSA27QualityPolicyTests(unittest.TestCase):
                     build_machine_evidence(evidence, evidence_type="model_validation", subject_git_sha="a" * 40,
                                            deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
                     payload = load_evidence(evidence, expected_type="model_validation")["payload"]
-                    self.assertEqual(payload["noncritical_semantic_fidelity"], 0.99)
+                    self.assertEqual(payload["noncritical_semantic_equivalence"], 0.99)
+                    self.assertEqual(payload["noncritical_semantic_required_count"], 100 * len(rows))
+                    self.assertEqual(payload["noncritical_semantic_correct_count"], 99 * len(rows))
                     self.assertEqual(payload["unresolved_precision"], 0.95)
                 else:
                     with self.assertRaises(AdapterError):
@@ -343,6 +536,51 @@ class KSA27QualityPolicyTests(unittest.TestCase):
             _write(sources["model_summary"], summary)
             with self.assertRaises(AdapterError):
                 build_machine_evidence(root / "evidence.json", evidence_type="model_validation", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = _model_sources(root, split="validation", repeats=3, critical=1)
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "evidence.json", evidence_type="model_validation", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = _model_sources(root, split="validation", repeats=3)
+            rows = [json.loads(line) for line in sources["results_jsonl"].read_text(encoding="utf-8").splitlines()]
+            assertion_ids = sorted("ncs-" + hashlib.sha256(f"summary-tamper:{index}".encode()).hexdigest()[:24] for index in range(100))
+            for row in rows:
+                _apply_observations(row, assertion_ids, 99)
+            _refresh_model_sources(root, sources, rows)
+            summary = json.loads(sources["model_summary"].read_text(encoding="utf-8"))
+            summary["noncritical_semantic_equivalence"] = 1.0
+            _write(sources["model_summary"], summary)
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "evidence.json", evidence_type="model_validation", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
+
+        for mutation in ("flip", "duplicate", "drop", "unknown"):
+            with self.subTest(observation_mutation=mutation), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                sources = _model_sources(root, split="validation", repeats=3)
+                rows = [json.loads(line) for line in sources["results_jsonl"].read_text(encoding="utf-8").splitlines()]
+                assertion_ids = sorted("ncs-" + hashlib.sha256(f"observation-tamper:{index}".encode()).hexdigest()[:24] for index in range(100))
+                for row in rows:
+                    _apply_observations(row, assertion_ids, 99)
+                target = rows[0]
+                parent_observations = target["semantic"]["noncritical_semantic_observations"]
+                unit_observations = target["units"][0]["semantic"]["noncritical_semantic_observations"]
+                if mutation == "flip":
+                    parent_observations[-1]["outcome"] = "CORRECT"
+                    target["semantic"]["noncritical_semantic_correct_count"] += 1
+                    target["semantic"]["noncritical_semantic_equivalence"] = 1.0
+                elif mutation == "duplicate":
+                    unit_observations.append(copy.deepcopy(unit_observations[0]))
+                elif mutation == "drop":
+                    unit_observations.pop()
+                else:
+                    unit_observations[0]["outcome"] = "UNKNOWN"
+                (root / "results.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+                with self.assertRaises(AdapterError):
+                    build_machine_evidence(root / "evidence.json", evidence_type="model_validation", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -370,6 +608,22 @@ class KSA27QualityPolicyTests(unittest.TestCase):
                 _write(sources["experiment_manifest"], experiment)
                 with self.assertRaises(AdapterError):
                     build_machine_evidence(root / "evidence.json", evidence_type="model_validation", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = _model_sources(root, split="validation", repeats=3)
+            summary = json.loads(sources["model_summary"].read_text(encoding="utf-8"))
+            experiment = json.loads(sources["experiment_manifest"].read_text(encoding="utf-8"))
+            rows = [json.loads(line) for line in sources["results_jsonl"].read_text(encoding="utf-8").splitlines()]
+            predecessor_policy = {**policy_identity_record(), "policy_version": "ksa-27.1", "identity_sha256": "0" * 64}
+            for value in (summary, experiment, *rows):
+                value["quality_policy"] = predecessor_policy
+                value["quality_policy_identity"] = predecessor_policy["identity_sha256"]
+            _write(sources["model_summary"], summary)
+            _write(sources["experiment_manifest"], experiment)
+            sources["results_jsonl"].write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(root / "evidence.json", evidence_type="model_validation", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -435,7 +689,7 @@ class KSA27QualityPolicyTests(unittest.TestCase):
             path = root / "evidence.json"
             build_machine_evidence(path, evidence_type="model_validation", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
             envelope = json.loads(path.read_text(encoding="utf-8"))
-            envelope["schema_version"] = "2.3"
+            envelope["schema_version"] = "2.4"
             _write(path, envelope)
             with self.assertRaises(EvidenceValidationError):
                 load_evidence(path, expected_type="model_validation")

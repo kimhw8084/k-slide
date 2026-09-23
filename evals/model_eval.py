@@ -36,6 +36,7 @@ from k_slide.runtime import discover_runtime
 from .generator import DEFAULT_VARIANT, generate_artifacts
 from .model_results import aggregate_model_results, write_results
 from .model_scorers import score_deck_consistency, score_translation_patch
+from .noncritical_semantics import assertions_for_scenario
 from .opencode_runner import OpenCodeEvalRunner, _latest_run
 from .scenarios import DATASET_VERSION, Scenario, scenario_specs, split_manifest
 from .corpus_governance import (
@@ -84,11 +85,23 @@ def collect_run_artifacts(run: Path | None) -> list[dict[str, Any]]:
     return collected
 
 
-def _aggregate_unit_semantics(unit_scores: list[dict[str, Any]]) -> dict[str, Any]:
+def _aggregate_unit_semantics(unit_scores: list[dict[str, Any]], scenario: Any) -> dict[str, Any]:
     if not unit_scores:
         return {}
     numeric = ("coverage", "numeric_fidelity", "modality", "table_cell_fidelity", "visual_relation_recall")
-    failures = sorted({failure for score in unit_scores for failure in score.get("critical_failures", [])})
+    failures = {failure for score in unit_scores for failure in score.get("critical_failures", [])}
+    expected_assertion_ids = sorted(item["assertion_id"] for item in assertions_for_scenario(scenario))
+    noncritical_observations = [
+        observation
+        for score in unit_scores
+        for observation in score.get("noncritical_semantic_observations", [])
+    ]
+    observed_assertion_ids = [item.get("assertion_id") for item in noncritical_observations if isinstance(item, dict)]
+    if len(observed_assertion_ids) != len(set(observed_assertion_ids)) or sorted(observed_assertion_ids) != expected_assertion_ids:
+        failures.add("SCORER_SOURCE_BINDING_FAILURE")
+    noncritical_observations.sort(key=lambda item: item.get("assertion_id", ""))
+    noncritical_required = sum(item.get("outcome") != "UNRESOLVED_EXEMPT" for item in noncritical_observations if isinstance(item, dict))
+    noncritical_correct = sum(item.get("outcome") == "CORRECT" for item in noncritical_observations if isinstance(item, dict))
     required_unresolved = sum(len(score.get("material_unresolved_required_ids", [])) for score in unit_scores)
     resolved_unresolved = sum(len(score.get("material_unresolved_observed_ids", [])) for score in unit_scores)
     observed_unresolved = sum(len(score.get("unresolved_ids", [])) for score in unit_scores)
@@ -96,8 +109,13 @@ def _aggregate_unit_semantics(unit_scores: list[dict[str, Any]]) -> dict[str, An
     return {
         "unit_count": len(unit_scores),
         **{name: deterministic_mean([float(score.get(name, 0.0)) for score in unit_scores]) for name in numeric},
-        "source_backed_semantic_fidelity": deterministic_mean([float(score.get("source_backed_semantic_fidelity", 0.0)) for score in unit_scores]),
-        "critical_failures": failures,
+        "critical_axis_minimum_diagnostic": deterministic_mean([float(score.get("critical_axis_minimum_diagnostic", 0.0)) for score in unit_scores]),
+        "noncritical_semantic_assertion_ids": expected_assertion_ids,
+        "noncritical_semantic_observations": noncritical_observations,
+        "noncritical_semantic_required_count": noncritical_required,
+        "noncritical_semantic_correct_count": noncritical_correct,
+        "noncritical_semantic_equivalence": noncritical_correct / noncritical_required if noncritical_required else 1.0,
+        "critical_failures": sorted(failures),
         "units": unit_scores,
         "unresolved_region_rate": sum(float(score.get("unresolved_region_rate", 0.0)) for score in unit_scores) / len(unit_scores),
         "unexpected_unresolved_rate": sum(float(score.get("unexpected_unresolved_rate", 0.0)) for score in unit_scores) / len(unit_scores),
@@ -156,7 +174,10 @@ def _source_free_semantic(value: dict[str, Any]) -> dict[str, Any]:
         "residual_hangul", "unsupported_executive_claims", "unresolved_count",
         "unresolved_region_rate", "unexpected_unresolved", "unexpected_unresolved_rate",
         "critical_failures", "term_consistency_recall", "inconsistent_alternate_count",
-        "source_backed_semantic_fidelity", "material_unresolved_required_count",
+        "critical_axis_minimum_diagnostic", "noncritical_semantic_assertion_ids",
+        "noncritical_semantic_observations", "noncritical_semantic_required_count",
+        "noncritical_semantic_correct_count", "noncritical_semantic_equivalence",
+        "material_unresolved_required_count",
         "material_unresolved_true_positive_count", "unresolved_observed_count",
         "unresolved_false_positive_count", "material_unresolved_recall", "unresolved_precision",
         "unresolved_ids", "material_unresolved_required_ids", "material_unresolved_observed_ids",
@@ -644,12 +665,11 @@ class ModelEvaluationRunner:
                         {"work_unit_id": item["work_unit_id"], **score_translation_patch(scenario, item["evidence"], item["patch"])}
                         for item in artifacts
                     ]
-                    semantic = _aggregate_unit_semantics(unit_scores)
+                    semantic = _aggregate_unit_semantics(unit_scores, scenario)
                     term_consistency = score_deck_consistency([item["patch"] for item in artifacts], scenario.gold)
                     semantic["term_consistency_recall"] = float(term_consistency["term_consistency_recall"])
                     semantic["inconsistent_alternate_count"] = int(term_consistency["inconsistent_alternate_count"])
                     semantic["critical_failures"] = sorted(set(semantic.get("critical_failures", [])) | set(term_consistency.get("critical_failures", [])))
-                    semantic["source_backed_semantic_fidelity"] = deterministic_mean([float(item.get("source_backed_semantic_fidelity", 0.0)) for item in unit_scores])
                     effective_model = result.diagnostics.get("effective_model")
                     media_units = result.media_compliance.get("work_units", {})
                     media_by_work_unit: dict[str, dict[str, Any]] = {}

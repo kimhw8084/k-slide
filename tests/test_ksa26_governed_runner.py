@@ -14,6 +14,7 @@ from evals.corpus_governance import public_synthetic_manifest
 from evals.governed_corpus import case_matrix_fingerprint, governed_source_identity
 from evals.scenarios import PROTECTED_CATEGORIES
 from evals.generator import DEFAULT_VARIANT, generate_artifacts
+from evals.model_scorers import score_translation_patch
 from evals.scenarios import scenario_specs
 from k_slide.certification import candidate_deployment_fingerprint, load_candidate_spec, resolve_candidate_spec
 from k_slide.corpus_governance import (
@@ -22,6 +23,7 @@ from k_slide.corpus_governance import (
     manifest_identity,
 )
 from k_slide.evidence_adapters import AdapterError, build_machine_evidence
+from k_slide.evidence_ir import EvidenceIR, EvidenceRegion
 from k_slide.model_policy import load_model_policy
 from k_slide.quality_policy import QUALITY_POLICY_IDENTITY
 from tests.test_certification_closure import _candidate_spec, _write
@@ -51,7 +53,7 @@ def _gold(category: str) -> dict:
     return result
 
 
-def _fixture(base: Path, role: str, *, active_ids: tuple[str, ...] | None = None) -> dict:
+def _fixture(base: Path, role: str, *, active_ids: tuple[str, ...] | None = None, noncritical_assertions: list[dict] | None = None) -> dict:
     base = base.resolve()
     artifact_root = base / "approved-private-cases"
     artifact_root.mkdir()
@@ -74,6 +76,9 @@ def _fixture(base: Path, role: str, *, active_ids: tuple[str, ...] | None = None
         artifact_path.parent.mkdir(parents=True, exist_ok=True)
         artifact_path.write_bytes(artifact_bytes)
         artifact_hashes = {"png": _sha(artifact_bytes)}
+        gold_contract = _gold(category)
+        if noncritical_assertions is not None:
+            gold_contract["noncritical_semantic_assertions"] = noncritical_assertions
         gold_value = {
             "schema_version": "1.0",
             "case": {
@@ -84,7 +89,7 @@ def _fixture(base: Path, role: str, *, active_ids: tuple[str, ...] | None = None
                 "category": category,
                 "protected_group": protected_group,
             },
-            "gold": _gold(category),
+            "gold": gold_contract,
         }
         gold_raw = canonical_bytes(gold_value) + b"\n"
         gold_rel = f"gold details/{item_id}-private-gold.json"
@@ -213,7 +218,9 @@ def _fake_runtime():
         "critical_failures": [],
         "unresolved_region_rate": 0.0,
         "unexpected_unresolved_rate": 0.0,
-        "source_backed_semantic_fidelity": 1.0,
+        "critical_axis_minimum_diagnostic": 1.0,
+        "noncritical_semantic_observations": [], "noncritical_semantic_required_count": 0,
+        "noncritical_semantic_correct_count": 0, "noncritical_semantic_equivalence": 1.0,
         "unresolved_ids": [],
         "unresolved_count": 0,
         "material_unresolved_required_ids": [],
@@ -225,6 +232,7 @@ def _fake_runtime():
         "hard_gate_evidence": {
             "missing_required_region_ids": [], "numeric_mismatch_fact_ids": [],
             "modality_score": 1.0, "modality_source_binding_failure": False,
+            "noncritical_semantic_source_binding_failure": False,
             "hangul_violation_count": 0, "unsupported_claim_count": 0,
             "executive_claim_failure_codes": [], "duplicate_region_ids": [],
             "table_cardinality_mismatch": False, "table_failure_codes": [],
@@ -238,7 +246,7 @@ def _fake_runtime():
     return FakeOpenCode(), runtime, scored, consistency
 
 
-def _run_fixture(fixture: dict, *, repeats: int, scenario_ids: tuple[str, ...] = (), **overrides):
+def _run_fixture(fixture: dict, *, repeats: int, scenario_ids: tuple[str, ...] = (), scorer=None, **overrides):
     fake, runtime, scored, consistency = _fake_runtime()
     defaults = {
         "model": TARGET,
@@ -273,7 +281,7 @@ def _run_fixture(fixture: dict, *, repeats: int, scenario_ids: tuple[str, ...] =
         patch("evals.model_eval.collect_run_artifacts", return_value=[{"work_unit_id": "u1", "evidence": {}, "patch": {}, "slide_ir": None}]),
         patch("evals.model_eval._engine_gate", return_value=("PASS", [])),
         patch("evals.model_eval._work_unit_contract", return_value=(True, [])),
-        patch("evals.model_eval.score_translation_patch", return_value=scored),
+        patch("evals.model_eval.score_translation_patch", side_effect=scorer) if scorer is not None else patch("evals.model_eval.score_translation_patch", return_value=scored),
         patch("evals.model_eval.score_deck_consistency", return_value=consistency),
     )
     with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6], patches[7]:
@@ -311,6 +319,67 @@ class KSA26GovernedRunnerTests(unittest.TestCase):
             generate.assert_not_called()
             evidence = self._assert_adapter_accepts(fixture, output, "model_validation")
             self.assertEqual(evidence["payload"]["corpus_set_identity"]["set_id"], "fixture-private")
+
+    def test_hash_bound_private_assertions_score_and_persist_without_gold_text(self):
+        assertion_id = "ncs-0123456789abcdef01234567"
+        private_source = "비공개 보조 설명 문구"
+        private_accepted = "approved secondary descriptive detail"
+        assertion = {
+            "assertion_id": assertion_id,
+            "surface": "region",
+            "source_text": private_source,
+            "accepted_phrases": [private_accepted, "approved supporting business detail"],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = _fixture(Path(directory), "private_representative", noncritical_assertions=[assertion])
+
+            def scorer(scenario, _evidence, _patch):
+                evidence = EvidenceIR("opaque-doc", "u1", {}, (
+                    EvidenceRegion("region-private", selected_literal_candidate=private_source),
+                )).with_revision()
+                return score_translation_patch(scenario, evidence, {
+                    "regions": [{"region_id": "region-private", "english": private_accepted}],
+                })
+
+            result, output = _run_fixture(fixture, repeats=3, scorer=scorer)
+            self.assertTrue(result["quality_metrics_authoritative"])
+            persisted = "".join(path.read_text(encoding="utf-8") for path in output.iterdir() if path.is_file())
+            self.assertIn(assertion_id, persisted)
+            self.assertIn("CORRECT", persisted)
+            self.assertNotIn(private_source, persisted)
+            self.assertNotIn(private_accepted, persisted)
+            case_gold = json.loads((fixture["root"] / fixture["descriptor"]["cases"][0]["gold_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(case_gold["gold"]["noncritical_semantic_assertions"][0]["accepted_phrases"][0], private_accepted)
+            evidence = self._assert_adapter_accepts(fixture, output, "model_validation")
+            self.assertEqual(evidence["payload"]["noncritical_semantic_required_count"], 1 * 3)
+            self.assertEqual(evidence["payload"]["noncritical_semantic_correct_count"], 1 * 3)
+
+    def test_governed_assertion_gold_mutation_is_rejected_by_hash_before_execution(self):
+        assertion = {
+            "assertion_id": "ncs-fedcba9876543210fedcba98",
+            "surface": "region",
+            "source_text": "비공개 변경 검증",
+            "accepted_phrases": ["approved private meaning"],
+        }
+        for field, replacement in (("accepted_phrases", ["tampered private meaning"]), ("assertion_id", "ncs-aaaaaaaaaaaaaaaaaaaaaaaa")):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as directory:
+                fixture = _fixture(Path(directory), "private_representative", noncritical_assertions=[assertion])
+                gold_path = fixture["root"] / fixture["descriptor"]["cases"][0]["gold_path"]
+                gold = json.loads(gold_path.read_text(encoding="utf-8"))
+                gold["gold"]["noncritical_semantic_assertions"][0][field] = replacement
+                gold_path.write_bytes(canonical_bytes(gold) + b"\n")
+                output = fixture["root"].parent / "tampered-gold"
+                fake, *_ = _fake_runtime()
+                with patch("evals.model_eval.OpenCodeEvalRunner", return_value=fake) as execute:
+                    blocked = ModelEvaluationRunner(
+                        model=TARGET, output=output, split="validation", formats=("png",), repeats=3, mode="quality",
+                        candidate_profile=fixture["candidate"], corpus_source="governed_external",
+                        governed_manifest=fixture["manifest"], governed_manifest_bundle=fixture["bundle"],
+                        governed_history=fixture["history"], evaluation_purpose="private_evaluation",
+                        artifact_root=fixture["root"], case_descriptor="cases.json",
+                    ).run()
+                self.assertEqual(blocked["status"], "CANDIDATE_PROFILE_BLOCKED")
+                execute.assert_not_called()
 
     def test_frozen_high_risk_uses_governed_protected_groups_and_repeats(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -536,6 +605,7 @@ class KSA26GovernedRunnerTests(unittest.TestCase):
                 ("purpose", lambda experiment, summary, rows: experiment.update(evaluation_purpose="regression")),
                 ("manifest_bundle", lambda experiment, summary, rows: experiment.update(governed_corpus_manifests=experiment["governed_corpus_manifests"][:1])),
                 ("case_identity", lambda experiment, summary, rows: experiment["case_matrix"][0].update(gold_sha256="0" * 64)),
+                ("assertion_ids", lambda experiment, summary, rows: experiment["case_matrix"][0].update(noncritical_semantic_assertion_ids=["ncs-aaaaaaaaaaaaaaaaaaaaaaaa"])),
                 ("category", lambda experiment, summary, rows: experiment["case_matrix"][0].update(category="chart")),
                 ("group", lambda experiment, summary, rows: experiment["case_matrix"][0].update(protected_group="chart")),
                 ("result_id", lambda experiment, summary, rows: rows[0].update(scenario_id="renamed")),

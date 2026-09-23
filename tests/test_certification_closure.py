@@ -281,11 +281,15 @@ def _model_result_row(*, scenario_id: str, category: str, split: str, repeat: in
         "process_failure_codes": [],
         "material_unresolved_required_ids": [],
         "material_unresolved_observed_ids": [],
+        "noncritical_semantic_source_binding_failure": False,
     }
     unit_semantic = {
         "coverage": 1.0, "numeric_fidelity": 1.0, "modality": 1.0,
         "table_cell_fidelity": 1.0, "visual_relation_recall": 1.0,
-        "source_backed_semantic_fidelity": 1.0, "critical_failures": ([code] if code else []),
+        "critical_axis_minimum_diagnostic": 1.0,
+        "noncritical_semantic_observations": [], "noncritical_semantic_required_count": 0,
+        "noncritical_semantic_correct_count": 0, "noncritical_semantic_equivalence": 1.0,
+        "critical_failures": ([code] if code else []),
         "hard_gate_evidence": gate_evidence, "unresolved_ids": [], "unresolved_count": 0,
         "material_unresolved_required_ids": [], "material_unresolved_observed_ids": [],
         "material_unresolved_false_negative_ids": [], "unresolved_false_positive_ids": [],
@@ -299,7 +303,10 @@ def _model_result_row(*, scenario_id: str, category: str, split: str, repeat: in
     semantic = {
         "coverage": 1.0, "numeric_fidelity": 1.0, "modality": 1.0,
         "table_cell_fidelity": 1.0, "visual_relation_recall": 1.0,
-        "source_backed_semantic_fidelity": 1.0, "critical_failures": ([code] if code else []),
+        "critical_axis_minimum_diagnostic": 1.0,
+        "noncritical_semantic_assertion_ids": [], "noncritical_semantic_observations": [],
+        "noncritical_semantic_required_count": 0, "noncritical_semantic_correct_count": 0,
+        "noncritical_semantic_equivalence": 1.0, "critical_failures": ([code] if code else []),
         "inconsistent_alternate_count": 0, "term_consistency_recall": 1.0,
         "unresolved_region_rate": 0.0, "unexpected_unresolved_rate": 0.0,
         "material_unresolved_required_count": 0, "material_unresolved_true_positive_count": 0,
@@ -376,6 +383,7 @@ def _model_sources(root: Path, split: str = "validation", critical: int = 0, rep
             "source_sha256": member["source_sha256"],
             "gold_sha256": member["gold_sha256"],
             "gold_contract_sha256": hashlib.sha256(f"test-only-governed-gold:{evidence_type}:{scenario.scenario_id}".encode()).hexdigest(),
+            "noncritical_semantic_assertion_ids": [],
             "formats": formats,
         })
     case_matrix.sort(key=lambda item: item["item_id"])

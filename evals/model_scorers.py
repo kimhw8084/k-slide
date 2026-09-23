@@ -8,9 +8,11 @@ the fact.
 from __future__ import annotations
 
 import re
+import hashlib
 from typing import Any
 
 from k_slide.numeric import numeric_fact_matches
+from .noncritical_semantics import assertions_for_scenario, normalized_phrase_tokens
 
 
 _HANGUL = re.compile(r"[\uac00-\ud7a3]")
@@ -226,6 +228,107 @@ def _claim_score(scenario: Any, evidence: Any, patch: dict[str, Any]) -> tuple[i
     return len(failures), failures
 
 
+def _assertion_source_candidates(assertion: dict[str, Any], evidence: Any) -> list[tuple[str, str, str]]:
+    """Resolve an approved source-text anchor to immutable EvidenceIR IDs."""
+
+    surface = assertion["surface"]
+    source_text = assertion["source_text"].strip()
+    candidates: list[tuple[str, str, str]] = []
+    if surface in {"region", "executive_claim", "visual_interpretation"}:
+        for region in getattr(evidence, "regions", ()):
+            if str(region.selected_literal_candidate or "").strip() == source_text:
+                candidates.append((region.region_id, "region", str(region.recovery_status or "NOT_REQUIRED")))
+    if surface in {"table_cell", "executive_claim", "visual_interpretation"}:
+        for table in getattr(evidence, "tables", ()):
+            for cell in table.cells:
+                if str(cell.source_text or "").strip() == source_text:
+                    candidates.append((cell.cell_id, "table_cell", "NOT_REQUIRED"))
+    if surface == "visual_interpretation":
+        for element in getattr(evidence, "visual_elements", ()):
+            if not isinstance(element, dict) or not element.get("element_id"):
+                continue
+            label = element.get("source_text") or element.get("label") or element.get("title") or ""
+            if str(label).strip() == source_text:
+                candidates.append((str(element["element_id"]), "visual_element", "NOT_REQUIRED"))
+    return candidates
+
+
+def _assertion_output_text(surface: str, source_id: str, patch: dict[str, Any]) -> tuple[str | None, bool]:
+    """Return the exact source-owned output surface and its unresolved state."""
+
+    if surface == "region":
+        matches = [item for item in patch.get("regions", []) if isinstance(item, dict) and item.get("region_id") == source_id]
+        if len(matches) != 1:
+            return None, False
+        return str(matches[0].get("english", "")), matches[0].get("unresolved") is True
+    if surface == "table_cell":
+        matches = [
+            cell for table in patch.get("tables", []) if isinstance(table, dict)
+            for cell in table.get("cells", []) if isinstance(cell, dict) and cell.get("cell_id") == source_id
+        ]
+        if len(matches) != 1:
+            return None, False
+        return str(matches[0].get("english", "")), matches[0].get("unresolved") is True
+    if surface == "executive_claim":
+        matches = [
+            item for item in patch.get("executive_claims", []) if isinstance(item, dict)
+            and source_id in item.get("evidence_ids", [])
+        ]
+        if len(matches) != 1:
+            return None, False
+        return str(matches[0].get("text", "")), False
+    if surface == "visual_interpretation":
+        matches = [
+            item for item in patch.get("visual_interpretations", []) if isinstance(item, dict)
+            and (source_id in item.get("source_element_ids", []) or source_id in item.get("evidence_ids", []))
+        ]
+        if len(matches) != 1:
+            return None, False
+        return str(matches[0].get("interpretation", "")), False
+    return None, False
+
+
+def _matches_approved_meaning(text: str, accepted_phrases: list[str]) -> bool:
+    observed = normalized_phrase_tokens(text)
+    return bool(observed) and observed in {normalized_phrase_tokens(phrase) for phrase in accepted_phrases}
+
+
+def _noncritical_semantic_observations(scenario: Any, evidence: Any, patch: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
+    """Score only approved assertions whose exact EvidenceIR anchor is present."""
+
+    try:
+        assertions = assertions_for_scenario(scenario)
+    except (TypeError, ValueError):
+        return [], True
+    observations: list[dict[str, Any]] = []
+    binding_failure = False
+    work_unit_id = str(getattr(evidence, "work_unit_id", ""))
+    for assertion in assertions:
+        candidates = _assertion_source_candidates(assertion, evidence)
+        if not candidates:
+            # A different work unit may own this assertion. The case-level
+            # aggregation requires every approved ID to resolve exactly once.
+            continue
+        if len(candidates) != 1:
+            binding_failure = True
+            continue
+        source_id, source_kind, recovery_status = candidates[0]
+        text, unresolved = _assertion_output_text(assertion["surface"], source_id, patch)
+        if unresolved and recovery_status == "NEEDS_REVIEW" and scenario.gold.get("allowed_unresolved") is True:
+            outcome = "UNRESOLVED_EXEMPT"
+        else:
+            outcome = "CORRECT" if text is not None and _matches_approved_meaning(text, assertion["accepted_phrases"]) else "INCORRECT"
+        anchor_sha256 = hashlib.sha256(f"{work_unit_id}\0{source_kind}\0{source_id}".encode("utf-8")).hexdigest()
+        observations.append({
+            "assertion_id": assertion["assertion_id"],
+            "source_object_id": source_id,
+            "anchor_kind": source_kind,
+            "anchor_sha256": anchor_sha256,
+            "outcome": outcome,
+        })
+    return sorted(observations, key=lambda item: item["assertion_id"]), binding_failure
+
+
 def score_translation_patch(scenario: Any, evidence: Any, patch: dict[str, Any]) -> dict[str, Any]:
     source_regions = {region.region_id: region for region in evidence.regions if region.required_for_translation}
     region_items = [item for item in patch.get("regions", []) if isinstance(item, dict)]
@@ -328,7 +431,13 @@ def score_translation_patch(scenario: Any, evidence: Any, patch: dict[str, Any])
         critical.append("MATERIAL_UNRESOLVED_MISSED")
     if duplicate_region_ids:
         critical.append("SCORER_SOURCE_BINDING_FAILURE")
-    semantic_fidelity = min(coverage, sum(numeric_results) / len(numeric_results) if numeric_results else 1.0, modality, 0.0 if table_failures else 1.0, process_score if (scenario.gold.get("process") or {}).get("relations") else chart_score if scenario.gold.get("chart") else 1.0)
+    axis_minimum = min(coverage, sum(numeric_results) / len(numeric_results) if numeric_results else 1.0, modality, 0.0 if table_failures else 1.0, process_score if (scenario.gold.get("process") or {}).get("relations") else chart_score if scenario.gold.get("chart") else 1.0)
+    noncritical_observations, noncritical_binding_failure = _noncritical_semantic_observations(scenario, evidence, patch)
+    noncritical_required = sum(item["outcome"] != "UNRESOLVED_EXEMPT" for item in noncritical_observations)
+    noncritical_correct = sum(item["outcome"] == "CORRECT" for item in noncritical_observations)
+    noncritical_equivalence = noncritical_correct / noncritical_required if noncritical_required else 1.0
+    if noncritical_binding_failure:
+        critical.append("SCORER_SOURCE_BINDING_FAILURE")
     hard_gate_evidence = {
         "missing_required_region_ids": sorted(invalid_regions),
         "numeric_mismatch_fact_ids": sorted(str(item.get("fact_id")) for item in numeric_details if not item.get("matched")),
@@ -345,6 +454,7 @@ def score_translation_patch(scenario: Any, evidence: Any, patch: dict[str, Any])
         "process_failure_codes": sorted(set(process_failures)),
         "material_unresolved_required_ids": material_unresolved_ids,
         "material_unresolved_observed_ids": materially_unresolved,
+        "noncritical_semantic_source_binding_failure": noncritical_binding_failure,
     }
     return {
         "coverage": coverage,
@@ -374,7 +484,11 @@ def score_translation_patch(scenario: Any, evidence: Any, patch: dict[str, Any])
         "unresolved_false_positive_ids": unnecessary_unresolved,
         "material_unresolved_recall": len(materially_unresolved) / len(material_unresolved_ids) if material_unresolved_ids else 1.0,
         "unresolved_precision": len(materially_unresolved) / len(unresolved_ids) if unresolved_ids else 1.0,
-        "source_backed_semantic_fidelity": semantic_fidelity,
+        "critical_axis_minimum_diagnostic": axis_minimum,
+        "noncritical_semantic_observations": noncritical_observations,
+        "noncritical_semantic_required_count": noncritical_required,
+        "noncritical_semantic_correct_count": noncritical_correct,
+        "noncritical_semantic_equivalence": noncritical_equivalence,
         "table_structure_evidence": table_structure,
         "hard_gate_evidence": hard_gate_evidence,
         "critical_failures": sorted(set(critical)),

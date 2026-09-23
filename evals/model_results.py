@@ -14,7 +14,6 @@ from k_slide.quality_policy import (
     deterministic_mean,
     make_hard_gate_finding,
     policy_identity_record,
-    semantic_fidelity_from_scores,
 )
 
 
@@ -41,7 +40,7 @@ def _scorer_gate_codes(semantic: dict[str, Any]) -> set[str]:
         codes.add("CRITICAL_NUMERIC_MISMATCH")
     if float(evidence.get("modality_score", 1.0)) < 1.0:
         codes.add("CRITICAL_MODALITY_MISMATCH")
-    if evidence.get("modality_source_binding_failure") is True or evidence.get("duplicate_region_ids"):
+    if evidence.get("modality_source_binding_failure") is True or evidence.get("noncritical_semantic_source_binding_failure") is True or evidence.get("duplicate_region_ids"):
         codes.add("SCORER_SOURCE_BINDING_FAILURE")
     if int(evidence.get("hangul_violation_count", 0)) > 0:
         codes.add("UNEXPECTED_HANGUL")
@@ -65,6 +64,38 @@ def _scorer_gate_codes(semantic: dict[str, Any]) -> set[str]:
     if set(evidence.get("material_unresolved_required_ids", [])) - set(evidence.get("material_unresolved_observed_ids", [])):
         codes.add("MATERIAL_UNRESOLVED_MISSED")
     return codes
+
+
+def _noncritical_semantic_counts(semantic: dict[str, Any]) -> tuple[int, int]:
+    observations = semantic.get("noncritical_semantic_observations")
+    if not isinstance(observations, list):
+        raise ValueError("model result is missing non-critical semantic observations")
+    identifiers: list[str] = []
+    required = correct = 0
+    for item in observations:
+        if not isinstance(item, dict) or set(item) != {"assertion_id", "source_object_id", "anchor_kind", "anchor_sha256", "outcome"}:
+            raise ValueError("model result has a malformed non-critical semantic observation")
+        assertion_id = item.get("assertion_id")
+        if not isinstance(assertion_id, str) or not assertion_id:
+            raise ValueError("model result has an invalid non-critical semantic assertion ID")
+        identifiers.append(assertion_id)
+        outcome = item.get("outcome")
+        if outcome not in {"CORRECT", "INCORRECT", "UNRESOLVED_EXEMPT"}:
+            raise ValueError("model result has an unknown non-critical semantic outcome")
+        if outcome != "UNRESOLVED_EXEMPT":
+            required += 1
+            correct += int(outcome == "CORRECT")
+    if len(identifiers) != len(set(identifiers)):
+        raise ValueError("model result duplicates a non-critical semantic assertion ID")
+    expected_ids = semantic.get("noncritical_semantic_assertion_ids")
+    if not isinstance(expected_ids, list) or any(not isinstance(value, str) or not value for value in expected_ids) or len(expected_ids) != len(set(expected_ids)) or sorted(expected_ids) != sorted(identifiers):
+        raise ValueError("model result non-critical semantic assertion membership is incomplete")
+    rate = correct / required if required else 1.0
+    if semantic.get("noncritical_semantic_required_count") != required or semantic.get("noncritical_semantic_correct_count") != correct:
+        raise ValueError("model result non-critical semantic counts disagree with observations")
+    if semantic.get("noncritical_semantic_equivalence") != rate:
+        raise ValueError("model result non-critical semantic rate disagrees with observations")
+    return required, correct
 
 
 def derive_result_hard_gate_findings(row: dict[str, Any]) -> list[dict[str, str]]:
@@ -205,17 +236,19 @@ def aggregate_model_results(results: Iterable[dict[str, Any]], *, model: str, sp
     locked_terminology_recall = deterministic_mean(locked_terms) if len(locked_terms) == len(scored) and locked_terms else None
     unexpected_unresolved_rate = deterministic_mean(unexpected_unresolved) if len(unexpected_unresolved) == len(scored) and unexpected_unresolved else None
     review_case_count = sum(1 for item in scored if float(item.get("semantic", {}).get("unresolved_region_rate", 0.0)) > 0)
-    semantic_fidelities = [float(item.get("semantic", {}).get("source_backed_semantic_fidelity", semantic_fidelity_from_scores(item.get("semantic", {})))) for item in scored]
+    noncritical_counts = [_noncritical_semantic_counts(item.get("semantic", {})) for item in scored]
+    noncritical_required = sum(required for required, _correct in noncritical_counts)
+    noncritical_correct = sum(correct for _required, correct in noncritical_counts)
     required_unresolved = sum(int(item.get("semantic", {}).get("material_unresolved_required_count", 0)) for item in scored)
     recovered_unresolved = sum(int(item.get("semantic", {}).get("material_unresolved_true_positive_count", 0)) for item in scored)
     observed_unresolved = sum(int(item.get("semantic", {}).get("unresolved_observed_count", 0)) for item in scored)
     unnecessary_unresolved = sum(int(item.get("semantic", {}).get("unresolved_false_positive_count", 0)) for item in scored)
     material_unresolved_recall = recovered_unresolved / required_unresolved if required_unresolved else 1.0
     unresolved_precision = recovered_unresolved / observed_unresolved if observed_unresolved else 1.0
-    noncritical_semantic_fidelity = deterministic_mean(semantic_fidelities)
+    noncritical_semantic_equivalence = noncritical_correct / noncritical_required if noncritical_required else 1.0
     noncritical_floor_pass = (
         material_unresolved_recall >= QUALITY_FLOORS["material_unresolved_recall_min"]
-        and noncritical_semantic_fidelity >= QUALITY_FLOORS["noncritical_semantic_equivalence_min"]
+        and noncritical_semantic_equivalence >= QUALITY_FLOORS["noncritical_semantic_equivalence_min"]
         and unresolved_precision >= QUALITY_FLOORS["unresolved_precision_min"]
         and locked_terminology_recall is not None
         and locked_terminology_recall >= QUALITY_FLOORS["locked_terminology_recall_min"]
@@ -269,7 +302,9 @@ def aggregate_model_results(results: Iterable[dict[str, Any]], *, model: str, sp
         "hard_gate_failure_types": sorted({finding["code"] for item in cases for finding in item.get("hard_gate_findings", [])}),
         "hard_gate_pass": hard_gate_failure_count == 0,
         "noncritical_floor_pass": noncritical_floor_pass,
-        "noncritical_semantic_fidelity": noncritical_semantic_fidelity,
+        "noncritical_semantic_required_count": noncritical_required,
+        "noncritical_semantic_correct_count": noncritical_correct,
+        "noncritical_semantic_equivalence": noncritical_semantic_equivalence,
         "material_unresolved_recall": material_unresolved_recall,
         "unresolved_precision": unresolved_precision,
         "unresolved_observed_count": observed_unresolved,

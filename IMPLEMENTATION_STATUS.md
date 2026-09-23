@@ -370,13 +370,13 @@ An intermediate closure-suite run exposed legacy test fixtures that reused publi
 
 Explicit exclusions: no KSA-27 or later; no live company corpus, private corpus contents, live Gemma execution or Gemma quality qualification; no release, candidate promotion, champion assignment, or production certification. Synthetic external-role smokes establish runner/adapter contract compatibility only.
 
-## CHG-16 / KSA-27 certification quality policy
+## CHG-16 / KSA-27 predecessor hard-gate BUILD
 
 This continuation starts from exact integrated main `fa03989e002864081609a25add1fb36b282d99a7` on branch `codex/k-slide-chg16-hard-gates-01`; the work head remains that base with uncommitted changes. No main merge was performed. It preserves KSA-26's four-set governed corpus, exact role/purpose/membership checks, external private/high-risk/sealed runner, and existing repetition/group policy.
 
-The shared source-free policy is schema `1.0`, policy `ksa-27.1`, registry `ksa-27-hard-gates-1`, SHA-256 `41736413cb8fdb0714b03b46c402ca8567c2d09903b17bb2886dc8313d2e739f`. The registry is closed; unknown codes map to a failing `UNKNOWN_HARD_GATE_CODE`. Current floors are material unresolved recall `1.0`, source-backed non-critical semantic fidelity `0.99`, unresolved precision `0.95`, and locked terminology recall `0.995`. Exact model identity, per-work-unit required media, structured forbidden-tool policy, and existing type-specific security zero tolerance are bound by the same policy record.
+The predecessor BUILD candidate used source-free policy schema `1.0`, policy `ksa-27.1`, registry `ksa-27-hard-gates-1`, SHA-256 `41736413cb8fdb0714b03b46c402ca8567c2d09903b17bb2886dc8313d2e739f`. Its hard-gate registry is closed; unknown codes map to a failing `UNKNOWN_HARD_GATE_CODE`. Its 0.99 field was incorrectly derived from the minimum of already-critical axes. F27-01 replaces that metric and advances the policy identity below.
 
-Model evaluation, machine evidence adapters, internal bilingual evidence validation, and release output share and rederive this identity. Deployment fingerprints remain separate. Per-case and per-work-unit hard-gate findings are rebuilt from scorer facts, structured OpenCode events, required-media traces, exact model identity, persisted verification/finalization state, recovery state, and KSA-23 conflict state. Hard-gate failure precedes floors; means remain descriptive. Table identity, cell membership, duplicate/extra/missing table members, and cardinality are checked by source IDs. Safe unnecessary review is counted toward precision rather than treated as a critical error; engine-owned material false-DONE remains zero tolerance. The current evidence envelope schema is `2.4` and legacy envelopes cannot qualify as current policy evidence. No KSA-29 reviewer workflow or KSA-28 repetition changes were introduced.
+Model evaluation, machine evidence adapters, internal bilingual evidence validation, and release output shared and rederived that predecessor identity. Deployment fingerprints remained separate. Per-case and per-work-unit hard-gate findings were rebuilt from scorer facts, structured OpenCode events, required-media traces, exact model identity, persisted verification/finalization state, recovery state, and KSA-23 conflict state. Hard-gate failure preceded floors; means remained descriptive. Table identity, cell membership, duplicate/extra/missing table members, and cardinality were checked by source IDs. Safe unnecessary review counted toward precision rather than as a critical error; engine-owned material false-DONE remained zero tolerance. Its evidence envelope schema was `2.4`. No KSA-29 reviewer workflow or KSA-28 repetition changes were introduced.
 
 Changed implementation and test files:
 
@@ -423,7 +423,37 @@ PASS: both compile checks and whitespace validation.
 
 An intermediate deployment-identity test initially passed the certification policy hash as a candidate-profile field, correctly rejected by the deployment allowlist; its fixture now keeps certification metadata outside deployment factors. Initial full discovery also exposed a legacy scorer test double without `recovery_status`; the scorer now reads that engine-owned field optionally, while current EvidenceIR recovery state remains the material-recall source. Both final full-discovery runs passed. Temporary synthetic release fixtures print example release states; these are test output only.
 
-`evals/champion.json` remains `UNSET`. No KSA-28+, live company/Gemma qualification, private-human/security approval, release, candidate promotion, or production certification was performed. The repository remains a development implementation; no `BUILD COMPLETE` or production certification claim is made.
+`evals/champion.json` remained `UNSET` for the predecessor candidate. No KSA-28+, live company/Gemma qualification, private-human/security approval, release, candidate promotion, or production certification was performed by that predecessor.
+
+## CHG-16 / KSA-27 F27-01 non-critical semantic-equivalence repair
+
+F27-01 began from exact integrated main `fa03989e002864081609a25add1fb36b282d99a7` on branch `codex/k-slide-chg16-hard-gates-01-fix01`. The branch was fast-forwarded to predecessor BUILD candidate `b2ca101733ee450e123bf8b630ceca6eda9cc20a`; that candidate's exact parent is the requested main base. Repair edits are on top of that predecessor commit, preserving its ancestry. No main merge was performed. The repair remains a working-tree change on top of work head `b2ca101733ee450e123bf8b630ceca6eda9cc20a`.
+
+The current machine metric uses explicit approved non-critical meaning assertions. Each output surface must equal a complete approved phrase after NFKC normalization, case folding, and deterministic tokenization; unapproved additions or contradictions cannot pass by containing an approved substring. Public assertions are held in a policy-bound sidecar keyed to stable scenario IDs and exact EvidenceIR source anchors, preserving KSA-26 dataset version `1.0` and both public corpus fingerprints. Governed external assertions are loaded only from the exact gold wrapper whose bytes match the manifest's `gold_sha256`. The scorer records opaque assertion IDs, source-object identities, outcomes, counts, and rates; governed result rows, machine evidence, release metadata, and logs omit assertion text and acceptable phrases. The adapter validates assertion membership, source-anchor digests, observations, counts, and rates again from persisted scorer facts.
+
+Quality policy is now schema `1.0`, policy `ksa-27.2`, registry `ksa-27-hard-gates-1`, identity SHA-256 `4656283f7ce7506695e42e54008eea190bfcaab9a971b737280af27405801fd1`. The existing 0.99 floor now applies to `noncritical_semantic_equivalence = correct / required`, with a no-positive rate of `1.0`; exactly `0.99` passes and lower values fail. Evidence schema advanced from `2.4` to `2.5`, so predecessor evidence cannot qualify under the repaired policy. Internal-bilingual `overall_noncritical_semantic_fidelity` retains the same 0.99 threshold and is bound to the same conceptual policy dimension. The hard-gate registry version remains unchanged.
+
+Focused coverage uses the actual public assertion gold and persisted scorer observations: two public source-bound assertions with one non-critical miss and no hard-gate finding; harmless approved paraphrase; fluent incorrect meaning; wrong-region text; 99/100 pass; 989/1000 fail with no hard-gate finding; allowed unresolved exemption; material unresolved miss; summary/observation/ID tampering; hash-bound governed private assertions; stale-policy rejection; and exact bilingual/unresolved floors. Existing hard-gate, governance, release, and champion tests remain included in the regression runs below.
+
+Final validation for F27-01:
+
+```text
+KSA-27 focused + KSA-26 governance/runner: 63 tests passed.
+Certification closure / phase32 / phase33 / phase35: 139 tests passed.
+KSA-21–25 regression: 93 tests passed, 1 skipped.
+KSA-15–20 security/host/runtime regression: 216 tests passed, 1 skipped.
+OpenCode TypeScript host attachment regression: passed.
+All 4 repository JSON schemas: Draft 2020-12 validation passed.
+TranslationPatch Python/schema/TypeScript contract: passed.
+Full Python 3.11.7 discovery: 565 tests passed, 4 skipped.
+Isolated Python 3.12.9 discovery: 565 tests passed.
+Compileall on Python 3.11.7 and 3.12.9: passed.
+git diff --check: passed.
+```
+
+Diagnostic runs: an initial `rtk pytest` invocation collected no tests, and an initial unittest invocation without `PYTHONPATH=src` could not import `k_slide`; verification then used the repository's unittest discovery with the correct source path. The first closure run also exposed two phase33 synthetic rows without empty assertion-observation fields; those fixtures were updated and the complete closure suite passed afterward.
+
+Explicit exclusions: no KSA-28+, no merge to main, no live company/Gemma/private-human qualification, no champion assignment, no release, no BUILD COMPLETE claim, and no production certification claim. `evals/champion.json` remains `UNSET`. Synthetic governed fixtures verify code paths only and are not private-corpus or Gemma quality evidence.
 
 
 ## Next phase

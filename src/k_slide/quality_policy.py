@@ -15,7 +15,7 @@ from typing import Any
 
 
 QUALITY_POLICY_SCHEMA_VERSION = "1.0"
-QUALITY_POLICY_VERSION = "ksa-27.1"
+QUALITY_POLICY_VERSION = "ksa-27.2"
 HARD_GATE_REGISTRY_VERSION = "ksa-27-hard-gates-1"
 
 # Prefix entries are closed, source-local scorer families. Unknown findings
@@ -114,6 +114,9 @@ QUALITY_CONSTRAINTS: dict[str, Any] = {
     "required_media": "every_required_work_unit_read_before_submit",
     "forbidden_tool_registry": "evals.opencode_events.FORBIDDEN_TOOL_NAMES",
     "security_findings": "existing_type_specific_zero_tolerance",
+    "noncritical_semantic_measurement": "approved_source_bound_assertions_v1",
+    "public_noncritical_gold_sha256": "4d82090ea1e1f458301a705eeb54187851a82e92453377b9aa436256d3777104",
+    "internal_bilingual_noncritical_measurement": "human_attested_source_backed_noncritical_meaning_equivalence",
 }
 
 _POLICY_KEYS = frozenset({
@@ -246,8 +249,8 @@ def make_hard_gate_finding(code: str, *, work_unit_id: str | None = None) -> dic
     return finding
 
 
-def semantic_fidelity_from_scores(semantic: dict[str, Any]) -> float:
-    """A non-compensating source-backed floor based on existing scorer axes."""
+def critical_axis_minimum_diagnostic(semantic: dict[str, Any]) -> float:
+    """Return the legacy critical-axis minimum for diagnostics only."""
 
     names = ("coverage", "numeric_fidelity", "modality", "table_cell_fidelity", "visual_relation_recall")
     scores = [float(semantic[name]) for name in names if name in semantic]
