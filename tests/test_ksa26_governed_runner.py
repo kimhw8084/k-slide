@@ -13,6 +13,8 @@ from evals.model_eval import ModelEvaluationRunner
 from evals.corpus_governance import public_synthetic_manifest
 from evals.governed_corpus import case_matrix_fingerprint, governed_source_identity
 from evals.scenarios import PROTECTED_CATEGORIES
+from evals.generator import DEFAULT_VARIANT, generate_artifacts
+from evals.scenarios import scenario_specs
 from k_slide.certification import candidate_deployment_fingerprint, load_candidate_spec, resolve_candidate_spec
 from k_slide.corpus_governance import (
     canonical_bytes,
@@ -398,6 +400,57 @@ class KSA26GovernedRunnerTests(unittest.TestCase):
                     ).run()
                 self.assertEqual(result["status"], "CANDIDATE_PROFILE_BLOCKED")
                 execute.assert_not_called()
+
+    def test_renamed_public_artifact_bytes_fail_without_generator_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = _fixture(Path(directory), "private_representative")
+            public_root = fixture["root"].parent / "public-material"
+            public_scenario = scenario_specs()[0]
+            generate_artifacts([public_scenario], public_root, formats=("png",), variants=(DEFAULT_VARIANT,))
+            public_artifact = public_root / public_scenario.scenario_id / DEFAULT_VARIANT.name / "png" / "source.png"
+            case = fixture["descriptor"]["cases"][0]
+            local_artifact = fixture["root"] / case["artifacts"]["png"]
+            local_artifact.write_bytes(public_artifact.read_bytes())
+
+            digest = _sha(public_artifact.read_bytes())
+            source_identity = governed_source_identity({"png": digest})
+            updated_items = [dict(item) for item in fixture["evaluated"]["items"]]
+            updated_items[0]["source_sha256"] = source_identity
+            updated_manifest = build_manifest(
+                set_id=fixture["evaluated"]["set_id"],
+                role=fixture["evaluated"]["role"],
+                version=fixture["evaluated"]["version"],
+                state=fixture["evaluated"]["state"],
+                items=updated_items,
+                provenance=fixture["evaluated"]["provenance"],
+            )
+            manifests = [updated_manifest if item["role"] == "private_representative" else item for item in fixture["manifests"]]
+            fixture["manifest"].write_bytes(canonical_bytes(updated_manifest) + b"\n")
+            fixture["bundle"].write_bytes(canonical_bytes(manifests) + b"\n")
+            case["item_id"] = updated_items[0]["item_id"]
+            descriptor = {
+                "schema_version": "1.0",
+                "corpus_set_identity": manifest_identity(updated_manifest),
+                "cases": fixture["descriptor"]["cases"],
+            }
+            _write(fixture["root"] / "cases.json", descriptor)
+            candidate = load_candidate_spec(fixture["candidate"], root=Path.cwd(), require_identity=False, strict=True)
+            corpus_identity = {"schema_version": "1.0", "sets": [manifest_identity(item) for item in manifests]}
+            candidate["corpus_identity"] = corpus_identity
+            candidate = resolve_candidate_spec(candidate, root=Path.cwd(), subject_git_sha=candidate["subject_git_sha"], model_policy=load_model_policy(), corpus=corpus_identity)
+            _write(fixture["candidate"], candidate)
+
+            output = fixture["root"].parent / "public-clone-rejected"
+            fake, *_ = _fake_runtime()
+            with patch("evals.model_eval.OpenCodeEvalRunner", return_value=fake) as execute:
+                result = ModelEvaluationRunner(
+                    model=TARGET, output=output, split="validation", formats=("png",), repeats=3, mode="quality",
+                    candidate_profile=fixture["candidate"], corpus_source="governed_external",
+                    governed_manifest=fixture["manifest"], governed_manifest_bundle=fixture["bundle"],
+                    evaluation_purpose="private_evaluation", artifact_root=fixture["root"], case_descriptor="cases.json",
+                ).run()
+            self.assertEqual(result["status"], "CANDIDATE_PROFILE_BLOCKED")
+            execute.assert_not_called()
 
     def test_scenario_filter_must_equal_active_membership_and_public_split_label_has_no_authority(self):
         with tempfile.TemporaryDirectory() as directory:

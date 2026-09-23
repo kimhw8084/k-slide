@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import tempfile
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -60,6 +62,27 @@ def governed_source_identity(artifact_hashes: dict[str, str]) -> str:
 
     normalized = {str(name).lower(): digest for name, digest in artifact_hashes.items()}
     return _sha256_bytes(canonical_bytes({"artifacts": normalized}))
+
+
+@lru_cache(maxsize=8)
+def _public_synthetic_artifact_hashes(formats: tuple[str, ...]) -> frozenset[str]:
+    """Return generated public artifact digests for exclusion checks only."""
+
+    from .generator import DEFAULT_VARIANT, generate_artifacts
+    from .scenarios import scenario_specs
+
+    scenarios = scenario_specs()
+    with tempfile.TemporaryDirectory(prefix="k-slide-public-exclusion-") as temporary:
+        root = Path(temporary)
+        counts = generate_artifacts(scenarios, root, formats=formats, variants=(DEFAULT_VARIANT,))
+        if any(counts.get(format_name) != len(scenarios) for format_name in formats):
+            raise GovernedCaseError("public synthetic exclusion scan cannot cover the requested formats")
+        digests = {
+            _sha256_bytes((root / scenario.scenario_id / DEFAULT_VARIANT.name / format_name / f"source.{format_name}").read_bytes())
+            for scenario in scenarios
+            for format_name in formats
+        }
+        return frozenset(digests)
 
 
 def _read_json_file(path: Path, label: str) -> tuple[Any, bytes]:
@@ -294,6 +317,7 @@ def load_governed_external_cases(
         cases: list[GovernedCase] = []
         matrix: list[dict[str, Any]] = []
         expected_split = "held_out" if evaluated_identity["role"] == "sealed_held_out" else "validation"
+        public_artifact_hashes = _public_synthetic_artifact_hashes(tuple(sorted(formats)))
         for raw_case in raw_cases:
             if not isinstance(raw_case, dict) or set(raw_case) != _CASE_FIELDS:
                 raise GovernedCaseError("governed case descriptor entry has an unsupported shape")
@@ -326,6 +350,8 @@ def load_governed_external_cases(
                     raise GovernedCaseError("governed artifact path must be relative")
                 path = safe_relative_path(root, relative_path, label="governed artifact", require_file=True)
                 digest = _sha256_bytes(path.read_bytes())
+                if digest in public_artifact_hashes:
+                    raise GovernedCaseError("public synthetic artifact bytes cannot be used for governed authority")
                 artifact_paths[format_name] = path
                 artifact_hashes[format_name] = digest
             if governed_source_identity(artifact_hashes) != item["source_sha256"]:
