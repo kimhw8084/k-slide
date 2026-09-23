@@ -83,6 +83,13 @@ Heavy LibreOffice/PaddleOCR setup and the secure internal bilingual gold
 protocol are documented in `evals/heavy/README.md` and
 `private-evals/README.md`. No public CI job sends source material to a model.
 
+The same canonical model runner also accepts an explicit
+`--corpus-source governed_external` contract for approved private, frozen
+high-risk, and sealed held-out material. It requires a candidate-bound complete
+manifest bundle, exact evaluation purpose, external case descriptors and
+hash-checked artifacts/gold. The detailed approved-environment contract and
+CLI example are in `private-evals/README.md`.
+
 ## Certification states and governance
 
 The model evaluator distinguishes measurement from quality outcome:
@@ -105,4 +112,9 @@ target Gemma validation result satisfies protected-category promotion rules.
 
 The corpus is dataset version `1.0`. `write_specs` emits `splits.json` with
 stratified membership, `corpus_fingerprint`, and `held_out_fingerprint`.
-Changing held-out membership or gold requires a dataset version bump.
+Changing held-out membership or gold requires a dataset version bump. Its
+public split named `held_out` is wrapped as
+`public_synthetic_regression`; it is regression material and never the sealed
+promotion set. A release candidate needs exact source-free identities for all
+four governed roles. The legacy three-field identity remains readable in
+DEVELOPMENT but is incomplete for certification.

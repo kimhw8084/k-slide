@@ -335,7 +335,7 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
     try:
         from evals.scenarios import split_manifest
 
-        corpus = canonical_corpus_identity(split_manifest())
+        corpus = split_manifest()
     except ImportError:
         corpus = canonical_corpus_identity(None)
     candidate = dict(profile.candidate_spec or {})
@@ -557,7 +557,7 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
     try:
         from evals.scenarios import split_manifest
 
-        corpus = canonical_corpus_identity(split_manifest())
+        corpus = split_manifest()
     except (ImportError, OSError, ValueError, TypeError):
         # An installed runtime may not ship the evaluation package.  The
         # frozen corpus identity in the certified candidate is the portable

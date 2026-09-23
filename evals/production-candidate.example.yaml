@@ -51,6 +51,10 @@ schema_versions:
   evidence_ir: "1.0"
   translation_patch: "1.0"
   slide_ir: "1.0"
+# Production certification requires an exact four-role governed identity.
+# Populate only after validating the private manifests; public synthetic
+# `held_out` is regression data and is not sealed promotion evidence.
+corpus_identity: UNSET
 retention_policy:
   schema_version: "1.0"
   content_retention_days: UNSET

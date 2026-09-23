@@ -79,7 +79,7 @@ def main(argv: list[str] | None = None) -> int:
             subject_sha = git_result.stdout.strip() if git_result.returncode == 0 else "UNSET"
     except (OSError, subprocess.TimeoutExpired):
         subject_sha = "UNSET"
-    corpus = canonical_corpus_identity(split_manifest())
+    corpus = split_manifest()
     try:
         if args.candidate_profile:
             candidate = load_candidate_spec(args.candidate_profile, root=repo_root, require_identity=False, strict=True)

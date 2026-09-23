@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .model_eval import ModelEvaluationRunner
 from k_slide.redaction import sanitize_operational
+from k_slide.corpus_governance import EVALUATION_PURPOSES
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -27,6 +28,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ocr-provider", choices=("none", "paddle", "auto"), default="none")
     parser.add_argument("--candidate-profile", type=Path, help="Explicit candidate deployment specification for certification-quality runs")
     parser.add_argument("--high-risk", action="store_true", help="Run the protected-category validation stability matrix")
+    parser.add_argument("--corpus-source", choices=("public_synthetic", "governed_external"), default="public_synthetic", help="Select repository synthetic data or an externally materialized governed corpus")
+    parser.add_argument("--governed-manifest", type=Path, help="Evaluated source-free governed manifest")
+    parser.add_argument("--governed-manifest-bundle", type=Path, help="Canonical JSON list containing all four candidate-bound governed manifests")
+    parser.add_argument("--governed-history", type=Path, help="Optional canonical JSON list of required predecessor/history manifests and exposure contexts")
+    parser.add_argument("--evaluation-purpose", choices=EVALUATION_PURPOSES, help="Explicit governed evaluation intent")
+    parser.add_argument("--artifact-root", type=Path, help="Approved external root containing case descriptors, artifacts, and gold")
+    parser.add_argument("--case-descriptor", default="cases.json", help="Descriptor path relative to --artifact-root")
+    parser.add_argument("--contamination-report", type=Path, help="Required empty contamination report for sealed held-out evaluation")
     args = parser.parse_args(argv)
     if args.deck_id:
         from .run_deck_eval import main as run_deck_main
@@ -50,8 +59,17 @@ def main(argv: list[str] | None = None) -> int:
         ocr_provider=args.ocr_provider,
         candidate_profile=args.candidate_profile,
         high_risk=args.high_risk,
+        corpus_source=args.corpus_source,
+        governed_manifest=args.governed_manifest,
+        governed_manifest_bundle=args.governed_manifest_bundle,
+        governed_history=args.governed_history,
+        evaluation_purpose=args.evaluation_purpose,
+        artifact_root=args.artifact_root,
+        case_descriptor=args.case_descriptor,
+        contamination_report=args.contamination_report,
     ).run()
-    print(json.dumps(sanitize_operational(result), ensure_ascii=False))
+    roots = tuple(item for item in (args.artifact_root, args.governed_manifest, args.governed_manifest_bundle, args.governed_history, args.contamination_report) if item is not None)
+    print(json.dumps(sanitize_operational(result, roots=roots), ensure_ascii=False))
     if result.get("status") in {"GEMMA_QUALITY_EVALUATION_BLOCKED", "CAPABILITY_BLOCK", "NON_AUTHORITATIVE", "PROTOCOL_SMOKE_ONLY", "CAPABILITY_BLOCKED"}:
         return 0
     return 0 if result.get("status") == "PASS" else 2

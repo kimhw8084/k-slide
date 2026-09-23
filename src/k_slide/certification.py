@@ -18,9 +18,16 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .retention_policy import RetentionPolicy, RETENTION_POLICY_FIELD
+from .corpus_governance import (
+    CorpusGovernanceError,
+    canonical_corpus_identity as canonical_governed_corpus_identity,
+    is_certification_corpus_ready,
+    require_set_purpose,
+    set_identity_for_role,
+)
 
 
-EVIDENCE_SCHEMA_VERSION = "2.2"
+EVIDENCE_SCHEMA_VERSION = "2.3"
 EVIDENCE_TYPES = (
     "runtime",
     "heavy_runtime",
@@ -1014,8 +1021,32 @@ def resolve_candidate_spec(candidate_spec: dict[str, Any], *, root: Path, subjec
         current_corpus = result.get("corpus_identity")
         if _is_unset(current_corpus) or current_corpus == {} or current_corpus == canonical_corpus_identity(None):
             result["corpus_identity"] = actual_corpus
-        elif canonical_corpus_identity(current_corpus) != actual_corpus:
-            raise EvidenceValidationError("candidate corpus identity disagrees with frozen corpus")
+        else:
+            current_identity = canonical_corpus_identity(current_corpus)
+            if current_identity.get("schema_version") == "1.0" and actual_corpus.get("schema_version") == "1.0":
+                expected_sets = {item["role"]: item for item in current_identity["sets"]}
+                actual_sets = {item["role"]: item for item in actual_corpus["sets"]}
+                if not actual_sets or any(expected_sets.get(role) != identity for role, identity in actual_sets.items()):
+                    raise EvidenceValidationError("candidate corpus identity disagrees with frozen corpus")
+            elif current_identity.get("schema_version") == "1.0":
+                governed = corpus.get("governed_set_identity") if isinstance(corpus, dict) else None
+                public_identity = next((item for item in current_identity["sets"] if item["role"] == "public_synthetic_regression"), None)
+                try:
+                    actual_public_identity = canonical_governed_corpus_identity({"schema_version": "1.0", "sets": [governed]})["sets"][0] if governed is not None else None
+                except CorpusGovernanceError as exc:
+                    raise EvidenceValidationError("frozen public corpus identity is malformed") from exc
+                if actual_public_identity is None or public_identity != actual_public_identity:
+                    raise EvidenceValidationError("candidate corpus identity disagrees with frozen corpus")
+            elif actual_corpus.get("schema_version") == "1.0":
+                legacy = {
+                    "version": corpus.get("version") or corpus.get("corpus_version") or corpus.get("dataset_version"),
+                    "corpus_fingerprint": corpus.get("corpus_fingerprint"),
+                    "held_out_fingerprint": corpus.get("held_out_fingerprint") or corpus.get("heldout_fingerprint"),
+                } if isinstance(corpus, dict) else canonical_corpus_identity(None)
+                if current_identity != legacy:
+                    raise EvidenceValidationError("candidate corpus identity disagrees with frozen corpus")
+            elif current_identity != actual_corpus:
+                raise EvidenceValidationError("candidate corpus identity disagrees with frozen corpus")
     raw_manifest = result.get("ocr_asset_manifest")
     if not _is_unset(raw_manifest):
         if require_sources and result.get("ocr_provider") == "paddle" and str(raw_manifest) != "ocr/manifest.json":
@@ -1210,6 +1241,8 @@ def candidate_completeness(candidate_spec: dict[str, Any], state: str) -> list[s
         for field in ("ocr_asset_manifest", "ocr_asset_manifest_sha256"):
             if field not in missing and not _resolved_value(candidate_spec.get(field), field=field):
                 missing.append(field)
+    if state in {"SYNTHETIC_PRODUCTION_CANDIDATE", "INTERNAL_VALIDATED", "PILOT_APPROVED", "PRODUCTION_CERTIFIED"} and not is_certification_corpus_ready(candidate_spec.get("corpus_identity")):
+        missing.append("corpus_identity.governed_sets")
     if state == "PRODUCTION_CERTIFIED" and candidate_spec.get("ocr_provider") != "paddle":
         missing.append("ocr_provider")
     if state == "PRODUCTION_CERTIFIED":
@@ -1505,9 +1538,9 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
     requirements: dict[str, tuple[str, ...]] = {
         "runtime": ("runtime_pass", "required_media_compliance", "run_complete", "simple_pass", "three_slide_pass", "five_slide_pass"),
         "heavy_runtime": ("heavy_pass", "networkless_pass", "representative_engine_pass", "full_engine_pass", "unexpected_capability_blocks", "dependency_subject", "resolved_dependency_set_sha256", "resolved_dependency_lock_sha256", "built_image_dependency_set_sha256"),
-        "model_validation": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_media_compliance", "vision_input_proven", "locked_terminology_recall", "unexpected_unresolved_rate"),
-        "model_high_risk_stability": ("requested_model", "effective_model", "target_model_approved", "critical_failure_count", "worst_critical_frequency", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_group_coverage", "group_critical_frequency", "category_coverage", "vision_input_proven"),
-        "model_held_out": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "corpus_fingerprint", "held_out_fingerprint", "required_media_compliance", "vision_input_proven", "locked_terminology_recall", "unexpected_unresolved_rate"),
+        "model_validation": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_media_compliance", "vision_input_proven", "locked_terminology_recall", "unexpected_unresolved_rate", "corpus_set_identity", "evaluation_purpose"),
+        "model_high_risk_stability": ("requested_model", "effective_model", "target_model_approved", "critical_failure_count", "worst_critical_frequency", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_group_coverage", "group_critical_frequency", "category_coverage", "vision_input_proven", "corpus_set_identity", "evaluation_purpose"),
+        "model_held_out": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "corpus_fingerprint", "held_out_fingerprint", "required_media_compliance", "vision_input_proven", "locked_terminology_recall", "unexpected_unresolved_rate", "corpus_set_identity", "evaluation_purpose", "contamination_report_sha256"),
         "internal_bilingual": ("attestation_id", "artifact_count", "work_unit_count", "critical_business_meaning_errors", "critical_numeric_date_unit_errors", "critical_modality_escalations", "critical_table_mapping_errors", "critical_trend_reversals", "unsupported_critical_executive_claims", "overall_noncritical_semantic_fidelity", "locked_terminology"),
         "zero_korean_comprehension": ("attestation_id", "users", "answers", "critical_question_accuracy", "overall_comprehension", "critical_misunderstanding"),
         "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings", "audited_dependency_set_sha256", "resolved_dependency_set_sha256", "resolved_dependency_lock_sha256", "production_sbom_sha256", "candidate_constraints_sha256", "pip_audit_version", "semgrep_version", "semgrep_ruleset_identity", "semgrep_ruleset_sha256"),
@@ -1519,6 +1552,19 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
     missing = [key for key in requirements.get(evidence_type, ()) if key not in payload]
     if missing:
         raise EvidenceValidationError(f"{evidence_type} evidence is missing payload fields: {', '.join(missing)}")
+    model_corpus_contracts = {
+        "model_validation": ("private_representative", "private_evaluation"),
+        "model_high_risk_stability": ("frozen_high_risk", "comparison"),
+        "model_held_out": ("sealed_held_out", "promotion"),
+    }
+    if evidence_type in model_corpus_contracts:
+        role, purpose = model_corpus_contracts[evidence_type]
+        try:
+            identity = require_set_purpose(payload["corpus_set_identity"], payload["evaluation_purpose"])
+        except CorpusGovernanceError as exc:
+            raise EvidenceValidationError(f"{evidence_type} corpus governance is ineligible ({type(exc).__name__})") from exc
+        if identity["role"] != role or payload["evaluation_purpose"] != purpose:
+            raise EvidenceValidationError(f"{evidence_type} evidence used the wrong governed corpus role or purpose")
     if evidence_type == "runtime":
         if not all(_is_true(payload[key]) for key in ("runtime_pass", "required_media_compliance", "run_complete")):
             raise EvidenceValidationError("runtime evidence does not prove the complete OpenCode lifecycle")
@@ -1551,6 +1597,10 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
             raise EvidenceValidationError("held-out evidence is not authoritative target-model evidence")
         if payload["critical_failure_count"] != 0:
             raise EvidenceValidationError("held-out evidence fails critical gate")
+        if payload.get("contamination_report_sha256") is not None:
+            digest = payload["contamination_report_sha256"]
+            if not isinstance(digest, str) or len(digest) != 64 or set(digest) - _HEX64:
+                raise EvidenceValidationError("held-out contamination report identity is malformed")
         if not _is_true(payload["required_media_compliance"]) or not _is_true(payload["vision_input_proven"]) or float(payload["locked_terminology_recall"]) + 1e-12 < 0.995 or float(payload["unexpected_unresolved_rate"]) != 0:
             raise EvidenceValidationError("held-out evidence fails media, vision, terminology, or unexpected-unresolved gates")
     elif evidence_type == "internal_bilingual":
@@ -1580,6 +1630,29 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
             raise EvidenceValidationError("pilot safety gate failed")
     elif evidence_type == "governance" and not all(_is_true(payload[key]) for key in ("codeowners_pass", "branch_protection_pass", "required_ci_pass", "review_required")):
         raise EvidenceValidationError("repository governance evidence is incomplete")
+
+
+def validate_model_evidence_corpus_binding(evidence_type: str, payload: dict[str, Any], candidate_spec: dict[str, Any] | None) -> None:
+    contracts = {
+        "model_validation": ("private_representative", "private_evaluation"),
+        "model_high_risk_stability": ("frozen_high_risk", "comparison"),
+        "model_held_out": ("sealed_held_out", "promotion"),
+    }
+    if evidence_type not in contracts:
+        return
+    if not isinstance(candidate_spec, dict):
+        raise EvidenceValidationError("model certification evidence requires its candidate corpus identity")
+    role, purpose = contracts[evidence_type]
+    candidate_identity = canonical_corpus_identity(candidate_spec.get("corpus_identity"))
+    if not is_certification_corpus_ready(candidate_identity):
+        raise EvidenceValidationError("model certification candidate does not bind four eligible governed corpus roles")
+    try:
+        expected = set_identity_for_role(candidate_identity, role)
+        consumed = require_set_purpose(payload.get("corpus_set_identity"), payload.get("evaluation_purpose"))
+    except (CorpusGovernanceError, StopIteration) as exc:
+        raise EvidenceValidationError("model evidence corpus identity or purpose is invalid") from exc
+    if payload.get("evaluation_purpose") != purpose or consumed != expected:
+        raise EvidenceValidationError("model evidence corpus identity does not match candidate-bound role and purpose")
 
 
 def load_evidence(path: Path, *, expected_type: str | None = None, subject_git_sha: str | None = None, deployment_fingerprint: str | None = None, repository_root: Path | None = None, candidate_spec: dict[str, Any] | None = None, require_candidate_spec: bool = False) -> dict[str, Any]:
@@ -1638,9 +1711,13 @@ def load_evidence(path: Path, *, expected_type: str | None = None, subject_git_s
         if payload != verified["payload"]:
             raise EvidenceValidationError("machine evidence payload is not the adapter-derived payload")
         validate_evidence_payload(str(evidence_type), payload)
+        if candidate_spec is not None or embedded_candidate is not None or require_candidate_spec:
+            validate_model_evidence_corpus_binding(str(evidence_type), payload, candidate_spec or embedded_candidate)
         identity = evidence_identity(value, sources=verified["sources"])
         return {**value, "path": str(path), "sha256": sha256_file(path), "envelope_sha256": sha256_file(path), "evidence_identity": identity}
     validate_evidence_payload(str(evidence_type), payload)
+    if candidate_spec is not None or embedded_candidate is not None or require_candidate_spec:
+        validate_model_evidence_corpus_binding(str(evidence_type), payload, candidate_spec or embedded_candidate)
     physical = sha256_file(path)
     return {**value, "path": str(path), "sha256": physical, "envelope_sha256": physical, "evidence_identity": evidence_identity(value)}
 
@@ -1712,9 +1789,27 @@ def _manifest_hash(profile: dict[str, Any], root: Path) -> str | None:
 
 
 def canonical_corpus_identity(corpus: dict[str, Any] | None) -> dict[str, Any]:
-    """Return the one compact corpus identity used by every caller."""
+    """Canonicalize governed identities and explicitly read the legacy shape."""
 
     value = corpus or {}
+    if not isinstance(value, dict):
+        raise EvidenceValidationError("corpus identity must be a mapping")
+    governed: dict[str, Any] | None = None
+    if "sets" in value:
+        governed = value
+    elif value.get("schema_version") == "1.0" and "set_id" in value:
+        governed = {"schema_version": "1.0", "sets": [value]}
+    elif isinstance(value.get("corpus_identity"), dict):
+        return canonical_corpus_identity(value["corpus_identity"])
+    elif isinstance(value.get("governed_set_identity"), dict) and not any(
+        key in value for key in ("version", "corpus_version", "dataset_version", "corpus_fingerprint", "held_out_fingerprint", "heldout_fingerprint")
+    ):
+        governed = {"schema_version": "1.0", "sets": [value["governed_set_identity"]]}
+    if governed is not None:
+        try:
+            return canonical_governed_corpus_identity(governed)
+        except CorpusGovernanceError as exc:
+            raise EvidenceValidationError(f"governed corpus identity is invalid ({type(exc).__name__})") from exc
     return {
         "version": value.get("version") or value.get("corpus_version") or value.get("dataset_version"),
         "corpus_fingerprint": value.get("corpus_fingerprint"),

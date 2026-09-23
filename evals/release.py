@@ -440,7 +440,7 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
     runtime = discover_runtime(root)
     policy = load_model_policy(root)
     split = split_manifest()
-    corpus = canonical_corpus_identity({"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]})
+    corpus = split
     evidence_paths = evidence_paths or {}
     requested = requested_state or state
     candidate, subject = _candidate_spec_for_release(root, candidate_profile=candidate_profile, subject_sha=subject_sha, model=model, policy=policy, corpus=corpus, require_identity=requested != ReleaseState.DEVELOPMENT.value)
@@ -519,7 +519,12 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
         },
         "ocr": {"provider": candidate.get("ocr_provider"), "asset_manifest": safe_relative(manifest_ocr_asset, "OCR asset manifest"), "asset_manifest_sha256": candidate.get("ocr_asset_manifest_sha256") or _sha256(manifest_ocr_asset)},
         "schemas": candidate.get("schema_versions") or repository_schema_versions(),
-        "dataset": {"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]},
+        "dataset": {
+            "version": DATASET_VERSION,
+            "corpus_fingerprint": split["corpus_fingerprint"],
+            "held_out_fingerprint": split["held_out_fingerprint"],
+            "corpus_identity": canonical_corpus_identity(candidate.get("corpus_identity")),
+        },
         "evidence_hashes": hashes,
         "evidence_envelope_hashes": envelope_hashes,
         "evidence_paths": {key: safe_relative(value, f"evidence {key}") for key, value in evidence_paths.items()},
@@ -662,7 +667,7 @@ def main(argv: list[str] | None = None) -> int:
             subject_sha=args.subject_sha,
             model=args.model,
             policy=policy,
-            corpus=canonical_corpus_identity({"version": DATASET_VERSION, "corpus_fingerprint": split["corpus_fingerprint"], "held_out_fingerprint": split["held_out_fingerprint"]}),
+            corpus=split,
             require_identity=requested != ReleaseState.DEVELOPMENT.value,
         )
     except (EvidenceValidationError, OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:

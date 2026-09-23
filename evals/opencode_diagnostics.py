@@ -137,7 +137,7 @@ def run_diagnostic_ladder(*, model: str, output: Path, opencode: str | None = No
         subject_sha = git.stdout.strip() if git.returncode == 0 else "UNSET"
     except (OSError, subprocess.TimeoutExpired):
         subject_sha = "UNSET"
-    corpus = canonical_corpus_identity(split_manifest())
+    corpus = split_manifest()
     if candidate_profile is not None:
         try:
             candidate = load_candidate_spec(candidate_profile, root=repo_root, require_identity=False, strict=True)
