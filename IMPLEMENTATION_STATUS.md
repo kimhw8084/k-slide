@@ -305,7 +305,7 @@ Scope exclusions: no KSA-27 or later policy, no hard quality thresholds/repetiti
 
 ## CHG-16 / KSA-26 FIX01 and FIX02 continuation evidence
 
-This continuation starts at exact integrated main `847c8e760b13b3eb6aeff22106d54ada324a9c1b`. It fast-forwarded to the exact predecessor BUILD candidate `28be285b08859bdcbb6e910e94af6f5c161d248a` before repair edits; that predecessor is a direct child of the requested base. Work branch: `codex/k-slide-chg16-corpus-governance-01-fix01`. Final implementation work head: `RECORDED_AFTER_IMPLEMENTATION_COMMIT`.
+This continuation starts at exact integrated main `847c8e760b13b3eb6aeff22106d54ada324a9c1b`. It fast-forwarded to the exact predecessor BUILD candidate `28be285b08859bdcbb6e910e94af6f5c161d248a` before repair edits; that predecessor is a direct child of the requested base. Work branch: `codex/k-slide-chg16-corpus-governance-01-fix01`. Final implementation work head: `07a58170f105150a1f8350cb13c83c470714603c`.
 
 F26-01 adds a second, explicit source mode to the canonical `ModelEvaluationRunner` and `OpenCodeEvalRunner`. Governed external mode consumes canonical source-free manifests and an exact four-role candidate-bound bundle, validates local descriptors/artifact/gold bytes and role/purpose/history before execution, and retains the existing TranslationPatch/SlideIR scorers and evidence adapters. The adapter rederives exact active membership and result matrices from the persisted governed case identity without public scenario membership authority. Output metadata omits local paths and gold/source contents. Public synthetic mode retains its generation path, public manifest bundle, and fingerprints.
 
