@@ -21,7 +21,7 @@ from .conflicts import (
 )
 from .environment import RunEnvironmentIdentity, resolve_run_termbase
 from .errors import ErrorCode, KSlideError
-from .evidence_ir import load_evidence
+from .evidence_ir import RISKY_LITERAL_STATES, load_evidence
 from .io import atomic_write_json, atomic_write_text, read_json
 from .ir import SlideIR
 from .locking import run_lock
@@ -35,7 +35,7 @@ from .state import RunPhase, load_state, save_state
 from .storage import StorageArtifact, storage_path, workspace_mutation_guard
 from .terminology import Termbase, load_effective_termbase
 from .modality import classify_source_language, decision_bearing_status, english_modality_mismatch, executive_modality_mismatch, modality_mismatch, required_english_mismatch
-from .translation import _chart_elements, _executive_source_texts, _source_evidence_texts, _source_fact_connector_relation, _validate_chart_interpretation
+from .translation import _cell_literal_usable, _chart_elements, _executive_source_texts, _semantic_evidence_usable, _source_evidence_texts, _source_fact_connector_relation, _validate_chart_interpretation
 
 
 class Severity(str, Enum):
@@ -166,6 +166,7 @@ def _check_source_literal_and_modality(result: VerificationResult, slide: SlideI
         if region is None:
             continue
         source_text = source.selected_literal_candidate
+        recovery_required = source.evidence_state in RISKY_LITERAL_STATES or source.recovery_status == "NEEDS_REVIEW"
         language = source.language or classify_source_language(source_text)
         if region.native_source_text != source.selected_literal_candidate or region.selected_source_text != source.selected_literal_candidate or tuple(region.bbox) != tuple(source.bbox_px) or region.reading_order != source.reading_order or region.region_type != source.region_type:
             _issue(result, "KSLIDE_SOURCE_LITERAL_CHANGED", Severity.CRITICAL, "Canonical source literal or region geometry changed after engine merge.", target=source.region_id, evidence_ids=[source.region_id])
@@ -173,16 +174,16 @@ def _check_source_literal_and_modality(result: VerificationResult, slide: SlideI
             _issue(result, "KSLIDE_SOURCE_LANGUAGE_CHANGED", Severity.CRITICAL, "Canonical source-language identity changed after engine merge.", target=source.region_id, evidence_ids=[source.region_id])
         if list(source.source_english_spans) != list(region.source_english_spans):
             _issue(result, "KSLIDE_SOURCE_ENGLISH_SPAN_CHANGED", Severity.CRITICAL, "Canonical protected source-English spans changed after engine merge.", target=source.region_id, evidence_ids=[source.region_id])
-        if language_policy_bound and language == "en" and source_text is not None and region.translation != source_text:
+        if not recovery_required and language_policy_bound and language == "en" and source_text is not None and region.translation != source_text:
             _issue(result, "KSLIDE_SOURCE_ENGLISH_CHANGED", Severity.CRITICAL, "Pure-English source text was changed in canonical output.", target=source.region_id, evidence_ids=[source.region_id])
         spans = list(source.source_english_spans)
-        missing = [span for span in spans if span not in (region.translation or "")]
+        missing = [] if recovery_required else [span for span in spans if span not in (region.translation or "")]
         if missing:
             _issue(result, "KSLIDE_SOURCE_ENGLISH_SPAN_MISSING", Severity.CRITICAL, "Engine-protected source-English span is missing from canonical output.", target=source.region_id, evidence_ids=[source.region_id])
-        mismatch = modality_mismatch(source_text, region.commitment_status, region.speech_act, language_bound=language_policy_bound)
+        mismatch = None if recovery_required else modality_mismatch(source_text, region.commitment_status, region.speech_act, language_bound=language_policy_bound)
         if mismatch:
             _issue(result, ErrorCode.MODALITY_MISMATCH.value, Severity.CRITICAL, mismatch, target=source.region_id, evidence_ids=[source.region_id])
-        english_mismatch = english_modality_mismatch(source_text, region.translation, region.commitment_status, language_bound=language_policy_bound, require_status_marker=True)
+        english_mismatch = None if recovery_required else english_modality_mismatch(source_text, region.translation, region.commitment_status, language_bound=language_policy_bound, require_status_marker=True)
         if english_mismatch:
             _issue(result, ErrorCode.MODALITY_MISMATCH.value, Severity.CRITICAL, english_mismatch, target=source.region_id, evidence_ids=[source.region_id])
         if decision_bearing_status(region.commitment_status) and source.region_id not in region.provenance_evidence_ids:
@@ -274,6 +275,7 @@ def _check_provenance(
     reason: Any = None,
     source_id: str | None = None,
     source_fact_allowed: bool = True,
+    semantic_evidence_allowed: bool = True,
     unresolved_flag: bool | None = None,
 ) -> str | None:
     try:
@@ -303,6 +305,8 @@ def _check_provenance(
             _issue(result, "KSLIDE_PROVENANCE_INCONSISTENT", Severity.CRITICAL, "This semantic item cannot be a source_fact.", target=target)
         elif source_id is not None and (not isinstance(evidence_ids, list) or source_id not in evidence_ids):
             _issue(result, "KSLIDE_PROVENANCE_INCONSISTENT", Severity.CRITICAL, "source_fact must cite its direct engine source ID.", target=target, evidence_ids=[source_id])
+    if effective != ProvenanceState.UNRESOLVED.value and not semantic_evidence_allowed:
+        _issue(result, "KSLIDE_LITERAL_RECOVERY_REQUIRED", Severity.CRITICAL, "Resolved semantic content cites literal evidence that is absent or still requires recovery.", target=target, evidence_ids=evidence_ids if isinstance(evidence_ids, list) else [])
     return effective
 
 
@@ -329,7 +333,13 @@ def _validate_canonical_provenance(
             reason=item.get("reason") or item.get("unresolved_reason"),
         )
     expected_unresolved: set[str] = set()
+    unresolved_by_source = {
+        str(item.get("region_id") or item.get("cell_id") or item.get("relation_id") or item.get("claim_id")): item
+        for item in slide.unresolved if isinstance(item, dict)
+    }
     for region in slide.regions:
+        source_region = next((candidate for candidate in evidence.regions if candidate.region_id == region.region_id), None)
+        recovery_required = source_region is not None and (source_region.evidence_state in RISKY_LITERAL_STATES or source_region.recovery_status == "NEEDS_REVIEW")
         state = _check_provenance(
             result,
             state=region.provenance,
@@ -338,12 +348,22 @@ def _validate_canonical_provenance(
             target=region.region_id,
             reason=region.unresolved_reason,
             source_id=region.region_id,
+            source_fact_allowed=not recovery_required,
+            semantic_evidence_allowed=_semantic_evidence_usable(evidence, region.provenance_evidence_ids, direct_source_id=region.region_id),
         )
+        if recovery_required:
+            unresolved = unresolved_by_source.get(region.region_id, {})
+            if state != ProvenanceState.UNRESOLVED.value or (region.translation or "").strip():
+                _issue(result, "KSLIDE_LITERAL_RECOVERY_REQUIRED", Severity.CRITICAL, "A region without trustworthy literal recovery must remain empty and unresolved.", target=region.region_id, evidence_ids=[region.region_id])
+            if unresolved.get("reason") != source_region.recovery_reason or not all(isinstance(unresolved.get(key), str) and unresolved.get(key).strip() for key in ("impact", "recommended_action")) or not isinstance(unresolved.get("location"), dict):
+                _issue(result, "KSLIDE_RECOVERY_RECORD_INCOMPLETE", Severity.CRITICAL, "Unresolved recovery must preserve its engine reason, impact, location, and recommended action.", target=region.region_id, evidence_ids=[region.region_id])
         if state == ProvenanceState.UNRESOLVED.value:
             expected_unresolved.add(region.region_id)
     for table in slide.tables:
         for cell in table.cells:
             _check_table_cell_binding(result, table, cell, evidence, target=cell.cell_id)
+            evidence_region_map = {region.region_id: region for region in evidence.regions}
+            recovery_required = not _cell_literal_usable(next((candidate for source_table in evidence.tables for candidate in source_table.cells if candidate.cell_id == cell.cell_id), cell), evidence_region_map)
             state = _check_provenance(
                 result,
                 state=cell.provenance,
@@ -352,11 +372,17 @@ def _validate_canonical_provenance(
                 target=cell.cell_id,
                 reason=cell.unresolved_reason,
                 source_id=cell.cell_id,
+                source_fact_allowed=not recovery_required,
+                semantic_evidence_allowed=_semantic_evidence_usable(evidence, cell.provenance_evidence_ids, direct_source_id=cell.cell_id, allow_structural_blank=True),
                 unresolved_flag=cell.unresolved,
             )
+            if recovery_required and (state != ProvenanceState.UNRESOLVED.value or (cell.translation or "").strip()):
+                _issue(result, "KSLIDE_LITERAL_RECOVERY_REQUIRED", Severity.CRITICAL, "A table cell without trustworthy literal evidence must remain empty and unresolved.", target=cell.cell_id, evidence_ids=[cell.cell_id])
             if state == ProvenanceState.UNRESOLVED.value:
                 expected_unresolved.add(cell.cell_id)
     for relation in slide.visual_relations:
+        if not _semantic_evidence_usable(evidence, relation.evidence, allow_typed_visual=True):
+            _issue(result, "KSLIDE_LITERAL_RECOVERY_REQUIRED", Severity.CRITICAL, "Visual interpretation references literal evidence that is absent or still requires recovery.", target=relation.relation_id, evidence_ids=relation.evidence)
         source_fact_allowed = _source_fact_connector_relation(
             {
                 "source_element_ids": relation.source_element_ids,
@@ -375,6 +401,7 @@ def _validate_canonical_provenance(
             target=relation.relation_id,
             reason=relation.unresolved_reason,
             source_fact_allowed=source_fact_allowed,
+            semantic_evidence_allowed=_semantic_evidence_usable(evidence, relation.evidence, allow_typed_visual=True),
         )
         if state == ProvenanceState.UNRESOLVED.value:
             expected_unresolved.add(relation.relation_id)
@@ -390,11 +417,14 @@ def _validate_canonical_provenance(
             evidence=evidence,
             target=claim_id or work_unit_id,
             reason=claim.get("unresolved_reason"),
+            semantic_evidence_allowed=_semantic_evidence_usable(evidence, claim.get("evidence_ids", [])),
         )
         if state == ProvenanceState.UNRESOLVED.value and claim_id:
             expected_unresolved.add(claim_id)
         rendered_text = claim.get("unresolved_reason") if state == ProvenanceState.UNRESOLVED.value else claim.get("text")
         evidence_ids = claim.get("evidence_ids", [])
+        if not _semantic_evidence_usable(evidence, evidence_ids if isinstance(evidence_ids, list) else []):
+            _issue(result, "KSLIDE_LITERAL_RECOVERY_REQUIRED", Severity.CRITICAL, "Executive claim references literal evidence that is absent or still requires recovery.", target=claim_id or work_unit_id, evidence_ids=evidence_ids if isinstance(evidence_ids, list) else [])
         _check_required_english(result, rendered_text, claim.get("hangul_retention"), evidence_ids, evidence, target=claim_id or work_unit_id, source_texts=source_texts)
         if evidence.source.get("source_language_policy") == "unicode-script-v1":
             sources = _executive_source_texts(evidence, tuple(item for item in evidence_ids if isinstance(item, str)), source_texts) if isinstance(evidence_ids, list) else ()
@@ -436,7 +466,7 @@ def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult
         _validate_canonical_provenance(result, slide, evidence, work_unit_id, value, source_texts=source_texts)
         _check_source_literal_and_modality(result, slide, evidence, run_dir=run_dir, source_texts=source_texts)
         _check_visual_evidence(result, slide, evidence, source_texts=source_texts)
-        source_regions = {region.region_id for region in evidence.regions}
+        source_regions = {region.region_id for region in evidence.regions if region.required_for_translation}
         translated_regions = {region.region_id for region in slide.regions}
         missing = sorted(source_regions - translated_regions)
         if missing:

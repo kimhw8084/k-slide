@@ -227,7 +227,7 @@ class KSA24F24RepairTests(unittest.TestCase):
             tables, _facts = _tables(units[0], units[0].native_evidence)
             self.assertEqual(tables[0].cells[3].cell_state, "blank")
 
-    def test_typed_runtime_submit_conflict_assess_verify_finalize(self) -> None:
+    def test_missing_image_literal_requires_review_and_blocks_finalize(self) -> None:
         try:
             from PIL import Image
         except ImportError:
@@ -241,14 +241,16 @@ class KSA24F24RepairTests(unittest.TestCase):
             next_value = _next(root, run.name, None, environment)
             self.assertEqual(next_value["status"], "READY")
             evidence = json.loads((run / "evidence" / f"{next_value['work_unit_id']}.json").read_text(encoding="utf-8"))
-            payload = {"schema_version": "1.0", "work_unit_id": next_value["work_unit_id"], "evidence_revision": evidence["evidence_revision"], "regions": [{"region_id": evidence["regions"][0]["region_id"], "english": "", "term_ids": [], "unresolved": False}], "tables": [], "visual_interpretations": [], "executive_claims": []}
-            self.assertEqual(_submit(root, run.name, json.dumps(payload), None, environment)["status"], "ACCEPTED")
+            payload = {"schema_version": "1.0", "work_unit_id": next_value["work_unit_id"], "evidence_revision": evidence["evidence_revision"], "regions": [{"region_id": evidence["regions"][0]["region_id"], "english": "", "term_ids": [], "unresolved": True, "provenance": "unresolved", "evidence_ids": [evidence["regions"][0]["region_id"]]}], "tables": [], "visual_interpretations": [], "executive_claims": []}
+            self.assertEqual(_submit(root, run.name, json.dumps(payload), None, environment)["status"], "NEEDS_REVIEW")
             self.assertEqual(_conflict_assess(root, run.name, '{"schema_version":"1.0","candidate_groups":[]}', None, environment)["status"], "ASSESSED_ZERO_CONFLICTS")
             verified = verify_run(run, environment_identity=environment)
-            self.assertTrue(verified.passed, verified.as_dict())
-            completed = finalize_run(run, environment_identity=environment)
-            self.assertTrue(completed.passed)
-            self.assertTrue((run / "RUN_COMPLETE.md").is_file())
+            self.assertFalse(verified.passed)
+            self.assertIn("KSLIDE_REVIEW_REQUIRED", {issue.code for issue in verified.issues})
+            with self.assertRaises(KSlideError) as raised:
+                finalize_run(run, environment_identity=environment)
+            self.assertEqual(raised.exception.code, ErrorCode.COMPLETION_BLOCKED)
+            self.assertFalse((run / "RUN_COMPLETE.md").exists())
 
 
 if __name__ == "__main__":

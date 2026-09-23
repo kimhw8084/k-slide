@@ -12,7 +12,8 @@ def _text(value: Any) -> str:
 
 def fuse_literal_evidence(native_candidates: list[dict[str, Any]], ocr_candidates: list[dict[str, Any]]) -> tuple[str | None, float | None, str]:
     native = next((_text(item) for item in native_candidates if _text(item)), None)
-    ocr = next((_text(item) for item in sorted(ocr_candidates, key=lambda item: float(item.get("confidence", 0.0)), reverse=True) if _text(item)), None)
+    eligible_ocr = [item for item in ocr_candidates if item.get("trust_eligible", True) is not False]
+    ocr = next((_text(item) for item in sorted(eligible_ocr, key=lambda item: float(item.get("confidence") or 0.0), reverse=True) if _text(item)), None)
     if native and ocr:
         agreement = SequenceMatcher(None, native, ocr).ratio()
         if agreement >= 0.90:
@@ -23,6 +24,6 @@ def fuse_literal_evidence(native_candidates: list[dict[str, Any]], ocr_candidate
     if native:
         return native, 1.0, "NATIVE_ONLY"
     if ocr:
-        confidence = max((float(item.get("confidence")) for item in ocr_candidates if item.get("confidence") is not None), default=0.0)
+        confidence = max((float(item.get("confidence")) for item in eligible_ocr if item.get("confidence") is not None), default=0.0)
         return ocr, confidence, "OCR_ONLY" if confidence >= 0.80 else "LOW_CONFIDENCE"
     return None, None, "NO_LITERAL_EVIDENCE"

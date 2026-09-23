@@ -123,19 +123,26 @@ def _submit(
         atomic_write_json(storage_path(run_dir, StorageArtifact.TRANSLATION_PATCH, f"translations/{unit.work_unit_id}.json", create_parent=True), patch.as_dict(), mode=0o600)
         atomic_write_json(storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json", create_parent=True), canonical.as_dict(), mode=0o600)
         render_run(run_dir)
-        unit.status = WorkUnitStatus.TRANSLATED
+        recovery_unresolved = [
+            str(item.get("region_id") or item.get("cell_id"))
+            for item in canonical.unresolved
+            if item.get("recovery_status") == "NEEDS_REVIEW"
+        ]
+        unit.status = WorkUnitStatus.NEEDS_REVIEW if recovery_unresolved else WorkUnitStatus.TRANSLATED
         unit.translation_revision = translation_revision
         unit.canonical_ir_sha256 = sha256_file(storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json"))
         unit.translation_attempts += 1
         unit.revision += 1
-        unit.verification_status = "NOT_RUN"
+        unit.verification_status = "NEEDS_REVIEW" if recovery_unresolved else "NOT_RUN"
         save_queue(run_dir, queue)
         state.current_work_unit = None
-        state.next_action = "Call kslide_next for the next work unit or whole-run verification."
-        if state.phase == RunPhase.NEEDS_REVIEW:
+        state.next_action = "Review retained source crops and resolve engine literal recovery before finalization." if recovery_unresolved else "Call kslide_next for the next work unit or whole-run verification."
+        if recovery_unresolved and state.phase != RunPhase.NEEDS_REVIEW:
+            state.transition(RunPhase.NEEDS_REVIEW, next_action=state.next_action)
+        elif state.phase == RunPhase.NEEDS_REVIEW and not any(item.status is WorkUnitStatus.NEEDS_REVIEW for item in queue.work_units):
             state.transition(RunPhase.TRANSLATING, next_action=state.next_action)
         save_state(run_dir, state)
-        return {"status": "ACCEPTED", "run_id": state.run_id, "work_unit_id": unit.work_unit_id, "translation_revision": translation_revision, "stored": str(storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json").relative_to(root.resolve()))}
+        return {"status": "NEEDS_REVIEW" if recovery_unresolved else "ACCEPTED", "run_id": state.run_id, "work_unit_id": unit.work_unit_id, "translation_revision": translation_revision, "unresolved_source_ids": recovery_unresolved, "stored": str(storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json").relative_to(root.resolve()))}
 
 
 def _conflict_assess(
@@ -303,7 +310,9 @@ def _next_unsanitized(
     if state.phase == RunPhase.VERIFIED:
         return {"status": "VERIFIED", "run_id": state.run_id, "next_action": "kslide_finalize"}
     if state.phase == RunPhase.NEEDS_REVIEW:
-        return {"status": "NEEDS_REVIEW", "run_id": state.run_id, "next_action": "Human review or explicit repair is required."}
+        queue = load_queue(run)
+        if not any(unit.status is WorkUnitStatus.READY for unit in queue.work_units):
+            return {"status": "NEEDS_REVIEW", "run_id": state.run_id, "next_action": "Human review or explicit repair is required."}
     ensure_workspace_environment_compatible(run, environment_identity=environment_identity)
     with run_lock(run):
         bind_session(_run_root(root), session_id, run.name)
@@ -325,9 +334,9 @@ def _next_unsanitized(
             unit.status = WorkUnitStatus.TRANSLATING
             unit.revision += 1
             state.current_work_unit = unit.work_unit_id
-            if state.phase != RunPhase.TRANSLATING:
+            if state.phase != RunPhase.TRANSLATING and not any(item.status is WorkUnitStatus.NEEDS_REVIEW for item in queue.work_units):
                 state.transition(RunPhase.TRANSLATING, next_action="Translate the returned evidence work unit")
-            else:
+            elif state.phase == RunPhase.TRANSLATING:
                 state.next_action = "Translate the returned evidence work unit"
             save_queue(run, queue)
             save_state(run, state)
@@ -406,7 +415,7 @@ def _evidence(
     risky_states = {"DISAGREEMENT", "LOW_CONFIDENCE", "NO_LITERAL_EVIDENCE"}
     required_crops = []
     for region in evidence.regions:
-        if region.evidence_state in risky_states or region.region_type.upper() in {"FOOTNOTE", "CHART_LABEL", "LEGEND", "TABLE_CELL"}:
+        if region.translation_disposition == "REQUIRED" and (region.evidence_state in risky_states or region.region_type.upper() in {"FOOTNOTE", "CHART_LABEL", "LEGEND", "TABLE_CELL"}):
             required_crops.append({
                 "region_id": region.region_id,
                 "path": visible_path(region.crop_model_path or region.crop_original_path),
