@@ -16,6 +16,8 @@ from .storage import StorageArtifact, storage_path, workspace_mutation_guard
 
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _TABLE_CELL_STATES = frozenset({"nonblank", "blank", "merge_origin", "merge_continuation", "unknown"})
+RISKY_LITERAL_STATES = frozenset({"DISAGREEMENT", "LOW_CONFIDENCE", "NO_LITERAL_EVIDENCE"})
+LITERAL_EVIDENCE_STATES = frozenset({"HIGH_AGREEMENT", "MEDIUM_AGREEMENT", "NATIVE_ONLY", "OCR_ONLY", "DISAGREEMENT", "LOW_CONFIDENCE", "NO_LITERAL_EVIDENCE", "HIGH_CONFIDENCE"})
 
 
 def _identifier(value: str, label: str) -> str:
@@ -43,7 +45,7 @@ class EvidenceRegion:
     ocr_candidates: tuple[dict[str, Any], ...] = ()
     selected_literal_candidate: str | None = None
     literal_confidence: float | None = None
-    evidence_state: str = "NO_LITERAL_EVIDENCE"
+    evidence_state: str | None = None
     language: str | None = None
     source_english_spans: tuple[str, ...] = ()
     crop_original_path: str | None = None
@@ -52,6 +54,27 @@ class EvidenceRegion:
     table_id: str | None = None
     visual_element_ids: tuple[str, ...] = ()
     required_for_translation: bool = True
+    translation_disposition: str = "REQUIRED"
+    disposition_policy: str | None = None
+    disposition_evidence_ids: tuple[str, ...] = ()
+    recovery_status: str | None = None
+    recovery_attempts: int = 0
+    recovery_reason: str | None = None
+
+    def __post_init__(self) -> None:
+        # Direct in-memory EvidenceIR fixtures predating evidence-state fusion
+        # contain an already selected engine literal but no candidate list.
+        # Treat that as native-only for compatibility. Persisted records with
+        # an omitted state are migrated conservatively in from_dict below.
+        state = self.evidence_state
+        if state is None:
+            state = "NATIVE_ONLY" if self.selected_literal_candidate and not self.native_text_candidates and not self.ocr_candidates else ("NO_LITERAL_EVIDENCE" if not self.selected_literal_candidate else "NATIVE_ONLY")
+            object.__setattr__(self, "evidence_state", state)
+        if self.recovery_status is None:
+            risky = state in RISKY_LITERAL_STATES
+            object.__setattr__(self, "recovery_status", "NEEDS_REVIEW" if risky else "NOT_REQUIRED")
+            if risky and not self.recovery_reason:
+                object.__setattr__(self, "recovery_reason", "No trustworthy literal evidence is available after bounded engine recovery.")
 
     def as_dict(self) -> dict[str, Any]:
         value = asdict(self)
@@ -62,7 +85,62 @@ class EvidenceRegion:
         value["numeric_fact_ids"] = list(self.numeric_fact_ids)
         value["visual_element_ids"] = list(self.visual_element_ids)
         value["source_english_spans"] = list(self.source_english_spans)
+        value["disposition_evidence_ids"] = list(self.disposition_evidence_ids)
         return value
+
+    def validate_recovery_contract(self) -> None:
+        if self.evidence_state not in LITERAL_EVIDENCE_STATES:
+            raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence region has an unknown literal evidence state.", {"region_id": self.region_id})
+        risky = self.evidence_state in RISKY_LITERAL_STATES
+        if self.translation_disposition == "NOT_APPLICABLE_NATIVE_VISUAL":
+            if self.required_for_translation or self.disposition_policy != "native-nontext-visual-v1" or self.disposition_evidence_ids != (self.region_id,):
+                raise KSlideError(ErrorCode.SCHEMA_INVALID, "A not-applicable text disposition requires the closed engine visual-preservation policy and source binding.", {"region_id": self.region_id})
+            if self.selected_literal_candidate is not None or self.recovery_status != "NOT_REQUIRED" or self.recovery_attempts != 0 or self.recovery_reason is not None:
+                raise KSlideError(ErrorCode.SCHEMA_INVALID, "A native visual-preservation disposition cannot erase literal or recovery evidence.", {"region_id": self.region_id})
+            return
+        if self.translation_disposition != "REQUIRED" or not self.required_for_translation or self.disposition_policy is not None or self.disposition_evidence_ids:
+            raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence regions remain required; extraction cannot create a decorative or not-applicable exemption.", {"region_id": self.region_id})
+        if not isinstance(self.recovery_attempts, int) or isinstance(self.recovery_attempts, bool) or self.recovery_attempts not in {0, 1}:
+            raise KSlideError(ErrorCode.SCHEMA_INVALID, "Literal recovery is bounded to one engine crop re-extraction.", {"region_id": self.region_id})
+        if risky:
+            if self.recovery_status != "NEEDS_REVIEW" or not isinstance(self.recovery_reason, str) or not self.recovery_reason.strip():
+                raise KSlideError(ErrorCode.SCHEMA_INVALID, "Risky literal evidence must remain in engine-owned NEEDS_REVIEW recovery state.", {"region_id": self.region_id})
+            return
+        if not isinstance(self.selected_literal_candidate, str) or not self.selected_literal_candidate.strip():
+            raise KSlideError(ErrorCode.SCHEMA_INVALID, "Literal evidence without a selected source candidate cannot be semantically eligible.", {"region_id": self.region_id})
+        if self.evidence_state == "OCR_ONLY" and (
+            not isinstance(self.literal_confidence, (int, float))
+            or isinstance(self.literal_confidence, bool)
+            or not 0.80 <= self.literal_confidence <= 1.0
+        ):
+            raise KSlideError(ErrorCode.SCHEMA_INVALID, "OCR-only literal evidence must meet the engine confidence threshold.", {"region_id": self.region_id})
+        if self.recovery_status == "NOT_REQUIRED":
+            if self.recovery_attempts != 0 or self.recovery_reason is not None:
+                raise KSlideError(ErrorCode.SCHEMA_INVALID, "A region without recovery must not claim recovery evidence.", {"region_id": self.region_id})
+            return
+        if self.recovery_status != "RECOVERED" or self.recovery_attempts != 1:
+            raise KSlideError(ErrorCode.SCHEMA_INVALID, "A recovered literal must cite one durable engine crop re-extraction.", {"region_id": self.region_id})
+        selected = self.selected_literal_candidate
+        recovery_candidates = [
+            item for item in self.ocr_candidates
+            if isinstance(item, dict)
+            and item.get("recovery_pass") == 1
+            and item.get("text") == selected
+            and item.get("trust_eligible", True) is not False
+            and isinstance(item.get("crop_sha256"), str)
+            and re.fullmatch(r"[a-f0-9]{64}", item["crop_sha256"])
+            and isinstance(item.get("provider"), str)
+            and item.get("provider")
+        ]
+        if not isinstance(selected, str) or not selected.strip() or not recovery_candidates:
+            raise KSlideError(ErrorCode.SCHEMA_INVALID, "Recovered literal lacks its durable crop OCR candidate.", {"region_id": self.region_id})
+        if not any(
+            isinstance(item.get("confidence"), (int, float))
+            and not isinstance(item.get("confidence"), bool)
+            and 0.80 <= item["confidence"] <= 1.0
+            for item in recovery_candidates
+        ):
+            raise KSlideError(ErrorCode.SCHEMA_INVALID, "Recovered literal lacks a high-confidence crop OCR confirmation.", {"region_id": self.region_id})
 
 
 @dataclass(frozen=True)
@@ -173,6 +251,7 @@ class EvidenceIR:
         for source_id in self.required_source_ids:
             _identifier(source_id, "required_source_id")
         for region in self.regions:
+            region.validate_recovery_contract()
             if region.language is not None and region.language not in LANGUAGE_VALUES:
                 raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence region has an unsupported source language.", {"region_id": region.region_id, "language": region.language})
             if language_policy_bound and region.language is not None and region.selected_literal_candidate is not None:
@@ -192,6 +271,27 @@ class EvidenceIR:
                     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence region references an unknown numeric fact.", {"fact_id": fact_id})
             if region.table_id and region.table_id not in table_ids:
                 raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence region references an unknown table.", {"table_id": region.table_id})
+            if region.translation_disposition == "NOT_APPLICABLE_NATIVE_VISUAL":
+                if region.region_id not in self.required_source_ids:
+                    raise KSlideError(ErrorCode.SCHEMA_INVALID, "Native visual-preservation disposition must remain accounted for in required source coverage.", {"region_id": region.region_id})
+                native = next((item for item in self.native_evidence if isinstance(item, dict) and item.get("source_id") == region.region_id), None)
+                matching_visuals = [item for item in self.visual_elements if isinstance(item, dict) and (item.get("element_id") == region.region_id or item.get("source_id") == region.region_id)]
+                visual = next((item for item in matching_visuals if isinstance(item, dict) and item.get("kind") == "chart"), None) if isinstance(native, dict) and str(native.get("shape_type", "")).casefold() == "chart" else next((item for item in matching_visuals if isinstance(item, dict)), None)
+                shape_type = str(native.get("shape_type", "")).casefold() if isinstance(native, dict) else ""
+                if native is None or visual is None or str(native.get("text") or "").strip():
+                    raise KSlideError(ErrorCode.SCHEMA_INVALID, "Not-applicable text disposition lacks an exact native non-text visual source.", {"region_id": region.region_id})
+                represented = False
+                if shape_type == "group":
+                    children = [item for item in self.native_evidence if isinstance(item, dict) and str(item.get("source_id", "")).startswith(region.region_id + "-")]
+                    represented = visual.get("kind") == "shape" and bool(children) and all(any(element.get("element_id") == child.get("source_id") for element in self.visual_elements if isinstance(element, dict)) for child in children)
+                elif shape_type in {"line", "connector"}:
+                    represented = visual.get("kind") == "connector" and isinstance(visual.get("connector"), dict)
+                elif shape_type == "chart":
+                    represented = visual.get("kind") == "chart" and isinstance(visual.get("chart"), dict) and visual.get("chart") == native.get("chart")
+                elif shape_type == "table":
+                    represented = visual.get("kind") == "shape" and any(table.table_id == f"{region.region_id}-table" for table in self.tables)
+                if not represented:
+                    raise KSlideError(ErrorCode.SCHEMA_INVALID, "Not-applicable text disposition is not fully preserved by a matching engine visual/table object.", {"region_id": region.region_id, "shape_type": shape_type})
         for table in self.tables:
             cell_ids = [_identifier(cell.cell_id, "cell_id") for cell in table.cells]
             if len(cell_ids) != len(set(cell_ids)):
@@ -271,6 +371,17 @@ class EvidenceIR:
                     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Evidence chart series order does not match typed series facts.", {"element_id": element.get("element_id")})
         if not set(self.required_source_ids).issubset(known | {cell.cell_id for table in self.tables for cell in table.cells}):
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "EvidenceIR required source IDs contain unknown objects.")
+        region_by_id = {region.region_id: region for region in self.regions}
+        cell_by_id = {cell.cell_id: cell for table in self.tables for cell in table.cells}
+        for fact in self.numeric_facts:
+            if not isinstance(fact, dict):
+                continue
+            source_region_id = fact.get("source_region_id")
+            source_cell_id = fact.get("source_cell_id")
+            region = region_by_id.get(str(source_region_id)) if source_region_id else None
+            cell = cell_by_id.get(str(source_cell_id)) if source_cell_id else None
+            if (region and region.evidence_state in RISKY_LITERAL_STATES) or (cell and not isinstance(cell.source_text, str)):
+                raise KSlideError(ErrorCode.SCHEMA_INVALID, "Numeric facts cannot be derived from unresolved or absent literal evidence.", {"fact_id": fact.get("fact_id")})
         expected = self.computed_revision()
         if self.evidence_revision and self.evidence_revision != expected:
             raise KSlideError(ErrorCode.STALE_EVIDENCE, "EvidenceIR revision does not match its immutable content.", {"expected": expected, "actual": self.evidence_revision})
@@ -317,6 +428,12 @@ class EvidenceIR:
                 table_id=item.get("table_id"),
                 visual_element_ids=tuple(item.get("visual_element_ids", [])),
                 required_for_translation=bool(item.get("required_for_translation", True)),
+                translation_disposition=str(item.get("translation_disposition", "REQUIRED")),
+                disposition_policy=item.get("disposition_policy"),
+                disposition_evidence_ids=tuple(item.get("disposition_evidence_ids", [])),
+                recovery_status=item.get("recovery_status"),
+                recovery_attempts=item.get("recovery_attempts", 0),
+                recovery_reason=item.get("recovery_reason"),
             )
             for item in value.get("regions", [])
         )
