@@ -94,6 +94,84 @@ class KSA25RecoveryLawTests(unittest.TestCase):
         )
         return EvidenceIR("doc-1", "unit", {}, regions=(region,), required_source_ids=(region.region_id,)).with_revision()
 
+    def _semantic_evidence(self, *, document_id: str = "doc-1", work_unit_id: str = "unit", grounded_table: bool = False) -> EvidenceIR:
+        risk_id = f"{work_unit_id}-risk"
+        trusted_id = f"{work_unit_id}-trusted"
+        table_id = f"{work_unit_id}-table"
+        trusted_cell_id = f"{work_unit_id}-cell-trusted"
+        risk_cell_id = f"{work_unit_id}-cell-risk"
+        fact_id = f"{work_unit_id}-fact"
+        risk = EvidenceRegion(risk_id, selected_literal_candidate=None, evidence_state="NO_LITERAL_EVIDENCE")
+        trusted = EvidenceRegion(trusted_id, selected_literal_candidate="Launch date 2026-04-01")
+        trusted_cell = EvidenceTableCell(
+            trusted_cell_id, 0, 0, source_text="2026-04-01", cell_state="nonblank", numeric_fact_ids=(fact_id,),
+        )
+        cells = [trusted_cell]
+        if not grounded_table:
+            cells.append(EvidenceTableCell(
+                risk_cell_id, 1, 0, source_text=None, cell_state="nonblank", evidence_region_ids=(risk_id,),
+            ))
+        table = EvidenceTable(table_id, row_count=len(cells), column_count=1, cells=tuple(cells))
+        numeric = ({
+            "fact_id": fact_id,
+            "source_region_id": None,
+            "source_object_id": trusted_cell_id,
+            "source_cell_id": trusted_cell_id,
+            "source_string": "2026-04-01",
+            "raw_value": 2026,
+            "canonical_value": 2026,
+            "scale_factor": 1,
+            "source_unit": None,
+            "semantic_quantity": "date",
+            "currency": None,
+            "direction": None,
+        },)
+        visuals = (
+            {"element_id": f"{work_unit_id}-context", "kind": "context_image", "path": "context.png", "sha256": "a" * 64, "bbox_px": [0, 0, 120, 120], "required": True},
+            {
+                "element_id": f"{work_unit_id}-chart", "kind": "chart", "bbox_px": [0, 0, 80, 40], "required": True,
+                "chart": {"chart_type": "line", "categories": ["Q1", "Q2"], "series": [{"series_index": 0, "name": "Revenue", "points": [{"point_index": 0, "value": 1, "is_blank": False}, {"point_index": 1, "value": 2, "is_blank": False}]}]},
+            },
+            {"element_id": f"{work_unit_id}-node-a", "kind": "shape", "bbox_px": [0, 0, 10, 10], "required": True},
+            {"element_id": f"{work_unit_id}-node-b", "kind": "shape", "bbox_px": [30, 0, 40, 10], "required": True},
+            {
+                "element_id": f"{work_unit_id}-edge", "kind": "connector", "bbox_px": [10, 5, 30, 5], "required": True,
+                "connector": {"from_element_id": f"{work_unit_id}-node-a", "to_element_id": f"{work_unit_id}-node-b", "direction_evidence": "start_to_end"},
+            },
+        )
+        required = [risk_id, trusted_id, table_id, trusted_cell_id, fact_id, *(str(item["element_id"]) for item in visuals)]
+        if not grounded_table:
+            required.append(risk_cell_id)
+        return EvidenceIR(
+            document_id, work_unit_id, {}, regions=(risk, trusted), tables=(table,), numeric_facts=numeric,
+            visual_elements=visuals, required_source_ids=tuple(required),
+        ).with_revision()
+
+    def _semantic_patch(self, evidence: EvidenceIR) -> dict[str, object]:
+        regions = []
+        for region in evidence.regions:
+            if region.evidence_state in {"NO_LITERAL_EVIDENCE", "LOW_CONFIDENCE", "DISAGREEMENT"}:
+                regions.append({"region_id": region.region_id, "english": "", "term_ids": [], "unresolved": True, "provenance": "unresolved", "evidence_ids": [region.region_id]})
+            else:
+                regions.append({"region_id": region.region_id, "english": region.selected_literal_candidate or "", "term_ids": [], "unresolved": False, "provenance": "source_fact", "evidence_ids": [region.region_id]})
+        tables = []
+        for table in evidence.tables:
+            cells = []
+            for cell in table.cells:
+                unresolved = cell.source_text is None and bool(cell.evidence_region_ids)
+                cells.append({
+                    "cell_id": cell.cell_id,
+                    "english": "" if unresolved else (cell.source_text or ""),
+                    "unresolved": unresolved,
+                    "provenance": "unresolved" if unresolved else "source_fact",
+                    "evidence_ids": [cell.cell_id],
+                })
+            tables.append({"table_id": table.table_id, "cells": cells})
+        return {
+            "schema_version": "1.0", "work_unit_id": evidence.work_unit_id, "evidence_revision": evidence.evidence_revision,
+            "regions": regions, "tables": tables, "visual_interpretations": [], "executive_claims": [],
+        }
+
     def test_risky_literal_states_cannot_be_promoted_or_completed_by_patch_text(self) -> None:
         cases = (
             ("NO_LITERAL_EVIDENCE", None),
@@ -220,6 +298,100 @@ class KSA25RecoveryLawTests(unittest.TestCase):
         ).with_revision()
         self.assertEqual(failed.regions[0].recovery_status, "NEEDS_REVIEW")
 
+    def test_semantic_evidence_aliases_fail_closed_at_patch_and_canonical_boundaries(self) -> None:
+        evidence = self._semantic_evidence()
+        base = self._semantic_patch(evidence)
+        context_id = f"{evidence.work_unit_id}-context"
+        table_id = f"{evidence.work_unit_id}-table"
+
+        aliases = (
+            {
+                **base,
+                "executive_claims": [{"claim_id": "raw-context-claim", "kind": "decision_status", "text": "Approval is final.", "evidence_ids": [context_id], "uncertainty": "low", "provenance": "supported_interpretation"}],
+            },
+            {
+                **base,
+                "visual_interpretations": [{"relation_id": "raw-context-visual", "interpretation": "The unreadable item is approved.", "evidence_ids": [context_id], "source_element_ids": [context_id], "provenance": "supported_interpretation"}],
+            },
+            {
+                **base,
+                "executive_claims": [{"claim_id": "unresolved-table-claim", "kind": "takeaway", "text": "The table confirms approval.", "evidence_ids": [table_id], "uncertainty": "low", "provenance": "supported_interpretation"}],
+            },
+        )
+        for payload in aliases:
+            with self.subTest(surface="visual" if payload.get("visual_interpretations") else "claim"):
+                with self.assertRaises(KSlideError) as raised:
+                    parse_translation_patch(payload).validate_against(evidence)
+                self.assertEqual(raised.exception.code, ErrorCode.CLAIM_UNSUPPORTED)
+
+        from k_slide.ir import SlideIR
+        from k_slide.verify import VerificationResult, _validate_canonical_provenance
+
+        canonical = merge_evidence_patch(evidence, parse_translation_patch(base)).as_dict()
+        canonical["executive_semantics"]["executive_claims"] = aliases[0]["executive_claims"]
+        parsed = SlideIR.from_dict(canonical, evidence=evidence)
+        result = VerificationResult(status="PASS", run_id="run")
+        _validate_canonical_provenance(result, parsed, evidence, evidence.work_unit_id, canonical)
+        self.assertIn("KSLIDE_LITERAL_RECOVERY_REQUIRED", {issue.code for issue in result.issues})
+
+    def test_exact_grounded_evidence_containers_and_typed_visuals_remain_usable(self) -> None:
+        evidence = self._semantic_evidence()
+        base = self._semantic_patch(evidence)
+        base["executive_claims"] = [
+            {"claim_id": "trusted-region", "kind": "takeaway", "text": "The launch date is 2026-04-01.", "evidence_ids": [f"{evidence.work_unit_id}-trusted"], "uncertainty": "low", "provenance": "supported_interpretation"},
+            {"claim_id": "trusted-cell", "kind": "takeaway", "text": "The trusted cell records 2026-04-01.", "evidence_ids": [f"{evidence.work_unit_id}-cell-trusted"], "uncertainty": "low", "provenance": "supported_interpretation"},
+            {"claim_id": "trusted-number", "kind": "takeaway", "text": "The source records 2026-04-01.", "evidence_ids": [f"{evidence.work_unit_id}-fact"], "uncertainty": "low", "provenance": "supported_interpretation"},
+        ]
+        parse_translation_patch(base).validate_against(evidence)
+
+        grounded = self._semantic_evidence(grounded_table=True)
+        grounded_patch = self._semantic_patch(grounded)
+        grounded_patch["executive_claims"] = [{
+            "claim_id": "grounded-table", "kind": "takeaway", "text": "The table records 2026-04-01.",
+            "evidence_ids": [f"{grounded.work_unit_id}-table"], "uncertainty": "low", "provenance": "supported_interpretation",
+        }]
+        parse_translation_patch(grounded_patch).validate_against(grounded)
+
+        chart_id = f"{evidence.work_unit_id}-chart"
+        edge_id = f"{evidence.work_unit_id}-edge"
+        visual_patch = self._semantic_patch(evidence)
+        visual_patch["visual_interpretations"] = [
+            {
+                "relation_id": "typed-chart", "interpretation": "Revenue rises.", "evidence_ids": [chart_id],
+                "source_element_ids": [chart_id], "provenance": "source_fact",
+                "chart_claim": {"chart_element_id": chart_id, "kind": "trend", "series_index": 0, "series_name": "Revenue", "direction": "increasing"},
+            },
+            {
+                "relation_id": "typed-connector", "interpretation": "A flows to B.", "evidence_ids": [edge_id],
+                "source_element_ids": [f"{evidence.work_unit_id}-node-a", f"{evidence.work_unit_id}-node-b", edge_id],
+                "relation_type": "next", "direction": "left_to_right", "provenance": "source_fact",
+            },
+        ]
+        patch = parse_translation_patch(visual_patch)
+        patch.validate_against(evidence)
+        from k_slide.verify import VerificationResult, _check_visual_evidence
+
+        slide = merge_evidence_patch(evidence, patch)
+        result = VerificationResult(status="PASS", run_id="run")
+        _check_visual_evidence(result, slide, evidence)
+        self.assertEqual(result.issues, [])
+
+    def test_native_typed_nontext_visual_can_ground_visual_interpretation(self) -> None:
+        region = EvidenceRegion(
+            "unit-group", region_type="IMAGE", selected_literal_candidate=None,
+            evidence_state="NO_LITERAL_EVIDENCE", required_for_translation=False,
+            translation_disposition="NOT_APPLICABLE_NATIVE_VISUAL", disposition_policy="native-nontext-visual-v1",
+            disposition_evidence_ids=("unit-group",), recovery_status="NOT_REQUIRED",
+        )
+        native = ({"source_id": "unit-group", "shape_type": "group"}, {"source_id": "unit-group-child", "shape_type": "auto_shape", "text": "A"})
+        visual = (
+            {"element_id": "unit-group", "source_id": "unit-group", "kind": "shape", "shape_type": "group", "bbox_px": [0, 0, 10, 10], "required": True},
+            {"element_id": "unit-group-child", "source_id": "unit-group-child", "kind": "shape", "shape_type": "auto_shape", "bbox_px": [0, 0, 10, 10], "source_text": "A", "required": True},
+        )
+        evidence = EvidenceIR("doc-1", "unit", {}, regions=(region,), visual_elements=visual, native_evidence=native, required_source_ids=("unit-group", "unit-group-child")).with_revision()
+        payload = {"schema_version": "1.0", "work_unit_id": "unit", "evidence_revision": evidence.evidence_revision, "regions": [], "tables": [], "visual_interpretations": [{"relation_id": "native-group", "interpretation": "A grouped non-text object is present.", "evidence_ids": ["unit-group"], "source_element_ids": ["unit-group"], "provenance": "supported_interpretation"}], "executive_claims": []}
+        parse_translation_patch(payload).validate_against(evidence)
+
     def test_targeted_crop_ocr_recovers_high_confidence_or_keeps_partial_and_failure_unresolved(self) -> None:
         scenarios = (
             ("recovered", _FixtureOCR(page_regions=(OCRRegion("검토", (20, 20, 80, 80), 0.35),), crop_regions=(OCRRegion("검토", (10, 10, 60, 30), 0.96),)), "RECOVERED", "OCR_ONLY"),
@@ -343,6 +515,40 @@ class KSA25RecoveryLawTests(unittest.TestCase):
             self.assertEqual({item.document_id for item in conflict.participants}, {item.document_id for item in evidences})
             self.assertEqual({item.evidence_ref["evidence_revision"] for item in conflict.participants}, {item.evidence_revision for item in evidences})
 
+    def test_conflict_rebuild_rejects_canonical_claims_backed_only_by_raw_context(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shutil.copytree(_PROJECT_ROOT / "termbase", root / "termbase")
+            from PIL import Image
+
+            for name in ("a.png", "b.png"):
+                Image.new("RGB", (20, 20), "white").save(root / name)
+            environment = reference_environment("ksa25-context-conflict")
+            run = prepare_run(root, explicit_paths=[str(root / "a.png"), str(root / "b.png")], environment_identity=environment)
+            queue = load_queue(run)
+            assertions = []
+            for unit in queue.work_units:
+                evidence = self._semantic_evidence(document_id=unit.document_id, work_unit_id=unit.work_unit_id)
+                save_evidence(run, evidence)
+                unit.evidence_revision = evidence.evidence_revision
+                unit.status = WorkUnitStatus.TRANSLATED
+                canonical = merge_evidence_patch(evidence, parse_translation_patch(self._semantic_patch(evidence))).as_dict()
+                claim_id = f"{unit.work_unit_id}-raw-context"
+                canonical["executive_semantics"]["executive_claims"] = [{
+                    "claim_id": claim_id,
+                    "kind": "decision_status",
+                    "text": "Approval is final.",
+                    "evidence_ids": [f"{unit.work_unit_id}-context"],
+                    "uncertainty": "low",
+                    "provenance": "supported_interpretation",
+                }]
+                storage_path(run, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json", create_parent=True).write_text(json.dumps(canonical), encoding="utf-8")
+                assertions.append({"work_unit_id": unit.work_unit_id, "semantic_kind": "executive_claim", "semantic_id": claim_id})
+            save_queue(run, queue)
+            with self.assertRaises(KSlideError) as raised:
+                assess_conflicts(run, candidate_groups=[{"assertions": assertions}])
+            self.assertEqual(raised.exception.code, ErrorCode.CONFLICT_REFERENCE_INVALID)
+
     def test_foreign_context_and_foreign_patch_cannot_repair_another_document(self) -> None:
         evidence_a = EvidenceIR("doc-a", "unit-a", {}, regions=(EvidenceRegion("unit-a-r1", selected_literal_candidate="원문 A"),), required_source_ids=("unit-a-r1",)).with_revision()
         evidence_b = EvidenceIR("doc-b", "unit-b", {}, regions=(EvidenceRegion("unit-b-r1", selected_literal_candidate="원문 B"),), required_source_ids=("unit-b-r1",)).with_revision()
@@ -372,10 +578,18 @@ class KSA25RecoveryLawTests(unittest.TestCase):
             forged = self._patch(evidence, english="The unreadable source confirms approval.", unresolved=False, provenance="source_fact")
             with self.assertRaises(KSlideError):
                 _submit(root, run.name, json.dumps(forged), None, environment)
+            context_id = next(item["element_id"] for item in evidence.visual_elements if item.get("kind") == "context_image")
+            indirect = self._patch(evidence, english="", unresolved=True, provenance="unresolved")
+            indirect["executive_claims"] = [{"claim_id": "raw-context-decision", "kind": "decision_status", "text": "Approval is final.", "evidence_ids": [context_id], "uncertainty": "low", "provenance": "supported_interpretation"}]
+            with self.assertRaises(KSlideError):
+                _submit(root, run.name, json.dumps(indirect), None, environment)
             unresolved = self._patch(evidence, english="", unresolved=True, provenance="unresolved")
             accepted = _submit(root, run.name, json.dumps(unresolved), None, environment)
             self.assertEqual(accepted["status"], "NEEDS_REVIEW")
             self.assertEqual(_next(root, run.name, None, environment)["status"], "NEEDS_REVIEW")
+            brief = storage_path(run, StorageArtifact.REPORT, "05_executive_brief.md").read_text(encoding="utf-8")
+            self.assertNotIn("Approval is final.", brief)
+            self.assertIn("No evidence-backed executive claims are available yet.", brief)
 
             assessment = _conflict_assess(root, run.name, '{"schema_version":"1.0","candidate_groups":[]}', None, environment)
             self.assertEqual(assessment["status"], "ASSESSED_ZERO_CONFLICTS")

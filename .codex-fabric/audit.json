@@ -122,8 +122,107 @@
     "Full-suite messages that print PRODUCTION_CERTIFIED are isolated synthetic fixture output; no live company or Gemma qualification, release, or production certification occurred or is claimed.",
     "Changes remain uncommitted on the task branch."
   ],
+  "continuation": {
+    "request": "CHG-16 / KSA-25 F25-01 semantic-evidence indirection recovery-law closure",
+    "candidate": {
+      "branch": "codex/k-slide-chg16-recovery-law-01-fix01",
+      "base_integrated_main": "b9f109c1b92c26cb3cf5611b3d9c82659c56da40",
+      "predecessor_candidate": "85aa7ee2cf4c2a93dfa026d4bf9f6bc80436b972",
+      "predecessor_parent": "b9f109c1b92c26cb3cf5611b3d9c82659c56da40",
+      "carried_forward_commit": "f4e192f03155460aa59575342641e2de166b6cd2",
+      "predecessor_tree": "7a18beb87df77f435ed56e67076de72cf8e9f4e1",
+      "carried_forward_tree": "7a18beb87df77f435ed56e67076de72cf8e9f4e1",
+      "f25_01_changes_committed": false,
+      "merge_to_main_performed": false
+    },
+    "f25_01": {
+      "status": "CLOSED",
+      "summary": [
+        "Semantic evidence eligibility now fails closed for unrecognized IDs, raw context images, risky literal regions, dependent numeric facts, and table containers whose constituent cells or linked numeric facts are not all eligible.",
+        "Patch admission and canonical verification apply the same evidence composition rule to regions, cells, visual interpretations, and executive claims. Direct grounded subsets remain usable by exact ID.",
+        "Typed chart, connector, shape/group, and policy-bound native non-text visual evidence remain available to visual interpretations under existing chart-claim and connector source-fact validation.",
+        "Conflict assertion rebuilding rechecks current canonical evidence composition, rejecting context-only claims and candidate groups that reference them.",
+        "Failed recovery remains NEEDS REVIEW, blocks completion, and leaves no raw-context-only decision claim in the Executive Brief."
+      ],
+      "changed_files": [
+        ".codex-fabric/audit.json",
+        "src/k_slide/conflicts.py",
+        "src/k_slide/translation.py",
+        "src/k_slide/verify.py",
+        "tests/test_ksa25_recovery_law.py"
+      ]
+    },
+    "checks": [
+      {
+        "command": "rtk env PYTHONPATH=src python3 -m unittest tests.test_ksa25_recovery_law -v",
+        "exit_code": 0,
+        "result": "12 KSA-25 recovery-law tests passed in 6.485s, including adversarial evidence alias, canonical tampering, conflict rebuild, employee NEEDS REVIEW/report, exact evidence, grounded container, typed chart/connector, and native visual cases."
+      },
+      {
+        "command": "rtk env PYTHONPATH=src:. python3 -m unittest -q tests.test_ksa25_recovery_law tests.test_ksa24_modality_conformance tests.test_ksa24_f24_repairs tests.test_ksa24_f24_real_path tests.test_ksa23_conflicts tests.test_ksa22_provenance tests.test_ksa21_adversarial_security",
+        "exit_code": 0,
+        "result": "93 tests passed in 3.862s; 1 skipped. KSA-25, KSA-24 modality/real-path/F24, KSA-23 conflicts/supersession, KSA-22 provenance/table identity, and KSA-21 adversarial security."
+      },
+      {
+        "command": "rtk env PYTHONPATH=src:. python3 -m unittest -q tests.test_chg16_foundation tests.test_chg16_storage_planes tests.test_chg16_durable_execution tests.test_chg16_accesskey_nonleakage tests.test_chg16_deletion tests.test_chg16_host_integration tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support tests.test_chg16_environment_binding tests.test_chg16_classification_admission tests.test_chg16_retention_policy tests.test_chg16_scoped_admission tests.test_chg16_paas_worker tests.test_chg16_authentication_transport",
+        "exit_code": 0,
+        "result": "216 tests passed in 20.180s; 1 skipped. KSA-15 through KSA-20 security and host compatibility regression group."
+      },
+      {
+        "command": "rtk proxy npx --yes tsx tests/test_chg16_opencode_plugin.ts",
+        "exit_code": 0,
+        "result": "OpenCode host attachment regression tests passed."
+      },
+      {
+        "command": "rtk env PYTHONPATH=src:. python3 -m unittest -q tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript",
+        "exit_code": 0,
+        "result": "1 test passed. TranslationPatch schema, Python contract, and OpenCode TypeScript surface contract passed."
+      },
+      {
+        "command": "rtk proxy python3 -c 'import json; from pathlib import Path; from jsonschema import Draft202012Validator; paths=sorted(Path(\"schemas\").glob(\"*.schema.json\")); [Draft202012Validator.check_schema(json.loads(path.read_text(encoding=\"utf-8\"))) for path in paths]; print(f\"{len(paths)} JSON Schemas: valid Draft 2020-12\")'",
+        "exit_code": 0,
+        "result": "All 4 JSON Schemas validated as Draft 2020-12."
+      },
+      {
+        "command": "rtk env PYTHONPATH=src:. python3 -m compileall -q src tests evals && rtk env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m compileall -q src tests evals && rtk proxy python3 --version && rtk proxy /tmp/k-slide-py312-fix05/bin/python --version",
+        "exit_code": 0,
+        "result": "Compile checks passed on Python 3.11.7 and isolated Python 3.12.9."
+      },
+      {
+        "command": "rtk env PYTHONPATH=src:. python3 -m unittest discover -s tests -p 'test_*.py' -q",
+        "exit_code": 0,
+        "result": "500 tests passed in 53.590s; 4 skipped on Python 3.11.7. Fixture output includes synthetic release-state examples; no live qualification or certification was performed."
+      },
+      {
+        "command": "rtk env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m unittest discover -s tests -p 'test_*.py' -q",
+        "exit_code": 0,
+        "result": "500 tests passed in 56.705s on isolated Python 3.12.9. Fixture output includes synthetic release-state examples; no live qualification or certification was performed."
+      },
+      {
+        "command": "rtk git diff --check",
+        "exit_code": 0,
+        "result": "No whitespace errors."
+      },
+      {
+        "command": "rtk proxy python3 -c 'import json; json.load(open(\".codex-fabric/audit.json\", encoding=\"utf-8\")); print(\"Fabric audit JSON: valid\")'",
+        "exit_code": 0,
+        "result": "Fabric audit JSON parsed successfully."
+      },
+      {
+        "command": "rtk git rev-parse HEAD && rtk git branch --show-current && rtk git status --short && rtk git show -s --format='commit=%H%nparent=%P%nsubject=%s' HEAD && rtk git rev-parse 85aa7ee2cf4c2a93dfa026d4bf9f6bc80436b972^{tree} f4e192f^{tree}",
+        "exit_code": 0,
+        "result": "Branch codex/k-slide-chg16-recovery-law-01-fix01 remains on carried-forward commit f4e192f03155460aa59575342641e2de166b6cd2, whose direct parent is b9f109c1b92c26cb3cf5611b3d9c82659c56da40. Original predecessor and carried-forward tree hashes are both 7a18beb87df77f435ed56e67076de72cf8e9f4e1. F25-01 source/test/audit changes are uncommitted; no merge to main."
+      }
+    ],
+    "notes": [
+      "The predecessor commit 85aa7ee2cf4c2a93dfa026d4bf9f6bc80436b972 was based directly on b9f109c1b92c26cb3cf5611b3d9c82659c56da40. Cherry-pick f4e192f03155460aa59575342641e2de166b6cd2 is its direct child on the requested branch and has the identical tree hash.",
+      "No merge to main, KSA-26+ work, live company or Gemma qualification, release, or production certification was performed. Synthetic suite text mentioning PRODUCTION_CERTIFIED is fixture output only and is not a qualification claim.",
+      "An initial KSA-24 adversarial run caught a changed unknown-source error order; patch validation was reordered and the final KSA-24 combined group passed.",
+      "F25-01 source and test changes remain uncommitted on the task branch."
+    ]
+  },
   "locator": {
-    "branch": "codex/k-slide-chg16-recovery-law-01",
+    "branch": "codex/k-slide-chg16-recovery-law-01-fix01",
     "base_integrated_main": "b9f109c1b92c26cb3cf5611b3d9c82659c56da40",
     "path": ".codex-fabric/audit.json"
   }

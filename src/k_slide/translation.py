@@ -200,29 +200,118 @@ def _cell_literal_usable(cell: Any, region_map: dict[str, Any]) -> bool:
     )
 
 
-def _semantic_evidence_usable(evidence: EvidenceIR, evidence_ids: tuple[str, ...] | list[str], *, direct_source_id: str | None = None) -> bool:
+def _semantic_evidence_usable(
+    evidence: EvidenceIR,
+    evidence_ids: tuple[str, ...] | list[str],
+    *,
+    direct_source_id: str | None = None,
+    allow_typed_visual: bool = False,
+    allow_structural_blank: bool = False,
+) -> bool:
+    if not isinstance(evidence_ids, (tuple, list)) or not evidence_ids or any(not isinstance(item, str) for item in evidence_ids):
+        return False
+    requested = set(evidence_ids)
     regions = {region.region_id: region for region in evidence.regions}
     cells = {cell.cell_id: cell for table in evidence.tables for cell in table.cells}
+    tables = {table.table_id: table for table in evidence.tables}
     facts = {str(item.get("fact_id")): item for item in evidence.numeric_facts if isinstance(item, dict) and item.get("fact_id")}
-    for evidence_id in evidence_ids:
-        region = regions.get(evidence_id)
-        if region is not None and not _region_literal_usable(region):
-            if region.translation_disposition != "NOT_APPLICABLE_NATIVE_VISUAL" or evidence_id == direct_source_id:
-                return False
-        cell = cells.get(evidence_id)
-        if cell is not None and not _cell_literal_usable(cell, regions):
+    visuals = {str(item.get("element_id")): item for item in evidence.visual_elements if isinstance(item, dict) and item.get("element_id")}
+
+    if direct_source_id is not None and direct_source_id not in requested:
+        return False
+
+    def cell_literal(cell: Any, *, container_member: bool = False) -> bool:
+        if _structural_blank(cell):
+            return container_member or allow_structural_blank
+        return _cell_literal_usable(cell, regions)
+
+    def numeric_fact_usable(fact: dict[str, Any]) -> bool:
+        source_ids = [item for item in (fact.get("source_region_id"), fact.get("source_cell_id")) if item]
+        if not source_ids:
             return False
-        fact = facts.get(evidence_id)
-        if fact is not None:
-            if fact.get("source_region_id") in regions and not _region_literal_usable(regions[str(fact["source_region_id"]) ]):
+        for source_id in source_ids:
+            if source_id in regions:
+                if not _region_literal_usable(regions[str(source_id)]):
+                    return False
+            elif source_id in cells:
+                if not cell_literal(cells[str(source_id)]):
+                    return False
+            else:
                 return False
-            source_cell_id = fact.get("source_cell_id")
-            if source_cell_id in cells and not _cell_literal_usable(cells[str(source_cell_id)], regions):
+        return True
+
+    def table_usable(table: Any) -> bool:
+        if not table.required_for_translation or not table.cells:
+            return False
+        has_content = False
+        for cell in table.cells:
+            if not cell_literal(cell, container_member=True):
                 return False
+            if not _structural_blank(cell):
+                has_content = True
+            for fact_id in cell.numeric_fact_ids:
+                fact = facts.get(fact_id)
+                if fact is None or not numeric_fact_usable(fact):
+                    return False
+        return has_content
+
+    typed_visual_kinds = {"chart", "connector", "shape", "group"}
+
+    def visual_usable(visual: dict[str, Any]) -> bool:
+        if not allow_typed_visual or visual.get("kind") not in typed_visual_kinds:
+            return False
+        source_id = visual.get("source_id")
+        if isinstance(source_id, str) and source_id in regions:
+            source = regions[str(source_id)]
+            if source.translation_disposition == "NOT_APPLICABLE_NATIVE_VISUAL":
+                return source.disposition_policy == "native-nontext-visual-v1" and str(visual.get("element_id")) in requested
+            return _region_literal_usable(source)
+        if isinstance(source_id, str) and source_id in cells:
+            return cell_literal(cells[str(source_id)])
+        if isinstance(source_id, str) and source_id in tables:
+            return table_usable(tables[str(source_id)])
+        return True
+
+    for evidence_id in requested:
+        if evidence_id in regions:
+            region = regions[evidence_id]
+            if region.translation_disposition == "NOT_APPLICABLE_NATIVE_VISUAL":
+                if not allow_typed_visual or evidence_id == direct_source_id:
+                    return False
+                matching_visuals = [
+                    visual for visual in visuals.values()
+                    if visual.get("element_id") == evidence_id or visual.get("source_id") == evidence_id
+                ]
+                if not any(str(visual.get("element_id")) in requested and visual_usable(visual) for visual in matching_visuals):
+                    return False
+            elif not _region_literal_usable(region):
+                return False
+            continue
+        if evidence_id in cells:
+            if not cell_literal(cells[evidence_id]):
+                return False
+            continue
+        if evidence_id in tables:
+            if not table_usable(tables[evidence_id]):
+                return False
+            continue
+        if evidence_id in facts:
+            if not numeric_fact_usable(facts[evidence_id]):
+                return False
+            continue
+        visual = visuals.get(evidence_id)
+        if visual is not None:
+            if visual.get("kind") == "context_image" or not visual_usable(visual):
+                return False
+            continue
+        # Unknown and future evidence classes do not gain semantic authority by default.
+        return False
+
     if direct_source_id in regions:
-        return _region_literal_usable(regions[direct_source_id])
+        region = regions[direct_source_id]
+        return region.translation_disposition != "NOT_APPLICABLE_NATIVE_VISUAL" and _region_literal_usable(region)
     if direct_source_id in cells:
-        return _cell_literal_usable(cells[direct_source_id], regions)
+        return cell_literal(cells[direct_source_id])
     return True
 
 
@@ -634,7 +723,7 @@ class TranslationPatch:
                 unresolved_reason=patch.unresolved_reason or (recovery_reason if recovery_required else None),
                 direct_source_id=patch.region_id,
                 source_fact_allowed=not recovery_required,
-                semantic_evidence_allowed=not recovery_required,
+                semantic_evidence_allowed=not recovery_required and _semantic_evidence_usable(evidence, evidence_ids, direct_source_id=patch.region_id),
             )
             if patch.hangul_retention is not None and patch.hangul_retention.get("evidence_id") not in valid_source_ids:
                 raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Hangul retention references unknown evidence.", {"region_id": patch.region_id})
@@ -713,7 +802,7 @@ class TranslationPatch:
                     unresolved_reason=cell_patch.unresolved_reason or (recovery_reason if recovery_required else None),
                     direct_source_id=cell_patch.cell_id,
                     source_fact_allowed=not recovery_required,
-                    semantic_evidence_allowed=not recovery_required,
+                    semantic_evidence_allowed=not recovery_required and _semantic_evidence_usable(evidence, evidence_ids, direct_source_id=cell_patch.cell_id, allow_structural_blank=True),
                 )
                 if cell_patch.hangul_retention is not None and cell_patch.hangul_retention.get("evidence_id") not in valid_source_ids:
                     raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Hangul retention references unknown evidence.", {"cell_id": cell_patch.cell_id})
@@ -738,8 +827,6 @@ class TranslationPatch:
             _id(relation.get("relation_id"), "relation_id")
             evidence_ids = _string_list(relation.get("evidence_ids", []), "visual interpretation evidence_ids")
             source_element_ids = _string_list(relation.get("source_element_ids", []), "visual interpretation source_element_ids")
-            if not _semantic_evidence_usable(evidence, evidence_ids):
-                raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Visual interpretations cannot use literal evidence that is absent or still requires recovery.", {"relation_id": relation.get("relation_id")})
             unknown_elements = sorted(set(source_element_ids) - valid_source_ids)
             if unknown_elements:
                 raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Visual interpretation references unknown source elements.", {"source_element_ids": unknown_elements})
@@ -761,7 +848,7 @@ class TranslationPatch:
                 label=f"Visual interpretation {relation.get('relation_id')}",
                 unresolved_reason=relation.get("unresolved_reason"),
                 source_fact_allowed=source_fact_allowed,
-                semantic_evidence_allowed=True,
+                semantic_evidence_allowed=_semantic_evidence_usable(evidence, evidence_ids, allow_typed_visual=True),
             )
             if relation.get("relation_type") is not None:
                 enum_value(relation.get("relation_type"), RelationType, "relation_type")
@@ -794,15 +881,13 @@ class TranslationPatch:
             enum_value(claim.get("kind"), ClaimKind, "executive claim kind")
             enum_value(claim.get("uncertainty"), Uncertainty, "executive claim uncertainty")
             evidence_ids = _string_list(claim.get("evidence_ids", []), "executive claim evidence_ids")
-            if not _semantic_evidence_usable(evidence, evidence_ids):
-                raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Executive claims cannot use literal evidence that is absent or still requires recovery.", {"claim_id": claim_id})
             _validate_provenance(
                 claim.get("provenance"),
                 evidence_ids,
                 evidence,
                 label=f"Executive claim {claim_id}",
                 unresolved_reason=claim.get("unresolved_reason"),
-                semantic_evidence_allowed=True,
+                semantic_evidence_allowed=_semantic_evidence_usable(evidence, evidence_ids),
             )
             claim_provenance = claim.get("provenance") or ProvenanceState.SUPPORTED_INTERPRETATION.value
             modality_issue = executive_modality_mismatch(

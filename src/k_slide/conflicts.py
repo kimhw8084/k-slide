@@ -1202,7 +1202,13 @@ def build_assertion_reference(run_dir: Path, work_unit_id: str, semantic_kind: s
     if not evidence_ids or any(item not in _all_evidence_ids(evidence) for item in evidence_ids):
         raise _error("Conflict assertion has invalid EvidenceIR references.", code=ErrorCode.CONFLICT_REFERENCE_INVALID)
     direct_source_id = semantic_id if kind in {AssertionKind.REGION.value, AssertionKind.TABLE_CELL.value} else None
-    if provenance == ProvenanceState.UNRESOLVED.value or not _semantic_evidence_usable(evidence, evidence_ids, direct_source_id=direct_source_id):
+    if provenance == ProvenanceState.UNRESOLVED.value or not _semantic_evidence_usable(
+        evidence,
+        evidence_ids,
+        direct_source_id=direct_source_id,
+        allow_typed_visual=kind == AssertionKind.VISUAL_RELATION.value,
+        allow_structural_blank=kind == AssertionKind.TABLE_CELL.value,
+    ):
         raise _error("Conflict synthesis accepts only resolved assertions grounded in current trustworthy EvidenceIR.", code=ErrorCode.CONFLICT_REFERENCE_INVALID)
     if not isinstance(rendered_text, str) or not rendered_text.strip():
         raise _error("Conflict synthesis requires a rendered canonical assertion.", code=ErrorCode.CONFLICT_REFERENCE_INVALID)

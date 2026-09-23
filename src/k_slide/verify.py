@@ -373,7 +373,7 @@ def _validate_canonical_provenance(
                 reason=cell.unresolved_reason,
                 source_id=cell.cell_id,
                 source_fact_allowed=not recovery_required,
-                semantic_evidence_allowed=_semantic_evidence_usable(evidence, cell.provenance_evidence_ids, direct_source_id=cell.cell_id),
+                semantic_evidence_allowed=_semantic_evidence_usable(evidence, cell.provenance_evidence_ids, direct_source_id=cell.cell_id, allow_structural_blank=True),
                 unresolved_flag=cell.unresolved,
             )
             if recovery_required and (state != ProvenanceState.UNRESOLVED.value or (cell.translation or "").strip()):
@@ -381,7 +381,7 @@ def _validate_canonical_provenance(
             if state == ProvenanceState.UNRESOLVED.value:
                 expected_unresolved.add(cell.cell_id)
     for relation in slide.visual_relations:
-        if not _semantic_evidence_usable(evidence, relation.evidence):
+        if not _semantic_evidence_usable(evidence, relation.evidence, allow_typed_visual=True):
             _issue(result, "KSLIDE_LITERAL_RECOVERY_REQUIRED", Severity.CRITICAL, "Visual interpretation references literal evidence that is absent or still requires recovery.", target=relation.relation_id, evidence_ids=relation.evidence)
         source_fact_allowed = _source_fact_connector_relation(
             {
@@ -401,7 +401,7 @@ def _validate_canonical_provenance(
             target=relation.relation_id,
             reason=relation.unresolved_reason,
             source_fact_allowed=source_fact_allowed,
-            semantic_evidence_allowed=_semantic_evidence_usable(evidence, relation.evidence),
+            semantic_evidence_allowed=_semantic_evidence_usable(evidence, relation.evidence, allow_typed_visual=True),
         )
         if state == ProvenanceState.UNRESOLVED.value:
             expected_unresolved.add(relation.relation_id)
