@@ -42,7 +42,8 @@ from k_slide.certification import (
     write_evidence,
 )
 from k_slide.evidence_adapters import AdapterError, build_machine_evidence, enforce_security_scanners
-from k_slide.corpus_governance import build_manifest, manifest_identity
+from k_slide.corpus_governance import build_manifest, manifest_identity, corpus_identity_fingerprint
+from evals.governed_corpus import case_matrix_fingerprint, case_matrix_item_fingerprint
 from k_slide.egress_policy import (
     EGRESS_CAPABILITY_DURABLE_JOB_CONTROL,
     EGRESS_CAPABILITY_INFERENCE_ROUTE,
@@ -214,10 +215,14 @@ def _heavy_sources(root: Path, *, full: bool = False, subject: str | None = None
 
 
 def _test_corpus_manifests(evidence_type: str, selected_ids: list[str]) -> tuple[list[dict], dict, str]:
+    def fixture_item_id(role: str, source_item_id: str) -> str:
+        suffix = hashlib.sha256(source_item_id.encode()).hexdigest()[:16]
+        return f"fixture-{role}-{suffix}"
+
     scenario_values = scenario_specs()
-    validation_ids = [item.scenario_id for item in scenario_values if item.split == "validation"]
-    held_out_ids = [item.scenario_id for item in scenario_values if item.split == "held_out"]
-    high_risk_ids = [next(item.scenario_id for item in scenario_values if item.category == category and item.split == "validation") for category in PROTECTED_CATEGORIES]
+    validation_ids = [fixture_item_id("private_representative", item.scenario_id) for item in scenario_values if item.split == "validation"]
+    held_out_ids = [fixture_item_id("sealed_held_out", item.scenario_id) for item in scenario_values if item.split == "held_out"]
+    high_risk_ids = [fixture_item_id("frozen_high_risk", next(item.scenario_id for item in scenario_values if item.category == category and item.split == "validation")) for category in PROTECTED_CATEGORIES]
     public = public_synthetic_manifest()
     roles = (
         ("private_representative", "active", validation_ids, "private_evaluation"),
@@ -246,7 +251,11 @@ def _test_corpus_manifests(evidence_type: str, selected_ids: list[str]) -> tuple
         "model_held_out": ("sealed_held_out", "promotion"),
     }[evidence_type]
     selected_manifest = next(item for item in manifests if item["role"] == target_role)
-    if not set(selected_ids) <= {item["item_id"] for item in selected_manifest["items"]}:
+    normalized_selected_ids = {
+        fixture_item_id(target_role, item_id) if item_id.startswith("scenario-") else item_id
+        for item_id in selected_ids
+    }
+    if not normalized_selected_ids <= {item["item_id"] for item in selected_manifest["items"]}:
         raise AssertionError("test fixture selected IDs are outside governed corpus membership")
     identity = manifest_identity(selected_manifest)
     return manifests, identity, purpose
@@ -263,22 +272,60 @@ def _model_sources(root: Path, split: str = "validation", critical: int = 0, rep
             selected.append(next(item for item in frozen if item.category == category and item.split == split))
     else:
         selected = [item for item in frozen if item.split == split]
-    scenario_ids = [item.scenario_id for item in selected]
+    target_role = {
+        "model_validation": "private_representative",
+        "model_high_risk_stability": "frozen_high_risk",
+        "model_held_out": "sealed_held_out",
+    }[evidence_type]
+    scenario_to_item_id = {
+        item.scenario_id: f"fixture-{target_role}-{hashlib.sha256(item.scenario_id.encode()).hexdigest()[:16]}"
+        for item in selected
+    }
+    scenario_ids = [scenario_to_item_id[item.scenario_id] for item in selected]
     corpus_manifests, corpus_set_identity, evaluation_purpose = _test_corpus_manifests(evidence_type, scenario_ids)
     selected_manifest = next(item for item in corpus_manifests if item["role"] == corpus_set_identity["role"])
     formats = ["png"]
+    manifest_items = {item["item_id"]: item for item in selected_manifest["items"]}
+    case_matrix = []
+    for scenario in selected:
+        member = manifest_items[scenario_to_item_id[scenario.scenario_id]]
+        case_matrix.append({
+            "item_id": scenario_to_item_id[scenario.scenario_id],
+            "category": scenario.category,
+            "protected_group": scenario.category if high_risk else None,
+            "split": split,
+            "source_sha256": member["source_sha256"],
+            "gold_sha256": member["gold_sha256"],
+            "gold_contract_sha256": hashlib.sha256(f"test-only-governed-gold:{evidence_type}:{scenario.scenario_id}".encode()).hexdigest(),
+            "formats": formats,
+        })
+    case_matrix.sort(key=lambda item: item["item_id"])
+    descriptor_identity = {
+        "schema_version": "1.0",
+        "role": corpus_set_identity["role"],
+        "set_id": corpus_set_identity["set_id"],
+        "version": corpus_set_identity["version"],
+        "manifest_fingerprint": corpus_set_identity["manifest_fingerprint"],
+        "case_matrix_sha256": case_matrix_fingerprint(case_matrix),
+    }
     for scenario in selected:
         for repeat in range(1, repeats + 1):
-            rows.append({"scenario_id": scenario.scenario_id, "category": scenario.category, "split": split, "format": "png", "repeat": repeat, "subject_git_sha": subject, "deployment_fingerprint": deployment, "effective_model": "google/gemma-4-31b-it", "semantic_scored": True, "quality_metrics_authoritative": True, "semantic": {"critical_failures": (["CRITICAL"] if critical else []), "unresolved_region_rate": 0.0, "unexpected_unresolved_rate": 0.0, "term_consistency_recall": 1.0}, "media_by_work_unit": {"u1": {"media_sequence_valid": True}}, "opencode": {"model": "google/gemma-4-31b-it", "runtime_version": "1.3.9", "media_compliance": {"planned": True, "required_count": 1, "read_count": 1, "required_context_image_read": True, "media_sequence_valid": True}, "diagnostics": {"effective_model": "google/gemma-4-31b-it", "model_identity_proven": True}}})
+            item_id = scenario_to_item_id[scenario.scenario_id]
+            matrix_item = next(item for item in case_matrix if item["item_id"] == item_id)
+            rows.append({"scenario_id": item_id, "case_identity_sha256": case_matrix_item_fingerprint(matrix_item), "category": scenario.category, "split": split, "format": "png", "repeat": repeat, "subject_git_sha": subject, "deployment_fingerprint": deployment, "effective_model": "google/gemma-4-31b-it", "semantic_scored": True, "quality_metrics_authoritative": True, "semantic": {"critical_failures": (["CRITICAL"] if critical else []), "unresolved_region_rate": 0.0, "unexpected_unresolved_rate": 0.0, "term_consistency_recall": 1.0}, "media_by_work_unit": {"u1": {"media_sequence_valid": True}}, "opencode": {"model": "google/gemma-4-31b-it", "runtime_version": "1.3.9", "media_compliance": {"planned": True, "required_count": 1, "read_count": 1, "required_context_image_read": True, "media_sequence_valid": True}, "diagnostics": {"effective_model": "google/gemma-4-31b-it", "model_identity_proven": True}}})
     (root / "results.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
     behavior = {"model": "google/gemma-4-31b-it", "ocr_provider": "none", "prompt_version": "test-v1", "generation_settings": {"temperature": 0}}
     behavior_hash = behavior_configuration_hash(behavior)
-    plan = experiment_plan(split=split, scenario_ids=scenario_ids, formats=formats, repetitions=repeats, categories=(), timeout=180, mode="quality")
+    categories = list(PROTECTED_CATEGORIES) if high_risk else []
+    plan = experiment_plan(split=split, scenario_ids=scenario_ids, formats=formats, repetitions=repeats, categories=categories, timeout=180, mode="quality")
     plan_hash = experiment_plan_hash(plan)
     critical_count = len(rows) if critical else 0
-    summary = {"model": "google/gemma-4-31b-it", "requested_model": "google/gemma-4-31b-it", "effective_model": "google/gemma-4-31b-it", "split": split, "quality_metrics_authoritative": True, "locked_terminology_recall": 1.0, "unexpected_unresolved_rate": 0.0, "critical_failure_count": critical_count, "required_media_compliance": True, "case_count": len(rows), "semantic_scored_case_count": len(rows), "repetitions": repeats, "subject_git_sha": subject, "deployment_fingerprint": deployment, "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash, "experiment_plan_hash": plan_hash, "corpus_fingerprint": "698b471fa9dffe9f79af40a61c3546d6455889b90063a02bc2e270b90402f7ac", "held_out_fingerprint": "c2dee1ba1b03fead1a6641cfa8c7ceea27eb51b0ed80c0879c07bc3ee29bcc4e", "corpus_set_identity": corpus_set_identity, "evaluation_purpose": evaluation_purpose}
+    corpus_identity = {"schema_version": "1.0", "sets": [manifest_identity(item) for item in corpus_manifests]}
+    corpus_fingerprint = corpus_identity_fingerprint(corpus_identity)
+    held_out_fingerprint = corpus_set_identity["manifest_fingerprint"] if evidence_type == "model_held_out" else None
+    summary = {"model": "google/gemma-4-31b-it", "requested_model": "google/gemma-4-31b-it", "effective_model": "google/gemma-4-31b-it", "split": split, "quality_metrics_authoritative": True, "locked_terminology_recall": 1.0, "unexpected_unresolved_rate": 0.0, "critical_failure_count": critical_count, "required_media_compliance": True, "case_count": len(rows), "semantic_scored_case_count": len(rows), "repetitions": repeats, "subject_git_sha": subject, "deployment_fingerprint": deployment, "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash, "experiment_plan_hash": plan_hash, "corpus_fingerprint": corpus_fingerprint, "held_out_fingerprint": held_out_fingerprint, "corpus_set_identity": corpus_set_identity, "evaluation_purpose": evaluation_purpose, "case_matrix_sha256": case_matrix_fingerprint(case_matrix), "case_descriptor_identity": descriptor_identity}
     _write(root / "summary.json", summary)
-    experiment = {"model": "google/gemma-4-31b-it", "effective_model": "google/gemma-4-31b-it", "split": split, "repetitions": repeats, "scenario_ids": scenario_ids, "formats": formats, "categories": [], "configuration": behavior, "behavior_configuration": behavior, "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash, "experiment_plan": plan, "experiment_plan_hash": plan_hash, "subject_git_sha": subject, "deployment_fingerprint": deployment, "corpus_fingerprint": summary["corpus_fingerprint"], "held_out_fingerprint": summary["held_out_fingerprint"], "corpus_set_identity": corpus_set_identity, "corpus_manifest": selected_manifest, "governed_corpus_manifests": corpus_manifests, "evaluation_purpose": evaluation_purpose}
+    experiment = {"model": "google/gemma-4-31b-it", "effective_model": "google/gemma-4-31b-it", "split": split, "repetitions": repeats, "scenario_ids": scenario_ids, "formats": formats, "categories": categories, "configuration": behavior, "behavior_configuration": behavior, "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash, "experiment_plan": plan, "experiment_plan_hash": plan_hash, "subject_git_sha": subject, "deployment_fingerprint": deployment, "corpus_fingerprint": summary["corpus_fingerprint"], "held_out_fingerprint": summary["held_out_fingerprint"], "corpus_set_identity": corpus_set_identity, "corpus_manifest": selected_manifest, "governed_corpus_manifests": corpus_manifests, "evaluation_purpose": evaluation_purpose, "case_matrix": case_matrix, "case_matrix_sha256": summary["case_matrix_sha256"], "case_descriptor_identity": descriptor_identity}
     if evidence_type == "model_held_out":
         experiment["contamination_report"] = {"schema_version": "1.0", "set_id": corpus_set_identity["set_id"], "version": corpus_set_identity["version"], "items": []}
     if high_risk:
@@ -796,6 +843,44 @@ class CertificationClosureTests(unittest.TestCase):
                 path.write_text(text.replace("google/gemma-4-31b-it", "qwen/qwen3"), encoding="utf-8")
             with self.assertRaises(AdapterError):
                 build_machine_evidence(root / "wrong-model.json", evidence_type="model_validation", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
+
+    def test_public_synthetic_held_out_split_cannot_be_model_held_out_evidence(self):
+        from evals.scenarios import split_manifest
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = _model_sources(root, split="held_out", repeats=3)
+            public = public_synthetic_manifest()
+            identity = manifest_identity(public)
+            fingerprints = split_manifest()
+            summary_path = sources["model_summary"]
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            summary.update({
+                "corpus_set_identity": identity,
+                "evaluation_purpose": "regression",
+                "corpus_fingerprint": fingerprints["corpus_fingerprint"],
+                "held_out_fingerprint": fingerprints["held_out_fingerprint"],
+            })
+            _write(summary_path, summary)
+            experiment_path = sources["experiment_manifest"]
+            experiment = json.loads(experiment_path.read_text(encoding="utf-8"))
+            experiment.update({
+                "corpus_set_identity": identity,
+                "evaluation_purpose": "regression",
+                "corpus_fingerprint": fingerprints["corpus_fingerprint"],
+                "held_out_fingerprint": fingerprints["held_out_fingerprint"],
+                "corpus_manifest": public,
+            })
+            _write(experiment_path, experiment)
+            with self.assertRaises(AdapterError):
+                build_machine_evidence(
+                    root / "public-held-out.json",
+                    evidence_type="model_held_out",
+                    subject_git_sha="a" * 40,
+                    deployment_fingerprint="b" * 64,
+                    sources=sources,
+                    root=Path.cwd(),
+                )
 
     def test_high_risk_insufficient_repeats_fail(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1520,9 +1605,6 @@ class CertificationClosureTests(unittest.TestCase):
                 folder = root / evidence_type
                 folder.mkdir()
                 source = _model_sources(folder, split=split, repeats=repeats, subject=subject, deployment=deployment)
-                if evidence_type == "model_held_out":
-                    summary = json.loads((folder / "summary.json").read_text(encoding="utf-8"))
-                    _write(folder / "summary.json", {**summary, "corpus_fingerprint": "698b471fa9dffe9f79af40a61c3546d6455889b90063a02bc2e270b90402f7ac", "held_out_fingerprint": "c2dee1ba1b03fead1a6641cfa8c7ceea27eb51b0ed80c0879c07bc3ee29bcc4e"})
                 envelope = folder / "evidence.json"
                 build_machine_evidence(envelope, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=source, root=Path.cwd())
                 model_records[evidence_type] = load_evidence(envelope, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=Path.cwd())
@@ -1762,6 +1844,7 @@ class CertificationClosureTests(unittest.TestCase):
             self.assertEqual(set(experiment["high_risk_categories"]), set(PROTECTED_CATEGORIES))
             self.assertEqual(experiment["corpus_set_identity"]["role"], "public_synthetic_regression")
             self.assertEqual(experiment["evaluation_purpose"], "regression")
+            self.assertEqual(experiment["governed_corpus_manifests"], [public_synthetic_manifest()])
             evidence = output / "evidence.json"
             loaded_candidate = load_candidate_spec(candidate_path, root=Path.cwd(), require_identity=True)
             finalized_candidate = {**loaded_candidate, **experiment["candidate_spec"]}

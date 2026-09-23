@@ -308,6 +308,107 @@ class KSA26CorpusGovernanceTests(unittest.TestCase):
         with self.assertRaises(CorpusGovernanceError):
             validate_corpus_bundle([rest[0], rest[2], successor, overlap], history=[previous])
 
+    def test_retired_public_membership_remains_permanent_sealed_exposure(self):
+        source = _hash("public-source-ever-visible")
+        public = _manifest("public_synthetic_regression", state="retired", items=[{
+            "item_id": "old-public-id", "source_sha256": source, "gold_sha256": _hash("public-gold"), "state": "retired",
+        }])
+        sealed = _manifest("sealed_held_out", set_id="renamed-sealed-set", items=[{
+            "item_id": "renamed-private-id", "source_sha256": source, "gold_sha256": _hash("new-gold"), "state": "active",
+        }])
+        bundle = [public, _manifest("private_representative"), _manifest("frozen_high_risk"), sealed]
+        self.assertTrue(any(item["identity_kind"] == "source_sha256" for item in cross_set_overlaps(bundle)))
+        with self.assertRaises(CorpusGovernanceError):
+            validate_corpus_bundle(bundle)
+
+    def test_private_history_exposure_survives_rename_set_and_version_changes(self):
+        old_source = _hash("retired-private-source")
+        old_gold = _hash("retired-private-gold")
+        previous = _manifest("private_representative", set_id="prior-private-set", version="v8", state="retired", items=[{
+            "item_id": "old-private-id", "source_sha256": old_source, "gold_sha256": old_gold, "state": "retired",
+        }])
+        history = [{
+            "manifest": previous,
+            "exposure_contexts": [{"item_id": "old-private-id", "context": "prompt_selection"}],
+        }]
+        current_public = public_synthetic_manifest()
+        current_private = _manifest("private_representative", set_id="current-private-set")
+        current_high = _manifest("frozen_high_risk")
+        for label, source, gold, expected_kind in (
+            ("source-only", old_source, _hash("different-gold"), "source_sha256"),
+            ("gold-only", _hash("different-source"), old_gold, "gold_sha256"),
+            ("pair", old_source, old_gold, "item_fingerprint"),
+        ):
+            with self.subTest(label=label):
+                sealed = _manifest("sealed_held_out", set_id="new-sealed-set", version="new-version", items=[{
+                    "item_id": "renamed-item", "source_sha256": source, "gold_sha256": gold, "state": "active",
+                }])
+                overlaps = cross_set_overlaps([current_public, current_private, current_high, sealed], history=history)
+                self.assertTrue(any(item["identity_kind"] == expected_kind for item in overlaps))
+                with self.assertRaises(CorpusGovernanceError):
+                    validate_corpus_bundle([current_public, current_private, current_high, sealed], history=history)
+
+    def test_unrelated_retired_private_history_does_not_invalidate_sealed_membership(self):
+        previous = _manifest("private_representative", set_id="old-private", state="retired", items=[{
+            "item_id": "old-item", "source_sha256": _hash("old-unrelated-source"), "gold_sha256": _hash("old-unrelated-gold"), "state": "retired",
+        }])
+        history = [{"manifest": previous, "exposure_contexts": [{"item_id": "old-item", "context": "training"}]}]
+        bundle = [
+            public_synthetic_manifest(),
+            _manifest("private_representative"),
+            _manifest("frozen_high_risk"),
+            _manifest("sealed_held_out"),
+        ]
+        self.assertEqual({item["role"] for item in validate_corpus_bundle(bundle, history=history)}, set(CORPUS_ROLES))
+
+    def test_contaminated_held_out_history_accepts_only_distinct_linked_replacement(self):
+        original = _manifest("sealed_held_out", set_id="sealed-lineage")
+        report = {
+            "schema_version": "1.0",
+            "set_id": original["set_id"],
+            "version": original["version"],
+            "items": [{"item_id": "opaque-1", "source_sha256": original["items"][0]["source_sha256"], "gold_sha256": original["items"][0]["gold_sha256"], "context": "prompt_selection"}],
+        }
+        contaminated = apply_contamination_report(original, report, new_version="v2")
+        replacement = {"item_id": "linked-replacement", "source_sha256": _hash("replacement-source-distinct"), "gold_sha256": _hash("replacement-gold-distinct"), "state": "active", "replacement_of": {"set_id": contaminated["set_id"], "version": contaminated["version"], "item_id": "opaque-1"}}
+        current = _manifest("sealed_held_out", set_id=original["set_id"], version="v3", items=[*contaminated["items"], replacement], predecessor={"set_id": contaminated["set_id"], "version": contaminated["version"], "manifest_fingerprint": contaminated["manifest_fingerprint"]})
+        bundle = [public_synthetic_manifest(), _manifest("private_representative"), _manifest("frozen_high_risk"), current]
+        validated = validate_corpus_bundle(bundle, history=[original, contaminated])
+        self.assertEqual(next(item for item in validated if item["role"] == "sealed_held_out"), current)
+
+    def test_history_ambiguous_versions_remain_rejected(self):
+        original = _manifest("frozen_high_risk", set_id="same-history-set", version="v1")
+        ambiguous = _manifest("frozen_high_risk", set_id="same-history-set", version="v1", items=[{
+            "item_id": "different-item", "source_sha256": _hash("different-history-source"), "gold_sha256": _hash("different-history-gold"), "state": "active",
+        }])
+        successor = _manifest("frozen_high_risk", set_id="same-history-set", version="v2", items=[
+            {**original["items"][0], "state": "retired"},
+            {"item_id": "new-item", "source_sha256": _hash("new-history-source"), "gold_sha256": _hash("new-history-gold"), "state": "active"},
+        ], predecessor={"set_id": original["set_id"], "version": original["version"], "manifest_fingerprint": original["manifest_fingerprint"]})
+        bundle = [public_synthetic_manifest(), _manifest("private_representative"), _manifest("sealed_held_out"), successor]
+        with self.assertRaises(CorpusGovernanceError):
+            validate_corpus_bundle(bundle, history=[original, ambiguous])
+
+    def test_history_transition_cycle_is_rejected(self):
+        from unittest.mock import patch
+        import k_slide.corpus_governance as governance
+
+        first = {
+            "set_id": "cycle-set", "version": "v1", "role": "private_representative",
+            "manifest_fingerprint": "a" * 64,
+            "predecessor": {"set_id": "cycle-set", "version": "v2", "manifest_fingerprint": "b" * 64},
+            "items": [],
+        }
+        second = {
+            "set_id": "cycle-set", "version": "v2", "role": "private_representative",
+            "manifest_fingerprint": "b" * 64,
+            "predecessor": {"set_id": "cycle-set", "version": "v1", "manifest_fingerprint": "a" * 64},
+            "items": [],
+        }
+        with patch.object(governance, "canonical_manifest", side_effect=lambda value: value), patch.object(governance, "validate_transition", return_value=None):
+            with self.assertRaisesRegex(CorpusGovernanceError, "transition cycle"):
+                validate_corpus_bundle([second], history=[first], require_complete=False)
+
 
 if __name__ == "__main__":
     unittest.main()

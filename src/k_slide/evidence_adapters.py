@@ -485,6 +485,17 @@ def _model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]], *, exp
         raise AdapterError("model experiment plan cannot be canonicalized") from exc
     if plan != expected_plan or experiment.get("experiment_plan_hash") != hash_plan(expected_plan):
         raise AdapterError("model experiment plan hash does not match its declared sampling contract")
+    set_identity = experiment.get("corpus_set_identity")
+    if isinstance(set_identity, dict) and set_identity.get("role") != "public_synthetic_regression":
+        return _governed_model_matrix(
+            experiment,
+            rows,
+            expected_split=expected_split,
+            require_full_split=require_full_split,
+            scenario_ids=scenario_ids,
+            formats=formats,
+            repetitions=repetitions,
+        )
     try:
         from evals.scenarios import scenario_specs
     except ImportError as exc:
@@ -515,6 +526,104 @@ def _model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]], *, exp
         scenario = frozen.get(scenario_id)
         if scenario is None or row.get("category") != scenario.category:
             raise AdapterError(f"model result category does not match frozen scenario: {scenario_id}")
+    missing = sorted(declared - observed)
+    extra = sorted(observed - declared)
+    if missing or extra:
+        raise AdapterError(f"model result matrix mismatch; missing={missing[:3]}; extra={extra[:3]}")
+    return {"scenario_ids": sorted(scenario_ids), "formats": formats, "repetitions": repetitions, "case_count": len(rows), "matrix_hash": _sha256_text(experiment.get("experiment_plan_hash"), "experiment_plan_hash")}
+
+
+def _governed_model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]], *, expected_split: str, require_full_split: bool, scenario_ids: list[str], formats: list[str], repetitions: int) -> dict[str, Any]:
+    """Re-derive governed membership and result metadata without public scenarios."""
+
+    try:
+        from evals.governed_corpus import case_matrix_fingerprint, case_matrix_item_fingerprint
+        from .corpus_governance import canonical_manifest, manifest_identity
+
+        source_manifest = canonical_manifest(experiment.get("corpus_manifest"))
+        consumed = manifest_identity(source_manifest)
+    except (ImportError, CorpusGovernanceError, TypeError, ValueError) as exc:
+        raise AdapterError("governed model case matrix has no valid source manifest") from exc
+    if consumed != experiment.get("corpus_set_identity"):
+        raise AdapterError("governed case manifest disagrees with consumed set identity")
+    case_matrix = experiment.get("case_matrix")
+    matrix_hash = experiment.get("case_matrix_sha256")
+    if not isinstance(case_matrix, list) or not case_matrix or not isinstance(matrix_hash, str) or case_matrix_fingerprint(case_matrix) != matrix_hash:
+        raise AdapterError("governed model case matrix is missing or its hash is invalid")
+    descriptor_identity = experiment.get("case_descriptor_identity")
+    expected_descriptor = {
+        "schema_version": "1.0",
+        "role": consumed["role"],
+        "set_id": consumed["set_id"],
+        "version": consumed["version"],
+        "manifest_fingerprint": consumed["manifest_fingerprint"],
+        "case_matrix_sha256": matrix_hash,
+    }
+    if descriptor_identity != expected_descriptor:
+        raise AdapterError("governed case descriptor identity disagrees with its manifest or matrix")
+    members = {item["item_id"]: item for item in source_manifest["items"] if item["state"] == "active"}
+    matrix_items: dict[str, dict[str, Any]] = {}
+    try:
+        bundle_manifests = [canonical_manifest(item) for item in experiment.get("governed_corpus_manifests", [])]
+        public_manifest = next(item for item in bundle_manifests if item["role"] == "public_synthetic_regression")
+    except (CorpusGovernanceError, StopIteration, TypeError) as exc:
+        raise AdapterError("governed case matrix lacks the candidate-bound public regression manifest") from exc
+    public_ids = {item["item_id"] for item in public_manifest["items"]}
+    public_gold_hashes = {item["gold_sha256"] for item in public_manifest["items"]}
+    allowed_fields = {"item_id", "category", "protected_group", "split", "source_sha256", "gold_sha256", "gold_contract_sha256", "formats"}
+    for item in case_matrix:
+        if not isinstance(item, dict) or set(item) != allowed_fields:
+            raise AdapterError("governed case matrix item has an unsupported shape")
+        item_id = item.get("item_id")
+        if not isinstance(item_id, str) or not item_id or item_id in matrix_items or item_id not in members:
+            raise AdapterError("governed case matrix contains duplicate or inactive membership")
+        member = members[item_id]
+        if (item.get("source_sha256"), item.get("gold_sha256")) != (member["source_sha256"], member["gold_sha256"]):
+            raise AdapterError("governed case matrix identity does not match its manifest item")
+        if item_id in public_ids or item.get("gold_contract_sha256") in public_gold_hashes:
+            raise AdapterError("governed case metadata reuses a public synthetic item or gold contract")
+        if not isinstance(item.get("gold_contract_sha256"), str) or len(item["gold_contract_sha256"]) != 64 or set(item["gold_contract_sha256"]) - set("0123456789abcdef"):
+            raise AdapterError("governed case gold contract identity is malformed")
+        if item.get("split") != expected_split:
+            raise AdapterError("governed case matrix split disagrees with its role contract")
+        try:
+            from evals.certification import CATEGORY_POLICY
+        except ImportError as exc:
+            raise AdapterError("governed case matrix requires the closed semantic policy") from exc
+        if not isinstance(item.get("category"), str) or item.get("category") not in CATEGORY_POLICY:
+            raise AdapterError("governed case matrix category is missing")
+        case_formats = item.get("formats")
+        if not isinstance(case_formats, list) or not case_formats or any(not isinstance(value, str) for value in case_formats) or case_formats != sorted(set(case_formats)) or not set(formats) <= set(case_formats):
+            raise AdapterError("governed case matrix format coverage is incomplete")
+        protected_group = item.get("protected_group")
+        if protected_group is not None and (not isinstance(protected_group, str) or protected_group not in CATEGORY_POLICY):
+            raise AdapterError("governed case matrix protected group is outside the closed semantic policy")
+        matrix_items[item_id] = item
+    active_ids = set(members)
+    matrix_ids = set(matrix_items)
+    if matrix_ids != active_ids or set(scenario_ids) != matrix_ids:
+        raise AdapterError("governed experiment membership differs from exact active manifest membership")
+    if require_full_split and set(scenario_ids) != active_ids:
+        raise AdapterError("authoritative governed evidence must use every active item")
+    declared = {(scenario_id, format_name, repeat) for scenario_id in scenario_ids for format_name in formats for repeat in range(1, repetitions + 1)}
+    observed: set[tuple[str, str, int]] = set()
+    for row in rows:
+        scenario_id = row.get("scenario_id")
+        format_name = str(row.get("format", "")).lower()
+        repeat = row.get("repeat")
+        if not isinstance(scenario_id, str) or not isinstance(repeat, int) or isinstance(repeat, bool):
+            raise AdapterError("model result row has invalid scenario_id/format/repeat")
+        key = (scenario_id, format_name, repeat)
+        if key in observed:
+            raise AdapterError(f"duplicate model result row: {scenario_id}/{format_name}/{repeat}")
+        observed.add(key)
+        if row.get("split") != expected_split:
+            raise AdapterError("model result row split disagrees with governed case matrix")
+        matrix_item = matrix_items.get(scenario_id)
+        if matrix_item is None or row.get("category") != matrix_item["category"]:
+            raise AdapterError("model result category does not match governed case metadata")
+        if row.get("case_identity_sha256") != case_matrix_item_fingerprint(matrix_item):
+            raise AdapterError("model result case identity does not match governed case metadata")
     missing = sorted(declared - observed)
     extra = sorted(observed - declared)
     if missing or extra:
@@ -722,6 +831,19 @@ def _model_corpus_context(summary: dict[str, Any], experiment: dict[str, Any], *
         raise AdapterError(f"{evidence_type} evidence used the wrong governed corpus role or purpose")
     if summary.get("corpus_set_identity") != consumed or summary.get("evaluation_purpose") != purpose:
         raise AdapterError("model summary corpus identity or evaluation purpose disagrees with experiment")
+    if consumed["role"] != "public_synthetic_regression":
+        from .corpus_governance import corpus_identity_fingerprint, canonical_corpus_identity
+
+        bundle_identity = canonical_corpus_identity({"schema_version": "1.0", "sets": [manifest_identity(item) for item in corpus_manifests]}, require_complete=True)
+        expected_corpus_fingerprint = corpus_identity_fingerprint(bundle_identity)
+        expected_held_out_fingerprint = consumed["manifest_fingerprint"] if consumed["role"] == "sealed_held_out" else None
+        if experiment.get("corpus_fingerprint") != expected_corpus_fingerprint or summary.get("corpus_fingerprint") != expected_corpus_fingerprint:
+            raise AdapterError("governed model evidence corpus fingerprint disagrees with its manifest bundle")
+        if experiment.get("held_out_fingerprint") != expected_held_out_fingerprint or summary.get("held_out_fingerprint") != expected_held_out_fingerprint:
+            raise AdapterError("governed model evidence held-out fingerprint disagrees with its sealed identity")
+        matrix_hash = experiment.get("case_matrix_sha256")
+        if not isinstance(matrix_hash, str) or summary.get("case_matrix_sha256") != matrix_hash or summary.get("case_descriptor_identity") != experiment.get("case_descriptor_identity"):
+            raise AdapterError("model summary case descriptor identity disagrees with experiment")
     candidate_values = [item.get("candidate_spec") for item in (summary, experiment) if isinstance(item.get("candidate_spec"), dict)]
     if any(item != candidate_values[0] for item in candidate_values[1:]):
         raise AdapterError("model evidence does not bind one candidate corpus identity")
@@ -750,6 +872,9 @@ def _model_corpus_context(summary: dict[str, Any], experiment: dict[str, Any], *
     if evidence_type in {"model_validation", "model_held_out"} and set(scenario_ids) != active_item_ids:
         raise AdapterError("authoritative model evidence must use every active item in its governed set")
     context = {"corpus_set_identity": consumed, "evaluation_purpose": purpose}
+    if consumed["role"] != "public_synthetic_regression":
+        context["case_matrix_sha256"] = experiment["case_matrix_sha256"]
+        context["case_descriptor_identity"] = experiment["case_descriptor_identity"]
     if evidence_type == "model_held_out":
         report = experiment.get("contamination_report")
         try:
@@ -808,7 +933,15 @@ def _derive_high_risk(sources: dict[str, Path], *, root: Path | None) -> dict[st
     observed = set(groups)
     if observed != declared:
         raise AdapterError(f"high-risk declared groups do not exactly match observed groups; missing={sorted(declared - observed)}; extra={sorted(observed - declared)}")
-    selected_categories = set(PROTECTED_CATEGORIES)
+    if experiment.get("corpus_set_identity", {}).get("role") == "frozen_high_risk":
+        case_matrix = experiment.get("case_matrix", [])
+        if any(item.get("protected_group") != item.get("category") for item in case_matrix if isinstance(item, dict)):
+            raise AdapterError("governed high-risk case metadata does not bind categories to protected groups")
+        selected_categories = {str(item.get("protected_group")) for item in case_matrix if isinstance(item, dict)}
+        if selected_categories != set(PROTECTED_CATEGORIES):
+            raise AdapterError("governed high-risk manifest does not cover the complete protected-group policy")
+    else:
+        selected_categories = set(PROTECTED_CATEGORIES)
     declared_categories = experiment.get("high_risk_categories")
     if not isinstance(declared_categories, list) or len(declared_categories) != len(selected_categories) or set(declared_categories) != selected_categories:
         raise AdapterError("high-risk experiment does not declare the complete protected-category policy")
@@ -846,19 +979,22 @@ def _derive_held_out(sources: dict[str, Path], *, root: Path | None) -> dict[str
     payload = _aggregate_model(sources, expected_split="held_out", root=root)
     summary, experiment, _ = _model_rows(sources)
     payload.update(_model_corpus_context(summary, experiment, evidence_type="model_held_out"))
-    try:
-        from evals.scenarios import split_manifest
-    except ImportError as exc:
-        raise AdapterError("held-out adapter requires repository evaluation schemas") from exc
-
     summary, experiment, rows = _model_rows(sources)
     _model_matrix(experiment, rows, expected_split="held_out", require_full_split=True, root=root)
     plan = experiment["experiment_plan"]
     if plan.get("limit") is not None or plan.get("categories") or plan.get("scenario_filter") or plan.get("filters"):
         raise AdapterError("held-out certification cannot use a reduced or filtered experiment plan")
-    frozen = split_manifest()
-    if summary.get("corpus_fingerprint", experiment.get("corpus_fingerprint")) != frozen["corpus_fingerprint"] or summary.get("held_out_fingerprint", experiment.get("held_out_fingerprint")) != frozen["held_out_fingerprint"] or experiment.get("corpus_fingerprint") != frozen["corpus_fingerprint"] or experiment.get("held_out_fingerprint") != frozen["held_out_fingerprint"]:
-        raise AdapterError("held-out corpus fingerprints do not match frozen corpus")
+    try:
+        from .corpus_governance import corpus_identity_fingerprint, canonical_corpus_identity, validate_corpus_bundle
+
+        bundle = validate_corpus_bundle(experiment.get("governed_corpus_manifests"), history=experiment.get("governed_corpus_history", []), require_complete=True)
+        bundle_identity = canonical_corpus_identity({"schema_version": "1.0", "sets": [manifest_identity(item) for item in bundle]}, require_complete=True)
+        corpus_fingerprint = corpus_identity_fingerprint(bundle_identity)
+        held_out_fingerprint = experiment["corpus_set_identity"]["manifest_fingerprint"]
+    except (CorpusGovernanceError, KeyError, TypeError) as exc:
+        raise AdapterError("held-out governed corpus identity is malformed") from exc
+    if summary.get("corpus_fingerprint") != corpus_fingerprint or experiment.get("corpus_fingerprint") != corpus_fingerprint or summary.get("held_out_fingerprint") != held_out_fingerprint or experiment.get("held_out_fingerprint") != held_out_fingerprint:
+        raise AdapterError("held-out corpus fingerprints do not match governed identities")
     if (
         not payload["target_model_approved"]
         or not payload["quality_metrics_authoritative"]
@@ -869,7 +1005,7 @@ def _derive_held_out(sources: dict[str, Path], *, root: Path | None) -> dict[str
         or payload["unexpected_unresolved_rate"] != 0
     ):
         raise AdapterError("held-out result fails target, authority, critical, media, vision, terminology, or unresolved gates")
-    payload.update({"corpus_fingerprint": frozen["corpus_fingerprint"], "held_out_fingerprint": frozen["held_out_fingerprint"]})
+    payload.update({"corpus_fingerprint": corpus_fingerprint, "held_out_fingerprint": held_out_fingerprint})
     return payload
 
 

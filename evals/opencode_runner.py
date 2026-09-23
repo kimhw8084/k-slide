@@ -324,7 +324,11 @@ class OpenCodeEvalRunner:
         input_dir = root / ".k-slide-input"
         input_dir.mkdir(parents=True, exist_ok=True)
         if source is not None:
-            shutil.copy2(source, input_dir / source.name)
+            # The source basename can be confidential when an externally
+            # materialized governed case is used. Preserve the public runner's
+            # existing source.<format> behavior and do not carry a local name
+            # into the OpenCode workspace.
+            shutil.copy2(source, input_dir / f"source{source.suffix.lower()}")
         try:
             from k_slide.installer import install
 

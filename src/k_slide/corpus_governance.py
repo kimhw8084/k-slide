@@ -59,8 +59,10 @@ _ITEM_FIELDS = {"item_id", "source_sha256", "gold_sha256", "state", "replacement
 _PREDECESSOR_FIELDS = {"set_id", "version", "manifest_fingerprint"}
 _REPLACEMENT_FIELDS = {"set_id", "version", "item_id"}
 _CONTAMINATION_CONTEXTS = frozenset({
-    "development", "training", "prompt_selection", "rule_tuning", "threshold_tuning",
+    "development", "regression", "training", "private_evaluation", "comparison",
+    "prompt_selection", "rule_tuning", "threshold_tuning",
 })
+_HISTORY_ENTRY_FIELDS = {"manifest", "exposure_contexts"}
 
 
 class CorpusGovernanceError(ValueError):
@@ -452,34 +454,103 @@ def validate_transition(previous_manifest: Any, next_manifest: Any, *, history: 
     return current
 
 
-def cross_set_overlaps(manifests: Iterable[Any]) -> list[dict[str, str]]:
-    canonical = [canonical_manifest(item) for item in manifests]
-    seen: dict[tuple[str, str], tuple[str, str, str, str]] = {}
+def _canonical_history_entry(value: Any) -> tuple[dict[str, Any], dict[str, str]]:
+    """Load a historical manifest and optional item-scoped prior-exposure contexts."""
+
+    if isinstance(value, dict) and set(value) == _HISTORY_ENTRY_FIELDS:
+        manifest = canonical_manifest(value.get("manifest"))
+        contexts = value.get("exposure_contexts")
+        if not isinstance(contexts, list):
+            raise CorpusGovernanceError("history exposure_contexts must be a list")
+        result: dict[str, str] = {}
+        for record in contexts:
+            if not isinstance(record, dict) or set(record) != {"item_id", "context"}:
+                raise CorpusGovernanceError("history exposure context has an unsupported shape")
+            item_id = _require_opaque(record.get("item_id"), "history exposure item_id")
+            context = record.get("context")
+            if context not in _CONTAMINATION_CONTEXTS or item_id in result:
+                raise CorpusGovernanceError("history exposure context is invalid or duplicated")
+            result[item_id] = context
+        member_ids = {item["item_id"] for item in manifest["items"]}
+        if not set(result) <= member_ids:
+            raise CorpusGovernanceError("history exposure context references a missing manifest item")
+        canonical_contexts = [{"item_id": key, "context": result[key]} for key in sorted(result)]
+        if contexts != canonical_contexts:
+            raise CorpusGovernanceError("history exposure contexts must be canonically ordered")
+        return manifest, result
+    return canonical_manifest(value), {}
+
+
+def cross_set_overlaps(manifests: Iterable[Any], *, history: Iterable[Any] = ()) -> list[dict[str, str]]:
+    """Reject current role overlap and active sealed reuse of prior exposure.
+
+    Public synthetic membership is permanently exposure-relevant, including
+    retired records. Historical active membership and explicitly recorded
+    private exposure contexts remain relevant after retirement. Other retired
+    records stay auditable without making unrelated bytes globally ineligible.
+    """
+
+    current = [(canonical_manifest(item), {}, False) for item in manifests]
+    prior = [(*_canonical_history_entry(item), True) for item in history]
+    records = [
+        (manifest, item, contexts.get(item["item_id"], ""), historical)
+        for manifest, contexts, historical in [*current, *prior]
+        for item in manifest["items"]
+    ]
     overlaps: list[dict[str, str]] = []
-    for manifest in canonical:
-        for item in manifest["items"]:
-            if item["state"] != "active":
+    for index, (left_manifest, left, left_context, left_historical) in enumerate(records):
+        for right_manifest, right, right_context, right_historical in records[index + 1:]:
+            same_manifest = (
+                left_manifest["set_id"], left_manifest["version"], left_manifest["manifest_fingerprint"]
+            ) == (
+                right_manifest["set_id"], right_manifest["version"], right_manifest["manifest_fingerprint"]
+            )
+            both_active = (
+                left_manifest["role"] != right_manifest["role"]
+                and left["state"] == right["state"] == "active"
+                and not left_historical and not right_historical
+            )
+            left_sealed_active = left_manifest["role"] == "sealed_held_out" and left["state"] == "active" and not left_historical
+            right_sealed_active = right_manifest["role"] == "sealed_held_out" and right["state"] == "active" and not right_historical
+            left_exposed = (
+                left_manifest["role"] == "public_synthetic_regression"
+                or (left_historical and left_manifest["role"] != "sealed_held_out" and left["state"] == "active")
+                or left["state"] == "contaminated"
+                or bool(left_context)
+            )
+            right_exposed = (
+                right_manifest["role"] == "public_synthetic_regression"
+                or (right_historical and right_manifest["role"] != "sealed_held_out" and right["state"] == "active")
+                or right["state"] == "contaminated"
+                or bool(right_context)
+            )
+            if same_manifest and not (left_sealed_active and right_exposed) and not (right_sealed_active and left_exposed):
                 continue
-            for kind, digest in (("source_sha256", item["source_sha256"]), ("gold_sha256", item["gold_sha256"])):
-                key = (kind, digest)
-                current = (manifest["role"], manifest["set_id"], manifest["version"], item["item_id"])
-                prior = seen.get(key)
-                if prior is not None and prior[:3] != current[:3]:
-                    overlaps.append({
-                        "identity_kind": kind,
-                        "identity_sha256": digest,
-                        "first_role": prior[0],
-                        "first_set_id": prior[1],
-                        "first_version": prior[2],
-                        "first_item_id": prior[3],
-                        "overlap_role": current[0],
-                        "overlap_set_id": current[1],
-                        "overlap_version": current[2],
-                        "overlap_item_id": current[3],
-                    })
-                else:
-                    seen[key] = current
-    return sorted(overlaps, key=lambda item: (item["identity_kind"], item["identity_sha256"], item["first_role"], item["overlap_role"]))
+            if not both_active and not (left_sealed_active and right_exposed) and not (right_sealed_active and left_exposed):
+                continue
+            left_ref = (left_manifest["role"], left_manifest["set_id"], left_manifest["version"], left["item_id"])
+            right_ref = (right_manifest["role"], right_manifest["set_id"], right_manifest["version"], right["item_id"])
+            for kind, left_digest, right_digest in (
+                ("source_sha256", left["source_sha256"], right["source_sha256"]),
+                ("gold_sha256", left["gold_sha256"], right["gold_sha256"]),
+                ("item_fingerprint", item_fingerprint(left["source_sha256"], left["gold_sha256"]), item_fingerprint(right["source_sha256"], right["gold_sha256"])),
+            ):
+                if left_digest != right_digest:
+                    continue
+                overlaps.append({
+                    "identity_kind": kind,
+                    "identity_sha256": left_digest,
+                    "first_role": left_ref[0],
+                    "first_set_id": left_ref[1],
+                    "first_version": left_ref[2],
+                    "first_item_id": left_ref[3],
+                    "overlap_role": right_ref[0],
+                    "overlap_set_id": right_ref[1],
+                    "overlap_version": right_ref[2],
+                    "overlap_item_id": right_ref[3],
+                })
+    deduplicated = {tuple(sorted(item.items())): item for item in overlaps}
+    return sorted(deduplicated.values(), key=lambda item: (item["identity_kind"], item["identity_sha256"], item["first_role"], item["overlap_role"]))
 
 
 def validate_corpus_bundle(value: Any, *, history: Any = None, require_complete: bool = True) -> list[dict[str, Any]]:
@@ -493,13 +564,14 @@ def validate_corpus_bundle(value: Any, *, history: Any = None, require_complete:
         raise CorpusGovernanceError("governed corpus manifest bundle has duplicate roles")
     if require_complete and set(roles) != set(CORPUS_ROLES):
         raise CorpusGovernanceError("governed corpus manifest bundle must contain all four roles")
-    overlaps = cross_set_overlaps(manifests)
-    if overlaps:
-        raise CorpusGovernanceError("active corpus items overlap across governed sets")
     raw_history = [] if history is None else history
     if not isinstance(raw_history, list):
         raise CorpusGovernanceError("governed corpus history must be a list")
-    prior_manifests = [canonical_manifest(item) for item in raw_history]
+    prior_entries = [_canonical_history_entry(item) for item in raw_history]
+    prior_manifests = [item[0] for item in prior_entries]
+    overlaps = cross_set_overlaps(manifests, history=raw_history)
+    if overlaps:
+        raise CorpusGovernanceError("active corpus items overlap governed prior exposure")
     nodes: dict[tuple[str, str, str], dict[str, Any]] = {}
     versions: dict[tuple[str, str], tuple[str, str]] = {}
     for manifest in [*prior_manifests, *manifests]:

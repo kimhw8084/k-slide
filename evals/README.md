@@ -83,6 +83,13 @@ Heavy LibreOffice/PaddleOCR setup and the secure internal bilingual gold
 protocol are documented in `evals/heavy/README.md` and
 `private-evals/README.md`. No public CI job sends source material to a model.
 
+The same canonical model runner also accepts an explicit
+`--corpus-source governed_external` contract for approved private, frozen
+high-risk, and sealed held-out material. It requires a candidate-bound complete
+manifest bundle, exact evaluation purpose, external case descriptors and
+hash-checked artifacts/gold. The detailed approved-environment contract and
+CLI example are in `private-evals/README.md`.
+
 ## Certification states and governance
 
 The model evaluator distinguishes measurement from quality outcome:

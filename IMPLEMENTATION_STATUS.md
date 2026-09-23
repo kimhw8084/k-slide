@@ -228,7 +228,7 @@ materialized by these tests.
 - Production mode is intentionally fail-closed until an approved profile contains a real certification fingerprint, approved model-data attestation, local OCR assets, and proven heavy/runtime capabilities.
 - The support-bundle path is source-free by construction, but administrative access control for invoking it must be supplied by the managed deployment.
 
-## CHG-16 / KSA-26 corpus governance implementation evidence
+## KSA-26 initial governance evidence (historical checkpoint)
 
 Bounded repository change from exact integrated main `847c8e760b13b3eb6aeff22106d54ada324a9c1b`, on branch `codex/k-slide-chg16-corpus-governance-01`. Final worktree `HEAD` remains that same base commit; changes are uncommitted, with no merge or history rewrite.
 
@@ -302,6 +302,73 @@ PASS.
 Authoring diagnostics before final green runs: the first focused KSA-26 attempt exposed two test-helper issues, and the first certification-closure attempt exposed seven legacy fixture assumptions about corpus identity; the fixtures and compatibility path were corrected, after which the focused and full suites passed. An initial inline schema-check command had a quoting/syntax error and was replaced by the passing command above. The unmodified Python 3.12 interpreter run exposed the missing declared Pillow dependency; the isolated dependency-backed full run passed as recorded.
 
 Scope exclusions: no KSA-27 or later policy, no hard quality thresholds/repetition/reviewer/study/champion logic, no live company or Gemma qualification, no private corpus bytes, no release or production certification. `evals/champion.json` remains `UNSET`; no candidate promotion or repository status flag was advanced. The passing synthetic closure fixtures exercise repository logic only and are not production evidence.
+
+## CHG-16 / KSA-26 FIX01 and FIX02 continuation evidence
+
+This continuation starts at exact integrated main `847c8e760b13b3eb6aeff22106d54ada324a9c1b`. It fast-forwarded to the exact predecessor BUILD candidate `28be285b08859bdcbb6e910e94af6f5c161d248a` before repair edits; that predecessor is a direct child of the requested base. Work branch: `codex/k-slide-chg16-corpus-governance-01-fix01`. Final implementation work head: `RECORDED_AFTER_IMPLEMENTATION_COMMIT`.
+
+F26-01 adds a second, explicit source mode to the canonical `ModelEvaluationRunner` and `OpenCodeEvalRunner`. Governed external mode consumes canonical source-free manifests and an exact four-role candidate-bound bundle, validates local descriptors/artifact/gold bytes and role/purpose/history before execution, and retains the existing TranslationPatch/SlideIR scorers and evidence adapters. The adapter rederives exact active membership and result matrices from the persisted governed case identity without public scenario membership authority. Output metadata omits local paths and gold/source contents. Public synthetic mode retains its generation path, public manifest bundle, and fingerprints.
+
+F26-02 keeps retired public membership permanently relevant to sealed held-out overlap checks. Historical active memberships and item-scoped exposure contexts remain contamination-relevant after retirement; unrelated retired private history is permitted. Source-only, gold-only, and source-plus-gold overlap are checked across current and historical manifests, while transition, predecessor, replacement, and version validation remain fail-closed.
+
+Changed files for this continuation:
+
+- `evals/README.md`
+- `evals/governed_corpus.py` (new)
+- `evals/model_eval.py`
+- `evals/opencode_runner.py`
+- `evals/run_model_eval.py`
+- `private-evals/README.md`
+- `src/k_slide/corpus_governance.py`
+- `src/k_slide/evidence_adapters.py`
+- `tests/test_certification_closure.py`
+- `tests/test_ksa26_corpus_governance.py`
+- `tests/test_ksa26_governed_runner.py` (new)
+- `IMPLEMENTATION_STATUS.md`
+
+Final validation commands and results for the final source tree:
+
+```text
+PYTHONPATH=src:. rtk python3.11 -m unittest tests.test_ksa26_corpus_governance tests.test_ksa26_governed_runner -q
+PASS: 35 focused KSA-26 governance, external-runner, and adapter tests. The three role smokes use a deterministic OpenCode test double; they are not live model measurements.
+
+PYTHONPATH=src:. rtk python3.11 -m unittest tests.test_certification_closure tests.test_phase32 tests.test_phase33 tests.test_phase35 -q
+PASS: 138 certification closure and phase 3.2/3.3/3.5 tests.
+
+PYTHONPATH=src:. rtk python3.11 -m unittest tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_ksa24_modality_conformance tests.test_ksa24_f24_repairs tests.test_ksa24_f24_real_path tests.test_ksa25_recovery_law -q
+PASS: 93 KSA-21–25 regression tests, 1 skipped.
+
+PYTHONPATH=src:. rtk python3.11 -m unittest tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_classification_admission tests.test_chg16_deletion tests.test_chg16_durable_execution tests.test_chg16_environment_binding tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_chg16_paas_worker tests.test_chg16_retention_policy tests.test_chg16_scoped_admission tests.test_chg16_storage_planes tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support tests.test_runtime_artifact -q
+PASS: 222 KSA-15–20/security/host/runtime compatibility tests, 1 skipped.
+
+rtk npx --no-install tsx tests/test_chg16_opencode_plugin.ts
+PASS: OpenCode TypeScript host regression.
+
+PYTHONPATH=src:. rtk python3.11 -c 'import json, pathlib, jsonschema; paths=sorted(pathlib.Path("schemas").glob("*.schema.json")); [jsonschema.Draft202012Validator.check_schema(json.loads(p.read_text(encoding="utf-8"))) for p in paths]; print(len(paths), "JSON schemas valid:", [p.name for p in paths])'
+PASS: all 4 JSON schemas.
+
+PYTHONPATH=src:. rtk python3.11 -m unittest tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript -q
+PASS: TranslationPatch Python/schema/TypeScript contract test.
+
+PYTHONPATH=src:. rtk python3.11 -m unittest discover -s tests -q
+PASS: 536 tests, 4 skipped, on Python 3.11.7.
+
+PYTHONPATH=src:. rtk /tmp/k-slide-ksa26-py312/bin/python -m unittest discover -s tests -q
+PASS: 536 tests, 9 skipped, on isolated Python 3.12.9 with Pillow 12.3.0.
+
+PYTHONPATH=src:. rtk python3.11 -m compileall -q src evals tests
+PYTHONPATH=src:. rtk /tmp/k-slide-ksa26-py312/bin/python -m compileall -q src evals tests
+rtk git diff --check
+PASS: both compile checks and whitespace validation.
+
+PYTHONPATH=src:. rtk python3.11 -m evals.generate_corpus --output /tmp/k-slide-ksa26-public-smoke --formats png --limit 1
+PASS: public generation smoke retained DATASET_VERSION 1.0, corpus fingerprint 698b471fa9dffe9f79af40a61c3546d6455889b90063a02bc2e270b90402f7ac, and public held-out fingerprint c2dee1ba1b03fead1a6641cfa8c7ceea27eb51b0ed80c0879c07bc3ee29bcc4e.
+```
+
+An intermediate closure-suite run exposed legacy test fixtures that reused public scenario IDs and public held-out fingerprints while presenting governed roles. Those fixtures were changed to opaque governed IDs and manifest-derived identities; the final closure and both final full-discovery runs are green. The public corpus smoke is generation-only.
+
+Explicit exclusions: no KSA-27 or later; no live company corpus, private corpus contents, live Gemma execution or Gemma quality qualification; no release, candidate promotion, champion assignment, or production certification. Synthetic external-role smokes establish runner/adapter contract compatibility only.
+
 
 ## Next phase
 
