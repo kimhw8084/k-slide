@@ -101,13 +101,18 @@ class Phase33CertificationTests(unittest.TestCase):
                 (run / "ir" / f"u{index}.json").write_text(json.dumps(SlideIR(slide_id=f"u{index}").as_dict()), encoding="utf-8")
             self.assertEqual({item["work_unit_id"] for item in collect_run_artifacts(run)}, {"u1", "u2"})
 
-    def test_clean_unresolved_is_unexpected_but_degraded_unresolved_is_allowed(self):
+    def test_unnecessary_safe_review_is_noncritical_and_measured_by_precision(self):
         evidence = _evidence()
         patch = {"regions": [{"region_id": "u1-r1", "english": "[unreadable]", "unresolved": True, "unresolved_reason": "blurred"}]}
         clean = type("Scenario", (), {"gold": {}})()
         degraded = type("Scenario", (), {"gold": {"allowed_unresolved": True, "expected_unresolved_max": 1}})()
-        self.assertIn("UNEXPECTED_UNRESOLVED", score_translation_patch(clean, evidence, patch)["critical_failures"])
-        self.assertNotIn("UNEXPECTED_UNRESOLVED", score_translation_patch(degraded, evidence, patch)["critical_failures"])
+        clean_score = score_translation_patch(clean, evidence, patch)
+        degraded_score = score_translation_patch(degraded, evidence, patch)
+        self.assertNotIn("UNEXPECTED_UNRESOLVED", clean_score["critical_failures"])
+        self.assertNotIn("UNEXPECTED_UNRESOLVED", degraded_score["critical_failures"])
+        self.assertEqual(clean_score["unresolved_precision"], 0.0)
+        self.assertEqual(degraded_score["unresolved_precision"], 0.0)
+        self.assertEqual(clean_score["material_unresolved_recall"], 1.0)
 
     def test_modality_does_not_fallback_to_unrelated_region(self):
         evidence = EvidenceIR("doc", "u", {}, (EvidenceRegion("r1", selected_literal_candidate="다른 문구"), EvidenceRegion("r2", selected_literal_candidate="2H 적용 예정")), required_source_ids=("r1", "r2")).with_revision()

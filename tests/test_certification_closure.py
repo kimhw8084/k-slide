@@ -55,6 +55,8 @@ from k_slide.egress_policy import (
     opencode_route_identity,
 )
 from k_slide.model_policy import load_model_policy
+from k_slide.quality_policy import QUALITY_POLICY_IDENTITY, policy_identity_record
+from evals.model_results import aggregate_model_results
 from k_slide.production import ProductionProfile, _asset_manifest_status, _manifest_and_fingerprint_status
 
 
@@ -261,6 +263,83 @@ def _test_corpus_manifests(evidence_type: str, selected_ids: list[str]) -> tuple
     return manifests, identity, purpose
 
 
+def _model_result_row(*, scenario_id: str, category: str, split: str, repeat: int, item_identity: str, subject: str, deployment: str, critical: bool = False) -> dict:
+    code = "CRITICAL_NUMERIC_MISMATCH" if critical else None
+    gate_evidence = {
+        "missing_required_region_ids": [],
+        "numeric_mismatch_fact_ids": (["fact-1"] if critical else []),
+        "modality_score": 1.0,
+        "modality_source_binding_failure": False,
+        "hangul_violation_count": 0,
+        "unsupported_claim_count": 0,
+        "executive_claim_failure_codes": [],
+        "duplicate_region_ids": [],
+        "table_cardinality_mismatch": False,
+        "table_failure_codes": [],
+        "table_header_failure_ids": [],
+        "chart_failure_codes": [],
+        "process_failure_codes": [],
+        "material_unresolved_required_ids": [],
+        "material_unresolved_observed_ids": [],
+    }
+    unit_semantic = {
+        "coverage": 1.0, "numeric_fidelity": 1.0, "modality": 1.0,
+        "table_cell_fidelity": 1.0, "visual_relation_recall": 1.0,
+        "source_backed_semantic_fidelity": 1.0, "critical_failures": ([code] if code else []),
+        "hard_gate_evidence": gate_evidence, "unresolved_ids": [], "unresolved_count": 0,
+        "material_unresolved_required_ids": [], "material_unresolved_observed_ids": [],
+        "material_unresolved_false_negative_ids": [], "unresolved_false_positive_ids": [],
+        "material_unresolved_recall": 1.0, "unresolved_precision": 1.0,
+    }
+    media_trace = {
+        "required_context_image_read": True, "required_crop_recall": 1.0,
+        "media_sequence_valid": True, "submit_observed": True,
+        "items": [{"id": "context_image", "read_observed": True, "read_before_submit": True}],
+    }
+    semantic = {
+        "coverage": 1.0, "numeric_fidelity": 1.0, "modality": 1.0,
+        "table_cell_fidelity": 1.0, "visual_relation_recall": 1.0,
+        "source_backed_semantic_fidelity": 1.0, "critical_failures": ([code] if code else []),
+        "inconsistent_alternate_count": 0, "term_consistency_recall": 1.0,
+        "unresolved_region_rate": 0.0, "unexpected_unresolved_rate": 0.0,
+        "material_unresolved_required_count": 0, "material_unresolved_true_positive_count": 0,
+        "unresolved_observed_count": 0, "unresolved_false_positive_count": 0,
+        "material_unresolved_recall": 1.0, "unresolved_precision": 1.0,
+    }
+    return {
+        "scenario_id": scenario_id, "case_identity_sha256": item_identity, "category": category,
+        "split": split, "format": "png", "repeat": repeat, "subject_git_sha": subject,
+        "deployment_fingerprint": deployment, "effective_model": "google/gemma-4-31b-it",
+        "semantic_scored": True, "quality_metrics_authoritative": True, "engine_gate": "PASS",
+        "status": "PASS", "semantic": semantic,
+        "units": [{"work_unit_id": "u1", "semantic": unit_semantic}],
+        "work_unit_contract": {"pass": True, "failures": [], "work_unit_states": {"u1": "VERIFIED"}},
+        "persisted_execution": {
+            "available": True, "run_phase": "COMPLETE", "run_complete": True,
+            "false_done_recovery_violation": False, "verification_contract_failure": False,
+            "reported_run_complete": True, "verification_status": "PASS", "verification_critical_count": 0,
+            "work_unit_states": {"u1": "VERIFIED"}, "material_unresolved_required_count": 0,
+            "material_unresolved_recall": 1.0, "unresolved_precision": 1.0,
+            "conflict_assessment_status": "NOT_REQUIRED", "conflict_count": 0,
+            "unresolved_conflict_count": 0, "conflict_failure_codes": [],
+            "conflict_resolution_failure": False, "execution_contract_pass": True,
+        },
+        "model_identity": {"requested_model": "google/gemma-4-31b-it", "effective_model": "google/gemma-4-31b-it", "proven": True, "approved": True, "mixed": False, "executed": True},
+        "media_by_work_unit": {"u1": {"required_context_image_read": True, "required_count": 1, "read_count": 1, "required_crop_recall": 1.0, "media_sequence_valid": True}},
+        "opencode": {
+            "status": "PASS", "mode": "quality", "model": "google/gemma-4-31b-it", "kslide_complete": True,
+            "runtime_version": "1.3.9", "event_count": 2, "tool_call_count": 0, "tool_calls": [],
+            "forbidden_attempt_count": 0, "forbidden_attempts": [],
+            "media_compliance": {"planned": True, "required_count": 1, "read_count": 1,
+                "required_context_image_read": True, "required_crop_recall": 1.0,
+                "media_sequence_valid": True, "work_units": {"u1": media_trace}},
+            "diagnostics": {"effective_model": "google/gemma-4-31b-it", "model_identity_proven": True,
+                "mixed_effective_model_ids": False, "read_policy_violation_count": 0},
+        },
+        "quality_policy": policy_identity_record(), "quality_policy_identity": QUALITY_POLICY_IDENTITY,
+    }
+
+
 def _model_sources(root: Path, split: str = "validation", critical: int = 0, repeats: int = 3, *, subject: str = "a" * 40, deployment: str = "b" * 64, evidence_type: str | None = None) -> dict[str, Path]:
     rows = []
     frozen = scenario_specs()
@@ -308,24 +387,28 @@ def _model_sources(root: Path, split: str = "validation", critical: int = 0, rep
         "manifest_fingerprint": corpus_set_identity["manifest_fingerprint"],
         "case_matrix_sha256": case_matrix_fingerprint(case_matrix),
     }
-    for scenario in selected:
+    for scenario_index, scenario in enumerate(selected):
         for repeat in range(1, repeats + 1):
             item_id = scenario_to_item_id[scenario.scenario_id]
             matrix_item = next(item for item in case_matrix if item["item_id"] == item_id)
-            rows.append({"scenario_id": item_id, "case_identity_sha256": case_matrix_item_fingerprint(matrix_item), "category": scenario.category, "split": split, "format": "png", "repeat": repeat, "subject_git_sha": subject, "deployment_fingerprint": deployment, "effective_model": "google/gemma-4-31b-it", "semantic_scored": True, "quality_metrics_authoritative": True, "semantic": {"critical_failures": (["CRITICAL"] if critical else []), "unresolved_region_rate": 0.0, "unexpected_unresolved_rate": 0.0, "term_consistency_recall": 1.0}, "media_by_work_unit": {"u1": {"media_sequence_valid": True}}, "opencode": {"model": "google/gemma-4-31b-it", "runtime_version": "1.3.9", "media_compliance": {"planned": True, "required_count": 1, "read_count": 1, "required_context_image_read": True, "media_sequence_valid": True}, "diagnostics": {"effective_model": "google/gemma-4-31b-it", "model_identity_proven": True}}})
-    (root / "results.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            rows.append(_model_result_row(
+                scenario_id=item_id, category=scenario.category, split=split, repeat=repeat,
+                item_identity=case_matrix_item_fingerprint(matrix_item), subject=subject,
+                deployment=deployment, critical=bool(critical and scenario_index == 0 and repeat == 1),
+            ))
     behavior = {"model": "google/gemma-4-31b-it", "ocr_provider": "none", "prompt_version": "test-v1", "generation_settings": {"temperature": 0}}
     behavior_hash = behavior_configuration_hash(behavior)
     categories = list(PROTECTED_CATEGORIES) if high_risk else []
     plan = experiment_plan(split=split, scenario_ids=scenario_ids, formats=formats, repetitions=repeats, categories=categories, timeout=180, mode="quality")
     plan_hash = experiment_plan_hash(plan)
-    critical_count = len(rows) if critical else 0
     corpus_identity = {"schema_version": "1.0", "sets": [manifest_identity(item) for item in corpus_manifests]}
     corpus_fingerprint = corpus_identity_fingerprint(corpus_identity)
     held_out_fingerprint = corpus_set_identity["manifest_fingerprint"] if evidence_type == "model_held_out" else None
-    summary = {"model": "google/gemma-4-31b-it", "requested_model": "google/gemma-4-31b-it", "effective_model": "google/gemma-4-31b-it", "split": split, "quality_metrics_authoritative": True, "locked_terminology_recall": 1.0, "unexpected_unresolved_rate": 0.0, "critical_failure_count": critical_count, "required_media_compliance": True, "case_count": len(rows), "semantic_scored_case_count": len(rows), "repetitions": repeats, "subject_git_sha": subject, "deployment_fingerprint": deployment, "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash, "experiment_plan_hash": plan_hash, "corpus_fingerprint": corpus_fingerprint, "held_out_fingerprint": held_out_fingerprint, "corpus_set_identity": corpus_set_identity, "evaluation_purpose": evaluation_purpose, "case_matrix_sha256": case_matrix_fingerprint(case_matrix), "case_descriptor_identity": descriptor_identity}
+    summary = aggregate_model_results(rows, model="google/gemma-4-31b-it", split=split)
+    summary.update({"model": "google/gemma-4-31b-it", "requested_model": "google/gemma-4-31b-it", "effective_model": "google/gemma-4-31b-it", "locked_terminology_recall": 1.0, "required_media_compliance": True, "case_count": len(rows), "semantic_scored_case_count": len(rows), "repetitions": repeats, "subject_git_sha": subject, "deployment_fingerprint": deployment, "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash, "experiment_plan_hash": plan_hash, "corpus_fingerprint": corpus_fingerprint, "held_out_fingerprint": held_out_fingerprint, "corpus_set_identity": corpus_set_identity, "evaluation_purpose": evaluation_purpose, "case_matrix_sha256": case_matrix_fingerprint(case_matrix), "case_descriptor_identity": descriptor_identity})
+    (root / "results.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
     _write(root / "summary.json", summary)
-    experiment = {"model": "google/gemma-4-31b-it", "effective_model": "google/gemma-4-31b-it", "split": split, "repetitions": repeats, "scenario_ids": scenario_ids, "formats": formats, "categories": categories, "configuration": behavior, "behavior_configuration": behavior, "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash, "experiment_plan": plan, "experiment_plan_hash": plan_hash, "subject_git_sha": subject, "deployment_fingerprint": deployment, "corpus_fingerprint": summary["corpus_fingerprint"], "held_out_fingerprint": summary["held_out_fingerprint"], "corpus_set_identity": corpus_set_identity, "corpus_manifest": selected_manifest, "governed_corpus_manifests": corpus_manifests, "evaluation_purpose": evaluation_purpose, "case_matrix": case_matrix, "case_matrix_sha256": summary["case_matrix_sha256"], "case_descriptor_identity": descriptor_identity}
+    experiment = {"model": "google/gemma-4-31b-it", "effective_model": "google/gemma-4-31b-it", "split": split, "repetitions": repeats, "scenario_ids": scenario_ids, "formats": formats, "categories": categories, "configuration": behavior, "behavior_configuration": behavior, "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash, "experiment_plan": plan, "experiment_plan_hash": plan_hash, "subject_git_sha": subject, "deployment_fingerprint": deployment, "corpus_fingerprint": summary["corpus_fingerprint"], "held_out_fingerprint": summary["held_out_fingerprint"], "corpus_set_identity": corpus_set_identity, "corpus_manifest": selected_manifest, "governed_corpus_manifests": corpus_manifests, "evaluation_purpose": evaluation_purpose, "case_matrix": case_matrix, "case_matrix_sha256": summary["case_matrix_sha256"], "case_descriptor_identity": descriptor_identity, "quality_policy": policy_identity_record(), "quality_policy_identity": QUALITY_POLICY_IDENTITY}
     if evidence_type == "model_held_out":
         experiment["contamination_report"] = {"schema_version": "1.0", "set_id": corpus_set_identity["set_id"], "version": corpus_set_identity["version"], "items": []}
     if high_risk:
@@ -950,9 +1033,7 @@ class CertificationClosureTests(unittest.TestCase):
     def test_validation_and_held_out_safety_metrics_are_gated(self):
         for split, evidence_type, field, value in (
             ("validation", "model_validation", "locked_terminology_recall", 0.994),
-            ("validation", "model_validation", "unexpected_unresolved_rate", 0.01),
             ("held_out", "model_held_out", "locked_terminology_recall", 0.994),
-            ("held_out", "model_held_out", "unexpected_unresolved_rate", 0.01),
         ):
             with self.subTest(split=split, field=field), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
@@ -966,6 +1047,21 @@ class CertificationClosureTests(unittest.TestCase):
                 _write(root / "summary.json", summary)
                 with self.assertRaises(AdapterError):
                     build_machine_evidence(root / "model.json", evidence_type=evidence_type, subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
+
+    def test_unexpected_unresolved_rate_is_descriptive_above_zero(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = _model_sources(root, split="validation", repeats=3)
+            rows = [json.loads(line) for line in (root / "results.jsonl").read_text(encoding="utf-8").splitlines()]
+            for row in rows:
+                row["semantic"]["unexpected_unresolved_rate"] = 0.01
+            (root / "results.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            summary = json.loads((root / "summary.json").read_text(encoding="utf-8"))
+            summary["unexpected_unresolved_rate"] = 0.01
+            _write(root / "summary.json", summary)
+            path = root / "validation.json"
+            build_machine_evidence(path, evidence_type="model_validation", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
+            self.assertAlmostEqual(load_evidence(path, expected_type="model_validation")["payload"]["unexpected_unresolved_rate"], 0.01)
 
     def test_validation_locked_terminology_boundary_is_inclusive(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1612,7 +1708,7 @@ class CertificationClosureTests(unittest.TestCase):
             _write(root / "evals" / "champion.json", {"status": "FROZEN", "model": "google/gemma-4-31b-it", "effective_model": "google/gemma-4-31b-it", "deployment_fingerprint": deployment, "config_hash": model_records["model_validation"]["payload"]["behavior_configuration_hash"]})
             records.update(model_records)
             payloads = {
-                "internal_bilingual": {"attestation_id": "internal-test", "artifact_count": 50, "work_unit_count": 200, "critical_business_meaning_errors": 0, "critical_numeric_date_unit_errors": 0, "critical_modality_escalations": 0, "critical_table_mapping_errors": 0, "critical_trend_reversals": 0, "unsupported_critical_executive_claims": 0, "overall_noncritical_semantic_fidelity": 0.99, "locked_terminology": 0.999},
+                "internal_bilingual": {"attestation_id": "internal-test", "artifact_count": 50, "work_unit_count": 200, "critical_business_meaning_errors": 0, "critical_numeric_date_unit_errors": 0, "critical_modality_escalations": 0, "critical_table_mapping_errors": 0, "critical_trend_reversals": 0, "unsupported_critical_executive_claims": 0, "overall_noncritical_semantic_fidelity": 0.99, "unresolved_precision": 0.95, "material_unresolved_recall": 1.0, "quality_policy": policy_identity_record(), "quality_policy_identity": QUALITY_POLICY_IDENTITY, "locked_terminology": 0.999},
                 "zero_korean_comprehension": {"attestation_id": "human-test", "users": 10, "answers": 100, "critical_question_accuracy": 1.0, "overall_comprehension": 0.95, "critical_misunderstanding": 0},
                 "model_data_policy": {"attestation_id": "policy-test", "approved_for_internal_artifacts": True},
             }
@@ -1828,9 +1924,10 @@ class CertificationClosureTests(unittest.TestCase):
                         reason=None,
                         runtime_version="1.3.9",
                         kslide_complete=True,
+                        events=[{"type": "tool_result", "tool": "kslide_submit"}],
                         media_compliance={"work_units": {"u1": {"media_sequence_valid": True}}},
                         diagnostics={"effective_model": target, "model_identity_proven": True},
-                        as_dict=lambda: {"status": "PASS", "mode": "quality", "model": target, "runtime_version": "1.3.9", "media_compliance": {"planned": True, "required_count": 1, "read_count": 1, "required_context_image_read": True, "media_sequence_valid": True}, "diagnostics": {"effective_model": target, "model_identity_proven": True}},
+                        as_dict=lambda: {"status": "PASS", "mode": "quality", "model": target, "runtime_version": "1.3.9", "kslide_complete": True, "event_count": 1, "tool_calls": [], "forbidden_attempts": [], "media_compliance": {"planned": True, "required_count": 1, "read_count": 1, "required_context_image_read": True, "media_sequence_valid": True, "work_units": {"u1": {"required_context_image_read": True, "required_crop_recall": 1.0, "media_sequence_valid": True, "submit_observed": True, "items": [{"id": "context_image", "read_observed": True, "read_before_submit": True}]}}}, "diagnostics": {"effective_model": target, "model_identity_proven": True, "mixed_effective_model_ids": False, "read_policy_violations": []}},
                     )
 
             scored = {"coverage": 1.0, "numeric_fidelity": 1.0, "modality": 1.0, "table_cell_fidelity": 1.0, "visual_relation_recall": 1.0, "critical_failures": [], "unresolved_region_rate": 0.0, "unexpected_unresolved_rate": 0.0}
@@ -1843,6 +1940,8 @@ class CertificationClosureTests(unittest.TestCase):
             experiment = json.loads((output / "experiment.json").read_text(encoding="utf-8"))
             self.assertEqual(set(experiment["high_risk_categories"]), set(PROTECTED_CATEGORIES))
             self.assertEqual(experiment["corpus_set_identity"]["role"], "public_synthetic_regression")
+            self.assertEqual(experiment["quality_policy_identity"], QUALITY_POLICY_IDENTITY)
+            self.assertTrue(all(row["quality_policy_identity"] == QUALITY_POLICY_IDENTITY for row in (json.loads(line) for line in (output / "results.jsonl").read_text(encoding="utf-8").splitlines())))
             self.assertEqual(experiment["evaluation_purpose"], "regression")
             self.assertEqual(experiment["governed_corpus_manifests"], [public_synthetic_manifest()])
             evidence = output / "evidence.json"
@@ -1877,6 +1976,8 @@ class CertificationClosureTests(unittest.TestCase):
             self.assertEqual(json.loads(security_path.read_text(encoding="utf-8"))["deployment_fingerprint"], expected)
             release = build_release_manifest(Path.cwd(), requested_state="DEVELOPMENT", subject_sha=subject, candidate_profile=candidate_path)
             self.assertEqual(release["deployment_fingerprint"], expected)
+            self.assertEqual(release["quality_policy_identity"], QUALITY_POLICY_IDENTITY)
+            self.assertEqual(release["quality_policy"], policy_identity_record())
             self.assertEqual(release["dataset"]["corpus_identity"], loaded["corpus_identity"])
 
     def test_complete_release_materializes_profile_and_detects_candidate_staleness(self):
@@ -1929,7 +2030,7 @@ class CertificationClosureTests(unittest.TestCase):
             (root / "evals").mkdir()
             _write(root / "evals" / "champion.json", {"status": "FROZEN", "model": target, "effective_model": target, "deployment_fingerprint": deployment, "config_hash": records["model_validation"]["payload"]["behavior_configuration_hash"]})
             attestations = {
-                "internal_bilingual": {"attestation_id": "internal-test", "artifact_count": 50, "work_unit_count": 200, "critical_business_meaning_errors": 0, "critical_numeric_date_unit_errors": 0, "critical_modality_escalations": 0, "critical_table_mapping_errors": 0, "critical_trend_reversals": 0, "unsupported_critical_executive_claims": 0, "overall_noncritical_semantic_fidelity": 0.99, "locked_terminology": 0.999},
+                "internal_bilingual": {"attestation_id": "internal-test", "artifact_count": 50, "work_unit_count": 200, "critical_business_meaning_errors": 0, "critical_numeric_date_unit_errors": 0, "critical_modality_escalations": 0, "critical_table_mapping_errors": 0, "critical_trend_reversals": 0, "unsupported_critical_executive_claims": 0, "overall_noncritical_semantic_fidelity": 0.99, "unresolved_precision": 0.95, "material_unresolved_recall": 1.0, "quality_policy": policy_identity_record(), "quality_policy_identity": QUALITY_POLICY_IDENTITY, "locked_terminology": 0.999},
                 "zero_korean_comprehension": {"attestation_id": "human-test", "users": 10, "answers": 100, "critical_question_accuracy": 1.0, "overall_comprehension": 0.95, "critical_misunderstanding": 0},
                 "model_data_policy": {"attestation_id": "policy-test", "approved_for_internal_artifacts": True},
             }

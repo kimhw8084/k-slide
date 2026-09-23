@@ -32,6 +32,7 @@ from k_slide.certification import (
     validate_cyclonedx_1_5,
 )
 from k_slide.model_policy import load_model_policy
+from k_slide.quality_policy import policy_identity_record, QUALITY_POLICY_IDENTITY
 from k_slide.classification_policy import load_inference_data_use_policy, policy_completeness
 from k_slide.egress_policy import load_egress_policy, policy_completeness as egress_policy_completeness
 from k_slide.opencode_bootstrap import bootstrap_readiness
@@ -498,6 +499,8 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
         return release_relative(path, label)
     manifest: dict[str, Any] = {
         "schema_version": "1.0",
+        "quality_policy": policy_identity_record(),
+        "quality_policy_identity": QUALITY_POLICY_IDENTITY,
         "release_state": derived,
         "version": __version__,
         "subject_git_sha": subject,

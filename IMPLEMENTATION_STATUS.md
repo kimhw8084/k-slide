@@ -370,15 +370,65 @@ An intermediate closure-suite run exposed legacy test fixtures that reused publi
 
 Explicit exclusions: no KSA-27 or later; no live company corpus, private corpus contents, live Gemma execution or Gemma quality qualification; no release, candidate promotion, champion assignment, or production certification. Synthetic external-role smokes establish runner/adapter contract compatibility only.
 
+## CHG-16 / KSA-27 certification quality policy
+
+This continuation starts from exact integrated main `fa03989e002864081609a25add1fb36b282d99a7` on branch `codex/k-slide-chg16-hard-gates-01`; the work head remains that base with uncommitted changes. No main merge was performed. It preserves KSA-26's four-set governed corpus, exact role/purpose/membership checks, external private/high-risk/sealed runner, and existing repetition/group policy.
+
+The shared source-free policy is schema `1.0`, policy `ksa-27.1`, registry `ksa-27-hard-gates-1`, SHA-256 `41736413cb8fdb0714b03b46c402ca8567c2d09903b17bb2886dc8313d2e739f`. The registry is closed; unknown codes map to a failing `UNKNOWN_HARD_GATE_CODE`. Current floors are material unresolved recall `1.0`, source-backed non-critical semantic fidelity `0.99`, unresolved precision `0.95`, and locked terminology recall `0.995`. Exact model identity, per-work-unit required media, structured forbidden-tool policy, and existing type-specific security zero tolerance are bound by the same policy record.
+
+Model evaluation, machine evidence adapters, internal bilingual evidence validation, and release output share and rederive this identity. Deployment fingerprints remain separate. Per-case and per-work-unit hard-gate findings are rebuilt from scorer facts, structured OpenCode events, required-media traces, exact model identity, persisted verification/finalization state, recovery state, and KSA-23 conflict state. Hard-gate failure precedes floors; means remain descriptive. Table identity, cell membership, duplicate/extra/missing table members, and cardinality are checked by source IDs. Safe unnecessary review is counted toward precision rather than treated as a critical error; engine-owned material false-DONE remains zero tolerance. The current evidence envelope schema is `2.4` and legacy envelopes cannot qualify as current policy evidence. No KSA-29 reviewer workflow or KSA-28 repetition changes were introduced.
+
+Changed implementation and test files:
+
+- `evals/certification.py`, `evals/model_eval.py`, `evals/model_results.py`, `evals/model_scorers.py`, `evals/release.py`
+- `src/k_slide/certification.py`, `src/k_slide/evidence_adapters.py`, `src/k_slide/quality_policy.py`
+- `tests/test_certification_closure.py`, `tests/test_ksa26_governed_runner.py`, `tests/test_ksa27_quality_policy.py`, `tests/test_phase33.py`
+- `.codex-fabric/audit.json`, `IMPLEMENTATION_STATUS.md`
+
+Final validation:
+
+```text
+rtk proxy env PYTHONPATH=src:evals:. python3 -m unittest tests.test_ksa27_quality_policy tests.test_ksa26_corpus_governance tests.test_ksa26_governed_runner -q
+PASS: 56 tests; KSA-27 hard-gate/floor/tamper cases plus KSA-26 governance and governed external-runner cases.
+
+rtk proxy env PYTHONPATH=src:evals:. python3 -m unittest tests.test_certification_closure tests.test_phase32 tests.test_phase33 tests.test_phase35 -q
+PASS: 139 tests; certification closure and phase 3.2/3.3/3.5 regression suites.
+
+rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_ksa24_modality_conformance tests.test_ksa24_f24_repairs tests.test_ksa24_f24_real_path tests.test_ksa25_recovery_law
+PASS: 93 tests, 1 skipped; KSA-21–25 preservation.
+
+rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_chg16_foundation tests.test_chg16_storage_planes tests.test_chg16_durable_execution tests.test_chg16_accesskey_nonleakage tests.test_chg16_deletion tests.test_chg16_host_integration tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support tests.test_chg16_environment_binding tests.test_chg16_classification_admission tests.test_chg16_retention_policy tests.test_chg16_scoped_admission tests.test_chg16_paas_worker tests.test_chg16_authentication_transport
+PASS: 216 tests, 1 skipped; KSA-15–20/security/host/runtime compatibility.
+
+rtk proxy npx --yes tsx tests/test_chg16_opencode_plugin.ts
+PASS: OpenCode host attachment regression.
+
+rtk proxy env PYTHONPATH=src:. python3 -c 'import json,pathlib; from jsonschema import Draft202012Validator; files=sorted(pathlib.Path("schemas").glob("*.json")); [Draft202012Validator.check_schema(json.loads(p.read_text())) for p in files]; print(f"{len(files)} schemas: Draft 2020-12 valid")'
+PASS: all 4 repository JSON schemas.
+
+rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript
+PASS: TranslationPatch Python/schema/TypeScript contract.
+
+rtk proxy env PYTHONPATH=src:. python3 -m unittest discover -s tests -p 'test_*.py' -q
+PASS: 558 tests, 4 skipped on Python 3.11.7.
+
+rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m unittest discover -s tests -p 'test_*.py' -q
+PASS: 558 tests on isolated Python 3.12.9.
+
+rtk proxy env PYTHONPATH=src:. python3 -m compileall -q src evals tests
+rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m compileall -q src evals tests
+rtk git diff --check
+PASS: both compile checks and whitespace validation.
+```
+
+An intermediate deployment-identity test initially passed the certification policy hash as a candidate-profile field, correctly rejected by the deployment allowlist; its fixture now keeps certification metadata outside deployment factors. Initial full discovery also exposed a legacy scorer test double without `recovery_status`; the scorer now reads that engine-owned field optionally, while current EvidenceIR recovery state remains the material-recall source. Both final full-discovery runs passed. Temporary synthetic release fixtures print example release states; these are test output only.
+
+`evals/champion.json` remains `UNSET`. No KSA-28+, live company/Gemma qualification, private-human/security approval, release, candidate promotion, or production certification was performed. The repository remains a development implementation; no `BUILD COMPLETE` or production certification claim is made.
+
 
 ## Next phase
 
-1. Run the heavy container/doctor with a working Docker daemon or approved heavy runner; resolve any real OCR/layout failures before model scoring.
-2. Resolve the provider-level OpenCode timeout and prove a complete one-slide run.
-3. Connect the approved Gemma 4 31B-it endpoint through the bounded OpenCode workflow.
-4. Run development, validation, ablation, repeated high-risk, and finally frozen held-out evaluations.
-5. Complete private bilingual, zero-Korean comprehension, security/reliability, governance, and canary evidence.
-6. Promote a configuration only when hard critical-error gates and protected-category regression rules pass; do not create 1.0.0 before every required gate is evidenced.
+KSA-28 and later work requires a separate scoped change. Existing production-candidate prerequisites remain listed above, but none were run for this KSA-27 implementation.
 
 ## Architecture decisions
 

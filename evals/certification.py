@@ -72,14 +72,14 @@ def certification_fingerprint(configuration: dict[str, Any]) -> str:
     return fingerprint(configuration)
 
 
-def certification_status(*, authoritative: bool, capability_blocked: bool = False, protocol_smoke: bool = False, critical_failures: int = 0, hard_policy_pass: bool = False, review_policy_pass: bool = False, stability_pass: bool = False, synthetic_candidate: bool = False) -> EvaluationState:
+def certification_status(*, authoritative: bool, capability_blocked: bool = False, protocol_smoke: bool = False, critical_failures: int = 0, quality_floors_pass: bool = True, hard_policy_pass: bool = False, review_policy_pass: bool = False, stability_pass: bool = False, synthetic_candidate: bool = False) -> EvaluationState:
     if capability_blocked:
         return EvaluationState.CAPABILITY_BLOCKED
     if protocol_smoke:
         return EvaluationState.PROTOCOL_SMOKE_ONLY
     if not authoritative:
         return EvaluationState.NOT_MEASURED
-    if critical_failures:
+    if critical_failures or not quality_floors_pass:
         return EvaluationState.CERTIFICATION_FAIL
     if synthetic_candidate and hard_policy_pass and review_policy_pass and stability_pass:
         return EvaluationState.PRODUCTION_CANDIDATE
