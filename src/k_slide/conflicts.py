@@ -24,6 +24,7 @@ from .queue import WorkUnitStatus, load_queue
 from .security import sha256_file
 from .semantics import ProvenanceState, enum_value
 from .storage import StorageArtifact, storage_path, workspace_mutation_guard
+from .translation import _semantic_evidence_usable
 
 
 CONFLICT_REGISTRY_SCHEMA_VERSION = "1.0"
@@ -1200,6 +1201,11 @@ def build_assertion_reference(run_dir: Path, work_unit_id: str, semantic_kind: s
 
     if not evidence_ids or any(item not in _all_evidence_ids(evidence) for item in evidence_ids):
         raise _error("Conflict assertion has invalid EvidenceIR references.", code=ErrorCode.CONFLICT_REFERENCE_INVALID)
+    direct_source_id = semantic_id if kind in {AssertionKind.REGION.value, AssertionKind.TABLE_CELL.value} else None
+    if provenance == ProvenanceState.UNRESOLVED.value or not _semantic_evidence_usable(evidence, evidence_ids, direct_source_id=direct_source_id):
+        raise _error("Conflict synthesis accepts only resolved assertions grounded in current trustworthy EvidenceIR.", code=ErrorCode.CONFLICT_REFERENCE_INVALID)
+    if not isinstance(rendered_text, str) or not rendered_text.strip():
+        raise _error("Conflict synthesis requires a rendered canonical assertion.", code=ErrorCode.CONFLICT_REFERENCE_INVALID)
     _validate_assertion_provenance(
         provenance,
         evidence_ids,
@@ -1289,8 +1295,22 @@ def assess_conflicts(run_dir: Path, *, candidate_groups: Any = None) -> Conflict
     """
 
     queue = load_queue(run_dir)
-    if not queue.work_units or any(unit.status not in {WorkUnitStatus.TRANSLATED, WorkUnitStatus.VERIFIED} for unit in queue.work_units):
+    if not queue.work_units or any(unit.status not in {WorkUnitStatus.TRANSLATED, WorkUnitStatus.VERIFIED, WorkUnitStatus.NEEDS_REVIEW} for unit in queue.work_units):
         raise _error("Conflict assessment requires every work unit to have a current canonical translation.", code=ErrorCode.CONFLICT_INVALID)
+    for unit in queue.work_units:
+        evidence = load_evidence(run_dir, unit.work_unit_id)
+        if unit.evidence_revision and unit.evidence_revision != evidence.evidence_revision:
+            raise _error("Conflict assessment requires current independently grounded EvidenceIR for every work unit.", code=ErrorCode.STALE_EVIDENCE)
+        canonical_path = storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json")
+        if not canonical_path.is_file():
+            raise _error("Conflict assessment requires a current canonical translation for every work unit.", code=ErrorCode.CONFLICT_INVALID)
+        try:
+            canonical_value = read_json(canonical_path)
+            canonical_slide = SlideIR.from_dict(canonical_value, evidence=evidence)
+        except (KSlideError, KeyError, TypeError, ValueError, json.JSONDecodeError, OSError) as exc:
+            raise _error("Conflict assessment requires each work unit to pass canonical/evidence identity checks.", code=ErrorCode.CONFLICT_REFERENCE_INVALID) from exc
+        if canonical_slide.evidence_revision != evidence.evidence_revision:
+            raise _error("Conflict assessment found a stale canonical translation.", code=ErrorCode.STALE_EVIDENCE)
     groups = set(_typed_candidate_keys(candidate_groups))
     current = load_conflict_registry(run_dir)
     if current is not None:

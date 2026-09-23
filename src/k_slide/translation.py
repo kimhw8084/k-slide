@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from .errors import ErrorCode, KSlideError
-from .evidence_ir import EvidenceIR, stable_revision
+from .evidence_ir import RISKY_LITERAL_STATES, EvidenceIR, stable_revision
 from .ir import CoverageEntry, NumericFact, SlideIR, TableCell, TableIR, TextRegion, VisualRelation
 from .modality import classify_source_language, decision_bearing_status, english_modality_mismatch, executive_modality_mismatch, modality_mismatch, required_english_mismatch, source_english_spans
 from .semantics import ClaimKind, CommitmentStatus, CoverageStatus, ProvenanceState, RelationDirection, RelationType, SpeechAct, Uncertainty, enum_value
@@ -150,6 +150,7 @@ def _validate_provenance(
     unresolved_reason: str | None = None,
     direct_source_id: str | None = None,
     source_fact_allowed: bool = True,
+    semantic_evidence_allowed: bool = True,
 ) -> str:
     effective = state or (ProvenanceState.UNRESOLVED.value if unresolved else ProvenanceState.SUPPORTED_INTERPRETATION.value)
     enum_value(effective, ProvenanceState, f"{label} provenance")
@@ -174,7 +175,55 @@ def _validate_provenance(
             raise KSlideError(ErrorCode.SCHEMA_INVALID, f"{label} cannot be marked source_fact.")
         if direct_source_id is not None and direct_source_id not in evidence_ids:
             raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, f"{label} source_fact must cite its engine source ID.")
+    if effective != ProvenanceState.UNRESOLVED.value and not semantic_evidence_allowed:
+        raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, f"{label} cites literal evidence that is absent or still requires recovery.")
     return effective
+
+
+def _region_literal_usable(region: Any) -> bool:
+    return bool(
+        isinstance(region.selected_literal_candidate, str)
+        and region.selected_literal_candidate.strip()
+        and region.evidence_state not in RISKY_LITERAL_STATES
+        and region.recovery_status in {"NOT_REQUIRED", "RECOVERED"}
+    )
+
+
+def _cell_literal_usable(cell: Any, region_map: dict[str, Any]) -> bool:
+    if _structural_blank(cell):
+        return True
+    if isinstance(cell.source_text, str) and cell.source_text.strip():
+        return True
+    return bool(cell.evidence_region_ids) and all(
+        region_id in region_map and _region_literal_usable(region_map[region_id])
+        for region_id in cell.evidence_region_ids
+    )
+
+
+def _semantic_evidence_usable(evidence: EvidenceIR, evidence_ids: tuple[str, ...] | list[str], *, direct_source_id: str | None = None) -> bool:
+    regions = {region.region_id: region for region in evidence.regions}
+    cells = {cell.cell_id: cell for table in evidence.tables for cell in table.cells}
+    facts = {str(item.get("fact_id")): item for item in evidence.numeric_facts if isinstance(item, dict) and item.get("fact_id")}
+    for evidence_id in evidence_ids:
+        region = regions.get(evidence_id)
+        if region is not None and not _region_literal_usable(region):
+            if region.translation_disposition != "NOT_APPLICABLE_NATIVE_VISUAL" or evidence_id == direct_source_id:
+                return False
+        cell = cells.get(evidence_id)
+        if cell is not None and not _cell_literal_usable(cell, regions):
+            return False
+        fact = facts.get(evidence_id)
+        if fact is not None:
+            if fact.get("source_region_id") in regions and not _region_literal_usable(regions[str(fact["source_region_id"]) ]):
+                return False
+            source_cell_id = fact.get("source_cell_id")
+            if source_cell_id in cells and not _cell_literal_usable(cells[str(source_cell_id)], regions):
+                return False
+    if direct_source_id in regions:
+        return _region_literal_usable(regions[direct_source_id])
+    if direct_source_id in cells:
+        return _cell_literal_usable(cells[direct_source_id], regions)
+    return True
 
 
 def _validate_table_cell_evidence_binding(
@@ -204,7 +253,7 @@ def _cell_source_language(source: Any) -> str:
 
 
 def _structural_blank(source: Any) -> bool:
-    return source.cell_state in {"blank", "merge_continuation"} or source.is_blank is True or source.source_text in (None, "")
+    return source.cell_state in {"blank", "merge_continuation"} or source.is_blank is True or (source.source_text == "" and source.cell_state not in {"nonblank", "merge_origin"} and source.is_blank is not False)
 
 
 def _chart_elements(evidence: EvidenceIR, source_element_ids: tuple[str, ...]) -> list[dict[str, Any]]:
@@ -543,12 +592,19 @@ class TranslationPatch:
             if patch.region_id not in region_map:
                 raise KSlideError(ErrorCode.UNKNOWN_REGION, "TranslationPatch references an unknown region.", {"region_id": patch.region_id})
             source = region_map[patch.region_id]
+            if source.translation_disposition == "NOT_APPLICABLE_NATIVE_VISUAL":
+                raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "The engine preserves this native non-text object through its typed visual or table evidence; the model may not assign text semantics.", {"region_id": patch.region_id})
             source_text = source.selected_literal_candidate
             source_language = _region_source_language(source)
-            if not isinstance(patch.english, str) or (not patch.english.strip() and source_text is not None and source_text.strip()):
+            recovery_required = source.evidence_state in RISKY_LITERAL_STATES or source.recovery_status == "NEEDS_REVIEW"
+            recovery_reason = source.recovery_reason or "Required source text could not be recovered from the retained evidence."
+            if not isinstance(patch.english, str) or (not recovery_required and not patch.english.strip() and source_text is not None and source_text.strip()):
                 raise KSlideError(ErrorCode.SCHEMA_INVALID, "Every translated region needs non-empty English.", {"region_id": patch.region_id})
+            if recovery_required and (patch.provenance != ProvenanceState.UNRESOLVED.value or not patch.unresolved or patch.english != ""):
+                raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Unrecovered literal evidence must remain empty and unresolved; the model cannot transcribe or complete it.", {"region_id": patch.region_id, "evidence_state": source.evidence_state})
             if patch.unresolved and not patch.unresolved_reason:
-                raise KSlideError(ErrorCode.SCHEMA_INVALID, "Unresolved regions require an explicit reason.", {"region_id": patch.region_id})
+                if not recovery_required:
+                    raise KSlideError(ErrorCode.SCHEMA_INVALID, "Unresolved regions require an explicit reason.", {"region_id": patch.region_id})
             if patch.commitment_status is not None:
                 enum_value(patch.commitment_status, CommitmentStatus, "commitment_status")
             if patch.speech_act is not None:
@@ -556,26 +612,29 @@ class TranslationPatch:
             evidence_ids = tuple(patch.evidence_ids if patch.evidence_ids is not None else (patch.region_id,))
             if decision_bearing_status(patch.commitment_status) and (patch.evidence_ids is None or patch.region_id not in evidence_ids):
                 raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Decision-bearing commitment classifications require explicit direct evidence linkage.", {"region_id": patch.region_id})
-            mismatch = modality_mismatch(source_text, patch.commitment_status, patch.speech_act)
-            if mismatch:
-                raise KSlideError(ErrorCode.MODALITY_MISMATCH, mismatch, {"region_id": patch.region_id})
-            english_mismatch = english_modality_mismatch(source_text, patch.english, patch.commitment_status, require_status_marker=True)
-            if english_mismatch:
-                raise KSlideError(ErrorCode.MODALITY_MISMATCH, english_mismatch, {"region_id": patch.region_id})
-            if source_language == "en" and source_text is not None and patch.english != source_text:
-                raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Pure-English source regions must preserve literal source text.", {"region_id": patch.region_id})
-            protected_spans = source.source_english_spans or source_english_spans(source_text)
-            missing_spans = [span for span in protected_spans if span not in patch.english]
-            if missing_spans:
-                raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Mixed-language source-English spans must survive translation.", {"region_id": patch.region_id, "spans": missing_spans})
+            if not recovery_required:
+                mismatch = modality_mismatch(source_text, patch.commitment_status, patch.speech_act)
+                if mismatch:
+                    raise KSlideError(ErrorCode.MODALITY_MISMATCH, mismatch, {"region_id": patch.region_id})
+                english_mismatch = english_modality_mismatch(source_text, patch.english, patch.commitment_status, require_status_marker=True)
+                if english_mismatch:
+                    raise KSlideError(ErrorCode.MODALITY_MISMATCH, english_mismatch, {"region_id": patch.region_id})
+                if source_language == "en" and source_text is not None and patch.english != source_text:
+                    raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Pure-English source regions must preserve literal source text.", {"region_id": patch.region_id})
+                protected_spans = source.source_english_spans or source_english_spans(source_text)
+                missing_spans = [span for span in protected_spans if span not in patch.english]
+                if missing_spans:
+                    raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Mixed-language source-English spans must survive translation.", {"region_id": patch.region_id, "spans": missing_spans})
             _validate_provenance(
                 patch.provenance,
                 evidence_ids,
                 evidence,
                 label=f"Region {patch.region_id}",
                 unresolved=patch.unresolved,
-                unresolved_reason=patch.unresolved_reason,
+                unresolved_reason=patch.unresolved_reason or (recovery_reason if recovery_required else None),
                 direct_source_id=patch.region_id,
+                source_fact_allowed=not recovery_required,
+                semantic_evidence_allowed=not recovery_required,
             )
             if patch.hangul_retention is not None and patch.hangul_retention.get("evidence_id") not in valid_source_ids:
                 raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Hangul retention references unknown evidence.", {"region_id": patch.region_id})
@@ -584,7 +643,7 @@ class TranslationPatch:
                 raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Hangul retention must cite evidence bound to its rendered region.", {"region_id": patch.region_id})
             region_provenance = patch.provenance or (ProvenanceState.UNRESOLVED.value if patch.unresolved else ProvenanceState.SUPPORTED_INTERPRETATION.value)
             _require_rendered_english(
-                patch.unresolved_reason if region_provenance == ProvenanceState.UNRESOLVED.value else patch.english,
+                (recovery_reason if recovery_required else patch.unresolved_reason) if region_provenance == ProvenanceState.UNRESOLVED.value else patch.english,
                 patch.hangul_retention,
                 source_texts,
                 evidence_ids,
@@ -603,6 +662,7 @@ class TranslationPatch:
             if table is None:
                 raise KSlideError(ErrorCode.UNKNOWN_TABLE, "TranslationPatch references an unknown table.", {"table_id": table_patch.table_id})
             cells = {cell.cell_id: cell for cell in table.cells}
+            evidence_region_map = {region.region_id: region for region in evidence.regions}
             seen_cells: set[str] = set()
             for cell_patch in table_patch.cells:
                 if cell_patch.cell_id in seen_cells:
@@ -613,28 +673,35 @@ class TranslationPatch:
                 source_cell = cells[cell_patch.cell_id]
                 source_language = _cell_source_language(source_cell)
                 structural_blank = _structural_blank(source_cell)
-                if not cell_patch.english.strip() and not structural_blank:
+                recovery_required = not _cell_literal_usable(source_cell, evidence_region_map)
+                recovery_region = next((evidence_region_map[item] for item in source_cell.evidence_region_ids if item in evidence_region_map and evidence_region_map[item].evidence_state in RISKY_LITERAL_STATES), None)
+                recovery_reason = (recovery_region.recovery_reason if recovery_region else None) or "Required table-cell literal could not be recovered from the retained evidence."
+                if not cell_patch.english.strip() and not structural_blank and not recovery_required:
                     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Every nonblank translated table cell needs non-empty English.", {"cell_id": cell_patch.cell_id})
+                if recovery_required and (cell_patch.provenance != ProvenanceState.UNRESOLVED.value or not cell_patch.unresolved or cell_patch.english != ""):
+                    raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "A table cell without trustworthy literal evidence must remain empty and unresolved.", {"cell_id": cell_patch.cell_id})
                 if structural_blank and cell_patch.english != "":
                     raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Blank and merge-continuation table cells cannot receive invented content.", {"cell_id": cell_patch.cell_id})
                 if cell_patch.unresolved and not cell_patch.unresolved_reason:
-                    raise KSlideError(ErrorCode.SCHEMA_INVALID, "Unresolved table cells require an explicit reason.", {"cell_id": cell_patch.cell_id})
+                    if not recovery_required:
+                        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Unresolved table cells require an explicit reason.", {"cell_id": cell_patch.cell_id})
                 if cell_patch.commitment_status is not None:
                     enum_value(cell_patch.commitment_status, CommitmentStatus, "table-cell commitment_status")
                 if cell_patch.speech_act is not None:
                     enum_value(cell_patch.speech_act, SpeechAct, "table-cell speech_act")
-                mismatch = modality_mismatch(source_cell.source_text, cell_patch.commitment_status, cell_patch.speech_act)
-                if mismatch:
-                    raise KSlideError(ErrorCode.MODALITY_MISMATCH, mismatch, {"cell_id": cell_patch.cell_id})
-                english_mismatch = english_modality_mismatch(source_cell.source_text, cell_patch.english, cell_patch.commitment_status, require_status_marker=True)
-                if english_mismatch:
-                    raise KSlideError(ErrorCode.MODALITY_MISMATCH, english_mismatch, {"cell_id": cell_patch.cell_id})
-                if source_language == "en" and source_cell.source_text is not None and cell_patch.english != source_cell.source_text:
-                    raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Pure-English table cells must preserve literal source text.", {"cell_id": cell_patch.cell_id})
-                protected_spans = source_cell.source_english_spans or source_english_spans(source_cell.source_text)
-                missing_spans = [span for span in protected_spans if span not in cell_patch.english]
-                if missing_spans:
-                    raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Mixed-language table source-English spans must survive translation.", {"cell_id": cell_patch.cell_id, "spans": missing_spans})
+                if not recovery_required:
+                    mismatch = modality_mismatch(source_cell.source_text, cell_patch.commitment_status, cell_patch.speech_act)
+                    if mismatch:
+                        raise KSlideError(ErrorCode.MODALITY_MISMATCH, mismatch, {"cell_id": cell_patch.cell_id})
+                    english_mismatch = english_modality_mismatch(source_cell.source_text, cell_patch.english, cell_patch.commitment_status, require_status_marker=True)
+                    if english_mismatch:
+                        raise KSlideError(ErrorCode.MODALITY_MISMATCH, english_mismatch, {"cell_id": cell_patch.cell_id})
+                    if source_language == "en" and source_cell.source_text is not None and cell_patch.english != source_cell.source_text:
+                        raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Pure-English table cells must preserve literal source text.", {"cell_id": cell_patch.cell_id})
+                    protected_spans = source_cell.source_english_spans or source_english_spans(source_cell.source_text)
+                    missing_spans = [span for span in protected_spans if span not in cell_patch.english]
+                    if missing_spans:
+                        raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Mixed-language table source-English spans must survive translation.", {"cell_id": cell_patch.cell_id, "spans": missing_spans})
                 evidence_ids = tuple(cell_patch.evidence_ids if cell_patch.evidence_ids is not None else (cell_patch.cell_id,))
                 _validate_table_cell_evidence_binding(cell_patch.cell_id, table, evidence_ids, label=f"Table cell {cell_patch.cell_id}")
                 _validate_provenance(
@@ -643,8 +710,10 @@ class TranslationPatch:
                     evidence,
                     label=f"Table cell {cell_patch.cell_id}",
                     unresolved=cell_patch.unresolved,
-                    unresolved_reason=cell_patch.unresolved_reason,
+                    unresolved_reason=cell_patch.unresolved_reason or (recovery_reason if recovery_required else None),
                     direct_source_id=cell_patch.cell_id,
+                    source_fact_allowed=not recovery_required,
+                    semantic_evidence_allowed=not recovery_required,
                 )
                 if cell_patch.hangul_retention is not None and cell_patch.hangul_retention.get("evidence_id") not in valid_source_ids:
                     raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Hangul retention references unknown evidence.", {"cell_id": cell_patch.cell_id})
@@ -652,7 +721,7 @@ class TranslationPatch:
                     raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Hangul retention must cite evidence bound to its rendered table cell.", {"cell_id": cell_patch.cell_id})
                 cell_state = cell_patch.provenance or (ProvenanceState.UNRESOLVED.value if cell_patch.unresolved else ProvenanceState.SUPPORTED_INTERPRETATION.value)
                 _require_rendered_english(
-                    cell_patch.unresolved_reason if cell_state == ProvenanceState.UNRESOLVED.value else cell_patch.english,
+                    (recovery_reason if recovery_required else cell_patch.unresolved_reason) if cell_state == ProvenanceState.UNRESOLVED.value else cell_patch.english,
                     cell_patch.hangul_retention,
                     source_texts,
                     evidence_ids,
@@ -669,6 +738,8 @@ class TranslationPatch:
             _id(relation.get("relation_id"), "relation_id")
             evidence_ids = _string_list(relation.get("evidence_ids", []), "visual interpretation evidence_ids")
             source_element_ids = _string_list(relation.get("source_element_ids", []), "visual interpretation source_element_ids")
+            if not _semantic_evidence_usable(evidence, evidence_ids):
+                raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Visual interpretations cannot use literal evidence that is absent or still requires recovery.", {"relation_id": relation.get("relation_id")})
             unknown_elements = sorted(set(source_element_ids) - valid_source_ids)
             if unknown_elements:
                 raise KSlideError(ErrorCode.UNKNOWN_SOURCE_ELEMENT, "Visual interpretation references unknown source elements.", {"source_element_ids": unknown_elements})
@@ -690,6 +761,7 @@ class TranslationPatch:
                 label=f"Visual interpretation {relation.get('relation_id')}",
                 unresolved_reason=relation.get("unresolved_reason"),
                 source_fact_allowed=source_fact_allowed,
+                semantic_evidence_allowed=True,
             )
             if relation.get("relation_type") is not None:
                 enum_value(relation.get("relation_type"), RelationType, "relation_type")
@@ -722,12 +794,15 @@ class TranslationPatch:
             enum_value(claim.get("kind"), ClaimKind, "executive claim kind")
             enum_value(claim.get("uncertainty"), Uncertainty, "executive claim uncertainty")
             evidence_ids = _string_list(claim.get("evidence_ids", []), "executive claim evidence_ids")
+            if not _semantic_evidence_usable(evidence, evidence_ids):
+                raise KSlideError(ErrorCode.CLAIM_UNSUPPORTED, "Executive claims cannot use literal evidence that is absent or still requires recovery.", {"claim_id": claim_id})
             _validate_provenance(
                 claim.get("provenance"),
                 evidence_ids,
                 evidence,
                 label=f"Executive claim {claim_id}",
                 unresolved_reason=claim.get("unresolved_reason"),
+                semantic_evidence_allowed=True,
             )
             claim_provenance = claim.get("provenance") or ProvenanceState.SUPPORTED_INTERPRETATION.value
             modality_issue = executive_modality_mismatch(
@@ -867,8 +942,12 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
     table_patches = {item.table_id: item for item in patch.tables}
     regions: list[TextRegion] = []
     for source in evidence.regions:
+        if source.translation_disposition == "NOT_APPLICABLE_NATIVE_VISUAL":
+            continue
         item = region_patches[source.region_id]
         provenance = item.provenance or (ProvenanceState.UNRESOLVED.value if item.unresolved else ProvenanceState.SUPPORTED_INTERPRETATION.value)
+        recovery_required = source.evidence_state in RISKY_LITERAL_STATES or source.recovery_status == "NEEDS_REVIEW"
+        unresolved_reason = source.recovery_reason if recovery_required else item.unresolved_reason
         provenance_evidence_ids = list(item.evidence_ids if item.evidence_ids is not None else (source.region_id,))
         regions.append(TextRegion(
             region_id=source.region_id,
@@ -881,7 +960,7 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
             source_language=source.language,
             source_english_spans=list(source.source_english_spans),
             source_confidence=source.literal_confidence,
-            translation=source.selected_literal_candidate if _region_source_language(source) == "en" and source.selected_literal_candidate is not None else item.english,
+            translation="" if recovery_required else (source.selected_literal_candidate if _region_source_language(source) == "en" and source.selected_literal_candidate is not None else item.english),
             evidence_sources=provenance_evidence_ids,
             provenance=provenance,
             provenance_evidence_ids=provenance_evidence_ids,
@@ -890,7 +969,7 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
             commitment_status=item.commitment_status,
             speech_act=item.speech_act,
             hangul_retention=item.hangul_retention,
-            unresolved_reason=item.unresolved_reason,
+            unresolved_reason=unresolved_reason,
         ))
     tables: list[TableIR] = []
     for source_table in evidence.tables:
@@ -900,13 +979,16 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
         for cell in source_table.cells:
             patch_cell = cell_patches[cell.cell_id]
             provenance = patch_cell.provenance or (ProvenanceState.UNRESOLVED.value if patch_cell.unresolved else ProvenanceState.SUPPORTED_INTERPRETATION.value)
+            recovery_required = not _cell_literal_usable(cell, {region.region_id: region for region in evidence.regions})
+            recovery_region = next((region for region in evidence.regions if region.region_id in cell.evidence_region_ids and region.evidence_state in RISKY_LITERAL_STATES), None)
+            unresolved_reason = (recovery_region.recovery_reason if recovery_region else None) if recovery_required else patch_cell.unresolved_reason
             provenance_evidence_ids = list(patch_cell.evidence_ids if patch_cell.evidence_ids is not None else (cell.cell_id,))
             cells.append(TableCell(
                 cell_id=cell.cell_id,
                 row=cell.row,
                 column=cell.column,
                 source_text=cell.source_text,
-                translation=cell.source_text if _cell_source_language(cell) == "en" and cell.source_text is not None else patch_cell.english,
+                translation="" if recovery_required else (cell.source_text if _cell_source_language(cell) == "en" and cell.source_text is not None else patch_cell.english),
                 rowspan=cell.rowspan,
                 colspan=cell.colspan,
                 source_language=cell.source_language,
@@ -919,7 +1001,7 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
                 evidence_region_ids=list(cell.evidence_region_ids),
                 numeric_fact_ids=list(cell.numeric_fact_ids),
                 unresolved=patch_cell.unresolved,
-                unresolved_reason=patch_cell.unresolved_reason,
+                unresolved_reason=unresolved_reason,
                 provenance=provenance,
                 provenance_evidence_ids=provenance_evidence_ids,
                 commitment_status=patch_cell.commitment_status,
@@ -952,7 +1034,8 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
         note = None
         if source_id in region_patches and region_patches[source_id].unresolved:
             status = "unresolved"
-            note = region_patches[source_id].unresolved_reason
+            source_region = next((region for region in evidence.regions if region.region_id == source_id), None)
+            note = source_region.recovery_reason if source_region and source_region.recovery_status == "NEEDS_REVIEW" else region_patches[source_id].unresolved_reason
         else:
             if source_id in {item.get("element_id") for item in evidence.visual_elements} or source_id in {table.table_id for table in evidence.tables}:
                 status = CoverageStatus.INTENTIONALLY_PRESERVED.value
@@ -960,15 +1043,50 @@ def merge_evidence_patch(evidence: EvidenceIR, patch: TranslationPatch, *, runti
                 for cell_patch in table_patch.cells:
                     if cell_patch.cell_id == source_id and cell_patch.unresolved:
                         status = "unresolved"
-                        note = cell_patch.unresolved_reason
+                        source_cell = next((cell for table in evidence.tables for cell in table.cells if cell.cell_id == source_id), None)
+                        recovery_region = next((region for region in evidence.regions if source_cell and region.region_id in source_cell.evidence_region_ids and region.recovery_status == "NEEDS_REVIEW"), None)
+                        note = recovery_region.recovery_reason if recovery_region else cell_patch.unresolved_reason
         coverage.append(CoverageEntry(source_id=source_id, status=status, evidence_ids=[source_id], note=note))
-    unresolved_items = [
-        {"region_id": item.region_id, "provenance": ProvenanceState.UNRESOLVED.value, "evidence_ids": list(item.evidence_ids if item.evidence_ids is not None else (item.region_id,)), "reason": item.unresolved_reason or "Model marked unresolved."}
-        for item in patch.regions if item.unresolved
-    ] + [
-        {"cell_id": cell.cell_id, "provenance": ProvenanceState.UNRESOLVED.value, "evidence_ids": list(cell.evidence_ids if cell.evidence_ids is not None else (cell.cell_id,)), "reason": cell.unresolved_reason or "Model marked unresolved."}
-        for table in patch.tables for cell in table.cells if cell.unresolved
-    ] + [
+    unresolved_items = []
+    for item in patch.regions:
+        if not item.unresolved:
+            continue
+        source = next(region for region in evidence.regions if region.region_id == item.region_id)
+        recovery_required = source.evidence_state in RISKY_LITERAL_STATES or source.recovery_status == "NEEDS_REVIEW"
+        if recovery_required:
+            unresolved_items.append({
+                "region_id": item.region_id,
+                "provenance": ProvenanceState.UNRESOLVED.value,
+                "evidence_ids": list(item.evidence_ids if item.evidence_ids is not None else (item.region_id,)),
+                "reason": source.recovery_reason or "Required source text could not be recovered from the retained evidence.",
+                "recovery_status": source.recovery_status,
+                "impact": "Required source text and dependent numeric or decision claims remain unavailable.",
+                "recommended_action": "Review the retained original crop and source document, resolve the extraction problem, then prepare a fresh run.",
+                "location": {"document_id": evidence.document_id, "work_unit_id": evidence.work_unit_id, "bbox_px": list(source.bbox_px), "crop_original_path": source.crop_original_path, "crop_model_path": source.crop_model_path},
+            })
+        else:
+            unresolved_items.append({"region_id": item.region_id, "provenance": ProvenanceState.UNRESOLVED.value, "evidence_ids": list(item.evidence_ids if item.evidence_ids is not None else (item.region_id,)), "reason": item.unresolved_reason or "Model marked unresolved."})
+    for table in patch.tables:
+        evidence_table = next(candidate for candidate in evidence.tables if candidate.table_id == table.table_id)
+        for cell_patch in table.cells:
+            if not cell_patch.unresolved:
+                continue
+            source_cell = next(cell for cell in evidence_table.cells if cell.cell_id == cell_patch.cell_id)
+            if not _cell_literal_usable(source_cell, {region.region_id: region for region in evidence.regions}):
+                recovery_region = next((region for region in evidence.regions if region.region_id in source_cell.evidence_region_ids and region.evidence_state in RISKY_LITERAL_STATES), None)
+                unresolved_items.append({
+                    "cell_id": cell_patch.cell_id,
+                    "provenance": ProvenanceState.UNRESOLVED.value,
+                    "evidence_ids": list(cell_patch.evidence_ids if cell_patch.evidence_ids is not None else (cell_patch.cell_id,)),
+                    "reason": (recovery_region.recovery_reason if recovery_region else None) or "Required table-cell literal could not be recovered from the retained evidence.",
+                    "recovery_status": "NEEDS_REVIEW",
+                    "impact": "Required table content and dependent numeric or decision claims remain unavailable.",
+                    "recommended_action": "Review the retained table crop and source document, resolve the extraction problem, then prepare a fresh run.",
+                    "location": {"document_id": evidence.document_id, "work_unit_id": evidence.work_unit_id, "table_id": evidence_table.table_id, "cell_id": cell_patch.cell_id, "evidence_region_ids": list(source_cell.evidence_region_ids)},
+                })
+            else:
+                unresolved_items.append({"cell_id": cell_patch.cell_id, "provenance": ProvenanceState.UNRESOLVED.value, "evidence_ids": list(cell_patch.evidence_ids if cell_patch.evidence_ids is not None else (cell_patch.cell_id,)), "reason": cell_patch.unresolved_reason or "Model marked unresolved."})
+    unresolved_items += [
         {"relation_id": str(item["relation_id"]), "provenance": ProvenanceState.UNRESOLVED.value, "evidence_ids": list(item.get("evidence_ids", [])), "reason": item.get("unresolved_reason") or "Model marked unresolved."}
         for item in patch.visual_interpretations if item.get("provenance") == ProvenanceState.UNRESOLVED.value
     ] + [

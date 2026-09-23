@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -11,7 +12,7 @@ from .documents import NormalizationResult
 from .classification_policy import DEFAULT_CLASSIFICATION
 from .environment import RunEnvironmentIdentity
 from .errors import ErrorCode, KSlideError
-from .evidence_ir import EvidenceIR, EvidenceRegion, EvidenceTable, EvidenceTableCell, save_evidence
+from .evidence_ir import RISKY_LITERAL_STATES, EvidenceIR, EvidenceRegion, EvidenceTable, EvidenceTableCell, save_evidence
 from .io import atomic_write_json, atomic_write_text, read_json
 from .locking import run_lock
 from .normalization import _derive_table_unit, _load_normalization_result, _table_header_cell, _table_unit_labels
@@ -104,6 +105,24 @@ def _unit_native(run_dir: Path, unit: Any) -> list[dict[str, Any]]:
     if isinstance(value, dict) and isinstance(value.get("regions"), list):
         return [item for item in value["regions"] if isinstance(item, dict)]
     return []
+
+
+def _native_nontext_visual_policy(region_id: str, native_items: list[dict[str, Any]]) -> bool:
+    """Recognize only native objects with a separate typed engine representation."""
+
+    item = next((candidate for candidate in native_items if str(candidate.get("source_id", "")) == region_id), None)
+    if item is None or str(item.get("text") or "").strip():
+        return False
+    shape_type = str(item.get("shape_type", "")).casefold()
+    if shape_type == "group":
+        return any(str(candidate.get("source_id", "")).startswith(region_id + "-") for candidate in native_items)
+    if shape_type in {"line", "connector"}:
+        return isinstance(item.get("connector"), dict)
+    if shape_type == "chart":
+        return isinstance(item.get("chart"), dict)
+    if shape_type == "table":
+        return isinstance(item.get("table"), dict)
+    return False
 
 
 def _bind_table_unit(fact: dict[str, Any], unit: str | None) -> None:
@@ -300,11 +319,87 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None, ocr_p
                 for region in regions:
                     candidates = ocr_by_region[region.region_id]
                     selected, confidence, evidence_state = fuse_literal_evidence(list(region.native_text_candidates), candidates)
-                    updated = EvidenceRegion(**{**region.__dict__, "ocr_candidates": tuple(candidates), "selected_literal_candidate": selected, "literal_confidence": confidence, "evidence_state": evidence_state, "language": classify_source_language(selected), "source_english_spans": source_english_spans(selected)})
+                    initial_selected = selected
+                    initial_evidence_state = evidence_state
+                    recovery_attempts = 0
+                    recovery_status = "NOT_REQUIRED"
+                    recovery_reason = None
+                    native_visual_not_applicable = selected is None and _native_nontext_visual_policy(region.region_id, native_items)
+                    if evidence_state in RISKY_LITERAL_STATES and not native_visual_not_applicable:
+                        recovery_status = "NEEDS_REVIEW"
+                        recovery_reason = "No trustworthy literal evidence is available after bounded engine recovery."
+                        if region.crop_original_path:
+                            recovery_attempts = 1
+                            crop_path = storage_path(run_dir, StorageArtifact.REGION_CROP, region.crop_original_path)
+                            try:
+                                recovery_result = provider.extract(crop_path)
+                                try:
+                                    from PIL import Image
+
+                                    with Image.open(crop_path) as crop_image:
+                                        crop_width, crop_height = crop_image.size
+                                except Exception:
+                                    crop_width = crop_height = 0
+                                crop_sha256 = hashlib.sha256(crop_path.read_bytes()).hexdigest()
+                                for item in recovery_result.regions:
+                                    text = str(item.text).strip()
+                                    if not text:
+                                        continue
+                                    x0, y0, x1, y1 = item.bbox_px
+                                    edge_margin = max(2, int(min(crop_width, crop_height) * 0.005)) if crop_width and crop_height else 2
+                                    touches_edge = bool(crop_width and crop_height and (x0 <= edge_margin or y0 <= edge_margin or x1 >= crop_width - edge_margin or y1 >= crop_height - edge_margin))
+                                    candidates.append({
+                                        "text": text,
+                                        "confidence": item.confidence,
+                                        "bbox_px": list(item.bbox_px),
+                                        "provider": recovery_result.provider,
+                                        "provider_version": recovery_result.provider_version,
+                                        "recovery_pass": 1,
+                                        "crop_sha256": crop_sha256,
+                                        "trust_eligible": not touches_edge,
+                                        "touches_crop_boundary": touches_edge,
+                                    })
+                                recovered_selected, recovered_confidence, recovered_state = fuse_literal_evidence(list(region.native_text_candidates), candidates)
+                                crop_corroborates_selected = any(
+                                    item.get("recovery_pass") == 1
+                                    and item.get("trust_eligible", True) is not False
+                                    and item.get("text") == recovered_selected
+                                    and isinstance(item.get("confidence"), (int, float))
+                                    and not isinstance(item.get("confidence"), bool)
+                                    and 0.80 <= item["confidence"] <= 1.0
+                                    for item in candidates
+                                )
+                                recovery_state_trusted = recovered_state in {"HIGH_AGREEMENT", "OCR_ONLY"}
+                                low_confidence_repeats_exact_literal = initial_evidence_state != "LOW_CONFIDENCE" or recovered_selected == initial_selected
+                                if recovery_state_trusted and crop_corroborates_selected and low_confidence_repeats_exact_literal:
+                                    selected, confidence, evidence_state = recovered_selected, recovered_confidence, recovered_state
+                                    recovery_status = "RECOVERED"
+                                    recovery_reason = None
+                                else:
+                                    recovery_reason = "A bounded crop re-extraction did not produce a trustworthy complete literal."
+                            except Exception as exc:
+                                recovery_reason = f"A bounded crop re-extraction failed safely ({type(exc).__name__})."
+                    updated = EvidenceRegion(**{
+                        **region.__dict__,
+                        "ocr_candidates": tuple(candidates),
+                        "selected_literal_candidate": selected,
+                        "literal_confidence": confidence,
+                        "evidence_state": evidence_state,
+                        "language": classify_source_language(selected),
+                        "source_english_spans": source_english_spans(selected),
+                        "required_for_translation": not native_visual_not_applicable,
+                        "translation_disposition": "NOT_APPLICABLE_NATIVE_VISUAL" if native_visual_not_applicable else "REQUIRED",
+                        "disposition_policy": "native-nontext-visual-v1" if native_visual_not_applicable else None,
+                        "disposition_evidence_ids": (region.region_id,) if native_visual_not_applicable else (),
+                        "recovery_status": recovery_status,
+                        "recovery_attempts": recovery_attempts,
+                        "recovery_reason": recovery_reason,
+                    })
                     fused_regions.append(updated)
                 regions = fused_regions
                 for region in regions:
-                    facts.extend(extract_numeric_facts(region.selected_literal_candidate, source_region_id=region.region_id))
+                    if region.evidence_state not in RISKY_LITERAL_STATES:
+                        facts.extend(extract_numeric_facts(region.selected_literal_candidate, source_region_id=region.region_id))
                 fact_ids = {fact["fact_id"] for fact in facts}
                 regions = [EvidenceRegion(**{**region.__dict__, "numeric_fact_ids": tuple(fact_id for fact_id in fact_ids if fact_id.startswith(region.region_id + "-"))}) for region in regions]
                 tables, table_facts = _tables(unit, native_items)

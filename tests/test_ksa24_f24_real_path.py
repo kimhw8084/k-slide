@@ -223,7 +223,7 @@ def _valid_patch(evidence: object) -> dict[str, object]:
         "schema_version": "1.0",
         "work_unit_id": evidence.work_unit_id,
         "evidence_revision": evidence.evidence_revision,
-        "regions": [_region_patch(evidence, region) for region in evidence.regions],
+        "regions": [_region_patch(evidence, region) for region in evidence.regions if region.translation_disposition == "REQUIRED"],
         "tables": [{"table_id": table.table_id, "cells": cells}],
         "visual_interpretations": [forward_relation, *chart_relations],
         "executive_claims": [claim],
