@@ -305,9 +305,9 @@ Scope exclusions: no KSA-27 or later policy, no hard quality thresholds/repetiti
 
 ## CHG-16 / KSA-26 FIX01 and FIX02 continuation evidence
 
-This continuation starts at exact integrated main `847c8e760b13b3eb6aeff22106d54ada324a9c1b`. It fast-forwarded to the exact predecessor BUILD candidate `28be285b08859bdcbb6e910e94af6f5c161d248a` before repair edits; that predecessor is a direct child of the requested base. Work branch: `codex/k-slide-chg16-corpus-governance-01-fix01`. Final implementation work head: `07a58170f105150a1f8350cb13c83c470714603c`.
+This continuation starts at exact integrated main `847c8e760b13b3eb6aeff22106d54ada324a9c1b`. It fast-forwarded to the exact predecessor BUILD candidate `28be285b08859bdcbb6e910e94af6f5c161d248a` before repair edits; that predecessor is a direct child of the requested base. Work branch: `codex/k-slide-chg16-corpus-governance-01-fix01`. Final implementation work head: `52732149b774c17eef16d75dad157a00044ff353`.
 
-F26-01 adds a second, explicit source mode to the canonical `ModelEvaluationRunner` and `OpenCodeEvalRunner`. Governed external mode consumes canonical source-free manifests and an exact four-role candidate-bound bundle, validates local descriptors/artifact/gold bytes and role/purpose/history before execution, and retains the existing TranslationPatch/SlideIR scorers and evidence adapters. The adapter rederives exact active membership and result matrices from the persisted governed case identity without public scenario membership authority. Output metadata omits local paths and gold/source contents. Public synthetic mode retains its generation path, public manifest bundle, and fingerprints.
+F26-01 adds a second, explicit source mode to the canonical `ModelEvaluationRunner` and `OpenCodeEvalRunner`. Governed external mode consumes canonical source-free manifests and an exact four-role candidate-bound bundle, validates local descriptors/artifact/gold bytes and role/purpose/history before execution, and retains the existing TranslationPatch/SlideIR scorers and evidence adapters. The adapter rederives exact active membership and result matrices from the persisted governed case identity without public scenario membership authority. A generated-public-byte digest scan is used only to exclude copied public artifacts; manifest membership remains the sole governed execution authority. Output metadata omits local paths and gold/source contents. Public synthetic mode retains its generation path, public manifest bundle, and fingerprints.
 
 F26-02 keeps retired public membership permanently relevant to sealed held-out overlap checks. Historical active memberships and item-scoped exposure contexts remain contamination-relevant after retirement; unrelated retired private history is permitted. Source-only, gold-only, and source-plus-gold overlap are checked across current and historical manifests, while transition, predecessor, replacement, and version validation remain fail-closed.
 
@@ -326,11 +326,11 @@ Changed files for this continuation:
 - `tests/test_ksa26_governed_runner.py` (new)
 - `IMPLEMENTATION_STATUS.md`
 
-Final validation commands and results for the final source tree:
+Final validation commands and results for the final source tree, including the public-byte exclusion guard:
 
 ```text
 PYTHONPATH=src:. rtk python3.11 -m unittest tests.test_ksa26_corpus_governance tests.test_ksa26_governed_runner -q
-PASS: 35 focused KSA-26 governance, external-runner, and adapter tests. The three role smokes use a deterministic OpenCode test double; they are not live model measurements.
+PASS: 36 focused KSA-26 governance, external-runner, and adapter tests. This includes a renamed public artifact copied without generator metadata and rejected by its exact generated-byte digest. The three role smokes use a deterministic OpenCode test double; they are not live model measurements.
 
 PYTHONPATH=src:. rtk python3.11 -m unittest tests.test_certification_closure tests.test_phase32 tests.test_phase33 tests.test_phase35 -q
 PASS: 138 certification closure and phase 3.2/3.3/3.5 tests.
@@ -351,17 +351,18 @@ PYTHONPATH=src:. rtk python3.11 -m unittest tests.test_phase35.Phase35Tests.test
 PASS: TranslationPatch Python/schema/TypeScript contract test.
 
 PYTHONPATH=src:. rtk python3.11 -m unittest discover -s tests -q
-PASS: 536 tests, 4 skipped, on Python 3.11.7.
+PASS: 537 tests, 4 skipped, on Python 3.11.7.
 
 PYTHONPATH=src:. rtk /tmp/k-slide-ksa26-py312/bin/python -m unittest discover -s tests -q
-PASS: 536 tests, 9 skipped, on isolated Python 3.12.9 with Pillow 12.3.0.
+PASS: 537 tests, 9 skipped, on isolated Python 3.12.9 with Pillow 12.3.0.
 
 PYTHONPATH=src:. rtk python3.11 -m compileall -q src evals tests
 PYTHONPATH=src:. rtk /tmp/k-slide-ksa26-py312/bin/python -m compileall -q src evals tests
 rtk git diff --check
 PASS: both compile checks and whitespace validation.
 
-PYTHONPATH=src:. rtk python3.11 -m evals.generate_corpus --output /tmp/k-slide-ksa26-public-smoke --formats png --limit 1
+PYTHONPATH=src:. rtk python3.11 -m evals.generate_corpus --output /tmp/k-slide-ksa26-public-smoke-final --formats png --limit 1
+PYTHONPATH=src:. rtk python3.11 -c 'import json, pathlib; d=json.loads(pathlib.Path("/tmp/k-slide-ksa26-public-smoke-final/specs/MANIFEST.json").read_text()); print(d["dataset_version"], d["corpus_fingerprint"], d["held_out_fingerprint"])'
 PASS: public generation smoke retained DATASET_VERSION 1.0, corpus fingerprint 698b471fa9dffe9f79af40a61c3546d6455889b90063a02bc2e270b90402f7ac, and public held-out fingerprint c2dee1ba1b03fead1a6641cfa8c7ceea27eb51b0ed80c0879c07bc3ee29bcc4e.
 ```
 
