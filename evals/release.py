@@ -265,7 +265,7 @@ def _load_records(paths: dict[str, Path], *, subject_sha: str, deployment_fp: st
     return records, errors
 
 
-def _champion(root: Path, *, records: dict[str, dict[str, Any]], policy: Any, deployment_fp: str, candidate_spec: dict[str, Any] | None = None) -> tuple[dict[str, Any] | None, str | None, list[str]]:
+def _champion(root: Path, *, records: dict[str, dict[str, Any]], policy: Any, deployment_fp: str, candidate_spec: dict[str, Any] | None = None, recertification: dict[str, Any] | None = None, prior_records: dict[str, dict[str, Any]] | None = None) -> tuple[dict[str, Any] | None, str | None, list[str]]:
     path = root / "evals" / "champion.json"
     blockers: list[str] = []
     if not path.is_file():
@@ -295,7 +295,15 @@ def _champion(root: Path, *, records: dict[str, dict[str, Any]], policy: Any, de
         blockers.append("champion candidate deployment does not match resolved candidate")
     else:
         try:
-            validated = validate_champion_promotion(promotion, candidate_spec, records, policy=policy, root=root)
+            validated = validate_champion_promotion(
+                promotion,
+                candidate_spec,
+                records,
+                policy=policy,
+                root=root,
+                recertification=recertification,
+                prior_records=prior_records,
+            )
         except (EvidenceValidationError, OSError, ValueError, TypeError) as exc:
             blockers.append(f"champion promotion contract is invalid ({type(exc).__name__})")
         else:
@@ -324,7 +332,7 @@ def _state_requirements(state: str) -> tuple[str, ...]:
     }[state]
 
 
-def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, root: Path, policy: Any, deployment_fp: str, candidate_spec: dict[str, Any] | None = None) -> list[str]:
+def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, root: Path, policy: Any, deployment_fp: str, candidate_spec: dict[str, Any] | None = None, recertification: dict[str, Any] | None = None, prior_records: dict[str, dict[str, Any]] | None = None) -> list[str]:
     blockers = [f"missing validated {item} evidence" for item in _state_requirements(state) if item not in records]
     if state != ReleaseState.DEVELOPMENT.value and candidate_spec is None:
         blockers.append("candidate deployment specification is missing")
@@ -348,7 +356,15 @@ def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, 
     if state in {ReleaseState.SYNTHETIC_PRODUCTION_CANDIDATE.value, ReleaseState.INTERNAL_VALIDATED.value, ReleaseState.PILOT_APPROVED.value, ReleaseState.PRODUCTION_CERTIFIED.value} and heavy and heavy["payload"].get("full_engine_pass") is not True:
         blockers.append("full heavy engine evidence is required beyond GEMMA_EVAL_READY")
     if state in {ReleaseState.SYNTHETIC_PRODUCTION_CANDIDATE.value, ReleaseState.INTERNAL_VALIDATED.value, ReleaseState.PILOT_APPROVED.value, ReleaseState.PRODUCTION_CERTIFIED.value}:
-        champion, _, champion_blockers = _champion(root, records=records, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate_spec)
+        champion, _, champion_blockers = _champion(
+            root,
+            records=records,
+            policy=policy,
+            deployment_fp=deployment_fp,
+            candidate_spec=candidate_spec,
+            recertification=recertification,
+            prior_records=prior_records,
+        )
         if champion is None or champion_blockers:
             blockers.extend(champion_blockers or ["champion evidence is missing"])
     if state == ReleaseState.PRODUCTION_CERTIFIED.value:
@@ -452,7 +468,7 @@ def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, 
     return sorted(set(blockers))
 
 
-def derive_release_state(requested_state: str, *, records: dict[str, dict[str, Any]], root: Path, policy: Any, deployment_fp: str, candidate_spec: dict[str, Any] | None = None) -> tuple[str, list[str]]:
+def derive_release_state(requested_state: str, *, records: dict[str, dict[str, Any]], root: Path, policy: Any, deployment_fp: str, candidate_spec: dict[str, Any] | None = None, recertification: dict[str, Any] | None = None, prior_records: dict[str, dict[str, Any]] | None = None) -> tuple[str, list[str]]:
     """Return the highest state supported up to the requested maximum."""
 
     ordered = list(REQUESTABLE_STATES)
@@ -460,11 +476,11 @@ def derive_release_state(requested_state: str, *, records: dict[str, dict[str, A
         return ReleaseState.DEVELOPMENT.value, [f"release state is not requestable: {requested_state}"]
     available = ReleaseState.DEVELOPMENT.value
     for state in ordered[1:]:
-        blockers = _state_specific_blockers(state, records, root=root, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate_spec)
+        blockers = _state_specific_blockers(state, records, root=root, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate_spec, recertification=recertification, prior_records=prior_records)
         if blockers:
             break
         available = state
-    requested_blockers = _state_specific_blockers(requested_state, records, root=root, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate_spec)
+    requested_blockers = _state_specific_blockers(requested_state, records, root=root, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate_spec, recertification=recertification, prior_records=prior_records)
     if ordered.index(requested_state) > ordered.index(available):
         return available, sorted(set(requested_blockers + [f"requested {requested_state} exceeds evidence-derived maximum {available}"]))
     return requested_state, requested_blockers
@@ -599,10 +615,27 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
     if duplicate_carry:
         raise EvidenceValidationError("evidence cannot be both rerun and carried forward: " + ", ".join(sorted(duplicate_carry)))
     records.update(carried_records)
-    derived, blockers = derive_release_state(requested, records=records, root=root, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate)
+    derived, blockers = derive_release_state(
+        requested,
+        records=records,
+        root=root,
+        policy=policy,
+        deployment_fp=deployment_fp,
+        candidate_spec=candidate,
+        recertification=recertification,
+        prior_records=carried_records,
+    )
     if evidence_errors:
         blockers.extend(evidence_errors)
-    champion, champion_hash, champion_blockers = _champion(root, records=records, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate) if derived in {ReleaseState.SYNTHETIC_PRODUCTION_CANDIDATE.value, ReleaseState.INTERNAL_VALIDATED.value, ReleaseState.PILOT_APPROVED.value, ReleaseState.PRODUCTION_CERTIFIED.value} else (None, None, [])
+    champion, champion_hash, champion_blockers = _champion(
+        root,
+        records=records,
+        policy=policy,
+        deployment_fp=deployment_fp,
+        candidate_spec=candidate,
+        recertification=recertification,
+        prior_records=carried_records,
+    ) if derived in {ReleaseState.SYNTHETIC_PRODUCTION_CANDIDATE.value, ReleaseState.INTERNAL_VALIDATED.value, ReleaseState.PILOT_APPROVED.value, ReleaseState.PRODUCTION_CERTIFIED.value} else (None, None, [])
     blockers.extend(champion_blockers)
     hashes = evidence_hashes(records.values())
     envelope_hashes = {str(item["evidence_type"]): str(item.get("envelope_sha256") or item["sha256"]) for item in records.values()}
@@ -870,7 +903,16 @@ def main(argv: list[str] | None = None) -> int:
     except (EvidenceValidationError, OSError, ValueError, TypeError) as exc:
         print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": [f"Scoped recertification blocked ({type(exc).__name__})."]}, ensure_ascii=False, indent=2))
         return 2
-    derived, blockers = derive_release_state(requested, records=records, root=root, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate)
+    derived, blockers = derive_release_state(
+        requested,
+        records=records,
+        root=root,
+        policy=policy,
+        deployment_fp=deployment_fp,
+        candidate_spec=candidate,
+        recertification=recertification,
+        prior_records=carried_records,
+    )
     blockers.extend(evidence_errors)
     if args.validation_result and "model_validation" not in paths:
         blockers.append("raw --validation-result is not certification evidence; provide --validation-evidence envelope")

@@ -339,7 +339,15 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
         promotion_detail = "validated promotion contract is missing"
         if isinstance(promotion, dict):
             try:
-                validated_promotion = validate_champion_promotion(promotion, profile.candidate_spec or {}, current_records, policy=load_model_policy(root), root=root)
+                validated_promotion = validate_champion_promotion(
+                    promotion,
+                    profile.candidate_spec or {},
+                    current_records,
+                    policy=load_model_policy(root),
+                    root=root,
+                    recertification=recertification,
+                    prior_records=prior_records,
+                )
                 promotion_ok = validated_promotion.get("promotion_identity") == manifest.get("promotion_identity")
                 promotion_detail = str(validated_promotion.get("promotion_identity"))
             except (EvidenceValidationError, OSError, ValueError, TypeError) as exc:

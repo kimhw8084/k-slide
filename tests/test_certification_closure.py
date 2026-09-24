@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import os
@@ -2236,6 +2237,12 @@ class CertificationClosureTests(unittest.TestCase):
             stale_checks = _manifest_and_fingerprint_status(root, ProductionProfile.from_mapping(profile), SimpleNamespace())
             self.assertEqual(next(item for item in stale_checks if item["label"] == "Candidate source identity")["status"], "FAIL")
             self.assertEqual(next(item for item in stale_checks if item["label"] == "Certification freshness")["status"], "FAIL")
+            subject_changed_source = copy.deepcopy(candidate)
+            subject_changed_source["subject_git_sha"] = "f" * 40
+            _write(candidate_path, subject_changed_source)
+            subject_stale_checks = _manifest_and_fingerprint_status(root, ProductionProfile.from_mapping(profile), SimpleNamespace())
+            self.assertEqual(next(item for item in subject_stale_checks if item["label"] == "Candidate source identity")["status"], "FAIL")
+            self.assertEqual(next(item for item in subject_stale_checks if item["label"] == "Certification freshness")["status"], "FAIL")
 
     def test_model_identity_composes_across_validation_high_risk_and_held_out(self):
         subject = "a" * 40

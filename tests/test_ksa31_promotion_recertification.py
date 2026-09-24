@@ -2,23 +2,28 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
-from evals.release import _champion, _load_prior_recertification_inputs
+from evals.release import _candidate_spec_for_release, _champion, _load_prior_recertification_inputs, build_release_manifest
 from k_slide.certification import (
     EvidenceValidationError,
     canonical_bytes,
     canonical_candidate_factors,
     candidate_deployment_fingerprint,
+    canonical_dependency_inventory,
     certification_fingerprint,
+    dependency_inventory_hash,
     load_evidence,
     write_evidence,
 )
 from k_slide.evidence_adapters import build_machine_evidence
 from k_slide.model_policy import load_model_policy
 from k_slide.recertification import (
+    MODEL_PROMOTION_EVIDENCE,
     build_champion_promotion,
     build_recertification_record,
     candidate_change_impact,
@@ -28,9 +33,11 @@ from k_slide.recertification import (
     validate_champion_promotion,
     validate_recertification_record,
 )
+from k_slide.production import ReleaseState
 from tests.test_certification_closure import (
     _candidate_model_sources,
     _candidate_spec,
+    _heavy_sources,
     _runtime_sources,
     _sha,
     _write,
@@ -272,6 +279,498 @@ class KSA31PromotionRecertificationTests(unittest.TestCase):
         unknown["future_runtime_dimension"] = "unsafe"
         with self.assertRaises(EvidenceValidationError):
             candidate_change_impact(self.candidate, unknown)
+
+    def test_subject_transition_stales_champion_but_only_policy_attestation_can_cross(self):
+        old_records: dict[str, dict] = {}
+        policy_path = self.root / "subject-policy.json"
+        write_evidence(
+            policy_path,
+            evidence_type="model_data_policy",
+            subject_git_sha=self.subject,
+            deployment_fingerprint=self.deployment,
+            payload={"attestation_id": "subject-independent-policy", "approved_for_internal_artifacts": True},
+            generated_at="2026-09-24T00:00:00Z",
+            candidate_spec=self.candidate,
+        )
+        old_records["model_data_policy"] = load_evidence(
+            policy_path,
+            expected_type="model_data_policy",
+            subject_git_sha=self.subject,
+            deployment_fingerprint=self.deployment,
+            candidate_spec=self.candidate,
+            require_candidate_spec=True,
+        )
+        changed = copy.deepcopy(self.candidate)
+        changed["subject_git_sha"] = "e" * 40
+        impact = candidate_change_impact(self.candidate, changed)
+        self.assertTrue(impact["champion_affected"])
+        self.assertNotEqual(impact["old_deployment_fingerprint"], impact["new_deployment_fingerprint"])
+        champion_path = self.root / "evals" / "champion.json"
+        _write(champion_path, champion_document_from_promotion(self.promotion))
+        _value, _hash, champion_blockers = _champion(
+            self.root,
+            records=self.records,
+            policy=self.policy,
+            deployment_fp=candidate_deployment_fingerprint(changed),
+            candidate_spec=changed,
+        )
+        self.assertTrue(champion_blockers)
+        for evidence_type in (
+            "runtime",
+            "heavy_runtime",
+            "security",
+            *MODEL_PROMOTION_EVIDENCE,
+            "internal_bilingual",
+            "zero_korean_comprehension",
+            "reliability",
+            "pilot_canary",
+            "governance",
+        ):
+            self.assertIn(evidence_type, impact["affected_evidence"])
+        self.assertNotIn("model_data_policy", impact["affected_evidence"])
+        recertification = build_recertification_record(
+            self.candidate,
+            changed,
+            old_records,
+            ["model_data_policy"],
+            prior_release_manifest_sha256="9" * 64,
+        )
+        exemption = recertification["exemptions"][0]
+        self.assertEqual(exemption["old_dependency_projection_identity"], exemption["new_dependency_projection_identity"])
+        self.assertEqual(exemption["evidence_identity"], old_records["model_data_policy"]["evidence_identity"])
+        with self.assertRaises(EvidenceValidationError):
+            build_recertification_record(
+                self.candidate,
+                changed,
+                {"model_validation": self.records["model_validation"]},
+                ["model_validation"],
+                prior_release_manifest_sha256="9" * 64,
+            )
+
+    def test_end_to_end_internal_release_bridges_immutable_model_evidence(self):
+        from k_slide.bilingual_adjudication import build_internal_bilingual_payload
+        from tests.bilingual_review_fixtures import make_review_contract
+        from tests.zero_korean_study_fixtures import zero_korean_payload
+
+        subject = "a" * 40
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = root / ".k-slide-config"
+            config.mkdir()
+            shutil.copytree(Path.cwd() / "prompts", root / "prompts")
+            shutil.copytree(Path.cwd() / "termbase", root / "termbase")
+            shutil.copytree(Path.cwd() / ".opencode" / "agents", root / ".opencode" / "agents")
+            shutil.copyfile(Path.cwd() / "constraints-production.txt", root / "constraints-production.txt")
+            asset_folder = root / "ocr"
+            asset_folder.mkdir()
+            (asset_folder / "PaddleOCR.yaml").write_text("pipeline: test\n", encoding="utf-8")
+            (asset_folder / "alternate.yaml").write_text("pipeline: alternate\n", encoding="utf-8")
+            (asset_folder / "weights.bin").write_bytes(b"test-paddle-weights")
+            asset_manifest = asset_folder / "manifest.json"
+            _write(asset_manifest, {
+                "provider": "paddle",
+                "paddlex_config": "PaddleOCR.yaml",
+                "files": [
+                    {"path": name, "sha256": _sha(asset_folder / name)}
+                    for name in ("PaddleOCR.yaml", "alternate.yaml", "weights.bin")
+                ],
+            })
+            inventory = canonical_dependency_inventory(
+                [{"name": name, "version": "1.0"} for name in ("Pillow", "PyMuPDF", "python-pptx", "paddlepaddle", "paddleocr")]
+            )
+            _write(config / "production-dependency-inventory.json", inventory)
+            candidate = _candidate_spec(
+                subject,
+                ocr_provider="paddle",
+                asset_manifest="ocr/manifest.json",
+                asset_hash=_sha(asset_manifest),
+                root=root,
+            )
+            candidate["constraints_sha256"] = _sha(root / "constraints-production.txt")
+            candidate["resolved_dependency_set_sha256"] = dependency_inventory_hash(inventory)
+            old_candidate_path = _write(config / "old-candidate.json", candidate)
+            policy = load_model_policy(root)
+            split = __import__("evals.scenarios", fromlist=["split_manifest"]).split_manifest()
+            candidate, _ = _candidate_spec_for_release(
+                root,
+                candidate_profile=old_candidate_path,
+                subject_sha=subject,
+                model=None,
+                policy=policy,
+                corpus=split,
+                require_identity=True,
+            )
+            self.assertEqual(candidate["resolved_dependency_set_sha256"], dependency_inventory_hash(inventory))
+            old_deployment = candidate_deployment_fingerprint(candidate)
+            old_paths: dict[str, Path] = {}
+            old_records: dict[str, dict] = {}
+
+            runtime_folder = root / "runtime"
+            runtime_folder.mkdir()
+            runtime_path = runtime_folder / "evidence.json"
+            build_machine_evidence(
+                runtime_path,
+                evidence_type="runtime",
+                subject_git_sha=subject,
+                deployment_fingerprint=old_deployment,
+                sources=_runtime_sources(runtime_folder, provider="google", ocr_provider="paddle"),
+                root=root,
+                candidate_spec=candidate,
+            )
+            old_paths["runtime"] = runtime_path
+
+            heavy_folder = root / "heavy_runtime"
+            heavy_folder.mkdir()
+            heavy_path = heavy_folder / "evidence.json"
+            build_machine_evidence(
+                heavy_path,
+                evidence_type="heavy_runtime",
+                subject_git_sha=subject,
+                deployment_fingerprint=old_deployment,
+                sources=_heavy_sources(
+                    heavy_folder,
+                    full=True,
+                    subject=subject,
+                    deployment=old_deployment,
+                    ocr_manifest=asset_manifest,
+                    ocr_context={
+                        "status": "PASS",
+                        "runtime_verified": True,
+                        "after_engine": True,
+                        "manifest_sha256": _sha(asset_manifest),
+                        "files": [
+                            {"path": name, "sha256": _sha(asset_folder / name)}
+                            for name in ("PaddleOCR.yaml", "alternate.yaml", "weights.bin")
+                        ],
+                        "paddlex_config": "PaddleOCR.yaml",
+                        "paddlex_config_sha256": _sha(asset_folder / "PaddleOCR.yaml"),
+                        "offline_assets_required": True,
+                    },
+                ),
+                root=root,
+                candidate_spec=candidate,
+            )
+            old_paths["heavy_runtime"] = heavy_path
+
+            bilingual_manifest = None
+            for evidence_type, model_split, repeats in (
+                ("model_validation", "validation", 3),
+                ("model_high_risk_stability", "validation", 5),
+                ("model_held_out", "held_out", 3),
+            ):
+                folder = root / evidence_type
+                folder.mkdir()
+                sources = _candidate_model_sources(
+                    folder,
+                    split=model_split,
+                    repeats=repeats,
+                    subject=subject,
+                    deployment=old_deployment,
+                    candidate=candidate,
+                )
+                if evidence_type == "model_validation":
+                    bilingual_manifest = json.loads(sources["experiment_manifest"].read_text(encoding="utf-8"))["corpus_manifest"]
+                path = folder / "evidence.json"
+                build_machine_evidence(
+                    path,
+                    evidence_type=evidence_type,
+                    subject_git_sha=subject,
+                    deployment_fingerprint=old_deployment,
+                    sources=sources,
+                    root=root,
+                    candidate_spec=candidate,
+                )
+                old_paths[evidence_type] = path
+
+            if bilingual_manifest is None:
+                self.fail("model validation fixture did not provide the governed review corpus")
+            bilingual_payload = build_internal_bilingual_payload(
+                make_review_contract(subject=subject, deployment=old_deployment, manifest=bilingual_manifest)
+            )
+            zero_payload = zero_korean_payload(candidate, bilingual_payload)
+            payloads = {
+                "internal_bilingual": bilingual_payload,
+                "zero_korean_comprehension": zero_payload,
+                "model_data_policy": {"attestation_id": "old-policy", "approved_for_internal_artifacts": True},
+            }
+            for evidence_type, payload in payloads.items():
+                folder = root / evidence_type
+                folder.mkdir()
+                path = folder / "evidence.json"
+                write_evidence(
+                    path,
+                    evidence_type=evidence_type,
+                    subject_git_sha=subject,
+                    deployment_fingerprint=old_deployment,
+                    payload=payload,
+                    generated_at="2026-09-24T00:00:00Z",
+                    candidate_spec=candidate,
+                )
+                old_paths[evidence_type] = path
+
+            for evidence_type, path in old_paths.items():
+                old_records[evidence_type] = load_evidence(
+                    path,
+                    expected_type=evidence_type,
+                    subject_git_sha=subject,
+                    deployment_fingerprint=old_deployment,
+                    repository_root=root,
+                    candidate_spec=candidate,
+                    require_candidate_spec=True,
+                )
+
+            (root / "evals").mkdir()
+            old_promotion = build_champion_promotion(
+                candidate,
+                {key: value for key, value in old_records.items() if key in MODEL_PROMOTION_EVIDENCE},
+                policy=policy,
+                root=root,
+                state="FROZEN_PROMOTED",
+            )
+            _write(root / "evals" / "champion.json", champion_document_from_promotion(old_promotion))
+            prior_release = build_release_manifest(
+                root,
+                requested_state=ReleaseState.INTERNAL_VALIDATED.value,
+                subject_sha=subject,
+                candidate_profile=old_candidate_path,
+                evidence_paths=old_paths,
+            )
+            self.assertEqual(prior_release["release_state"], ReleaseState.INTERNAL_VALIDATED.value, prior_release.get("blocking_reasons"))
+            prior_manifest_path = root / "release" / "prior.json"
+            prior_manifest_path.parent.mkdir()
+            _write(prior_manifest_path, prior_release)
+
+            new_candidate = copy.deepcopy(candidate)
+            new_candidate["retention_policy"]["operational_metadata_retention_days"] += 1
+            new_candidate_path = _write(config / "new-candidate.json", new_candidate)
+            new_candidate, _ = _candidate_spec_for_release(
+                root,
+                candidate_profile=new_candidate_path,
+                subject_sha=subject,
+                model=None,
+                policy=policy,
+                corpus=split,
+                require_identity=True,
+            )
+            self.assertNotEqual(candidate_deployment_fingerprint(new_candidate), old_deployment)
+            self.assertEqual(
+                candidate_change_impact(candidate, new_candidate)["affected_evidence"],
+                {"model_data_policy": ["retention_policy"], "pilot_canary": ["retention_policy"]},
+            )
+
+            carry_types = (
+                "runtime",
+                "heavy_runtime",
+                "model_validation",
+                "model_high_risk_stability",
+                "internal_bilingual",
+                "zero_korean_comprehension",
+            )
+            recertification, carried, _carried_paths, _ = _load_prior_recertification_inputs(
+                root,
+                prior_release_manifest=Path("release/prior.json"),
+                carry_forward_evidence=carry_types,
+                candidate=new_candidate,
+            )
+            self.assertEqual(set(carried), set(carry_types))
+            replacement_held_out_folder = root / "replacement-model-held-out"
+            replacement_held_out_folder.mkdir()
+            replacement_held_out_sources = _candidate_model_sources(
+                replacement_held_out_folder,
+                split="held_out",
+                repeats=3,
+                subject=subject,
+                deployment=candidate_deployment_fingerprint(new_candidate),
+                candidate=new_candidate,
+            )
+            replacement_held_out_path = replacement_held_out_folder / "evidence.json"
+            build_machine_evidence(
+                replacement_held_out_path,
+                evidence_type="model_held_out",
+                subject_git_sha=subject,
+                deployment_fingerprint=candidate_deployment_fingerprint(new_candidate),
+                sources=replacement_held_out_sources,
+                root=root,
+                candidate_spec=new_candidate,
+            )
+            replacement_held_out = load_evidence(
+                replacement_held_out_path,
+                expected_type="model_held_out",
+                subject_git_sha=subject,
+                deployment_fingerprint=candidate_deployment_fingerprint(new_candidate),
+                repository_root=root,
+                candidate_spec=new_candidate,
+                require_candidate_spec=True,
+            )
+            promotion_records = {**carried, "model_held_out": replacement_held_out}
+            new_promotion = build_champion_promotion(
+                new_candidate,
+                promotion_records,
+                policy=policy,
+                root=root,
+                state="FROZEN_PROMOTED",
+                recertification=recertification,
+                prior_records=carried,
+            )
+            self.assertEqual(new_promotion["contract_version"], "1.1")
+            _write(root / "evals" / "champion.json", champion_document_from_promotion(new_promotion))
+
+            replacement_folder = root / "replacement-model-data-policy"
+            replacement_folder.mkdir()
+            replacement_path = replacement_folder / "evidence.json"
+            write_evidence(
+                replacement_path,
+                evidence_type="model_data_policy",
+                subject_git_sha=subject,
+                deployment_fingerprint=candidate_deployment_fingerprint(new_candidate),
+                payload={"attestation_id": "new-policy", "approved_for_internal_artifacts": True},
+                generated_at="2026-09-24T00:01:00Z",
+                candidate_spec=new_candidate,
+            )
+
+            # The predecessor promotion cannot use the old envelopes at the new boundary.
+            _write(root / "evals" / "champion.json", champion_document_from_promotion(old_promotion))
+            unbridged = build_release_manifest(
+                root,
+                requested_state=ReleaseState.INTERNAL_VALIDATED.value,
+                subject_sha=subject,
+                candidate_profile=new_candidate_path,
+                evidence_paths={
+                    "model_data_policy": replacement_path,
+                    "model_held_out": replacement_held_out_path,
+                },
+                prior_release_manifest=Path("release/prior.json"),
+                carry_forward_evidence=carry_types,
+            )
+            self.assertNotEqual(unbridged["release_state"], ReleaseState.INTERNAL_VALIDATED.value)
+            self.assertTrue(unbridged.get("blocking_reasons"))
+
+            _write(root / "evals" / "champion.json", champion_document_from_promotion(new_promotion))
+            new_release = build_release_manifest(
+                root,
+                requested_state=ReleaseState.INTERNAL_VALIDATED.value,
+                subject_sha=subject,
+                candidate_profile=new_candidate_path,
+                evidence_paths={
+                    "model_data_policy": replacement_path,
+                    "model_held_out": replacement_held_out_path,
+                },
+                prior_release_manifest=Path("release/prior.json"),
+                carry_forward_evidence=carry_types,
+            )
+            self.assertEqual(new_release["release_state"], ReleaseState.INTERNAL_VALIDATED.value, new_release.get("blocking_reasons"))
+            self.assertNotIn("blocking_reasons", new_release)
+            self.assertEqual(new_release["deployment_fingerprint"], candidate_deployment_fingerprint(new_candidate))
+            self.assertEqual(new_release["evidence_hashes"]["model_validation"], old_records["model_validation"]["evidence_identity"])
+            self.assertEqual(new_release["evidence_hashes"]["model_held_out"], replacement_held_out["evidence_identity"])
+            self.assertEqual(new_release["evidence_envelope_hashes"]["model_held_out"], replacement_held_out["envelope_sha256"])
+            self.assertNotEqual(new_release["evidence_hashes"]["model_data_policy"], old_records["model_data_policy"]["evidence_identity"])
+            self.assertEqual(new_release["promotion_identity"], new_promotion["promotion_identity"])
+            self.assertEqual(new_release["recertification"]["recertification_identity"], recertification["recertification_identity"])
+            self.assertEqual(new_promotion["carried_model_evidence"]["model_validation"]["evidence_identity"], old_records["model_validation"]["evidence_identity"])
+            self.assertEqual(set(new_promotion["carried_model_evidence"]), {"model_validation", "model_high_risk_stability"})
+            exemptions_by_type = {item["evidence_type"]: item for item in recertification["exemptions"]}
+            self.assertEqual(new_promotion["carried_model_evidence"]["model_validation"]["exemption_identity"], exemptions_by_type["model_validation"]["exemption_identity"])
+            self.assertNotEqual(prior_release["deployment_fingerprint"], new_release["deployment_fingerprint"])
+            freshness_promotion = validate_champion_promotion(
+                new_promotion,
+                new_candidate,
+                {"model_held_out": replacement_held_out},
+                policy=policy,
+                root=root,
+                recertification=recertification,
+                prior_records=carried,
+            )
+            self.assertEqual(freshness_promotion["promotion_identity"], new_release["promotion_identity"])
+            expected_fingerprint = certification_fingerprint(
+                deployment=new_release["deployment_fingerprint"],
+                evidence_hashes=new_release["evidence_hashes"],
+                release_state=new_release["release_state"],
+                champion_hash=new_release["champion_hash"],
+                candidate_identity=new_release["candidate_identity"],
+                promotion_identity=new_release["promotion_identity"],
+                recertification_identity=recertification["recertification_identity"],
+                exemption_identities=recertification_exemption_identities(recertification),
+            )
+            self.assertEqual(new_release["certification_fingerprint"], expected_fingerprint)
+            changed_candidate = copy.deepcopy(new_candidate)
+            changed_candidate["retention_policy"]["operational_metadata_retention_days"] += 1
+            with self.assertRaises(EvidenceValidationError):
+                validate_champion_promotion(
+                    new_promotion,
+                    changed_candidate,
+                    {"model_held_out": replacement_held_out},
+                    policy=policy,
+                    root=root,
+                    recertification=recertification,
+                    prior_records=carried,
+                )
+
+            forged = copy.deepcopy(recertification)
+            forged["exemptions"][0]["new_dependency_projection_identity"] = "0" * 64
+            forged["exemptions"][0]["exemption_identity"] = _content_identity(forged["exemptions"][0], "exemption_identity")
+            forged["recertification_identity"] = _content_identity(forged, "recertification_identity")
+            with self.assertRaises(EvidenceValidationError):
+                validate_champion_promotion(
+                    new_promotion,
+                    new_candidate,
+                    carried,
+                    policy=policy,
+                    root=root,
+                    recertification=forged,
+                    prior_records=carried,
+                )
+
+            deleted = copy.deepcopy(recertification)
+            deleted["exemptions"] = [item for item in deleted["exemptions"] if item["evidence_type"] != "model_validation"]
+            deleted["recertification_identity"] = _content_identity(deleted, "recertification_identity")
+            with self.assertRaises(EvidenceValidationError):
+                validate_champion_promotion(
+                    new_promotion,
+                    new_candidate,
+                    carried,
+                    policy=policy,
+                    root=root,
+                    recertification=deleted,
+                    prior_records=carried,
+                )
+
+            old_manifest_bytes = prior_manifest_path.read_bytes()
+            edited_manifest = json.loads(old_manifest_bytes.decode("utf-8"))
+            edited_manifest["generated_at"] = "2026-09-24T00:02:00+00:00"
+            _write(prior_manifest_path, edited_manifest)
+            changed_recertification, changed_carried, _changed_paths, _ = _load_prior_recertification_inputs(
+                root,
+                prior_release_manifest=Path("release/prior.json"),
+                carry_forward_evidence=carry_types,
+                candidate=new_candidate,
+            )
+            with self.assertRaises(EvidenceValidationError):
+                validate_champion_promotion(
+                    new_promotion,
+                    new_candidate,
+                    changed_carried,
+                    policy=policy,
+                    root=root,
+                    recertification=changed_recertification,
+                    prior_records=changed_carried,
+                )
+            prior_manifest_path.write_bytes(old_manifest_bytes)
+
+            carried_model_path = Path(carried["model_validation"]["path"])
+            old_envelope = carried_model_path.read_bytes()
+            carried_model_path.write_bytes(old_envelope + b" ")
+            with self.assertRaises(EvidenceValidationError):
+                validate_champion_promotion(
+                    new_promotion,
+                    new_candidate,
+                    carried,
+                    policy=policy,
+                    root=root,
+                    recertification=recertification,
+                    prior_records=carried,
+                )
+            carried_model_path.write_bytes(old_envelope)
 
     def test_unaffected_evidence_requires_projection_bound_exemption_and_affected_evidence_is_rejected(self):
         runtime_dir = self.root / "runtime-old"

@@ -1,11 +1,11 @@
 """Closed champion promotion and scoped evidence recertification contracts.
 
-The dependency registry below mirrors the evidence producer contracts: runtime
-and model-run evidence exercise the candidate execution path; heavy-runtime and
-security evidence inspect their declared runtime/dependency subjects; governance
-evidence observes the repository subject; human/data-policy and pilot evidence
-bind the policy or deployed behavior they attest.  It is intentionally kept in
-repository code so callers cannot narrow impact with a supplied mapping.
+The dependency registry below mirrors the evidence producer contracts: runtime,
+model-run, heavy-runtime, security, and governance evidence inspect or exercise
+the exact repository subject. Model-data policy evidence is an attestation over
+explicit candidate policy fields and has no repository-code input; it can cross
+a subject transition only when its deterministic dependency projection is
+unchanged. The registry is repository-owned so callers cannot narrow impact.
 """
 
 from __future__ import annotations
@@ -31,7 +31,8 @@ from .certification import (
 
 
 CHAMPION_PROMOTION_CONTRACT_VERSION = "1.0"
-CHANGE_IMPACT_POLICY_VERSION = "1.0"
+CHAMPION_PROMOTION_RECERTIFICATION_VERSION = "1.1"
+CHANGE_IMPACT_POLICY_VERSION = "1.1"
 RECERTIFICATION_CONTRACT_VERSION = "1.0"
 CHAMPION_PROMOTION_STATES = frozenset({"PROMOTED", "FROZEN_PROMOTED"})
 MODEL_PROMOTION_EVIDENCE = (
@@ -105,7 +106,9 @@ def _promotion_evidence_details(
     *,
     policy: Any,
     root: Path | None,
-) -> tuple[dict[str, dict[str, Any]], str, str]:
+    recertification: dict[str, Any] | None = None,
+    prior_records: dict[str, dict[str, Any]] | None = None,
+) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]], str, str]:
     candidate = canonical_candidate_factors(candidate_spec)
     deployment = candidate_deployment_fingerprint(candidate_spec)
     subject = str(candidate_spec.get("subject_git_sha") or "")
@@ -148,22 +151,75 @@ def _promotion_evidence_details(
     except (ImportError, TypeError, ValueError) as exc:
         raise EvidenceValidationError("promotion candidate behavior configuration cannot be canonicalized") from exc
     canonical_effective = policy.canonical_effective(requested=requested, effective=effective)
-    for evidence_type in MODEL_PROMOTION_EVIDENCE:
-        record = _load_promotion_evidence(
-            evidence_type,
-            records.get(evidence_type),
-            candidate_spec=candidate_spec,
+    prior_records = prior_records or {}
+    old_candidate: dict[str, Any] | None = None
+    exemption_by_type: dict[str, dict[str, Any]] = {}
+    recertification_identity: str | None = None
+    if recertification is not None:
+        validate_recertification_record(
+            recertification,
+            candidate_spec,
+            prior_records,
             root=root,
+            expected_prior_release_manifest_sha256=str(recertification.get("prior_release_manifest_sha256") or ""),
         )
+        old_candidate_value = recertification.get("old_candidate_spec")
+        if not isinstance(old_candidate_value, dict):
+            raise EvidenceValidationError("promotion recertification has no exact old candidate")
+        old_candidate = old_candidate_value
+        exemptions = recertification.get("exemptions")
+        if not isinstance(exemptions, list):
+            raise EvidenceValidationError("promotion recertification exemptions are malformed")
+        exemption_by_type = {
+            str(item["evidence_type"]): item
+            for item in exemptions
+            if isinstance(item, dict) and isinstance(item.get("evidence_type"), str)
+        }
+        recertification_identity = str(recertification.get("recertification_identity") or "")
+    elif prior_records:
+        raise EvidenceValidationError("promotion prior evidence requires a recertification bridge")
+    for evidence_type in MODEL_PROMOTION_EVIDENCE:
+        exemption = exemption_by_type.get(evidence_type)
+        carried = exemption is not None
+        if carried:
+            assert old_candidate is not None
+            record = _validate_old_evidence(
+                evidence_type,
+                prior_records.get(evidence_type),
+                old_candidate=old_candidate,
+                root=root,
+            )
+            supplied = records.get(evidence_type)
+            if supplied is not None and (
+                supplied.get("evidence_identity") != record.get("evidence_identity")
+                or supplied.get("envelope_sha256") != record.get("envelope_sha256")
+                or supplied.get("path") != record.get("path")
+            ):
+                raise EvidenceValidationError(f"promotion carried {evidence_type} evidence differs from the recertified envelope")
+        else:
+            record = _load_promotion_evidence(
+                evidence_type,
+                records.get(evidence_type),
+                candidate_spec=candidate_spec,
+                root=root,
+            )
         payload = record.get("payload")
         if not isinstance(payload, dict):
             raise EvidenceValidationError(f"promotion {evidence_type} payload is missing")
         validate_evidence_payload(evidence_type, payload)
         validate_model_evidence_corpus_binding(evidence_type, payload, candidate_spec)
-        if record.get("subject_git_sha") != subject or record.get("deployment_fingerprint") != deployment:
-            raise EvidenceValidationError(f"promotion {evidence_type} evidence is cross-candidate")
-        if not isinstance(record.get("candidate_spec"), dict) or canonical_candidate_factors(record["candidate_spec"]) != candidate:
-            raise EvidenceValidationError(f"promotion {evidence_type} evidence does not bind the exact candidate")
+        if carried:
+            assert old_candidate is not None and exemption is not None and recertification_identity is not None
+            old_factors = canonical_candidate_factors(old_candidate)
+            if record.get("subject_git_sha") != old_candidate.get("subject_git_sha") or record.get("deployment_fingerprint") != candidate_deployment_fingerprint(old_candidate):
+                raise EvidenceValidationError(f"promotion carried {evidence_type} evidence is not bound to the exact old candidate")
+            if not isinstance(record.get("candidate_spec"), dict) or canonical_candidate_factors(record["candidate_spec"]) != old_factors:
+                raise EvidenceValidationError(f"promotion carried {evidence_type} evidence does not bind the exact old candidate")
+        else:
+            if record.get("subject_git_sha") != subject or record.get("deployment_fingerprint") != deployment:
+                raise EvidenceValidationError(f"promotion {evidence_type} evidence is cross-candidate")
+            if not isinstance(record.get("candidate_spec"), dict) or canonical_candidate_factors(record["candidate_spec"]) != candidate:
+                raise EvidenceValidationError(f"promotion {evidence_type} evidence does not bind the exact candidate")
         if payload.get("requested_model") != requested or payload.get("effective_model") != canonical_effective:
             raise EvidenceValidationError(f"promotion {evidence_type} evidence model does not match the candidate")
         if payload.get("target_model_approved") is not True or payload.get("quality_metrics_authoritative") is not True:
@@ -183,24 +239,50 @@ def _promotion_evidence_details(
             raise EvidenceValidationError(f"promotion {evidence_type} corpus role or purpose is ineligible")
         evidence_identity = _require_identity(record.get("evidence_identity"), f"promotion {evidence_type} evidence identity")
         envelope_hash = _require_identity(record.get("envelope_sha256"), f"promotion {evidence_type} envelope hash")
-        details[evidence_type] = {
+        evidence_detail = {
             "evidence_identity": evidence_identity,
             "envelope_sha256": envelope_hash,
-            "subject_git_sha": subject,
-            "deployment_fingerprint": deployment,
+            "subject_git_sha": str(record.get("subject_git_sha") or ""),
+            "deployment_fingerprint": str(record.get("deployment_fingerprint") or ""),
             "requested_model": requested,
             "effective_model": canonical_effective,
             "behavior_configuration_hash": behavior_hash,
             "corpus_set_identity": corpus,
             "evaluation_purpose": expected_purpose,
         }
+        if carried:
+            assert old_candidate is not None and exemption is not None and recertification_identity is not None
+            evidence_detail["carry_forward"] = {
+                "exemption_identity": exemption["exemption_identity"],
+                "old_candidate_identity": {
+                    "subject_git_sha": old_candidate["subject_git_sha"],
+                    "deployment_fingerprint": candidate_deployment_fingerprint(old_candidate),
+                    "candidate_factors_sha256": sha256_bytes(canonical_bytes(canonical_candidate_factors(old_candidate))),
+                },
+                "new_candidate_identity": {
+                    "subject_git_sha": candidate_spec["subject_git_sha"],
+                    "deployment_fingerprint": deployment,
+                    "candidate_factors_sha256": sha256_bytes(canonical_bytes(candidate)),
+                },
+                "recertification_identity": recertification_identity,
+            }
+        details[evidence_type] = evidence_detail
     if len(behavior_hashes) != 1:
         raise EvidenceValidationError("promotion model evidence behavior configuration identities disagree")
     if behavior_hashes != {candidate_behavior_hash}:
         raise EvidenceValidationError("promotion model evidence behavior configuration does not match the candidate")
     if len(formats) != 1:
         raise EvidenceValidationError("promotion model evidence format plans disagree")
-    return details, canonical_effective, next(iter(behavior_hashes))
+    carried_details = {
+        evidence_type: {
+            "evidence_identity": details[evidence_type]["evidence_identity"],
+            "envelope_sha256": details[evidence_type]["envelope_sha256"],
+            **details[evidence_type]["carry_forward"],
+        }
+        for evidence_type in MODEL_PROMOTION_EVIDENCE
+        if "carry_forward" in details[evidence_type]
+    }
+    return details, carried_details, canonical_effective, next(iter(behavior_hashes))
 
 
 def build_champion_promotion(
@@ -210,18 +292,25 @@ def build_champion_promotion(
     policy: Any,
     root: Path | None = None,
     state: str = "PROMOTED",
+    recertification: dict[str, Any] | None = None,
+    prior_records: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build a closed promotion record from exact candidate-bound evidence."""
 
     if state not in CHAMPION_PROMOTION_STATES:
         raise EvidenceValidationError("champion promotion state is not in the closed state set")
-    details, effective, behavior_hash = _promotion_evidence_details(
-        candidate_spec, records, policy=policy, root=root
+    details, carried_details, effective, behavior_hash = _promotion_evidence_details(
+        candidate_spec,
+        records,
+        policy=policy,
+        root=root,
+        recertification=recertification,
+        prior_records=prior_records,
     )
     factors = canonical_candidate_factors(candidate_spec)
     deployment = candidate_deployment_fingerprint(candidate_spec)
     record: dict[str, Any] = {
-        "contract_version": CHAMPION_PROMOTION_CONTRACT_VERSION,
+        "contract_version": CHAMPION_PROMOTION_RECERTIFICATION_VERSION if carried_details else CHAMPION_PROMOTION_CONTRACT_VERSION,
         "state": state,
         "candidate_subject_git_sha": candidate_spec["subject_git_sha"],
         "candidate_deployment_fingerprint": deployment,
@@ -233,6 +322,9 @@ def build_champion_promotion(
         "behavior_configuration_hash": behavior_hash,
         "evidence": details,
     }
+    if carried_details:
+        record["recertification_identity"] = recertification["recertification_identity"] if recertification else None
+        record["carried_model_evidence"] = carried_details
     record["promotion_identity"] = champion_promotion_identity(record)
     return record
 
@@ -244,26 +336,49 @@ def validate_champion_promotion(
     *,
     policy: Any,
     root: Path | None = None,
+    recertification: dict[str, Any] | None = None,
+    prior_records: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Independently revalidate a serialized promotion record."""
 
-    expected_keys = {
+    base_keys = {
         "contract_version", "state", "candidate_subject_git_sha",
         "candidate_deployment_fingerprint", "candidate_factors_sha256",
         "requested_model", "effective_model", "model_policy_sha256",
         "corpus_identity_sha256", "behavior_configuration_hash", "evidence",
         "promotion_identity",
     }
-    if not isinstance(record, dict) or set(record) != expected_keys:
+    if not isinstance(record, dict) or not base_keys <= set(record):
         raise EvidenceValidationError("champion promotion record does not match the closed contract")
-    if record.get("contract_version") != CHAMPION_PROMOTION_CONTRACT_VERSION or record.get("state") not in CHAMPION_PROMOTION_STATES:
+    version = record.get("contract_version")
+    if version == CHAMPION_PROMOTION_CONTRACT_VERSION:
+        if set(record) != base_keys:
+            raise EvidenceValidationError("champion promotion record does not match the closed contract")
+    elif version == CHAMPION_PROMOTION_RECERTIFICATION_VERSION:
+        if set(record) != base_keys | {"recertification_identity", "carried_model_evidence"}:
+            raise EvidenceValidationError("recertified champion promotion record does not match the closed contract")
+    else:
+        raise EvidenceValidationError("champion promotion version or state is unsupported")
+    if record.get("state") not in CHAMPION_PROMOTION_STATES:
         raise EvidenceValidationError("champion promotion version or state is unsupported")
     actual_identity = champion_promotion_identity(record)
     if record.get("promotion_identity") != actual_identity:
         raise EvidenceValidationError("champion promotion identity does not match its content")
-    details, effective, behavior_hash = _promotion_evidence_details(
-        candidate_spec, records, policy=policy, root=root
+    details, carried_details, effective, behavior_hash = _promotion_evidence_details(
+        candidate_spec,
+        records,
+        policy=policy,
+        root=root,
+        recertification=recertification,
+        prior_records=prior_records,
     )
+    if version == CHAMPION_PROMOTION_RECERTIFICATION_VERSION:
+        if not carried_details or not isinstance(recertification, dict):
+            raise EvidenceValidationError("recertified champion promotion has no carried model evidence bridge")
+        if record.get("recertification_identity") != recertification.get("recertification_identity") or record.get("carried_model_evidence") != carried_details:
+            raise EvidenceValidationError("champion promotion recertification provenance is stale or inconsistent")
+    elif carried_details:
+        raise EvidenceValidationError("champion promotion contract 1.0 cannot authorize carried model evidence")
     factors = canonical_candidate_factors(candidate_spec)
     expected = {
         "candidate_subject_git_sha": candidate_spec.get("subject_git_sha"),
@@ -334,7 +449,7 @@ _SECURITY = frozenset({
     "opencode_bootstrap_identity", "opencode_models_identity",
 })
 _MODEL_POLICY_ATTESTATION = frozenset({
-    "subject_git_sha", "candidate_spec_version", "requested_model", "effective_model", "provider", "model_policy", "retention_policy",
+    "candidate_spec_version", "requested_model", "effective_model", "provider", "model_policy", "retention_policy",
     "inference_route_identity", "inference_endpoint_identity", "inference_data_use_policy",
     "egress_policy_version", "egress_policy_hash", "egress_policy_identity",
     "network_egress",
