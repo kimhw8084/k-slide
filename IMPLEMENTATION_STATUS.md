@@ -561,9 +561,59 @@ Compileall on Python 3.11 and 3.12, and git diff --check: passed.
 
 All recertification scenarios use deterministic synthetic evidence in temporary roots. The repository champion remains `UNSET`. No live target-Gemma evaluation or promotion, release, BUILD COMPLETE, or production certification was performed or claimed.
 
+## CHG-16 / KSA-32 protected release-governance BUILD candidate — NOT QUALIFIED
+
+This scoped candidate starts from exact integrated base `81c89b9a0859282a2069be2b4aeab45ec61e518a` on branch `codex/k-slide-chg16-protected-release-governance-01`. Changes remain uncommitted on that base; main was not moved or merged. KSA-32 is the only work item in scope. This is not a BUILD COMPLETE or production-governance claim.
+
+The existing `governance` evidence type and release-state authority remain. Governance contract and repository policy are version `1.0`, identity `2acff5c93ef57400d7f74bf21db72fc5d32139868e2b08daf9b376614af157c0` (contract identity `842f48180e76bb238de739053dad8ec002df4b2a204d56d0a51fcf18d9066cff`). The payload is a closed source-free result rederived during `load_evidence` from 12 raw GitHub snapshot roles; aggregate booleans and source labels no longer qualify. Shared evidence schema `2.6` remains, governance payload validation now requires the new contract fields, adapter version remains `2.8`, and change-impact policy is `1.2` so governance cannot be carried across candidate changes.
+
+The normal required status-check contexts are exactly `test (3.11)`, `test (3.12)`, `security`, `fast (3.11)`, and `fast (3.12)`, bound to GitHub Actions app `15368` (`github-actions`). `heavy` remains dispatch-only. Protection may come from all effective active repository rulesets targeting exactly `main`, or authoritative legacy branch-protection detail. Qualification requires PR-only integration, an independent approval for the current PR head, code-owner review for sensitive changes, stale-review dismissal, latest-push approval, strict app-bound checks, conversation resolution, force-push and deletion prevention, admin enforcement where legacy protection applies, and no bypass actor. Repository ruleset provenance/scope and candidate CODEOWNERS/policy blobs fail closed when ambiguous.
+
+The policy and `.github/CODEOWNERS` cover root `AGENTS.md`, runtime and behavior code, OpenCode, schemas, evaluations, prompts, termbase, security/deploy, workflows and CODEOWNERS, production constraints/configuration, scripts, tests, private-evaluation protocol/configuration, and the zero-Korean study protocol. The only configured principal remains existing owner `@kimhw8084`; no independent user or team was invented. Production-sensitive changes need a matching owner approval from someone other than the PR author.
+
+The deterministic candidate profile resolves against subject `81c89b9a0859282a2069be2b4aeab45ec61e518a` to candidate/deployment identity `690c5d48ae6b518376ddc368ae1ba5d1ba4f2657bf918e3238ba722e570c3448`. It remains incomplete: `provider`, `behavior_configuration`, `corpus_identity.governed_sets`, and `opencode_version` are unresolved. No raw GitHub API capture was performed for this BUILD; the live observations below were supplied in the task and are retained as NOT QUALIFIED evidence.
+
+Current live governance is **NOT QUALIFIED**: `main` reports `protected=false`; repository rulesets are `[]`; the connected App receives `403 Resource not accessible by integration` from the branch-protection detail endpoint; PR #31 has zero reviews. The accepted PR head's five observed checks passed, but successful checks do not replace required protection and independent review. Fabric did not mutate GitHub settings, branch protection, rulesets, collaborators, teams, or reviewer assignments. The dispatch-only capture workflow requires a separately configured read-only `KSLIDE_GOVERNANCE_READ_TOKEN`; a credentialless invocation was verified to stop before capture.
+
+Changed files relative to the integrated base:
+
+- `.codex-fabric/audit.json`
+- `.github/CODEOWNERS`
+- `.github/workflows/k-slide-governance.yml`
+- `IMPLEMENTATION_STATUS.md`
+- `docs/ksa32-release-governance.md`
+- `evals/capture_governance.py`
+- `security/release-governance-policy.json`
+- `src/k_slide/certification.py`
+- `src/k_slide/evidence_adapters.py`
+- `src/k_slide/recertification.py`
+- `src/k_slide/release_governance.py`
+- `tests/ksa32_governance_fixtures.py`
+- `tests/test_certification_closure.py`
+- `tests/test_ksa31_promotion_recertification.py`
+- `tests/test_ksa32_release_governance.py`
+
+Validation performed:
+
+```text
+Focused KSA-32 governance acceptance: 29 tests passed.
+KSA-26–32 governance, recertification, certification/release, and phase regressions: 260 tests passed.
+KSA-21–25 plus KSA-15–20 host/security/runtime regression group: 325 passed; 2 skipped.
+OpenCode TypeScript host attachment regression: passed.
+All 4 repository JSON schemas passed Draft 2020-12 schema validation.
+TranslationPatch Python/schema/TypeScript and provenance regression: 23 tests passed.
+Credentialless manual capture stopped immediately with GOVERNANCE_READ_CREDENTIAL_MISSING (expected).
+Full Python 3.11.7 unittest discovery: 642 passed; 4 optional skips.
+Full isolated Python 3.12.9 unittest discovery: 642 passed; no skips.
+Compileall on Python 3.11.7 and isolated Python 3.12.9: passed.
+git diff --check: passed.
+```
+
+Synthetic active-ruleset and legacy-protection fixtures exercise existing PILOT_APPROVED/PRODUCTION_CERTIFIED validation, but no live release state was advanced. The repository remains NOT QUALIFIED until an authorized operator configures effective protection and an independent current-head code-owner review, then captures complete candidate-bound GitHub facts. The candidate profile and actual production evidence also remain incomplete. No release, production certification, or BUILD COMPLETE claim is made.
+
 ## Next phase
 
-KSA-32 and later work requires a separate scoped request. Authoritative target-Gemma evaluation and the remaining external production-candidate prerequisites are still unproven; no live promotion, release, or production certification was performed here.
+KSA-33 and later work requires a separate scoped request. Authoritative target-Gemma evaluation and the remaining external production-candidate prerequisites are still unproven; no live promotion, release, or production certification was performed here.
 
 ## Architecture decisions
 

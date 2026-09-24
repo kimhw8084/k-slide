@@ -32,7 +32,7 @@ from .certification import (
 
 CHAMPION_PROMOTION_CONTRACT_VERSION = "1.0"
 CHAMPION_PROMOTION_RECERTIFICATION_VERSION = "1.1"
-CHANGE_IMPACT_POLICY_VERSION = "1.1"
+CHANGE_IMPACT_POLICY_VERSION = "1.2"
 RECERTIFICATION_CONTRACT_VERSION = "1.0"
 CHAMPION_PROMOTION_STATES = frozenset({"PROMOTED", "FROZEN_PROMOTED"})
 MODEL_PROMOTION_EVIDENCE = (
@@ -467,7 +467,10 @@ EVIDENCE_DEPENDENCY_FIELDS: dict[str, frozenset[str]] = {
     "reliability": _DEPLOYMENT_EXECUTION,
     "model_data_policy": _MODEL_POLICY_ATTESTATION,
     "pilot_canary": _DEPLOYMENT_EXECUTION | {"corpus_identity"},
-    "governance": frozenset({"subject_git_sha", "candidate_spec_version"}),
+    # GitHub governance is bound to the repository merge subject and exact
+    # deployment candidate.  It must be recollected for every candidate
+    # change, including changes that do not affect runtime evidence.
+    "governance": frozenset(CANDIDATE_INPUT_FIELDS),
 }
 EVIDENCE_DEPENDENCY_FIELDS["pilot_canary"] = EVIDENCE_DEPENDENCY_FIELDS["pilot_canary"] | {"retention_policy"}
 

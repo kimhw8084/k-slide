@@ -1,0 +1,75 @@
+name: K-Slide release-governance evidence capture
+
+on:
+  workflow_dispatch:
+    inputs:
+      pull_request_number:
+        description: "Merged PR whose merge commit is the workflow ref"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Require the separately configured read-only governance credential
+        env:
+          KSLIDE_GOVERNANCE_READ_TOKEN: ${{ secrets.KSLIDE_GOVERNANCE_READ_TOKEN }}
+        run: |
+          test -n "$KSLIDE_GOVERNANCE_READ_TOKEN" || { echo "missing read-only governance credential: KSLIDE_GOVERNANCE_READ_TOKEN" >&2; exit 2; }
+      - name: Install K-Slide evidence dependencies
+        run: python -m pip install --disable-pip-version-check -e ".[pdf,pptx]"
+      - name: Capture minimal GitHub facts and derive candidate-bound governance evidence
+        env:
+          KSLIDE_GOVERNANCE_READ_TOKEN: ${{ secrets.KSLIDE_GOVERNANCE_READ_TOKEN }}
+          PR_NUMBER: ${{ inputs.pull_request_number }}
+        run: |
+          PYTHONPATH=src:. python -m evals.capture_governance \
+            --repository "$GITHUB_REPOSITORY" \
+            --pull-request "$PR_NUMBER" \
+            --subject-sha "$GITHUB_SHA" \
+            --candidate-profile evals/production-candidate.yaml \
+            --root . \
+            --output "$RUNNER_TEMP/k-slide-governance"
+      - name: Upload sanitized governance evidence and qualification status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k-slide-governance-evidence-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/k-slide-governance/evidence.json
+            ${{ runner.temp }}/k-slide-governance/governance-status.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Upload minimal rederivation snapshots to the authorized governance artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k-slide-governance-snapshots-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/k-slide-governance/repository_metadata.json
+            ${{ runner.temp }}/k-slide-governance/target_branch.json
+            ${{ runner.temp }}/k-slide-governance/ruleset_collection.json
+            ${{ runner.temp }}/k-slide-governance/ruleset_details.json
+            ${{ runner.temp }}/k-slide-governance/legacy_branch_protection.json
+            ${{ runner.temp }}/k-slide-governance/pull_request.json
+            ${{ runner.temp }}/k-slide-governance/pull_request_reviews.json
+            ${{ runner.temp }}/k-slide-governance/pull_request_check_runs.json
+            ${{ runner.temp }}/k-slide-governance/pull_request_files.json
+            ${{ runner.temp }}/k-slide-governance/merge_commit.json
+            ${{ runner.temp }}/k-slide-governance/candidate_codeowners.json
+            ${{ runner.temp }}/k-slide-governance/candidate_governance_policy.json
+          if-no-files-found: warn
+          retention-days: 90

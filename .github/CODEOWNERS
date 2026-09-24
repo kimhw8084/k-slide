@@ -1,6 +1,19 @@
 # Production-sensitive K-Slide paths require review by the repository owner.
+/AGENTS.md @kimhw8084
 /src/ @kimhw8084
 /.opencode/ @kimhw8084
 /schemas/ @kimhw8084
 /evals/ @kimhw8084
+/prompts/ @kimhw8084
+/termbase/ @kimhw8084
+/security/ @kimhw8084
+/deploy/ @kimhw8084
 /.github/workflows/ @kimhw8084
+/.github/CODEOWNERS @kimhw8084
+/constraints-production.txt @kimhw8084
+/pyproject.toml @kimhw8084
+/production-slo.yaml @kimhw8084
+/scripts/ @kimhw8084
+/private-evals/ @kimhw8084
+/tests/ @kimhw8084
+/docs/zero-korean-human-study.md @kimhw8084
