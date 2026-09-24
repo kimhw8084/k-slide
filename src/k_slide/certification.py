@@ -19,6 +19,10 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .retention_policy import RetentionPolicy, RETENTION_POLICY_FIELD
+from .bilingual_adjudication import (
+    BilingualAdjudicationError,
+    validate_internal_bilingual_payload,
+)
 from .corpus_governance import (
     CorpusGovernanceError,
     canonical_corpus_identity as canonical_governed_corpus_identity,
@@ -28,7 +32,9 @@ from .corpus_governance import (
 )
 
 
-EVIDENCE_SCHEMA_VERSION = "2.5"
+# 2.6 makes bilingual evidence require paired KSA-29 reviews and adjudication;
+# predecessor envelopes are stale under the shared evidence-schema contract.
+EVIDENCE_SCHEMA_VERSION = "2.6"
 EVIDENCE_TYPES = (
     "runtime",
     "heavy_runtime",
@@ -1542,7 +1548,7 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
         "model_validation": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "hard_gate_failure_count", "hard_gate_failure_types", "hard_gate_pass", "noncritical_floor_pass", "noncritical_semantic_required_count", "noncritical_semantic_correct_count", "noncritical_semantic_equivalence", "material_unresolved_recall", "unresolved_precision", "quality_policy", "quality_policy_identity", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_media_compliance", "vision_input_proven", "locked_terminology_recall", "unexpected_unresolved_rate", "corpus_set_identity", "evaluation_purpose"),
         "model_high_risk_stability": ("requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "hard_gate_failure_count", "hard_gate_failure_types", "hard_gate_pass", "noncritical_floor_pass", "noncritical_semantic_required_count", "noncritical_semantic_correct_count", "noncritical_semantic_equivalence", "material_unresolved_recall", "unresolved_precision", "quality_policy", "quality_policy_identity", "locked_terminology_recall", "required_media_compliance", "worst_critical_frequency", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_group_coverage", "group_critical_frequency", "category_coverage", "vision_input_proven", "corpus_set_identity", "evaluation_purpose"),
         "model_held_out": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "hard_gate_failure_count", "hard_gate_failure_types", "hard_gate_pass", "noncritical_floor_pass", "noncritical_semantic_required_count", "noncritical_semantic_correct_count", "noncritical_semantic_equivalence", "material_unresolved_recall", "unresolved_precision", "quality_policy", "quality_policy_identity", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "corpus_fingerprint", "held_out_fingerprint", "required_media_compliance", "vision_input_proven", "locked_terminology_recall", "unexpected_unresolved_rate", "corpus_set_identity", "evaluation_purpose", "contamination_report_sha256"),
-        "internal_bilingual": ("attestation_id", "artifact_count", "work_unit_count", "critical_business_meaning_errors", "critical_numeric_date_unit_errors", "critical_modality_escalations", "critical_table_mapping_errors", "critical_trend_reversals", "unsupported_critical_executive_claims", "overall_noncritical_semantic_fidelity", "unresolved_precision", "material_unresolved_recall", "quality_policy", "quality_policy_identity", "locked_terminology"),
+        "internal_bilingual": ("attestation_id", "artifact_count", "work_unit_count", "critical_business_meaning_errors", "critical_numeric_date_unit_errors", "critical_modality_escalations", "critical_table_mapping_errors", "critical_trend_reversals", "unsupported_critical_executive_claims", "overall_noncritical_semantic_fidelity", "unresolved_precision", "material_unresolved_recall", "quality_policy", "quality_policy_identity", "locked_terminology", "review_contract_version", "review_contract", "corpus_set_identity", "evaluation_purpose"),
         "zero_korean_comprehension": ("attestation_id", "users", "answers", "critical_question_accuracy", "overall_comprehension", "critical_misunderstanding"),
         "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings", "audited_dependency_set_sha256", "resolved_dependency_set_sha256", "resolved_dependency_lock_sha256", "production_sbom_sha256", "candidate_constraints_sha256", "pip_audit_version", "semgrep_version", "semgrep_ruleset_identity", "semgrep_ruleset_sha256"),
         "reliability": ("timeout_recovery_pass", "resume_pass", "fifty_slide_pass", "concurrency_pass", "slo_pass", "concurrent_runs"),
@@ -1588,6 +1594,10 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
             if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or float(value) < floor:
                 raise EvidenceValidationError(f"model evidence fails the {field} quality floor")
     if evidence_type == "internal_bilingual":
+        try:
+            validate_internal_bilingual_payload(payload)
+        except BilingualAdjudicationError as exc:
+            raise EvidenceValidationError(f"internal bilingual review contract is invalid ({type(exc).__name__})") from exc
         try:
             validate_policy_identity(payload.get("quality_policy"))
         except ValueError as exc:
@@ -1685,6 +1695,7 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
 
 def validate_model_evidence_corpus_binding(evidence_type: str, payload: dict[str, Any], candidate_spec: dict[str, Any] | None) -> None:
     contracts = {
+        "internal_bilingual": ("private_representative", "private_evaluation"),
         "model_validation": ("private_representative", "private_evaluation"),
         "model_high_risk_stability": ("frozen_high_risk", "comparison"),
         "model_held_out": ("sealed_held_out", "promotion"),
@@ -1692,18 +1703,39 @@ def validate_model_evidence_corpus_binding(evidence_type: str, payload: dict[str
     if evidence_type not in contracts:
         return
     if not isinstance(candidate_spec, dict):
-        raise EvidenceValidationError("model certification evidence requires its candidate corpus identity")
+        raise EvidenceValidationError("certification evidence requires its candidate corpus identity")
     role, purpose = contracts[evidence_type]
     candidate_identity = canonical_corpus_identity(candidate_spec.get("corpus_identity"))
     if not is_certification_corpus_ready(candidate_identity):
-        raise EvidenceValidationError("model certification candidate does not bind four eligible governed corpus roles")
+        raise EvidenceValidationError("certification candidate does not bind four eligible governed corpus roles")
     try:
         expected = set_identity_for_role(candidate_identity, role)
         consumed = require_set_purpose(payload.get("corpus_set_identity"), payload.get("evaluation_purpose"))
     except (CorpusGovernanceError, StopIteration) as exc:
-        raise EvidenceValidationError("model evidence corpus identity or purpose is invalid") from exc
+        raise EvidenceValidationError("evidence corpus identity or purpose is invalid") from exc
     if payload.get("evaluation_purpose") != purpose or consumed != expected:
-        raise EvidenceValidationError("model evidence corpus identity does not match candidate-bound role and purpose")
+        raise EvidenceValidationError("evidence corpus identity does not match candidate-bound role and purpose")
+
+
+def validate_internal_bilingual_evidence_binding(
+    payload: dict[str, Any],
+    *,
+    candidate_spec: dict[str, Any] | None,
+    subject_git_sha: str,
+    deployment_fingerprint: str,
+) -> None:
+    """Bind every private bilingual review to its enclosing candidate envelope."""
+
+    contract = payload.get("review_contract") if isinstance(payload, dict) else None
+    if not isinstance(contract, dict):
+        raise EvidenceValidationError("internal bilingual evidence has no review contract")
+    if contract.get("subject_git_sha") != subject_git_sha or contract.get("deployment_fingerprint") != deployment_fingerprint:
+        raise EvidenceValidationError("internal bilingual reviews do not match the evidence candidate")
+    if payload.get("corpus_set_identity") != contract.get("corpus_set_identity") or payload.get("evaluation_purpose") != contract.get("evaluation_purpose"):
+        raise EvidenceValidationError("internal bilingual evidence summary does not match its review contract")
+    if not isinstance(candidate_spec, dict):
+        raise EvidenceValidationError("internal bilingual evidence requires its candidate specification")
+    validate_model_evidence_corpus_binding("internal_bilingual", payload, candidate_spec)
 
 
 def load_evidence(path: Path, *, expected_type: str | None = None, subject_git_sha: str | None = None, deployment_fingerprint: str | None = None, repository_root: Path | None = None, candidate_spec: dict[str, Any] | None = None, require_candidate_spec: bool = False) -> dict[str, Any]:
@@ -1767,7 +1799,14 @@ def load_evidence(path: Path, *, expected_type: str | None = None, subject_git_s
         identity = evidence_identity(value, sources=verified["sources"])
         return {**value, "path": str(path), "sha256": sha256_file(path), "envelope_sha256": sha256_file(path), "evidence_identity": identity}
     validate_evidence_payload(str(evidence_type), payload)
-    if candidate_spec is not None or embedded_candidate is not None or require_candidate_spec:
+    if evidence_type == "internal_bilingual":
+        validate_internal_bilingual_evidence_binding(
+            payload,
+            candidate_spec=candidate_spec or embedded_candidate,
+            subject_git_sha=str(value.get("subject_git_sha") or ""),
+            deployment_fingerprint=evidence_fp,
+        )
+    elif candidate_spec is not None or embedded_candidate is not None or require_candidate_spec:
         validate_model_evidence_corpus_binding(str(evidence_type), payload, candidate_spec or embedded_candidate)
     physical = sha256_file(path)
     return {**value, "path": str(path), "sha256": physical, "envelope_sha256": physical, "evidence_identity": evidence_identity(value)}
@@ -1781,6 +1820,17 @@ def write_evidence(path: Path, *, evidence_type: str, subject_git_sha: str, depl
     if evidence_type in MACHINE_EVIDENCE_TYPES:
         raise EvidenceValidationError("machine evidence must be derived from source results by evidence_adapters")
     validate_evidence_payload(evidence_type, payload)
+    if evidence_type == "internal_bilingual":
+        if candidate_spec is None:
+            raise EvidenceValidationError("internal bilingual evidence requires its candidate specification")
+        if candidate_spec.get("subject_git_sha") != subject_git_sha or candidate_deployment_fingerprint(candidate_spec) != deployment_fingerprint:
+            raise EvidenceValidationError("candidate specification does not match bilingual evidence identity")
+        validate_internal_bilingual_evidence_binding(
+            payload,
+            candidate_spec=candidate_spec,
+            subject_git_sha=subject_git_sha,
+            deployment_fingerprint=deployment_fingerprint,
+        )
     envelope: dict[str, Any] = {
         "schema_version": EVIDENCE_SCHEMA_VERSION,
         "evidence_type": evidence_type,

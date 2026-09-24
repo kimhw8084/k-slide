@@ -456,9 +456,42 @@ Diagnostic runs: an initial `rtk pytest` invocation collected no tests, and an i
 Explicit exclusions: no KSA-28+, no merge to main, no live company/Gemma/private-human qualification, no champion assignment, no release, no BUILD COMPLETE claim, and no production certification claim. `evals/champion.json` remains `UNSET`. Synthetic governed fixtures verify code paths only and are not private-corpus or Gemma quality evidence.
 
 
+## CHG-16 / KSA-29 bilingual gold-truth and adjudication BUILD
+
+This bounded BUILD starts from exact integrated base `4db1132ec1dffcb8a4ec7c8079213fef20787ae5` on branch `codex/k-slide-chg16-bilingual-adjudication-01`. The final work head remains that base with uncommitted candidate changes; no merge or main movement occurred. KSA-29 adds a versioned source-free private bilingual review contract to the existing `internal_bilingual` evidence and release path.
+
+Each reviewed work unit binds two independently recorded human bilingual reviews to the candidate subject and deployment fingerprint, exact active private-representative manifest/item hashes, work-unit/output identities, and KSA-27.2 policy identity. Reviewer, review-record, and review-artifact identities are opaque; reviewer identities and records must be distinct, and reused artifacts/records fail closed. Every truth unit records agreement or disagreement with exact review references. A separate human adjudication record with exact conflicting review references and a closed `correct`/`incorrect` outcome is mandatory for disagreement. AI assistance is accepted only as separately hashed non-authoritative provenance; it cannot be a reviewer or adjudicator. The release payload's metrics are rederived from the complete resolved ledger.
+
+The existing minimums of 50 distinct output artifacts and 200 work units remain enforced, along with all KSA-27.2 metric floors and hard gates. Machine evidence contains only opaque IDs, hashes, counts, closed outcomes, candidate/corpus/policy bindings, and source-free derived metrics; private source, gold, translation, comment, reviewer-name, filename, and path material stays in the approved external environment. `private-evals/README.md` documents the deterministic contract and builder flow.
+
+The shared evidence-envelope schema advances from `2.5` to `2.6`, invalidating predecessor envelopes across evidence types; the machine-adapter version remains `2.8` because KSA-29 strengthens the existing non-machine bilingual attestation path. KSA-26 corpus manifest/hash/contamination rules, KSA-27.2 identity `4656283f7ce7506695e42e54008eea190bfcaab9a971b737280af27405801fd1`, registry `ksa-27-hard-gates-1`, and KSA-28 repetition/matrix/stability/false-DONE semantics remain unchanged.
+
+Changed files:
+
+- `.codex-fabric/audit.json`, `IMPLEMENTATION_STATUS.md`, `private-evals/README.md`
+- `src/k_slide/bilingual_adjudication.py`, `src/k_slide/certification.py`
+- `tests/bilingual_review_fixtures.py`, `tests/test_certification_closure.py`, `tests/test_ksa27_quality_policy.py`, `tests/test_ksa29_bilingual_adjudication.py`
+
+Validation:
+
+```text
+Focused KSA-29, KSA-28, KSA-27, KSA-26, certification/release, and phase32-35: 234 tests passed.
+KSA-21–25 security/compatibility/recovery: 93 tests passed, 1 skipped.
+KSA-15–20 host/security/runtime regressions: 216 tests passed, 1 skipped.
+OpenCode TypeScript host attachment regression: passed.
+All 4 repository JSON schemas: Draft 2020-12 valid.
+TranslationPatch Python/schema/TypeScript checks: 2 tests passed.
+Full Python 3.11.7 unittest discovery: 587 tests passed, 4 optional skips.
+Full isolated Python 3.12.9 unittest discovery: 587 tests passed.
+Compileall on Python 3.11.7 and isolated Python 3.12.9: passed.
+git diff --check: passed.
+```
+
+The release regression supplied valid KSA-29 evidence to the existing release state machine in temporary test roots. It is compatibility evidence only; no live private/company human review, live Gemma run or qualification, champion promotion, release, BUILD COMPLETE, or production certification was performed. The remaining qualification depends on approved external private review material and company/Gemma gates. KSA-30 and later remain out of scope; `evals/champion.json` remains `UNSET`.
+
 ## Next phase
 
-KSA-28 and later work requires a separate scoped change. Existing production-candidate prerequisites remain listed above, but none were run for this KSA-27 implementation.
+KSA-30 and later work requires a separate scoped request. Existing external production-candidate prerequisites remain unproven and were not run by this KSA-29 implementation.
 
 ## Architecture decisions
 
