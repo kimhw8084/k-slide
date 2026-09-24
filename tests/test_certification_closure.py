@@ -58,6 +58,7 @@ from k_slide.model_policy import load_model_policy
 from k_slide.quality_policy import QUALITY_POLICY_IDENTITY, policy_identity_record
 from k_slide.bilingual_adjudication import build_internal_bilingual_payload
 from tests.bilingual_review_fixtures import make_review_contract
+from tests.zero_korean_study_fixtures import zero_korean_payload
 from evals.model_results import aggregate_model_results
 from k_slide.production import ProductionProfile, _asset_manifest_status, _manifest_and_fingerprint_status
 
@@ -1721,17 +1722,19 @@ class CertificationClosureTests(unittest.TestCase):
             (root / "evals").mkdir()
             _write(root / "evals" / "champion.json", {"status": "FROZEN", "model": "google/gemma-4-31b-it", "effective_model": "google/gemma-4-31b-it", "deployment_fingerprint": deployment, "config_hash": model_records["model_validation"]["payload"]["behavior_configuration_hash"]})
             records.update(model_records)
+            bilingual_payload = build_internal_bilingual_payload(make_review_contract(subject=subject, deployment=deployment, manifest=bilingual_manifest))
             payloads = {
-                "internal_bilingual": build_internal_bilingual_payload(make_review_contract(subject=subject, deployment=deployment, manifest=bilingual_manifest)),
-                "zero_korean_comprehension": {"attestation_id": "human-test", "users": 10, "answers": 100, "critical_question_accuracy": 1.0, "overall_comprehension": 0.95, "critical_misunderstanding": 0},
+                "internal_bilingual": bilingual_payload,
+                "zero_korean_comprehension": zero_korean_payload(candidate, bilingual_payload),
                 "model_data_policy": {"attestation_id": "policy-test", "approved_for_internal_artifacts": True},
             }
             for evidence_type, payload in payloads.items():
                 folder = root / evidence_type
                 folder.mkdir()
                 path = folder / "evidence.json"
-                write_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, payload=payload, generated_at="2026-09-09T00:00:00Z", candidate_spec=candidate if evidence_type == "internal_bilingual" else None)
-                records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate if evidence_type == "internal_bilingual" else None)
+                candidate_binding = candidate if evidence_type in {"internal_bilingual", "zero_korean_comprehension"} else None
+                write_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, payload=payload, generated_at="2026-09-09T00:00:00Z", candidate_spec=candidate_binding)
+                records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate_binding)
             state, blockers = derive_release_state("INTERNAL_VALIDATED", records=records, root=root, policy=load_model_policy(root), deployment_fp=deployment, candidate_spec=candidate)
             self.assertEqual(state, "INTERNAL_VALIDATED")
             self.assertEqual(blockers, [])
@@ -2046,9 +2049,10 @@ class CertificationClosureTests(unittest.TestCase):
                 records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate, require_candidate_spec=True)
             (root / "evals").mkdir()
             _write(root / "evals" / "champion.json", {"status": "FROZEN", "model": target, "effective_model": target, "deployment_fingerprint": deployment, "config_hash": records["model_validation"]["payload"]["behavior_configuration_hash"]})
+            bilingual_payload = build_internal_bilingual_payload(make_review_contract(subject=subject, deployment=deployment, manifest=bilingual_manifest))
             attestations = {
-                "internal_bilingual": build_internal_bilingual_payload(make_review_contract(subject=subject, deployment=deployment, manifest=bilingual_manifest)),
-                "zero_korean_comprehension": {"attestation_id": "human-test", "users": 10, "answers": 100, "critical_question_accuracy": 1.0, "overall_comprehension": 0.95, "critical_misunderstanding": 0},
+                "internal_bilingual": bilingual_payload,
+                "zero_korean_comprehension": zero_korean_payload(candidate, bilingual_payload),
                 "model_data_policy": {"attestation_id": "policy-test", "approved_for_internal_artifacts": True},
             }
             for evidence_type, payload in attestations.items():

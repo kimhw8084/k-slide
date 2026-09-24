@@ -489,9 +489,42 @@ git diff --check: passed.
 
 The release regression supplied valid KSA-29 evidence to the existing release state machine in temporary test roots. It is compatibility evidence only; no live private/company human review, live Gemma run or qualification, champion promotion, release, BUILD COMPLETE, or production certification was performed. The remaining qualification depends on approved external private review material and company/Gemma gates. KSA-30 and later remain out of scope; `evals/champion.json` remains `UNSET`.
 
+## CHG-16 / KSA-30 zero-Korean study protocol BUILD
+
+This bounded BUILD starts from exact integrated base `a5eb14ce5cafdbea15d663669149ddd46ceb89e3` on branch `codex/k-slide-chg16-zero-korean-study-01`. The branch remains uncommitted at that base while candidate changes are reviewed; no merge or main movement occurred. KSA-30 freezes a source-free study and analysis contract `1.0` inside the existing `zero_korean_comprehension` evidence and release-state path.
+
+The protocol contains exactly a K-Slide candidate-output arm and a human expert-English-reference arm. It freezes eligible English readers who cannot read Korean, concealed 1:1 individual permuted-block allocation, the intention-to-treat population, eight question identities/categories, exclusions, missing answers, two independent blinded human scores per answer, human bilingual adjudication for disagreement, serious-misleading rule `SMO-1`, the participant-level endpoint, and all analysis assumptions. The original Korean is never a participant-facing condition. The exact candidate output and expert-English question/gold artifact must match a valid KSA-29 bilingual human-review item for the same candidate.
+
+The absolute non-inferiority margin is exactly `0.05`. Planning freezes one-sided alpha `0.025`, the 97.5% one-sided lower-bound convention, target power `0.90`, assumed arm means `0.95`, participant-score SDs `0.10`, equal allocation, and independent participant-level scores. Using `z(1-alpha)=1.959963984540054` and `z(power)=1.281551565544600`, the normal-approximation difference-of-means formula gives raw `n=84.0593844915249361179725304` and a deterministic fixed target of exactly 85 analyzable participants per arm, with no interim or outcome-driven extension. Questions are aggregated within participant; repeated answers do not inflate sample size. Validation independently recomputes `n`, the observed Welch standard error, and the strict lower-bound decision. Each arm retains the previous 100% critical correctness and at least 95% overall comprehension floors; any critical misunderstanding or serious-misleading outcome fails independently.
+
+Study evidence accepts only exact source-free participant assignments, question outcomes, hashes, condition/outcome codes, paired human score records, required human adjudications, and rederived summaries. It rejects extra/private fields, aggregate-only predecessors, duplicate/replayed identities, candidate/protocol/question/gold mismatches, tampered summaries, insufficient arms, failed non-inferiority, serious misleading outcomes, and absolute-floor failures. No participant content or actual study material is recorded in this BUILD. KSA-29 review contract `1.0` and its semantics remain unchanged; the shared evidence envelope remains `2.6` because the strict study-specific payload version invalidates aggregate-only zero-Korean evidence without invalidating unrelated envelopes.
+
+Changed files:
+
+- `.codex-fabric/audit.json`, `IMPLEMENTATION_STATUS.md`, `docs/zero-korean-human-study.md`, `private-evals/README.md`
+- `src/k_slide/zero_korean_study.py`, `src/k_slide/certification.py`, `evals/release.py`
+- `tests/zero_korean_study_fixtures.py`, `tests/test_ksa30_zero_korean_study.py`, `tests/test_certification_closure.py`
+
+Validation:
+
+```text
+Focused KSA-30, KSA-29, KSA-28, KSA-27, KSA-26, certification/release, and phase32-35: 249 tests passed.
+KSA-21–25 compatibility, security, and recovery: 93 tests passed; 1 skipped.
+KSA-15–20 host, security, and runtime regressions: 216 tests passed; 1 skipped.
+OpenCode TypeScript host attachment regression: passed via `npx --yes tsx`.
+All 4 repository JSON schemas passed Draft 2020-12 validation.
+TranslationPatch Python/schema/TypeScript parity: 11 tests passed.
+Full Python 3.11.7 unittest discovery: 602 tests passed; 4 optional skips.
+Full isolated Python 3.12.9 unittest discovery: 602 tests passed.
+Compileall on Python 3.11.7 and isolated Python 3.12.9: passed.
+git diff --check: passed.
+```
+
+The synthetic release regression exercises the existing release state machine using temporary fixtures only. No employee study, company human scoring, expert reference preparation, live private evaluation, candidate promotion, release, BUILD COMPLETE, or production certification was performed. `evals/champion.json` remains `UNSET`; approved company execution and actual source-free results remain future blockers.
+
 ## Next phase
 
-KSA-30 and later work requires a separate scoped request. Existing external production-candidate prerequisites remain unproven and were not run by this KSA-29 implementation.
+KSA-31 and later work requires a separate scoped request. Existing external production-candidate prerequisites remain unproven and were not run by this KSA-30 implementation.
 
 ## Architecture decisions
 
