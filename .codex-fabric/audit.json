@@ -1,55 +1,79 @@
 {
-  "schema_version": 1,
-  "kind": "codex-fabric-audit-evidence",
-  "operation": "BUILD",
-  "status": "EXECUTED_CHANGE",
-  "generated_at": "2026-09-23",
-  "project_id": "k-slide",
-  "request": "chg16-ksa29-bilingual-gold-truth-and-adjudication",
-  "job_id": "CHG-16-KSA-29-BILINGUAL-ADJUDICATION-01",
-  "candidate": {
-    "base_integrated_main": "4db1132ec1dffcb8a4ec7c8079213fef20787ae5",
-    "branch": "codex/k-slide-chg16-bilingual-adjudication-01",
-    "candidate_commit": null,
-    "candidate_source_content_sha256": "c7ad41fd3ba082774f789c1e00c0bc6b5655e7ef8be1c7730cad5922e5b4421a",
-    "changes_committed": false,
-    "final_work_head": "4db1132ec1dffcb8a4ec7c8079213fef20787ae5",
-    "working_tree_changes_present": true
-  },
   "ancestry": {
-    "branch_at_final_identity_check": "codex/k-slide-chg16-bilingual-adjudication-01",
-    "head_at_final_identity_check": "4db1132ec1dffcb8a4ec7c8079213fef20787ae5",
+    "branch_at_final_identity_check": "codex/k-slide-chg16-zero-korean-study-01",
+    "head_at_final_identity_check": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
     "main_moved": false,
     "merge_to_main_performed": false,
-    "starting_head": "4db1132ec1dffcb8a4ec7c8079213fef20787ae5",
+    "starting_head": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
     "starting_head_is_exact_requested_base": true
+  },
+  "candidate": {
+    "base_integrated_main": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
+    "branch": "codex/k-slide-chg16-zero-korean-study-01",
+    "candidate_commit": null,
+    "candidate_source_content_manifest": [
+      {
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "36b94a9291a12fa70f96a586609d81b333d7b89fb964736a4e193302fc0b30dd"
+      },
+      {
+        "path": "docs/zero-korean-human-study.md",
+        "sha256": "c315b9f93ceca955a95f4c0316725066eb18b95a04219a3bfcc20f7c391723c7"
+      },
+      {
+        "path": "evals/release.py",
+        "sha256": "e9e12c421c3c371d2126aacd64d9fdc573d35b5ad23fe00b583d01483572973d"
+      },
+      {
+        "path": "private-evals/README.md",
+        "sha256": "78ceab99d0b073e1634f1a9e4e87192a4ad31e5e57586d345317f14fa5f46d16"
+      },
+      {
+        "path": "src/k_slide/certification.py",
+        "sha256": "4f7d6ec621e5220e750257c084c3995a2769e47653768f7cd040af0b19293fa8"
+      },
+      {
+        "path": "src/k_slide/zero_korean_study.py",
+        "sha256": "8f634e819e88d353602cac46f7aee15da184661ad20544fe65b3712618cb6cfa"
+      },
+      {
+        "path": "tests/test_certification_closure.py",
+        "sha256": "f66c1d5869b00cfa8040ad1bdb0e20a9271abb5d561186c7eb4d02c20255a9ad"
+      },
+      {
+        "path": "tests/test_ksa30_zero_korean_study.py",
+        "sha256": "ec1436969a1e25724fb259da3f93225582a77ed56d820bb330b9889afba6f46c"
+      },
+      {
+        "path": "tests/zero_korean_study_fixtures.py",
+        "sha256": "be3ff7e1963a92b2e4070e1f99d9dd5073339100a893cec988cf1348ff218b8c"
+      }
+    ],
+    "candidate_source_content_sha256": "5d2a36c5cf4f7d0887619232640229ba3f698a2097b4f345f6a100a629b259ed",
+    "candidate_source_hash_scope": "Sorted path and SHA-256 pairs for changed implementation, test, and documentation files; .codex-fabric/audit.json excluded to avoid self-reference.",
+    "candidate_subject_git_sha": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
+    "changes_committed": false,
+    "fabric_candidate_identity_sha256": "be7857aebcf6dcc5510ad411777220ec080b27ba3f60d45ed758f3073f80947c",
+    "final_work_head": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
+    "working_tree_changes_present": true
   },
   "changed_files": [
     ".codex-fabric/audit.json",
     "IMPLEMENTATION_STATUS.md",
+    "docs/zero-korean-human-study.md",
+    "evals/release.py",
     "private-evals/README.md",
-    "src/k_slide/bilingual_adjudication.py",
     "src/k_slide/certification.py",
-    "tests/bilingual_review_fixtures.py",
+    "src/k_slide/zero_korean_study.py",
     "tests/test_certification_closure.py",
-    "tests/test_ksa27_quality_policy.py",
-    "tests/test_ksa29_bilingual_adjudication.py"
+    "tests/test_ksa30_zero_korean_study.py",
+    "tests/zero_korean_study_fixtures.py"
   ],
   "checks": [
     {
-      "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_ksa29_bilingual_adjudication tests.test_ksa28_stability_calibration tests.test_ksa27_quality_policy tests.test_ksa26_corpus_governance tests.test_ksa26_governed_runner tests.test_certification_closure tests.test_phase32 tests.test_phase33 tests.test_phase34 tests.test_phase35",
+      "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_ksa30_zero_korean_study tests.test_ksa29_bilingual_adjudication tests.test_ksa28_stability_calibration tests.test_ksa27_quality_policy tests.test_ksa26_corpus_governance tests.test_ksa26_governed_runner tests.test_certification_closure tests.test_phase32 tests.test_phase33 tests.test_phase34 tests.test_phase35",
       "exit_code": 0,
-      "result": "234 focused KSA-29, KSA-28, KSA-27, KSA-26, certification/release-closure, and phase32-35 contract regression tests passed."
-    },
-    {
-      "command": "rtk env PYTHONPATH=src python3 -m unittest discover -s tests",
-      "exit_code": 0,
-      "result": "Full Python 3.11 discovery: 587 tests passed; 4 skipped."
-    },
-    {
-      "command": "rtk env PYTHONPATH=src /tmp/k-slide-chg16-python312/bin/python -m unittest discover -s tests",
-      "exit_code": 0,
-      "result": "Full isolated Python 3.12 discovery: 587 tests passed; no skips."
+      "result": "249 KSA-30, KSA-29, KSA-28, KSA-27, KSA-26, certification/release, and phase32-35 regression tests passed."
     },
     {
       "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_ksa24_modality_conformance tests.test_ksa24_f24_repairs tests.test_ksa24_f24_real_path tests.test_ksa25_recovery_law",
@@ -62,113 +86,80 @@
       "result": "216 KSA-15–20 host, security, and runtime regressions passed; 1 skipped."
     },
     {
-      "command": "rtk .opencode/node_modules/.bin/tsx tests/test_chg16_opencode_plugin.ts",
+      "command": "rtk proxy npx --yes tsx tests/test_chg16_opencode_plugin.ts",
       "exit_code": 0,
       "result": "OpenCode host attachment TypeScript regression passed."
     },
     {
-      "command": "rtk python3 - <<'PY'\nimport json\nfrom pathlib import Path\nfrom jsonschema import Draft202012Validator\npaths = sorted(Path('.').rglob('*.schema.json'))\nif len(paths) != 4:\n    raise SystemExit(f'expected 4 schemas, found {len(paths)}')\nfor path in paths:\n    schema = json.loads(path.read_text())\n    Draft202012Validator.check_schema(schema)\nprint(f'{len(paths)} Draft 2020-12 schemas valid')\nPY",
+      "command": "rtk proxy python3 -c 'import json; from pathlib import Path; from jsonschema import Draft202012Validator; paths=sorted(Path(\"schemas\").glob(\"*.schema.json\")); [Draft202012Validator.check_schema(json.loads(path.read_text(encoding=\"utf-8\"))) for path in paths]; print(f\"{len(paths)} Draft 2020-12 JSON schemas valid\")'",
       "exit_code": 0,
-      "result": "All 4 repository JSON schemas passed Draft 2020-12 schema validation."
+      "result": "All 4 repository JSON schemas passed Draft 2020-12 validation."
     },
     {
-      "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_phase34 tests.test_phase35",
+      "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_phase34 tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript",
       "exit_code": 0,
-      "result": "TranslationPatch contract, Python/schema/TypeScript parity, and closed enum checks passed (2 contract tests)."
+      "result": "11 TranslationPatch Python/schema/TypeScript contract tests passed."
     },
     {
-      "command": "rtk python3 -m compileall -q src tests evals",
+      "command": "rtk env PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py' -q",
       "exit_code": 0,
-      "result": "Python 3.11 source compilation passed.",
-      "python_version": "3.11.7"
+      "python_version": "3.11.7",
+      "result": "Full Python 3.11.7 discovery: 602 tests passed; 4 optional skips."
     },
     {
-      "command": "rtk /tmp/k-slide-chg16-python312/bin/python -m compileall -q src tests evals",
+      "command": "rtk env PYTHONPATH=src /tmp/k-slide-chg16-python312/bin/python -m unittest discover -s tests -p 'test_*.py' -q",
       "exit_code": 0,
-      "result": "Isolated Python 3.12 source compilation passed.",
-      "python_version": "3.12.9"
+      "python_version": "3.12.9",
+      "result": "Full isolated Python 3.12.9 discovery: 602 tests passed; no skips."
     },
     {
-      "command": "rtk git diff --check",
+      "command": "rtk env PYTHONPATH=src python3 -m compileall -q src tests evals && rtk env PYTHONPATH=src /tmp/k-slide-chg16-python312/bin/python -m compileall -q src tests evals && rtk proxy python3 --version && rtk proxy /tmp/k-slide-chg16-python312/bin/python --version",
+      "exit_code": 0,
+      "python_versions": [
+        "3.11.7",
+        "3.12.9"
+      ],
+      "result": "Compileall passed on Python 3.11.7 and isolated Python 3.12.9."
+    },
+    {
+      "command": "rtk proxy git diff --check",
       "exit_code": 0,
       "result": "No whitespace errors."
+    },
+    {
+      "command": "rtk proxy python3 -c 'import json; json.load(open(\".codex-fabric/audit.json\", encoding=\"utf-8\"))'",
+      "exit_code": 0,
+      "result": "Fabric audit evidence JSON parsed successfully."
     }
   ],
   "diagnostic_checks": [],
-  "scope": {
-    "included": [
-      "Added versioned private bilingual review/adjudication contract 1.0. Each governed work unit binds exactly two separately identified, independently attributable human bilingual reviews to candidate/deployment, corpus set/item and source/gold hashes, KSA-27.2 policy, output artifact, work unit, and truth unit.",
-      "Reviewer identity, review-record identity, and review-artifact identity are opaque; record hashes, closed outcomes, IDs, and source-free aggregate evidence are the only human-review details emitted to repository-visible machine evidence.",
-      "Agreement and disagreement are explicit per truth unit. Every disagreement requires a separate adjudication record bound to and referencing exactly the two conflicting reviews and disputed truth unit before authoritative truth is derived.",
-      "AI records are limited to linked non-authoritative assistance provenance. AI-only reviews, AI reviewer/adjudicator roles, AI-authoritative outcomes, and AI overrides are rejected.",
-      "The existing internal_bilingual evidence and release path derives aggregates from a complete qualifying review/adjudication ledger; legacy aggregate-only attestations and stale evidence fail closed.",
-      "Added deterministic private-environment format documentation, source-free synthetic fixtures, and adversarial KSA-29 tests."
-    ],
-    "excluded": [
-      "KSA-30 and later.",
-      "Live private/company human review or evaluation.",
-      "Live Gemma qualification.",
-      "Champion promotion, release, BUILD COMPLETE, or production certification.",
-      "Merge, rebase, or movement of main or the requested branch."
-    ]
-  },
-  "policy_and_schema_preservation": {
-    "evidence_schema_version": "2.6",
-    "predecessor_evidence_schema_version": "2.5; predecessor evidence is rejected by the current loader, including aggregate-only internal_bilingual attestations.",
-    "evidence_schema_advance_scope": "Global envelope version advance from 2.5 to 2.6, following repository evidence-schema convention; no adapter version change.",
-    "internal_bilingual_contract_version": "1.0",
-    "adapter_version": "2.8 unchanged",
-    "quality_policy": "ksa-27.2",
-    "quality_policy_identity_sha256": "4656283f7ce7506695e42e54008eea190bfcaab9a971b737280af27405801fd1",
-    "hard_gate_registry": "ksa-27-hard-gates-1",
-    "KSA-26_manifest_hash_and_contamination_rules": "Preserved.",
-    "KSA-27_thresholds_semantic_gates_candidate_binding_and_release_blockers": "Preserved.",
-    "KSA-28_repetition_matrix_stability_and_false_DONE_semantics": "Preserved.",
-    "security_privacy_and_tenant_rules": "Preserved."
-  },
   "environment": {
-    "python_3_11": "Python 3.11.7",
-    "python_3_12": "Isolated Python 3.12.9 at /tmp/k-slide-chg16-python312/bin/python",
-    "private_evaluation_data": "No live private material used; deterministic synthetic fixtures only."
+    "actual_study_results_present": false,
+    "private_study_data_persisted": false,
+    "python_311": "3.11.7",
+    "python_312": "3.12.9",
+    "study_execution": "NOT_RUN"
   },
-  "notes": [
-    "Candidate is an uncommitted patch bound to exact requested base 4db1132ec1dffcb8a4ec7c8079213fef20787ae5. Candidate source content SHA-256 is computed over canonical JSON of sorted changed non-audit file paths and their file SHA-256 values; .codex-fabric/audit.json is excluded to avoid self-reference.",
-    "No reviewer names, private source text, gold text, translations, comments, filenames from private material, local private paths, or other private review contents were persisted in the candidate or machine evidence.",
-    "No merge or main movement occurred. No live private/company human review, live Gemma qualification, champion promotion, release, BUILD COMPLETE, or production certification was performed.",
-    "evals/champion.json remains UNSET. Any temp-directory release-state assertion in tests is test-only and is not a release."
-  ],
-  "locator": {
-    "base_integrated_main": "4db1132ec1dffcb8a4ec7c8079213fef20787ae5",
-    "branch": "codex/k-slide-chg16-bilingual-adjudication-01",
-    "candidate_source_content_sha256": "c7ad41fd3ba082774f789c1e00c0bc6b5655e7ef8be1c7730cad5922e5b4421a",
-    "path": ".codex-fabric/audit.json"
-  },
+  "fabric_evidence_identity_sha256": "659f2715de9caacf513e28825ec7a5ebb0222621de666aa12057b374f016ccd0",
+  "generated_at": "2026-09-24",
   "history": [
     {
-      "schema_version": 1,
-      "kind": "codex-fabric-audit-evidence",
-      "operation": "BUILD",
-      "status": "EXECUTED_CHANGE",
-      "generated_at": "2026-09-23",
-      "project_id": "k-slide",
-      "request": "chg16-ksa28-repetition-stability-and-false-done-calibration",
-      "job_id": "CHG-16-KSA-28-STABILITY-CALIBRATION-01",
+      "ancestry": {
+        "branch_at_final_identity_check": "codex/k-slide-chg16-stability-calibration-01",
+        "head_at_final_identity_check": "4ed21e107443d926f06489f6668188b9dc4e66cd",
+        "main_moved": false,
+        "merge_to_main_performed": false,
+        "starting_head": "4ed21e107443d926f06489f6668188b9dc4e66cd",
+        "starting_head_is_exact_requested_base": true
+      },
       "candidate": {
-        "branch": "codex/k-slide-chg16-stability-calibration-01",
         "base_integrated_main": "4ed21e107443d926f06489f6668188b9dc4e66cd",
+        "branch": "codex/k-slide-chg16-stability-calibration-01",
         "candidate_commit": null,
-        "final_work_head": "4ed21e107443d926f06489f6668188b9dc4e66cd",
         "candidate_source_content_sha256": "1e31caee96e83a1b804781628814641ce22d95314154672ff9eaaded69bbac8d",
         "changes_committed": false,
+        "final_work_head": "4ed21e107443d926f06489f6668188b9dc4e66cd",
         "working_tree_changes_present": true
-      },
-      "ancestry": {
-        "starting_head_is_exact_requested_base": true,
-        "starting_head": "4ed21e107443d926f06489f6668188b9dc4e66cd",
-        "head_at_final_identity_check": "4ed21e107443d926f06489f6668188b9dc4e66cd",
-        "branch_at_final_identity_check": "codex/k-slide-chg16-stability-calibration-01",
-        "merge_to_main_performed": false,
-        "main_moved": false
       },
       "changed_files": [
         ".codex-fabric/audit.json",
@@ -246,7 +237,43 @@
           "result": "Initial focused pass exposed one stability-frequency fixture lacking valid persisted work-unit/media facts. The fixture was corrected; KSA-28, KSA-26/27, certification, and full discovery suites subsequently passed."
         }
       ],
+      "environment": {
+        "python_3_11": "Python 3.11.7",
+        "python_3_12": "Isolated Python 3.12.9 at /tmp/k-slide-py312-fix05/bin/python"
+      },
+      "generated_at": "2026-09-23",
+      "job_id": "CHG-16-KSA-28-STABILITY-CALIBRATION-01",
+      "kind": "codex-fabric-audit-evidence",
+      "locator": {
+        "base_integrated_main": "4ed21e107443d926f06489f6668188b9dc4e66cd",
+        "branch": "codex/k-slide-chg16-stability-calibration-01",
+        "candidate_source_content_sha256": "1e31caee96e83a1b804781628814641ce22d95314154672ff9eaaded69bbac8d",
+        "path": ".codex-fabric/audit.json"
+      },
+      "notes": [
+        "Candidate is an uncommitted patch bound to exact base 4ed21e107443d926f06489f6668188b9dc4e66cd by candidate_source_content_sha256; no merge or main movement occurred.",
+        "The evaluation tests use deterministic synthetic fixtures and validate repository contracts only. No live Gemma, company/private-human qualification, champion promotion, release, BUILD COMPLETE, or production certification was performed.",
+        "evals/champion.json remains UNSET."
+      ],
+      "operation": "BUILD",
+      "policy_and_schema_preservation": {
+        "evidence_schema_version": "2.5",
+        "hard_gate_registry": "ksa-27-hard-gates-1",
+        "model_identity_media_security_and_tenant_rules": "Preserved.",
+        "noncritical_semantic_equivalence_floor": "Preserved as the distinct KSA-27 source-bound semantic-equivalence floor.",
+        "quality_policy": "ksa-27.2",
+        "quality_policy_identity_sha256": "4656283f7ce7506695e42e54008eea190bfcaab9a971b737280af27405801fd1"
+      },
+      "project_id": "k-slide",
+      "request": "chg16-ksa28-repetition-stability-and-false-done-calibration",
+      "schema_version": 1,
       "scope": {
+        "excluded": [
+          "KSA-29 and later.",
+          "Live company, Gemma, or private-human execution/qualification.",
+          "Champion promotion, release, BUILD COMPLETE, or production certification.",
+          "Merge, rebase, or movement of main/target branches."
+        ],
         "included": [
           "Certification-quality evaluation defaults to 3 repetitions per artifact; development/protocol defaults remain 1, high-risk defaults to 5, and valid larger counts remain supported.",
           "Runner aggregation requires an exact expected scenario × format × repetition matrix. Public synthetic and governed adapters reconstruct membership and ordinal completeness from the frozen corpus or hash-bound manifest contract.",
@@ -255,65 +282,29 @@
           "False-DONE derivation uses persisted completion, work-unit, verification, unresolved material, and conflict facts with existing hard-gate codes and execution-contract semantics.",
           "Source-free governed result/evidence metadata and KSA-26 manifest/hash/contamination boundaries are preserved.",
           "Focused tests cover defaults, 5/7 repetitions, clean certification, incomplete/duplicate/out-of-range/misbound matrices, matrix/stability tampering, stochastic failures, and unreadable/partial/conflict/verification/under-evidenced completion claims."
-        ],
-        "excluded": [
-          "KSA-29 and later.",
-          "Live company, Gemma, or private-human execution/qualification.",
-          "Champion promotion, release, BUILD COMPLETE, or production certification.",
-          "Merge, rebase, or movement of main/target branches."
         ]
       },
-      "policy_and_schema_preservation": {
-        "quality_policy": "ksa-27.2",
-        "quality_policy_identity_sha256": "4656283f7ce7506695e42e54008eea190bfcaab9a971b737280af27405801fd1",
-        "hard_gate_registry": "ksa-27-hard-gates-1",
-        "evidence_schema_version": "2.5",
-        "noncritical_semantic_equivalence_floor": "Preserved as the distinct KSA-27 source-bound semantic-equivalence floor.",
-        "model_identity_media_security_and_tenant_rules": "Preserved."
-      },
-      "environment": {
-        "python_3_11": "Python 3.11.7",
-        "python_3_12": "Isolated Python 3.12.9 at /tmp/k-slide-py312-fix05/bin/python"
-      },
-      "notes": [
-        "Candidate is an uncommitted patch bound to exact base 4ed21e107443d926f06489f6668188b9dc4e66cd by candidate_source_content_sha256; no merge or main movement occurred.",
-        "The evaluation tests use deterministic synthetic fixtures and validate repository contracts only. No live Gemma, company/private-human qualification, champion promotion, release, BUILD COMPLETE, or production certification was performed.",
-        "evals/champion.json remains UNSET."
-      ],
-      "locator": {
-        "branch": "codex/k-slide-chg16-stability-calibration-01",
-        "base_integrated_main": "4ed21e107443d926f06489f6668188b9dc4e66cd",
-        "candidate_source_content_sha256": "1e31caee96e83a1b804781628814641ce22d95314154672ff9eaaded69bbac8d",
-        "path": ".codex-fabric/audit.json"
-      },
+      "status": "EXECUTED_CHANGE",
       "superseded_by": "CHG-16-KSA-29-BILINGUAL-ADJUDICATION-01"
     },
     {
-      "schema_version": 1,
-      "kind": "codex-fabric-audit-evidence",
-      "operation": "BUILD",
-      "status": "EXECUTED_CHANGE",
-      "generated_at": "2026-09-23",
-      "project_id": "k-slide",
-      "request": "chg16-ksa27-f27-01-distinct-source-backed-noncritical-semantic-equivalence",
-      "job_id": "CHG-16-KSA-27-F27-01",
-      "candidate": {
-        "branch": "codex/k-slide-chg16-hard-gates-01-fix01",
-        "base_integrated_main": "fa03989e002864081609a25add1fb36b282d99a7",
-        "predecessor_build_candidate": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
-        "candidate_commit": null,
-        "final_work_head": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
-        "changes_committed": false,
-        "working_tree_changes_present": true
-      },
       "ancestry": {
-        "starting_head_is_exact_requested_base": true,
-        "starting_head": "fa03989e002864081609a25add1fb36b282d99a7",
+        "head_at_final_identity_check": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
+        "merge_to_main_performed": false,
         "predecessor_candidate_is_exact_requested_commit": true,
         "predecessor_candidate_parent_is_exact_base": true,
         "predecessor_fast_forwarded_onto_work_branch_before_repair": true,
-        "head_at_final_identity_check": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
-        "merge_to_main_performed": false
+        "starting_head": "fa03989e002864081609a25add1fb36b282d99a7",
+        "starting_head_is_exact_requested_base": true
+      },
+      "candidate": {
+        "base_integrated_main": "fa03989e002864081609a25add1fb36b282d99a7",
+        "branch": "codex/k-slide-chg16-hard-gates-01-fix01",
+        "candidate_commit": null,
+        "changes_committed": false,
+        "final_work_head": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
+        "predecessor_build_candidate": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
+        "working_tree_changes_present": true
       },
       "changed_files": [
         ".codex-fabric/audit.json",
@@ -435,26 +426,18 @@
           "result": "Manual targeted selector used an incorrect unittest class capitalization. Corrected selector passed, and the complete KSA-27 focused suite passed."
         }
       ],
-      "scope": {
-        "included": [
-          "F27-01 only: deterministic source-bound non-critical semantic assertion gold and scoring for public synthetic scenarios and governed external gold wrappers.",
-          "Policy ksa-27.2 advances the semantic floor identity while retaining hard-gate registry ksa-27-hard-gates-1.",
-          "Machine result and evidence adapter rederive assertion membership, source-free outcomes, counts, rates, and the 0.99 floor.",
-          "Evidence schema 2.5 invalidates predecessor 2.4 machine evidence under the repaired current policy.",
-          "The predecessor KSA-27 hard-gate architecture and KSA-26 governed/private-data boundary remain covered by regression tests.",
-          "Public DATASET_VERSION and corpus/held-out fingerprints remain unchanged through a compatibility-safe sidecar."
-        ],
-        "excluded": [
-          "KSA-28 and later.",
-          "Merge to main.",
-          "Live company, Gemma, private-human, or security qualification.",
-          "Champion assignment or release.",
-          "BUILD COMPLETE and production certification claims."
-        ]
-      },
       "environment": {
         "python_3_11": "Python 3.11.7.",
         "python_3_12": "Isolated /tmp/k-slide-py312-fix05 interpreter, Python 3.12.9."
+      },
+      "generated_at": "2026-09-23",
+      "job_id": "CHG-16-KSA-27-F27-01",
+      "kind": "codex-fabric-audit-evidence",
+      "locator": {
+        "base_integrated_main": "fa03989e002864081609a25add1fb36b282d99a7",
+        "branch": "codex/k-slide-chg16-hard-gates-01-fix01",
+        "path": ".codex-fabric/audit.json",
+        "predecessor_build_candidate": "b2ca101733ee450e123bf8b630ceca6eda9cc20a"
       },
       "notes": [
         "F27-01 is an uncommitted repair working tree on exact predecessor BUILD candidate b2ca101733ee450e123bf8b630ceca6eda9cc20a; that commit is a direct child of requested integrated main fa03989e002864081609a25add1fb36b282d99a7.",
@@ -467,75 +450,89 @@
         "evals/champion.json remains UNSET. KSA-28+ was not entered.",
         "Accepted phrase alternatives are matched against the complete normalized output surface with exact token equality; embedding an approved phrase in contradictory or unapproved extra text does not count as equivalent."
       ],
-      "locator": {
-        "branch": "codex/k-slide-chg16-hard-gates-01-fix01",
-        "base_integrated_main": "fa03989e002864081609a25add1fb36b282d99a7",
-        "predecessor_build_candidate": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
-        "path": ".codex-fabric/audit.json"
-      },
+      "operation": "BUILD",
       "predecessor": {
-        "request": "chg16-ksa27-versioned-noncompensable-certification-quality-policy",
-        "job_id": "CHG-16-KSA-27 predecessor BUILD",
         "candidate": {
-          "branch": "codex/k-slide-chg16-hard-gates-01",
           "base_integrated_main": "fa03989e002864081609a25add1fb36b282d99a7",
+          "branch": "codex/k-slide-chg16-hard-gates-01",
           "candidate_commit": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
           "changes_committed": true
         },
+        "job_id": "CHG-16-KSA-27 predecessor BUILD",
         "quality_policy": {
-          "policy_version": "ksa-27.1",
+          "evidence_schema_version": "2.4",
           "hard_gate_registry_version": "ksa-27-hard-gates-1",
           "identity_sha256": "41736413cb8fdb0714b03b46c402ca8567c2d09903b17bb2886dc8313d2e739f",
-          "evidence_schema_version": "2.4"
+          "policy_version": "ksa-27.1"
         },
+        "request": "chg16-ksa27-versioned-noncompensable-certification-quality-policy",
         "superseded_by": "CHG-16 / KSA-27 F27-01; predecessor behavior and hard-gate architecture are preserved."
       },
+      "project_id": "k-slide",
       "quality_policy": {
-        "predecessor": {
-          "policy_version": "ksa-27.1",
-          "identity_sha256": "41736413cb8fdb0714b03b46c402ca8567c2d09903b17bb2886dc8313d2e739f",
-          "hard_gate_registry_version": "ksa-27-hard-gates-1"
-        },
         "current": {
-          "policy_version": "ksa-27.2",
+          "hard_gate_registry_version": "ksa-27-hard-gates-1",
           "identity_sha256": "4656283f7ce7506695e42e54008eea190bfcaab9a971b737280af27405801fd1",
-          "hard_gate_registry_version": "ksa-27-hard-gates-1"
+          "policy_version": "ksa-27.2"
         },
+        "evidence_schema_current": "2.5",
         "evidence_schema_predecessor": "2.4",
-        "evidence_schema_current": "2.5"
+        "predecessor": {
+          "hard_gate_registry_version": "ksa-27-hard-gates-1",
+          "identity_sha256": "41736413cb8fdb0714b03b46c402ca8567c2d09903b17bb2886dc8313d2e739f",
+          "policy_version": "ksa-27.1"
+        }
       },
+      "request": "chg16-ksa27-f27-01-distinct-source-backed-noncritical-semantic-equivalence",
+      "schema_version": 1,
+      "scope": {
+        "excluded": [
+          "KSA-28 and later.",
+          "Merge to main.",
+          "Live company, Gemma, private-human, or security qualification.",
+          "Champion assignment or release.",
+          "BUILD COMPLETE and production certification claims."
+        ],
+        "included": [
+          "F27-01 only: deterministic source-bound non-critical semantic assertion gold and scoring for public synthetic scenarios and governed external gold wrappers.",
+          "Policy ksa-27.2 advances the semantic floor identity while retaining hard-gate registry ksa-27-hard-gates-1.",
+          "Machine result and evidence adapter rederive assertion membership, source-free outcomes, counts, rates, and the 0.99 floor.",
+          "Evidence schema 2.5 invalidates predecessor 2.4 machine evidence under the repaired current policy.",
+          "The predecessor KSA-27 hard-gate architecture and KSA-26 governed/private-data boundary remain covered by regression tests.",
+          "Public DATASET_VERSION and corpus/held-out fingerprints remain unchanged through a compatibility-safe sidecar."
+        ]
+      },
+      "status": "EXECUTED_CHANGE",
       "superseded_by": "CHG-16 / KSA-28 repetition stability and false-DONE calibration BUILD."
     },
     {
-      "request": "chg16-ksa27-versioned-noncompensable-certification-quality-policy",
-      "job_id": "CHG-16-KSA-27 predecessor BUILD",
       "candidate": {
-        "branch": "codex/k-slide-chg16-hard-gates-01",
         "base_integrated_main": "fa03989e002864081609a25add1fb36b282d99a7",
+        "branch": "codex/k-slide-chg16-hard-gates-01",
         "candidate_commit": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
         "changes_committed": true
       },
+      "job_id": "CHG-16-KSA-27 predecessor BUILD",
       "quality_policy": {
-        "policy_version": "ksa-27.1",
+        "evidence_schema_version": "2.4",
         "hard_gate_registry_version": "ksa-27-hard-gates-1",
         "identity_sha256": "41736413cb8fdb0714b03b46c402ca8567c2d09903b17bb2886dc8313d2e739f",
-        "evidence_schema_version": "2.4"
+        "policy_version": "ksa-27.1"
       },
+      "request": "chg16-ksa27-versioned-noncompensable-certification-quality-policy",
       "superseded_by": "CHG-16 / KSA-27 F27-01; predecessor behavior and hard-gate architecture are preserved."
     },
     {
-      "request": "chg16-ksa25-unreadable-decorative-cross-document-recovery-law",
-      "job_id": "CHG-16-KSA-25",
+      "ancestry": {
+        "head_at_final_identity_check": "b9f109c1b92c26cb3cf5611b3d9c82659c56da40",
+        "merge_to_main_performed": false,
+        "starting_head_is_exact_requested_base": true
+      },
       "candidate": {
-        "branch": "codex/k-slide-chg16-recovery-law-01",
         "base_integrated_main": "b9f109c1b92c26cb3cf5611b3d9c82659c56da40",
+        "branch": "codex/k-slide-chg16-recovery-law-01",
         "candidate_commit": null,
         "changes_committed": false
-      },
-      "ancestry": {
-        "starting_head_is_exact_requested_base": true,
-        "head_at_final_identity_check": "b9f109c1b92c26cb3cf5611b3d9c82659c56da40",
-        "merge_to_main_performed": false
       },
       "changed_files": [
         ".codex-fabric/audit.json",
@@ -614,62 +611,17 @@
           "result": "HEAD remained b9f109c1b92c26cb3cf5611b3d9c82659c56da40 on codex/k-slide-chg16-recovery-law-01. Source/schema/test changes were uncommitted; no merge to main was performed."
         }
       ],
-      "diagnostic_checks": [],
-      "scope": {
-        "included": [
-          "Engine-owned risky-literal recovery permits one hashed, bounded crop OCR reread. A successful recovery must have a complete, non-boundary candidate with confidence from 0.80 through 1.00 and durable provider/crop evidence; otherwise required content remains empty, actionable NEEDS_REVIEW.",
-          "Evidence state, recovery status, semantic provenance, and required coverage are bound in EvidenceIR and checked during patch validation, canonical merge, verification, and finalization. Model-authored source literals, source_fact promotion from risky evidence, and unreadable-content completion are rejected.",
-          "NOT_APPLICABLE_NATIVE_VISUAL is restricted to deterministic engine-owned native typed visual/table objects, bound to matching native evidence, and retained in required source accounting. OCR failure and model preference cannot create a decorative exemption.",
-          "Cross-document work packets reject raw deck context. Conflict assessment requires current canonical artifacts for each document/work unit and builds assertions from independently grounded, evidence-bound claims. Conflicting claims remain unresolved unless existing KSA-23 authority/supersession rules resolve them.",
-          "Employee lifecycle recovery test covers prepare, next, evidence, submit, conflict assessment, verification, and finalization; failed material recovery leaves NEEDS_REVIEW and prevents RUN_COMPLETE.",
-          "Preserves KSA-22 provenance and table identity/migration, KSA-23 conflict assessment and authority/supersession behavior, KSA-24 semantic/modality/table/chart/connector/mixed-language/real-path protections, and KSA-01 through KSA-21 compatibility/security behavior."
-        ],
-        "excluded": [
-          "KSA-26 and later.",
-          "Merge to main.",
-          "Live company or Gemma qualification.",
-          "Release and production certification."
-        ]
-      },
-      "environment": {
-        "python_3_11": "System Python 3.11.7.",
-        "python_3_12": "Isolated /tmp/k-slide-py312-fix05 interpreter, Python 3.12.9."
-      },
-      "notes": [
-        "Implementation started from the exact integrated main commit requested by the user, b9f109c1b92c26cb3cf5611b3d9c82659c56da40.",
-        "The KSA-24 blank-image fixture now asserts NEEDS_REVIEW and blocked finalization because it has no recoverable literal evidence.",
-        "Full-suite messages that print PRODUCTION_CERTIFIED are isolated synthetic fixture output; no live company or Gemma qualification, release, or production certification occurred or is claimed.",
-        "Changes remain uncommitted on the task branch."
-      ],
       "continuation": {
-        "request": "CHG-16 / KSA-25 F25-01 semantic-evidence indirection recovery-law closure",
         "candidate": {
-          "branch": "codex/k-slide-chg16-recovery-law-01-fix01",
           "base_integrated_main": "b9f109c1b92c26cb3cf5611b3d9c82659c56da40",
-          "predecessor_candidate": "85aa7ee2cf4c2a93dfa026d4bf9f6bc80436b972",
-          "predecessor_parent": "b9f109c1b92c26cb3cf5611b3d9c82659c56da40",
+          "branch": "codex/k-slide-chg16-recovery-law-01-fix01",
           "carried_forward_commit": "f4e192f03155460aa59575342641e2de166b6cd2",
-          "predecessor_tree": "7a18beb87df77f435ed56e67076de72cf8e9f4e1",
           "carried_forward_tree": "7a18beb87df77f435ed56e67076de72cf8e9f4e1",
           "f25_01_changes_committed": false,
-          "merge_to_main_performed": false
-        },
-        "f25_01": {
-          "status": "CLOSED",
-          "summary": [
-            "Semantic evidence eligibility now fails closed for unrecognized IDs, raw context images, risky literal regions, dependent numeric facts, and table containers whose constituent cells or linked numeric facts are not all eligible.",
-            "Patch admission and canonical verification apply the same evidence composition rule to regions, cells, visual interpretations, and executive claims. Direct grounded subsets remain usable by exact ID.",
-            "Typed chart, connector, shape/group, and policy-bound native non-text visual evidence remain available to visual interpretations under existing chart-claim and connector source-fact validation.",
-            "Conflict assertion rebuilding rechecks current canonical evidence composition, rejecting context-only claims and candidate groups that reference them.",
-            "Failed recovery remains NEEDS REVIEW, blocks completion, and leaves no raw-context-only decision claim in the Executive Brief."
-          ],
-          "changed_files": [
-            ".codex-fabric/audit.json",
-            "src/k_slide/conflicts.py",
-            "src/k_slide/translation.py",
-            "src/k_slide/verify.py",
-            "tests/test_ksa25_recovery_law.py"
-          ]
+          "merge_to_main_performed": false,
+          "predecessor_candidate": "85aa7ee2cf4c2a93dfa026d4bf9f6bc80436b972",
+          "predecessor_parent": "b9f109c1b92c26cb3cf5611b3d9c82659c56da40",
+          "predecessor_tree": "7a18beb87df77f435ed56e67076de72cf8e9f4e1"
         },
         "checks": [
           {
@@ -733,18 +685,289 @@
             "result": "Branch codex/k-slide-chg16-recovery-law-01-fix01 remains on carried-forward commit f4e192f03155460aa59575342641e2de166b6cd2, whose direct parent is b9f109c1b92c26cb3cf5611b3d9c82659c56da40. Original predecessor and carried-forward tree hashes are both 7a18beb87df77f435ed56e67076de72cf8e9f4e1. F25-01 source/test/audit changes are uncommitted; no merge to main."
           }
         ],
+        "f25_01": {
+          "changed_files": [
+            ".codex-fabric/audit.json",
+            "src/k_slide/conflicts.py",
+            "src/k_slide/translation.py",
+            "src/k_slide/verify.py",
+            "tests/test_ksa25_recovery_law.py"
+          ],
+          "status": "CLOSED",
+          "summary": [
+            "Semantic evidence eligibility now fails closed for unrecognized IDs, raw context images, risky literal regions, dependent numeric facts, and table containers whose constituent cells or linked numeric facts are not all eligible.",
+            "Patch admission and canonical verification apply the same evidence composition rule to regions, cells, visual interpretations, and executive claims. Direct grounded subsets remain usable by exact ID.",
+            "Typed chart, connector, shape/group, and policy-bound native non-text visual evidence remain available to visual interpretations under existing chart-claim and connector source-fact validation.",
+            "Conflict assertion rebuilding rechecks current canonical evidence composition, rejecting context-only claims and candidate groups that reference them.",
+            "Failed recovery remains NEEDS REVIEW, blocks completion, and leaves no raw-context-only decision claim in the Executive Brief."
+          ]
+        },
         "notes": [
           "The predecessor commit 85aa7ee2cf4c2a93dfa026d4bf9f6bc80436b972 was based directly on b9f109c1b92c26cb3cf5611b3d9c82659c56da40. Cherry-pick f4e192f03155460aa59575342641e2de166b6cd2 is its direct child on the requested branch and has the identical tree hash.",
           "No merge to main, KSA-26+ work, live company or Gemma qualification, release, or production certification was performed. Synthetic suite text mentioning PRODUCTION_CERTIFIED is fixture output only and is not a qualification claim.",
           "An initial KSA-24 adversarial run caught a changed unknown-source error order; patch validation was reordered and the final KSA-24 combined group passed.",
           "F25-01 source and test changes remain uncommitted on the task branch."
+        ],
+        "request": "CHG-16 / KSA-25 F25-01 semantic-evidence indirection recovery-law closure"
+      },
+      "diagnostic_checks": [],
+      "environment": {
+        "python_3_11": "System Python 3.11.7.",
+        "python_3_12": "Isolated /tmp/k-slide-py312-fix05 interpreter, Python 3.12.9."
+      },
+      "job_id": "CHG-16-KSA-25",
+      "locator": {
+        "base_integrated_main": "b9f109c1b92c26cb3cf5611b3d9c82659c56da40",
+        "branch": "codex/k-slide-chg16-recovery-law-01-fix01",
+        "path": ".codex-fabric/audit.json"
+      },
+      "notes": [
+        "Implementation started from the exact integrated main commit requested by the user, b9f109c1b92c26cb3cf5611b3d9c82659c56da40.",
+        "The KSA-24 blank-image fixture now asserts NEEDS_REVIEW and blocked finalization because it has no recoverable literal evidence.",
+        "Full-suite messages that print PRODUCTION_CERTIFIED are isolated synthetic fixture output; no live company or Gemma qualification, release, or production certification occurred or is claimed.",
+        "Changes remain uncommitted on the task branch."
+      ],
+      "request": "chg16-ksa25-unreadable-decorative-cross-document-recovery-law",
+      "scope": {
+        "excluded": [
+          "KSA-26 and later.",
+          "Merge to main.",
+          "Live company or Gemma qualification.",
+          "Release and production certification."
+        ],
+        "included": [
+          "Engine-owned risky-literal recovery permits one hashed, bounded crop OCR reread. A successful recovery must have a complete, non-boundary candidate with confidence from 0.80 through 1.00 and durable provider/crop evidence; otherwise required content remains empty, actionable NEEDS_REVIEW.",
+          "Evidence state, recovery status, semantic provenance, and required coverage are bound in EvidenceIR and checked during patch validation, canonical merge, verification, and finalization. Model-authored source literals, source_fact promotion from risky evidence, and unreadable-content completion are rejected.",
+          "NOT_APPLICABLE_NATIVE_VISUAL is restricted to deterministic engine-owned native typed visual/table objects, bound to matching native evidence, and retained in required source accounting. OCR failure and model preference cannot create a decorative exemption.",
+          "Cross-document work packets reject raw deck context. Conflict assessment requires current canonical artifacts for each document/work unit and builds assertions from independently grounded, evidence-bound claims. Conflicting claims remain unresolved unless existing KSA-23 authority/supersession rules resolve them.",
+          "Employee lifecycle recovery test covers prepare, next, evidence, submit, conflict assessment, verification, and finalization; failed material recovery leaves NEEDS_REVIEW and prevents RUN_COMPLETE.",
+          "Preserves KSA-22 provenance and table identity/migration, KSA-23 conflict assessment and authority/supersession behavior, KSA-24 semantic/modality/table/chart/connector/mixed-language/real-path protections, and KSA-01 through KSA-21 compatibility/security behavior."
+        ]
+      }
+    },
+    {
+      "ancestry": {
+        "branch_at_final_identity_check": "codex/k-slide-chg16-bilingual-adjudication-01",
+        "head_at_final_identity_check": "4db1132ec1dffcb8a4ec7c8079213fef20787ae5",
+        "main_moved": false,
+        "merge_to_main_performed": false,
+        "starting_head": "4db1132ec1dffcb8a4ec7c8079213fef20787ae5",
+        "starting_head_is_exact_requested_base": true
+      },
+      "candidate": {
+        "base_integrated_main": "4db1132ec1dffcb8a4ec7c8079213fef20787ae5",
+        "branch": "codex/k-slide-chg16-bilingual-adjudication-01",
+        "candidate_commit": null,
+        "candidate_source_content_sha256": "c7ad41fd3ba082774f789c1e00c0bc6b5655e7ef8be1c7730cad5922e5b4421a",
+        "changes_committed": false,
+        "final_work_head": "4db1132ec1dffcb8a4ec7c8079213fef20787ae5",
+        "working_tree_changes_present": true
+      },
+      "changed_files": [
+        ".codex-fabric/audit.json",
+        "IMPLEMENTATION_STATUS.md",
+        "private-evals/README.md",
+        "src/k_slide/bilingual_adjudication.py",
+        "src/k_slide/certification.py",
+        "tests/bilingual_review_fixtures.py",
+        "tests/test_certification_closure.py",
+        "tests/test_ksa27_quality_policy.py",
+        "tests/test_ksa29_bilingual_adjudication.py"
+      ],
+      "checks": [
+        {
+          "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_ksa29_bilingual_adjudication tests.test_ksa28_stability_calibration tests.test_ksa27_quality_policy tests.test_ksa26_corpus_governance tests.test_ksa26_governed_runner tests.test_certification_closure tests.test_phase32 tests.test_phase33 tests.test_phase34 tests.test_phase35",
+          "exit_code": 0,
+          "result": "234 focused KSA-29, KSA-28, KSA-27, KSA-26, certification/release-closure, and phase32-35 contract regression tests passed."
+        },
+        {
+          "command": "rtk env PYTHONPATH=src python3 -m unittest discover -s tests",
+          "exit_code": 0,
+          "result": "Full Python 3.11 discovery: 587 tests passed; 4 skipped."
+        },
+        {
+          "command": "rtk env PYTHONPATH=src /tmp/k-slide-chg16-python312/bin/python -m unittest discover -s tests",
+          "exit_code": 0,
+          "result": "Full isolated Python 3.12 discovery: 587 tests passed; no skips."
+        },
+        {
+          "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_ksa24_modality_conformance tests.test_ksa24_f24_repairs tests.test_ksa24_f24_real_path tests.test_ksa25_recovery_law",
+          "exit_code": 0,
+          "result": "93 KSA-21–25 compatibility, security, and recovery tests passed; 1 skipped."
+        },
+        {
+          "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_chg16_foundation tests.test_chg16_storage_planes tests.test_chg16_durable_execution tests.test_chg16_accesskey_nonleakage tests.test_chg16_deletion tests.test_chg16_host_integration tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support tests.test_chg16_environment_binding tests.test_chg16_classification_admission tests.test_chg16_retention_policy tests.test_chg16_scoped_admission tests.test_chg16_paas_worker tests.test_chg16_authentication_transport",
+          "exit_code": 0,
+          "result": "216 KSA-15–20 host, security, and runtime regressions passed; 1 skipped."
+        },
+        {
+          "command": "rtk .opencode/node_modules/.bin/tsx tests/test_chg16_opencode_plugin.ts",
+          "exit_code": 0,
+          "result": "OpenCode host attachment TypeScript regression passed."
+        },
+        {
+          "command": "rtk python3 - <<'PY'\nimport json\nfrom pathlib import Path\nfrom jsonschema import Draft202012Validator\npaths = sorted(Path('.').rglob('*.schema.json'))\nif len(paths) != 4:\n    raise SystemExit(f'expected 4 schemas, found {len(paths)}')\nfor path in paths:\n    schema = json.loads(path.read_text())\n    Draft202012Validator.check_schema(schema)\nprint(f'{len(paths)} Draft 2020-12 schemas valid')\nPY",
+          "exit_code": 0,
+          "result": "All 4 repository JSON schemas passed Draft 2020-12 schema validation."
+        },
+        {
+          "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_phase34 tests.test_phase35",
+          "exit_code": 0,
+          "result": "TranslationPatch contract, Python/schema/TypeScript parity, and closed enum checks passed (2 contract tests)."
+        },
+        {
+          "command": "rtk python3 -m compileall -q src tests evals",
+          "exit_code": 0,
+          "python_version": "3.11.7",
+          "result": "Python 3.11 source compilation passed."
+        },
+        {
+          "command": "rtk /tmp/k-slide-chg16-python312/bin/python -m compileall -q src tests evals",
+          "exit_code": 0,
+          "python_version": "3.12.9",
+          "result": "Isolated Python 3.12 source compilation passed."
+        },
+        {
+          "command": "rtk git diff --check",
+          "exit_code": 0,
+          "result": "No whitespace errors."
+        }
+      ],
+      "diagnostic_checks": [],
+      "environment": {
+        "private_evaluation_data": "No live private material used; deterministic synthetic fixtures only.",
+        "python_3_11": "Python 3.11.7",
+        "python_3_12": "Isolated Python 3.12.9 at /tmp/k-slide-chg16-python312/bin/python"
+      },
+      "generated_at": "2026-09-23",
+      "job_id": "CHG-16-KSA-29-BILINGUAL-ADJUDICATION-01",
+      "kind": "codex-fabric-audit-evidence",
+      "locator": {
+        "base_integrated_main": "4db1132ec1dffcb8a4ec7c8079213fef20787ae5",
+        "branch": "codex/k-slide-chg16-bilingual-adjudication-01",
+        "candidate_source_content_sha256": "c7ad41fd3ba082774f789c1e00c0bc6b5655e7ef8be1c7730cad5922e5b4421a",
+        "path": ".codex-fabric/audit.json"
+      },
+      "notes": [
+        "Candidate is an uncommitted patch bound to exact requested base 4db1132ec1dffcb8a4ec7c8079213fef20787ae5. Candidate source content SHA-256 is computed over canonical JSON of sorted changed non-audit file paths and their file SHA-256 values; .codex-fabric/audit.json is excluded to avoid self-reference.",
+        "No reviewer names, private source text, gold text, translations, comments, filenames from private material, local private paths, or other private review contents were persisted in the candidate or machine evidence.",
+        "No merge or main movement occurred. No live private/company human review, live Gemma qualification, champion promotion, release, BUILD COMPLETE, or production certification was performed.",
+        "evals/champion.json remains UNSET. Any temp-directory release-state assertion in tests is test-only and is not a release."
+      ],
+      "operation": "BUILD",
+      "policy_and_schema_preservation": {
+        "KSA-26_manifest_hash_and_contamination_rules": "Preserved.",
+        "KSA-27_thresholds_semantic_gates_candidate_binding_and_release_blockers": "Preserved.",
+        "KSA-28_repetition_matrix_stability_and_false_DONE_semantics": "Preserved.",
+        "adapter_version": "2.8 unchanged",
+        "evidence_schema_advance_scope": "Global envelope version advance from 2.5 to 2.6, following repository evidence-schema convention; no adapter version change.",
+        "evidence_schema_version": "2.6",
+        "hard_gate_registry": "ksa-27-hard-gates-1",
+        "internal_bilingual_contract_version": "1.0",
+        "predecessor_evidence_schema_version": "2.5; predecessor evidence is rejected by the current loader, including aggregate-only internal_bilingual attestations.",
+        "quality_policy": "ksa-27.2",
+        "quality_policy_identity_sha256": "4656283f7ce7506695e42e54008eea190bfcaab9a971b737280af27405801fd1",
+        "security_privacy_and_tenant_rules": "Preserved."
+      },
+      "project_id": "k-slide",
+      "request": "chg16-ksa29-bilingual-gold-truth-and-adjudication",
+      "schema_version": 1,
+      "scope": {
+        "excluded": [
+          "KSA-30 and later.",
+          "Live private/company human review or evaluation.",
+          "Live Gemma qualification.",
+          "Champion promotion, release, BUILD COMPLETE, or production certification.",
+          "Merge, rebase, or movement of main or the requested branch."
+        ],
+        "included": [
+          "Added versioned private bilingual review/adjudication contract 1.0. Each governed work unit binds exactly two separately identified, independently attributable human bilingual reviews to candidate/deployment, corpus set/item and source/gold hashes, KSA-27.2 policy, output artifact, work unit, and truth unit.",
+          "Reviewer identity, review-record identity, and review-artifact identity are opaque; record hashes, closed outcomes, IDs, and source-free aggregate evidence are the only human-review details emitted to repository-visible machine evidence.",
+          "Agreement and disagreement are explicit per truth unit. Every disagreement requires a separate adjudication record bound to and referencing exactly the two conflicting reviews and disputed truth unit before authoritative truth is derived.",
+          "AI records are limited to linked non-authoritative assistance provenance. AI-only reviews, AI reviewer/adjudicator roles, AI-authoritative outcomes, and AI overrides are rejected.",
+          "The existing internal_bilingual evidence and release path derives aggregates from a complete qualifying review/adjudication ledger; legacy aggregate-only attestations and stale evidence fail closed.",
+          "Added deterministic private-environment format documentation, source-free synthetic fixtures, and adversarial KSA-29 tests."
         ]
       },
-      "locator": {
-        "branch": "codex/k-slide-chg16-recovery-law-01-fix01",
-        "base_integrated_main": "b9f109c1b92c26cb3cf5611b3d9c82659c56da40",
-        "path": ".codex-fabric/audit.json"
-      }
+      "status": "EXECUTED_CHANGE"
     }
-  ]
+  ],
+  "job_id": "CHG-16-KSA-30-ZERO-KOREAN-STUDY-01",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "base_integrated_main": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
+    "branch": "codex/k-slide-chg16-zero-korean-study-01",
+    "path": ".codex-fabric/audit.json"
+  },
+  "notes": [
+    "All KSA-30 outcome examples are source-free synthetic test fixtures, not participant observations or human-study results.",
+    "Release-state tests use temporary roots and synthetic attestations only; their test fixture output is not a release or certification.",
+    "evals/champion.json remains UNSET. No study was run and no human-study, production-certification, or BUILD COMPLETE claim is made."
+  ],
+  "operation": "BUILD",
+  "policy_and_schema_preservation": {
+    "allocation_ratio": {
+      "expert_english_reference": 1,
+      "kslide_output": 1
+    },
+    "alpha_one_sided": "0.025",
+    "analysis_unit": "participant_mean_fraction_correct; repeated questions aggregated within participant.",
+    "assumed_participant_score_means": {
+      "expert_english_reference": "0.95",
+      "kslide_output": "0.95"
+    },
+    "assumed_participant_score_standard_deviations": {
+      "expert_english_reference": "0.10",
+      "kslide_output": "0.10"
+    },
+    "bilingual_review_contract_version": "1.0 unchanged",
+    "bilingual_review_semantics": "Preserved.",
+    "condition_count": 2,
+    "conditions": [
+      "kslide_output",
+      "expert_english_reference"
+    ],
+    "confidence_convention": "97.5% one-sided lower bound; two-sided 95% lower endpoint",
+    "evidence_schema_advance_scope": "No shared envelope advance; strict zero-Korean study payload contract 1.0 rejects aggregate-only predecessor attestations.",
+    "evidence_schema_version": "2.6 unchanged",
+    "fixed_enrollment_target": "Exactly 85 analyzable participants per arm; no interim analysis or outcome-driven extension.",
+    "non_inferiority_margin": "0.05 exactly",
+    "original_korean_employee_facing_condition": false,
+    "power_method": "ceil(((z_alpha+z_power)^2*(sd_kslide^2+sd_reference^2))/(margin+assumed_effect_difference)^2), normal approximation for independent participant-level means.",
+    "raw_sample_size_per_arm": "84.0593844915249361179725304",
+    "required_analyzable_participants_per_arm": 85,
+    "safety_preservation": "100% critical correctness, at least 95% overall comprehension, and zero critical misunderstandings per arm; any serious_misleading outcome fails.",
+    "statistical_inference": "Observed independent-arm Welch standard error and predeclared normal 97.5% one-sided lower bound; round display only to 12 places half-up.",
+    "target_power": "0.90",
+    "z_values": {
+      "z_1_minus_alpha": "1.959963984540054",
+      "z_target_power": "1.281551565544600"
+    },
+    "zero_korean_analysis_plan_identity_sha256": "cd912ae9e79152d132ded61b60e262204fdeb69320a28f862badc71d066f34fd",
+    "zero_korean_protocol_identity_sha256": "1643e9ac88533a61afcfec6ec7808d87cc42885432a604369d07c63a793c1377",
+    "zero_korean_study_contract_version": "1.0"
+  },
+  "project_id": "k-slide",
+  "remaining_blockers": [
+    "Approved company execution, real eligible employee participants, the expert-English reference, and approved bilingual gold remain required before study evidence can exist.",
+    "Production model/runtime, company security, governance, pilot, and other existing release gates remain outside this BUILD."
+  ],
+  "request": "chg16-ksa30-zero-korean-study-protocol-and-analysis-plan",
+  "schema_version": 1,
+  "scope": {
+    "excluded": [
+      "Live employee study, recruitment, study scoring, or result production.",
+      "KSA-31 and later work.",
+      "Champion promotion, pilot approval, release, BUILD COMPLETE, or production certification.",
+      "Merge, rebase, commit, or movement of main or the requested branch."
+    ],
+    "included": [
+      "Frozen zero-Korean study protocol and analysis contract version 1.0 with exactly the K-Slide output and expert-English reference conditions.",
+      "Deterministic independent participant-level power calculation and strict non-inferiority lower-bound test with exact absolute margin 0.05.",
+      "Source-free participant assignment, question/outcome, paired independent human scoring, required human bilingual adjudication, KSA-29 gold/output binding, and summary rederivation in the existing zero_korean_comprehension evidence path.",
+      "Independent per-arm critical and overall-comprehension floors and non-compensable serious-misleading hard failure.",
+      "Private execution specification, deterministic source-free synthetic fixtures, release compatibility, and adversarial acceptance coverage."
+    ]
+  },
+  "status": "EXECUTED_CHANGE"
 }

@@ -23,6 +23,12 @@ from .bilingual_adjudication import (
     BilingualAdjudicationError,
     validate_internal_bilingual_payload,
 )
+from .zero_korean_study import (
+    ZeroKoreanStudyError,
+    validate_zero_korean_authority_binding,
+    validate_zero_korean_candidate_binding,
+    validate_zero_korean_study_payload,
+)
 from .corpus_governance import (
     CorpusGovernanceError,
     canonical_corpus_identity as canonical_governed_corpus_identity,
@@ -34,6 +40,8 @@ from .corpus_governance import (
 
 # 2.6 makes bilingual evidence require paired KSA-29 reviews and adjudication;
 # predecessor envelopes are stale under the shared evidence-schema contract.
+# KSA-30 uses its own strict payload-contract version within this envelope, so
+# the shared schema need not advance and KSA-29 contract 1.0 stays unchanged.
 EVIDENCE_SCHEMA_VERSION = "2.6"
 EVIDENCE_TYPES = (
     "runtime",
@@ -1549,7 +1557,11 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
         "model_high_risk_stability": ("requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "hard_gate_failure_count", "hard_gate_failure_types", "hard_gate_pass", "noncritical_floor_pass", "noncritical_semantic_required_count", "noncritical_semantic_correct_count", "noncritical_semantic_equivalence", "material_unresolved_recall", "unresolved_precision", "quality_policy", "quality_policy_identity", "locked_terminology_recall", "required_media_compliance", "worst_critical_frequency", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_group_coverage", "group_critical_frequency", "category_coverage", "vision_input_proven", "corpus_set_identity", "evaluation_purpose"),
         "model_held_out": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "hard_gate_failure_count", "hard_gate_failure_types", "hard_gate_pass", "noncritical_floor_pass", "noncritical_semantic_required_count", "noncritical_semantic_correct_count", "noncritical_semantic_equivalence", "material_unresolved_recall", "unresolved_precision", "quality_policy", "quality_policy_identity", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "corpus_fingerprint", "held_out_fingerprint", "required_media_compliance", "vision_input_proven", "locked_terminology_recall", "unexpected_unresolved_rate", "corpus_set_identity", "evaluation_purpose", "contamination_report_sha256"),
         "internal_bilingual": ("attestation_id", "artifact_count", "work_unit_count", "critical_business_meaning_errors", "critical_numeric_date_unit_errors", "critical_modality_escalations", "critical_table_mapping_errors", "critical_trend_reversals", "unsupported_critical_executive_claims", "overall_noncritical_semantic_fidelity", "unresolved_precision", "material_unresolved_recall", "quality_policy", "quality_policy_identity", "locked_terminology", "review_contract_version", "review_contract", "corpus_set_identity", "evaluation_purpose"),
-        "zero_korean_comprehension": ("attestation_id", "users", "answers", "critical_question_accuracy", "overall_comprehension", "critical_misunderstanding"),
+        "zero_korean_comprehension": (
+            "attestation_id", "study_contract_version", "subject_git_sha", "deployment_fingerprint",
+            "protocol", "protocol_identity", "analysis_plan", "analysis_plan_identity",
+            "truth_authority", "participants", "outcome_records", "derived_results",
+        ),
         "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings", "audited_dependency_set_sha256", "resolved_dependency_set_sha256", "resolved_dependency_lock_sha256", "production_sbom_sha256", "candidate_constraints_sha256", "pip_audit_version", "semgrep_version", "semgrep_ruleset_identity", "semgrep_ruleset_sha256"),
         "reliability": ("timeout_recovery_pass", "resume_pass", "fifty_slide_pass", "concurrency_pass", "slo_pass", "concurrent_runs"),
         "model_data_policy": ("attestation_id", "approved_for_internal_artifacts"),
@@ -1671,10 +1683,10 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
         if any(payload[key] != 0 for key in critical) or float(payload["overall_noncritical_semantic_fidelity"]) < QUALITY_FLOORS["noncritical_semantic_equivalence_min"] or float(payload["unresolved_precision"]) < QUALITY_FLOORS["unresolved_precision_min"] or float(payload["material_unresolved_recall"]) < QUALITY_FLOORS["material_unresolved_recall_min"] or float(payload["locked_terminology"]) < QUALITY_FLOORS["locked_terminology_recall_min"]:
             raise EvidenceValidationError("internal bilingual quality gates failed")
     elif evidence_type == "zero_korean_comprehension":
-        if not str(payload["attestation_id"]) or payload["attestation_id"] == "UNSET" or not _positive_int(payload["users"], 10) or not _positive_int(payload["answers"], 100):
-            raise EvidenceValidationError("zero-Korean study sample/attestation is insufficient")
-        if float(payload["critical_question_accuracy"]) != 1.0 or float(payload["overall_comprehension"]) < 0.95 or payload["critical_misunderstanding"] != 0:
-            raise EvidenceValidationError("zero-Korean comprehension gates failed")
+        try:
+            validate_zero_korean_study_payload(payload)
+        except ZeroKoreanStudyError as exc:
+            raise EvidenceValidationError(f"zero-Korean study contract is invalid ({type(exc).__name__})") from exc
     elif evidence_type == "security":
         if not all(_is_true(payload[key]) for key in ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass")) or any(payload[key] != 0 for key in ("unresolved_high_findings", "unresolved_critical_findings", "secret_findings")):
             raise EvidenceValidationError("security evidence has failed or unresolved findings")
@@ -1765,6 +1777,8 @@ def load_evidence(path: Path, *, expected_type: str | None = None, subject_git_s
     evidence_fp = value.get("deployment_fingerprint")
     _require_hex(evidence_fp, "deployment_fingerprint")
     embedded_candidate = value.get("candidate_spec")
+    if evidence_type == "zero_korean_comprehension" and (not isinstance(embedded_candidate, dict) or not isinstance(candidate_spec, dict)):
+        raise EvidenceValidationError("zero-Korean study evidence requires its exact embedded and expected candidate specifications")
     if require_candidate_spec and not isinstance(embedded_candidate, dict):
         raise EvidenceValidationError("evidence is not bound to a candidate specification")
     if embedded_candidate is not None:
@@ -1806,6 +1820,16 @@ def load_evidence(path: Path, *, expected_type: str | None = None, subject_git_s
             subject_git_sha=str(value.get("subject_git_sha") or ""),
             deployment_fingerprint=evidence_fp,
         )
+    elif evidence_type == "zero_korean_comprehension":
+        try:
+            validate_zero_korean_candidate_binding(
+                payload,
+                subject_git_sha=str(value.get("subject_git_sha") or ""),
+                deployment_fingerprint=evidence_fp,
+                candidate_spec=candidate_spec or embedded_candidate,
+            )
+        except ZeroKoreanStudyError as exc:
+            raise EvidenceValidationError(f"zero-Korean candidate binding is invalid ({type(exc).__name__})") from exc
     elif candidate_spec is not None or embedded_candidate is not None or require_candidate_spec:
         validate_model_evidence_corpus_binding(str(evidence_type), payload, candidate_spec or embedded_candidate)
     physical = sha256_file(path)
@@ -1831,6 +1855,18 @@ def write_evidence(path: Path, *, evidence_type: str, subject_git_sha: str, depl
             subject_git_sha=subject_git_sha,
             deployment_fingerprint=deployment_fingerprint,
         )
+    elif evidence_type == "zero_korean_comprehension":
+        if candidate_spec is None:
+            raise EvidenceValidationError("zero-Korean study evidence requires its candidate specification")
+        try:
+            validate_zero_korean_candidate_binding(
+                payload,
+                subject_git_sha=subject_git_sha,
+                deployment_fingerprint=deployment_fingerprint,
+                candidate_spec=candidate_spec,
+            )
+        except ZeroKoreanStudyError as exc:
+            raise EvidenceValidationError(f"zero-Korean candidate binding is invalid ({type(exc).__name__})") from exc
     envelope: dict[str, Any] = {
         "schema_version": EVIDENCE_SCHEMA_VERSION,
         "evidence_type": evidence_type,

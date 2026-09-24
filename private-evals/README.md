@@ -154,6 +154,97 @@ applies the unchanged KSA-27.2 thresholds and KSA-27 hard-gate registry.
 Submit the resulting envelope through the existing release option; do not
 replace it with aggregate-only fields.
 
+## KSA-30 zero-Korean employee study
+
+KSA-30 strengthens the existing `zero_korean_comprehension` evidence type;
+there is no parallel release state or new command-line option. Its study
+contract and analysis-plan version is `1.0`. The shared envelope remains
+`2.6`, and KSA-29's bilingual-review contract remains `1.0` with unchanged
+semantics. Aggregate-only predecessor attestations do not satisfy the new
+payload contract.
+
+The frozen protocol and executable rules are in
+[`docs/zero-korean-human-study.md`](../docs/zero-korean-human-study.md). It
+defines exactly two randomized parallel conditions: the exact bound K-Slide
+English output and the expert-English reference for the same approved gold.
+Neither condition shows the original Korean artifact to participants. Only
+eligible English readers who cannot read Korean are enrolled. Assignment is
+concealed 1:1 in permuted blocks of four, with a final balanced two-person
+block when stopping at 85 per arm, and one condition per participant.
+The eight fixed questions and critical categories are encoded in the
+`k_slide.zero_korean_study` protocol.
+
+The primary outcome is one participant-level mean fraction correct, with
+repeated questions aggregated within the participant. The predeclared margin
+is exactly `0.05`; alpha is one-sided `0.025`, target power is `0.90`,
+assumed participant means are `0.95` in both arms, and assumed participant
+standard deviations are `0.10` in both arms. The deterministic normal
+approximation with the frozen z quantiles sets a fixed target of exactly 85
+analyzable participants per arm, with no interim or outcome-driven extension.
+Validation recomputes that count and the observed Welch standard error and
+lower bound. Each arm independently must retain 100% critical
+correctness, at least 95% overall comprehension, and zero critical
+misunderstandings. Any `serious_misleading` outcome in either arm is a hard
+failure. Missing answers are recorded as `unanswered` and score zero.
+
+The result producer runs only after the company approves and executes the
+study. Keep all screening details, employee identities, questions and answer
+text, reference/source contents, and scoring worksheets in the approved
+company environment. Emit one opaque assignment for each randomized
+participant and exactly one closed outcome for each of the eight questions.
+The evidence validator rejects additional fields, missing or duplicate rows,
+replayed identities, unbalanced arms, stale protocols, mismatched candidate or
+gold identities, tampered summaries, underpowered arms, a failed confidence
+bound, any serious misleading outcome, or an absolute safety-floor failure.
+
+The `truth_authority` contains only hashes. It links the KSA-29 attestation,
+its corpus-set identity, one reviewed corpus-item identity, the candidate
+output artifact ID/hash, and the exact expert-English gold hash. The question
+set identity equals that approved gold hash; the company gold artifact must
+contain the frozen questions and answer key. During release-state derivation,
+the evidence path verifies those identities against the supplied valid
+`internal_bilingual` payload for the same subject and deployment. Human
+bilingual reviewers and the expert reference remain the authority. AI cannot
+author truth, score outcomes, adjudicate, or replace the employee sample.
+
+After a later approved execution, an in-company producer can build and persist
+the source-free evidence through the existing writer:
+
+```python
+from k_slide.certification import write_evidence
+from k_slide.zero_korean_study import build_zero_korean_study_payload
+
+payload = build_zero_korean_study_payload(
+    subject_git_sha=candidate["subject_git_sha"],
+    deployment_fingerprint=deployment_fingerprint,
+    truth_authority=source_free_ksa29_gold_binding,
+    participants=opaque_randomized_participant_assignments,
+    outcomes=opaque_scored_question_outcomes,
+)
+write_evidence(
+    evidence_path,
+    evidence_type="zero_korean_comprehension",
+    subject_git_sha=candidate["subject_git_sha"],
+    deployment_fingerprint=deployment_fingerprint,
+    payload=payload,
+    generated_at=generated_at,
+    candidate_spec=candidate,
+)
+```
+
+The producer accepts source-free participant assignments with only
+`participant_id` and `condition`; each raw outcome contains only
+`condition`, `participant_id`, and `question_id`, plus exactly two opaque
+`scoring_reviews` (`reviewer_id`, closed `outcome`) and either `adjudication: null`
+when they agree or an opaque human `adjudicator_id` and closed
+`resolution_outcome` when they disagree. The scorer IDs must be distinct; the
+adjudicator must be a third person. The builder adds candidate/protocol/question/
+gold bindings, fixed human-authority enums, exact review references, and
+deterministic record hashes, then derives all aggregate statistics itself. Do
+not persist the example inputs or output as human-study results in this BUILD.
+The BUILD defines this later execution path only; no employee study was run
+and no human-study result is claimed.
+
 ## Canonical external model-evaluation path
 
 Use the existing `evals.run_model_eval` command with explicit external corpus

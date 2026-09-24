@@ -31,6 +31,7 @@ from k_slide.certification import (
     sha256_file,
     validate_cyclonedx_1_5,
 )
+from k_slide.zero_korean_study import ZeroKoreanStudyError, validate_zero_korean_authority_binding
 from k_slide.model_policy import load_model_policy
 from k_slide.quality_policy import policy_identity_record, QUALITY_POLICY_IDENTITY
 from k_slide.classification_policy import load_inference_data_use_policy, policy_completeness
@@ -310,6 +311,20 @@ def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, 
         blockers.append("candidate deployment specification is missing")
     elif candidate_spec is not None:
         blockers.extend(f"candidate field is unresolved: {field}" for field in candidate_completeness(candidate_spec, state))
+    if state in {
+        ReleaseState.INTERNAL_VALIDATED.value,
+        ReleaseState.PILOT_APPROVED.value,
+        ReleaseState.PRODUCTION_CERTIFIED.value,
+    }:
+        zero_korean = records.get("zero_korean_comprehension", {}).get("payload") if isinstance(records.get("zero_korean_comprehension"), dict) else None
+        bilingual = records.get("internal_bilingual", {}).get("payload") if isinstance(records.get("internal_bilingual"), dict) else None
+        if not isinstance(zero_korean, dict) or not isinstance(bilingual, dict):
+            blockers.append("zero-Korean study lacks its KSA-29 bilingual truth authority")
+        else:
+            try:
+                validate_zero_korean_authority_binding(zero_korean, bilingual)
+            except ZeroKoreanStudyError:
+                blockers.append("zero-Korean study truth authority does not match KSA-29 bilingual evidence")
     heavy = records.get("heavy_runtime")
     if state in {ReleaseState.SYNTHETIC_PRODUCTION_CANDIDATE.value, ReleaseState.INTERNAL_VALIDATED.value, ReleaseState.PILOT_APPROVED.value, ReleaseState.PRODUCTION_CERTIFIED.value} and heavy and heavy["payload"].get("full_engine_pass") is not True:
         blockers.append("full heavy engine evidence is required beyond GEMMA_EVAL_READY")
