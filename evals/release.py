@@ -14,6 +14,7 @@ from typing import Any
 from k_slide import __version__
 from k_slide.certification import (
     CANDIDATE_INPUT_FIELDS,
+    EVIDENCE_TYPES,
     EvidenceValidationError,
     candidate_deployment_fingerprint,
     canonical_candidate_factors,
@@ -28,8 +29,16 @@ from k_slide.certification import (
     load_dependency_inventory,
     repository_schema_versions,
     resolve_candidate_spec,
+    safe_path_under,
     sha256_file,
     validate_cyclonedx_1_5,
+)
+from k_slide.recertification import (
+    CHAMPION_PROMOTION_STATES,
+    build_recertification_record,
+    validate_champion_promotion,
+    validate_recertification_record,
+    recertification_exemption_identities,
 )
 from k_slide.zero_korean_study import ZeroKoreanStudyError, validate_zero_korean_authority_binding
 from k_slide.model_policy import load_model_policy
@@ -256,7 +265,7 @@ def _load_records(paths: dict[str, Path], *, subject_sha: str, deployment_fp: st
     return records, errors
 
 
-def _champion(root: Path, *, records: dict[str, dict[str, Any]], policy: Any, deployment_fp: str) -> tuple[dict[str, Any] | None, str | None, list[str]]:
+def _champion(root: Path, *, records: dict[str, dict[str, Any]], policy: Any, deployment_fp: str, candidate_spec: dict[str, Any] | None = None, recertification: dict[str, Any] | None = None, prior_records: dict[str, dict[str, Any]] | None = None) -> tuple[dict[str, Any] | None, str | None, list[str]]:
     path = root / "evals" / "champion.json"
     blockers: list[str] = []
     if not path.is_file():
@@ -265,30 +274,48 @@ def _champion(root: Path, *, records: dict[str, dict[str, Any]], policy: Any, de
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError):
         return None, None, ["champion.json is malformed"]
-    if not isinstance(value, dict) or value.get("status") in {None, "UNSET"} or value.get("model") in {None, "UNSET"}:
+    if not isinstance(value, dict):
+        return None, _sha256(path), ["champion.json is not an object"]
+    if value.get("status") == "UNSET":
         return None, None, ["champion.json is UNSET"]
-    if not policy.approved(requested=value.get("model"), effective=value.get("effective_model", value.get("model"))):
-        blockers.append("champion model is not approved by ModelPolicy")
-    if value.get("deployment_fingerprint") != deployment_fp:
-        blockers.append("champion deployment fingerprint does not match candidate")
-    config_hash = str(value.get("behavior_configuration_hash") or value.get("config_hash") or "")
-    if not config_hash:
-        blockers.append("champion config_hash is missing")
-    for evidence_type in ("model_validation", "model_high_risk_stability", "model_held_out"):
-        record = records.get(evidence_type)
-        if record and record["payload"].get("behavior_configuration_hash", record["payload"].get("configuration_hash")) != config_hash:
-            blockers.append(f"champion config hash does not match {evidence_type} evidence")
-    model_records = [records.get(item) for item in ("model_validation", "model_high_risk_stability", "model_held_out") if records.get(item)]
-    behavior_hashes = {record["payload"].get("behavior_configuration_hash", record["payload"].get("configuration_hash")) for record in model_records}
-    if len(behavior_hashes) > 1:
-        blockers.append("model evidence behavior configuration hashes disagree")
-    format_plans = {tuple(record["payload"].get("formats", ())) for record in model_records}
-    if len(format_plans) > 1:
-        blockers.append("model evidence format plans disagree")
-    effective_ids = {record["payload"].get("effective_model") for record in model_records if record["payload"].get("effective_model")}
-    champion_effective = policy.canonical_effective(requested=value.get("model"), effective=value.get("effective_model", value.get("model")))
-    if len(effective_ids) > 1 or (effective_ids and champion_effective not in effective_ids):
-        blockers.append("model evidence effective identities disagree")
+    if value.get("status") not in CHAMPION_PROMOTION_STATES:
+        return value, _sha256(path), ["champion status is not a closed promotion state"]
+    if value.get("schema_version") != "1.0":
+        blockers.append("champion schema version is unsupported")
+    allowed = {
+        "schema_version", "status", "reason", "model", "effective_model",
+        "deployment_fingerprint", "behavior_configuration_hash", "promotion_contract",
+    }
+    if set(value) - allowed:
+        blockers.append("champion summary contains fields outside the closed contract")
+    promotion = value.get("promotion_contract")
+    if not isinstance(candidate_spec, dict):
+        blockers.append("exact candidate specification is required to validate champion promotion")
+    elif deployment_fp != candidate_deployment_fingerprint(candidate_spec):
+        blockers.append("champion candidate deployment does not match resolved candidate")
+    else:
+        try:
+            validated = validate_champion_promotion(
+                promotion,
+                candidate_spec,
+                records,
+                policy=policy,
+                root=root,
+                recertification=recertification,
+                prior_records=prior_records,
+            )
+        except (EvidenceValidationError, OSError, ValueError, TypeError) as exc:
+            blockers.append(f"champion promotion contract is invalid ({type(exc).__name__})")
+        else:
+            for field, expected in (
+                ("status", validated["state"]),
+                ("model", validated["requested_model"]),
+                ("effective_model", validated["effective_model"]),
+                ("deployment_fingerprint", validated["candidate_deployment_fingerprint"]),
+                ("behavior_configuration_hash", validated["behavior_configuration_hash"]),
+            ):
+                if value.get(field) != expected:
+                    blockers.append(f"champion summary {field} disagrees with validated promotion")
     return value, _sha256(path), blockers
 
 
@@ -305,7 +332,7 @@ def _state_requirements(state: str) -> tuple[str, ...]:
     }[state]
 
 
-def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, root: Path, policy: Any, deployment_fp: str, candidate_spec: dict[str, Any] | None = None) -> list[str]:
+def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, root: Path, policy: Any, deployment_fp: str, candidate_spec: dict[str, Any] | None = None, recertification: dict[str, Any] | None = None, prior_records: dict[str, dict[str, Any]] | None = None) -> list[str]:
     blockers = [f"missing validated {item} evidence" for item in _state_requirements(state) if item not in records]
     if state != ReleaseState.DEVELOPMENT.value and candidate_spec is None:
         blockers.append("candidate deployment specification is missing")
@@ -329,7 +356,15 @@ def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, 
     if state in {ReleaseState.SYNTHETIC_PRODUCTION_CANDIDATE.value, ReleaseState.INTERNAL_VALIDATED.value, ReleaseState.PILOT_APPROVED.value, ReleaseState.PRODUCTION_CERTIFIED.value} and heavy and heavy["payload"].get("full_engine_pass") is not True:
         blockers.append("full heavy engine evidence is required beyond GEMMA_EVAL_READY")
     if state in {ReleaseState.SYNTHETIC_PRODUCTION_CANDIDATE.value, ReleaseState.INTERNAL_VALIDATED.value, ReleaseState.PILOT_APPROVED.value, ReleaseState.PRODUCTION_CERTIFIED.value}:
-        champion, _, champion_blockers = _champion(root, records=records, policy=policy, deployment_fp=deployment_fp)
+        champion, _, champion_blockers = _champion(
+            root,
+            records=records,
+            policy=policy,
+            deployment_fp=deployment_fp,
+            candidate_spec=candidate_spec,
+            recertification=recertification,
+            prior_records=prior_records,
+        )
         if champion is None or champion_blockers:
             blockers.extend(champion_blockers or ["champion evidence is missing"])
     if state == ReleaseState.PRODUCTION_CERTIFIED.value:
@@ -433,7 +468,7 @@ def _state_specific_blockers(state: str, records: dict[str, dict[str, Any]], *, 
     return sorted(set(blockers))
 
 
-def derive_release_state(requested_state: str, *, records: dict[str, dict[str, Any]], root: Path, policy: Any, deployment_fp: str, candidate_spec: dict[str, Any] | None = None) -> tuple[str, list[str]]:
+def derive_release_state(requested_state: str, *, records: dict[str, dict[str, Any]], root: Path, policy: Any, deployment_fp: str, candidate_spec: dict[str, Any] | None = None, recertification: dict[str, Any] | None = None, prior_records: dict[str, dict[str, Any]] | None = None) -> tuple[str, list[str]]:
     """Return the highest state supported up to the requested maximum."""
 
     ordered = list(REQUESTABLE_STATES)
@@ -441,17 +476,102 @@ def derive_release_state(requested_state: str, *, records: dict[str, dict[str, A
         return ReleaseState.DEVELOPMENT.value, [f"release state is not requestable: {requested_state}"]
     available = ReleaseState.DEVELOPMENT.value
     for state in ordered[1:]:
-        blockers = _state_specific_blockers(state, records, root=root, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate_spec)
+        blockers = _state_specific_blockers(state, records, root=root, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate_spec, recertification=recertification, prior_records=prior_records)
         if blockers:
             break
         available = state
-    requested_blockers = _state_specific_blockers(requested_state, records, root=root, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate_spec)
+    requested_blockers = _state_specific_blockers(requested_state, records, root=root, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate_spec, recertification=recertification, prior_records=prior_records)
     if ordered.index(requested_state) > ordered.index(available):
         return available, sorted(set(requested_blockers + [f"requested {requested_state} exceeds evidence-derived maximum {available}"]))
     return requested_state, requested_blockers
 
 
-def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.value, requested_state: str | None = None, model: str | None = None, ocr_asset_manifest: Path | None = None, validation_result: Path | None = None, held_out_result: Path | None = None, evidence_paths: dict[str, Path] | None = None, subject_sha: str | None = None, candidate_profile: Path | None = None) -> dict[str, Any]:
+def _load_prior_recertification_inputs(
+    root: Path,
+    *,
+    prior_release_manifest: Path | None,
+    carry_forward_evidence: tuple[str, ...] | list[str],
+    candidate: dict[str, Any],
+) -> tuple[dict[str, Any] | None, dict[str, dict[str, Any]], dict[str, Path], Path | None]:
+    requested_types = tuple(carry_forward_evidence)
+    if not requested_types:
+        if prior_release_manifest is not None:
+            raise EvidenceValidationError("a prior release manifest requires explicit carry-forward evidence types")
+        return None, {}, {}, None
+    if prior_release_manifest is None:
+        raise EvidenceValidationError("carry-forward evidence requires a prior release manifest")
+    if len(set(requested_types)) != len(requested_types):
+        raise EvidenceValidationError("carry-forward evidence types must be unique")
+    try:
+        prior_path = safe_path_under(root, prior_release_manifest.expanduser(), label="prior release manifest", require_file=True)
+    except EvidenceValidationError as exc:
+        raise EvidenceValidationError("prior release manifest must be a regular file beneath the release root") from exc
+    try:
+        prior_manifest = json.loads(prior_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise EvidenceValidationError("prior release manifest is malformed") from exc
+    if not isinstance(prior_manifest, dict) or not isinstance(prior_manifest.get("candidate_spec"), dict):
+        raise EvidenceValidationError("prior release manifest has no candidate specification")
+    old_candidate = prior_manifest["candidate_spec"]
+    old_subject = str(prior_manifest.get("subject_git_sha") or "")
+    old_deployment = str(prior_manifest.get("deployment_fingerprint") or "")
+    if old_candidate.get("subject_git_sha") != old_subject or candidate_deployment_fingerprint(old_candidate) != old_deployment:
+        raise EvidenceValidationError("prior release candidate identity is inconsistent")
+    hashes = prior_manifest.get("evidence_hashes")
+    envelopes = prior_manifest.get("evidence_envelope_hashes")
+    paths = prior_manifest.get("evidence_paths")
+    if not all(isinstance(value, dict) for value in (hashes, envelopes, paths)):
+        raise EvidenceValidationError("prior release evidence index is malformed")
+    prior_records: dict[str, dict[str, Any]] = {}
+    prior_paths: dict[str, Path] = {}
+    for evidence_type in requested_types:
+        if evidence_type not in EVIDENCE_TYPES:
+            raise EvidenceValidationError("carry-forward evidence type is unknown")
+        raw_path = paths.get(evidence_type)
+        if not isinstance(raw_path, str) or not raw_path:
+            raise EvidenceValidationError(f"prior release has no {evidence_type} evidence path")
+        relative = Path(raw_path)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise EvidenceValidationError("prior release evidence path is not portable")
+        try:
+            evidence_path = safe_path_under(root, relative, label=f"prior {evidence_type} evidence", require_file=True)
+        except EvidenceValidationError as exc:
+            raise EvidenceValidationError(f"prior {evidence_type} evidence is missing, symlinked, or outside the release root") from exc
+        record = load_evidence(
+            evidence_path,
+            expected_type=evidence_type,
+            subject_git_sha=old_subject,
+            deployment_fingerprint=old_deployment,
+            repository_root=root,
+            candidate_spec=old_candidate,
+            require_candidate_spec=True,
+        )
+        if record.get("evidence_identity") != hashes.get(evidence_type):
+            raise EvidenceValidationError(f"prior {evidence_type} evidence identity disagrees with its manifest")
+        if record.get("envelope_sha256") != envelopes.get(evidence_type):
+            raise EvidenceValidationError(f"prior {evidence_type} evidence hash disagrees with its manifest")
+        prior_records[evidence_type] = record
+        prior_paths[evidence_type] = evidence_path
+    prior_manifest_sha256 = sha256_file(prior_path)
+    recertification = build_recertification_record(
+        old_candidate,
+        candidate,
+        prior_records,
+        requested_types,
+        root=root,
+        prior_release_manifest_sha256=prior_manifest_sha256,
+    )
+    validate_recertification_record(
+        recertification,
+        candidate,
+        prior_records,
+        root=root,
+        expected_prior_release_manifest_sha256=prior_manifest_sha256,
+    )
+    return recertification, prior_records, prior_paths, prior_path
+
+
+def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.value, requested_state: str | None = None, model: str | None = None, ocr_asset_manifest: Path | None = None, validation_result: Path | None = None, held_out_result: Path | None = None, evidence_paths: dict[str, Path] | None = None, subject_sha: str | None = None, candidate_profile: Path | None = None, prior_release_manifest: Path | None = None, carry_forward_evidence: tuple[str, ...] | list[str] = ()) -> dict[str, Any]:
     root = root.expanduser().resolve()
     runtime = discover_runtime(root)
     policy = load_model_policy(root)
@@ -485,14 +605,53 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
         candidate_spec=candidate,
         require_candidate_binding=requested != ReleaseState.DEVELOPMENT.value or candidate_profile is not None,
     )
-    derived, blockers = derive_release_state(requested, records=records, root=root, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate)
+    recertification, carried_records, carried_paths, prior_manifest_path = _load_prior_recertification_inputs(
+        root,
+        prior_release_manifest=prior_release_manifest,
+        carry_forward_evidence=carry_forward_evidence,
+        candidate=candidate,
+    )
+    duplicate_carry = set(records) & set(carried_records)
+    if duplicate_carry:
+        raise EvidenceValidationError("evidence cannot be both rerun and carried forward: " + ", ".join(sorted(duplicate_carry)))
+    records.update(carried_records)
+    derived, blockers = derive_release_state(
+        requested,
+        records=records,
+        root=root,
+        policy=policy,
+        deployment_fp=deployment_fp,
+        candidate_spec=candidate,
+        recertification=recertification,
+        prior_records=carried_records,
+    )
     if evidence_errors:
         blockers.extend(evidence_errors)
-    champion, champion_hash, champion_blockers = _champion(root, records=records, policy=policy, deployment_fp=deployment_fp) if derived in {ReleaseState.SYNTHETIC_PRODUCTION_CANDIDATE.value, ReleaseState.INTERNAL_VALIDATED.value, ReleaseState.PILOT_APPROVED.value, ReleaseState.PRODUCTION_CERTIFIED.value} else (None, None, [])
+    champion, champion_hash, champion_blockers = _champion(
+        root,
+        records=records,
+        policy=policy,
+        deployment_fp=deployment_fp,
+        candidate_spec=candidate,
+        recertification=recertification,
+        prior_records=carried_records,
+    ) if derived in {ReleaseState.SYNTHETIC_PRODUCTION_CANDIDATE.value, ReleaseState.INTERNAL_VALIDATED.value, ReleaseState.PILOT_APPROVED.value, ReleaseState.PRODUCTION_CERTIFIED.value} else (None, None, [])
     blockers.extend(champion_blockers)
     hashes = evidence_hashes(records.values())
     envelope_hashes = {str(item["evidence_type"]): str(item.get("envelope_sha256") or item["sha256"]) for item in records.values()}
-    cert_fp = "UNSET" if derived == ReleaseState.DEVELOPMENT.value else certification_fingerprint(deployment=deployment_fp, evidence_hashes=hashes, release_state=derived, champion_hash=champion_hash)
+    promotion = champion.get("promotion_contract") if isinstance(champion, dict) and not champion_blockers else None
+    promotion_identity = promotion.get("promotion_identity") if isinstance(promotion, dict) else None
+    exemption_ids = recertification_exemption_identities(recertification)
+    cert_fp = "UNSET" if derived == ReleaseState.DEVELOPMENT.value else certification_fingerprint(
+        deployment=deployment_fp,
+        evidence_hashes=hashes,
+        release_state=derived,
+        champion_hash=champion_hash,
+        candidate_identity=deployment_fp,
+        promotion_identity=promotion_identity,
+        recertification_identity=recertification.get("recertification_identity") if recertification else None,
+        exemption_identities=exemption_ids,
+    )
     manifest_ocr_asset = ocr_asset_manifest
     if manifest_ocr_asset is not None:
         manifest_ocr_asset = manifest_ocr_asset.expanduser()
@@ -545,8 +704,16 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
         },
         "evidence_hashes": hashes,
         "evidence_envelope_hashes": envelope_hashes,
-        "evidence_paths": {key: safe_relative(value, f"evidence {key}") for key, value in evidence_paths.items()},
+        "evidence_paths": {
+            **{key: safe_relative(value, f"evidence {key}") for key, value in evidence_paths.items()},
+            **{key: safe_relative(value, f"carried evidence {key}") for key, value in carried_paths.items()},
+        },
         "champion_hash": champion_hash,
+        "candidate_identity": deployment_fp,
+        "promotion_identity": promotion_identity,
+        "champion_promotion": promotion,
+        "recertification": recertification,
+        "prior_release_manifest": safe_relative(prior_manifest_path, "prior release manifest") if prior_manifest_path else None,
         "constraints_file": "constraints-production.txt",
         "constraints_sha256": _sha256(root / "constraints-production.txt"),
         "attestations": {
@@ -665,6 +832,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--requested-state", choices=REQUESTABLE_STATES, default=None)
     parser.add_argument("--state", choices=REQUESTABLE_STATES, default=None, help="Deprecated alias for --requested-state")
     parser.add_argument("--subject-sha")
+    parser.add_argument("--prior-release-manifest", type=Path, help="Prior release manifest used for scoped recertification")
+    parser.add_argument("--carry-forward-evidence", action="append", choices=EVIDENCE_TYPES, default=[], help="Explicitly carry one proven-unaffected evidence type from --prior-release-manifest")
     parser.add_argument("--model")
     parser.add_argument("--ocr-asset-manifest", type=Path)
     parser.add_argument("--validation-result", type=Path, help="Deprecated raw-result metadata; use --validation-evidence")
@@ -721,7 +890,29 @@ def main(argv: list[str] | None = None) -> int:
     # not opportunistically rewrite this candidate during release.
     deployment_fp = candidate_deployment_fingerprint(candidate)
     records, evidence_errors = _load_records(paths, subject_sha=subject, deployment_fp=deployment_fp, repository_root=root, candidate_spec=candidate, require_candidate_binding=requested != ReleaseState.DEVELOPMENT.value or args.candidate_profile is not None)
-    derived, blockers = derive_release_state(requested, records=records, root=root, policy=policy, deployment_fp=deployment_fp, candidate_spec=candidate)
+    try:
+        recertification, carried_records, _carried_paths, _prior_path = _load_prior_recertification_inputs(
+            root,
+            prior_release_manifest=args.prior_release_manifest,
+            carry_forward_evidence=args.carry_forward_evidence,
+            candidate=candidate,
+        )
+        if set(records) & set(carried_records):
+            raise EvidenceValidationError("evidence cannot be both rerun and carried forward")
+        records.update(carried_records)
+    except (EvidenceValidationError, OSError, ValueError, TypeError) as exc:
+        print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": ReleaseState.DEVELOPMENT.value, "reasons": [f"Scoped recertification blocked ({type(exc).__name__})."]}, ensure_ascii=False, indent=2))
+        return 2
+    derived, blockers = derive_release_state(
+        requested,
+        records=records,
+        root=root,
+        policy=policy,
+        deployment_fp=deployment_fp,
+        candidate_spec=candidate,
+        recertification=recertification,
+        prior_records=carried_records,
+    )
     blockers.extend(evidence_errors)
     if args.validation_result and "model_validation" not in paths:
         blockers.append("raw --validation-result is not certification evidence; provide --validation-evidence envelope")
@@ -752,7 +943,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": derived, "reasons": ["PRODUCTION_CERTIFIED outputs must be new files; refusing to replace a prior release"]}, ensure_ascii=False, indent=2))
             return 2
     try:
-        manifest = build_release_manifest(root, requested_state=requested, model=args.model, ocr_asset_manifest=args.ocr_asset_manifest, evidence_paths=paths, subject_sha=subject, candidate_profile=args.candidate_profile)
+        manifest = build_release_manifest(root, requested_state=requested, model=args.model, ocr_asset_manifest=args.ocr_asset_manifest, evidence_paths=paths, subject_sha=subject, candidate_profile=args.candidate_profile, prior_release_manifest=args.prior_release_manifest, carry_forward_evidence=args.carry_forward_evidence)
         if manifest["release_state"] == ReleaseState.PRODUCTION_CERTIFIED.value:
             # Validate the generated profile shape before writing the manifest.
             # Its real manifest hash is filled only after the manifest is

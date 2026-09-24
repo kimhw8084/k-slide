@@ -2006,8 +2006,17 @@ def deployment_fingerprint(factors: dict[str, Any]) -> str:
     return sha256_bytes(canonical_bytes(factors))
 
 
-def certification_fingerprint(*, deployment: str, evidence_hashes: dict[str, str], release_state: str, champion_hash: str | None = None) -> str:
-    return sha256_bytes(canonical_bytes({"deployment_fingerprint": deployment, "evidence_hashes": dict(sorted(evidence_hashes.items())), "release_state": release_state, "champion_hash": champion_hash}))
+def certification_fingerprint(*, deployment: str, evidence_hashes: dict[str, str], release_state: str, champion_hash: str | None = None, candidate_identity: str | None = None, promotion_identity: str | None = None, recertification_identity: str | None = None, exemption_identities: dict[str, str] | None = None) -> str:
+    value = {"deployment_fingerprint": deployment, "evidence_hashes": dict(sorted(evidence_hashes.items())), "release_state": release_state, "champion_hash": champion_hash}
+    if candidate_identity is not None or promotion_identity is not None or recertification_identity is not None or exemption_identities:
+        value.update({
+            "fingerprint_contract_version": "2.0",
+            "candidate_identity": candidate_identity or deployment,
+            "promotion_identity": promotion_identity,
+            "recertification_identity": recertification_identity,
+            "exemption_identities": dict(sorted((exemption_identities or {}).items())),
+        })
+    return sha256_bytes(canonical_bytes(value))
 
 
 def evidence_hashes(records: Iterable[dict[str, Any]]) -> dict[str, str]:

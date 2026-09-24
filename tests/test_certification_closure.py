@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import os
@@ -533,6 +534,7 @@ def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model
             "egress_policy_version": egress_version,
             "egress_policy_hash": egress_hash,
             "egress_policy_identity": egress_policy["policy_identity"],
+            "inference_route_identity": "test-inference-route",
             "inference_endpoint_identity": endpoint_identity,
         })
     return resolve_candidate_spec(candidate, root=root or Path.cwd(), subject_git_sha=subject, model_policy=load_model_policy(), corpus=candidate["corpus_identity"])  # type: ignore[arg-type]
@@ -1694,11 +1696,17 @@ class CertificationClosureTests(unittest.TestCase):
             self.assertEqual(state, "GEMMA_EVAL_READY")
             self.assertEqual(blockers, [])
 
-    def test_temporary_machine_and_attestation_chain_derives_internal_validated(self):
+    def test_temporary_machine_and_attestation_chain_derives_pilot_without_production_policy(self):
+        from k_slide.recertification import build_champion_promotion, champion_document_from_promotion
+
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             subject = "a" * 40
             candidate = _candidate_spec(subject, ocr_provider="paddle", asset_manifest="manifest.json", asset_hash="a" * 64)
+            candidate["inference_route_identity"] = "test-inference-route"
+            candidate["inference_endpoint_identity"] = "f" * 64
+            candidate["resolved_dependency_set_sha256"] = "d" * 64
+            candidate["constraints_sha256"] = _sha(Path.cwd() / "constraints-production.txt")
             deployment = candidate_deployment_fingerprint(candidate)
             records = {}
             for evidence_type, source_factory in (("runtime", _runtime_sources), ("heavy_runtime", _heavy_sources)):
@@ -1713,14 +1721,15 @@ class CertificationClosureTests(unittest.TestCase):
             for evidence_type, split, repeats in (("model_validation", "validation", 3), ("model_high_risk_stability", "validation", 5), ("model_held_out", "held_out", 3)):
                 folder = root / evidence_type
                 folder.mkdir()
-                source = _model_sources(folder, split=split, repeats=repeats, subject=subject, deployment=deployment)
+                source = _candidate_model_sources(folder, split=split, repeats=repeats, subject=subject, deployment=deployment, candidate=candidate)
                 if evidence_type == "model_validation":
                     bilingual_manifest = json.loads(source["experiment_manifest"].read_text(encoding="utf-8"))["corpus_manifest"]
                 envelope = folder / "evidence.json"
-                build_machine_evidence(envelope, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=source, root=Path.cwd())
-                model_records[evidence_type] = load_evidence(envelope, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=Path.cwd())
+                build_machine_evidence(envelope, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=source, candidate_spec=candidate)
+                model_records[evidence_type] = load_evidence(envelope, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=Path.cwd(), candidate_spec=candidate, require_candidate_spec=True)
             (root / "evals").mkdir()
-            _write(root / "evals" / "champion.json", {"status": "FROZEN", "model": "google/gemma-4-31b-it", "effective_model": "google/gemma-4-31b-it", "deployment_fingerprint": deployment, "config_hash": model_records["model_validation"]["payload"]["behavior_configuration_hash"]})
+            promotion = build_champion_promotion(candidate, model_records, policy=load_model_policy(root), root=Path.cwd(), state="FROZEN_PROMOTED")
+            _write(root / "evals" / "champion.json", champion_document_from_promotion(promotion, reason="synthetic test fixture"))
             records.update(model_records)
             bilingual_payload = build_internal_bilingual_payload(make_review_contract(subject=subject, deployment=deployment, manifest=bilingual_manifest))
             payloads = {
@@ -1736,7 +1745,7 @@ class CertificationClosureTests(unittest.TestCase):
                 write_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, payload=payload, generated_at="2026-09-09T00:00:00Z", candidate_spec=candidate_binding)
                 records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate_binding)
             state, blockers = derive_release_state("INTERNAL_VALIDATED", records=records, root=root, policy=load_model_policy(root), deployment_fp=deployment, candidate_spec=candidate)
-            self.assertEqual(state, "INTERNAL_VALIDATED")
+            self.assertEqual(state, "INTERNAL_VALIDATED", msg=str(blockers))
             self.assertEqual(blockers, [])
 
             for evidence_type, source_factory in (("security", _security_sources), ("reliability", _reliability_sources)):
@@ -1759,8 +1768,8 @@ class CertificationClosureTests(unittest.TestCase):
             (root / ".k-slide-config").mkdir()
             _write(root / ".k-slide-config" / "production-sbom.json", {"bomFormat": "CycloneDX", "complete": True, "metadata": {}, "components": [{"name": "k-slide"}]})
             state, blockers = derive_release_state("PRODUCTION_CERTIFIED", records=records, root=root, policy=load_model_policy(root), deployment_fp=deployment, candidate_spec=candidate)
-            self.assertEqual(state, "INTERNAL_VALIDATED")
-            self.assertTrue(any("candidate field is unresolved" in item for item in blockers))
+            self.assertEqual(state, "PILOT_APPROVED", msg=str(blockers))
+            self.assertTrue(any("authoritative default-deny egress policy" in item for item in blockers))
 
     def test_deterministic_evidence_identity_excludes_generated_at(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1998,6 +2007,8 @@ class CertificationClosureTests(unittest.TestCase):
             self.assertEqual(release["dataset"]["corpus_identity"], loaded["corpus_identity"])
 
     def test_complete_release_materializes_profile_and_detects_candidate_staleness(self):
+        from k_slide.recertification import build_champion_promotion, champion_document_from_promotion
+
         subject = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
         target = "google/gemma-4-31b-it"
         with tempfile.TemporaryDirectory() as directory:
@@ -2023,6 +2034,33 @@ class CertificationClosureTests(unittest.TestCase):
             _write_opencode_bootstrap(root)
             _write(root / ".k-slide-config" / "production-dependency-inventory.json", inventory)
             candidate = _candidate_spec(subject, ocr_provider="paddle", asset_manifest="ocr/manifest.json", asset_hash=_sha(asset_manifest), root=root)
+            from k_slide.classification_policy import (
+                DEFAULT_CLASSIFICATION,
+                INFERENCE_DATA_USE_POLICY_FILENAME,
+                policy_hash_for_mapping,
+                policy_identity_for_mapping,
+            )
+            route_identity = str(candidate["inference_route_identity"])
+            policy_version = "test-1"
+            classification_rules = {DEFAULT_CLASSIFICATION: True, "restricted": False, "internal_only": True}
+            policy_hash = policy_hash_for_mapping(
+                inference_route_identity=route_identity,
+                policy_version=policy_version,
+                classification_rules=classification_rules,
+            )
+            candidate["inference_data_use_policy"] = {
+                "schema_version": "1.0",
+                "inference_route_identity": route_identity,
+                "policy_version": policy_version,
+                "policy_hash": policy_hash,
+                "policy_identity": policy_identity_for_mapping(
+                    inference_route_identity=route_identity,
+                    policy_version=policy_version,
+                    policy_hash=policy_hash,
+                ),
+                "classification_rules": classification_rules,
+            }
+            _write(root / ".k-slide-config" / INFERENCE_DATA_USE_POLICY_FILENAME, candidate["inference_data_use_policy"])
             candidate_dir = root / ".k-slide-config"
             candidate_dir.mkdir(exist_ok=True)
             candidate_path = candidate_dir / "production-candidate.json"
@@ -2048,7 +2086,8 @@ class CertificationClosureTests(unittest.TestCase):
                 build_machine_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=root, candidate_spec=candidate)
                 records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate, require_candidate_spec=True)
             (root / "evals").mkdir()
-            _write(root / "evals" / "champion.json", {"status": "FROZEN", "model": target, "effective_model": target, "deployment_fingerprint": deployment, "config_hash": records["model_validation"]["payload"]["behavior_configuration_hash"]})
+            promotion = build_champion_promotion(candidate, {key: value for key, value in records.items() if key.startswith("model_")}, policy=load_model_policy(root), root=root, state="FROZEN_PROMOTED")
+            _write(root / "evals" / "champion.json", champion_document_from_promotion(promotion, reason="synthetic test fixture"))
             bilingual_payload = build_internal_bilingual_payload(make_review_contract(subject=subject, deployment=deployment, manifest=bilingual_manifest))
             attestations = {
                 "internal_bilingual": bilingual_payload,
@@ -2198,6 +2237,12 @@ class CertificationClosureTests(unittest.TestCase):
             stale_checks = _manifest_and_fingerprint_status(root, ProductionProfile.from_mapping(profile), SimpleNamespace())
             self.assertEqual(next(item for item in stale_checks if item["label"] == "Candidate source identity")["status"], "FAIL")
             self.assertEqual(next(item for item in stale_checks if item["label"] == "Certification freshness")["status"], "FAIL")
+            subject_changed_source = copy.deepcopy(candidate)
+            subject_changed_source["subject_git_sha"] = "f" * 40
+            _write(candidate_path, subject_changed_source)
+            subject_stale_checks = _manifest_and_fingerprint_status(root, ProductionProfile.from_mapping(profile), SimpleNamespace())
+            self.assertEqual(next(item for item in subject_stale_checks if item["label"] == "Candidate source identity")["status"], "FAIL")
+            self.assertEqual(next(item for item in subject_stale_checks if item["label"] == "Certification freshness")["status"], "FAIL")
 
     def test_model_identity_composes_across_validation_high_risk_and_held_out(self):
         subject = "a" * 40

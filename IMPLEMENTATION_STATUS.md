@@ -522,9 +522,48 @@ git diff --check: passed.
 
 The synthetic release regression exercises the existing release state machine using temporary fixtures only. No employee study, company human scoring, expert reference preparation, live private evaluation, candidate promotion, release, BUILD COMPLETE, or production certification was performed. `evals/champion.json` remains `UNSET`; approved company execution and actual source-free results remain future blockers.
 
+## CHG-16 / KSA-31 FIX01 — F31-01 closed
+
+FIX01 started from exact integrated base `6b2531d7620fd632f886bb1963a8f8b189d617b9` on branch `codex/k-slide-chg16-champion-recertification-01-fix01`, then advanced to predecessor BUILD candidate `67ffc2d64899ce1ae9634bc2840cd1642e627b10`, whose parent is that exact base. The FIX01 changes remain an uncommitted candidate on the predecessor commit. Main was not moved or merged. F31-01 is the only work item closed here; KSA-32 and later remain outside scope.
+
+Champion promotion contract `1.0` and recertification contract `1.0` remain. Promotion contract `1.1` is used only when one or more authoritative model envelopes are carried forward. It binds every carried model evidence identity and envelope hash to its exemption identity, old and new candidate identities, and exact recertification identity. Validation reloads each carried envelope against its original candidate, rederives the exemption against the new candidate, and validates replacement evidence directly against the new candidate. The new promotion is bound to the exact new candidate; the old envelope is never rewritten or relabeled. All-new-candidate promotion remains contract `1.0`.
+
+The repository-owned change-impact policy is extended to `1.1` because the producer dependency map now distinguishes repository-subject evidence from source-independent policy attestation. Runtime, heavy-runtime, security, model evaluation, governance, human review, zero-Korean, reliability, and pilot evidence stay affected by a subject-SHA change. `model_data_policy` alone can cross a subject change when its source-free policy dependency projection is unchanged. Exact subject SHA remains part of old/new candidate identity and any subject transition makes the previous champion/profile stale. Unknown dimensions still fail closed.
+
+The release builder and production freshness path pass the recertification bridge and prior envelopes into promotion validation. The end-to-end internal-release regression carries unaffected model-validation and high-risk evidence, supplies new-candidate held-out evidence and the affected model-data-policy replacement, and derives a new promotion, manifest, and certification fingerprint. The fixture proves the release remains blocked with the predecessor promotion and that tampered/deleted exemptions, changed projections, edited prior manifests, and changed old evidence invalidate the bridge.
+
+Certification fingerprint identity form `2.0`, evidence schema `2.6`, KSA-29 bilingual-review contract `1.0`, KSA-30 zero-Korean contract `1.0`, KSA-27 policy and hard gates, KSA-28 repetition/matrix/false-DONE rules, and KSA-01–30 security, privacy, host, runtime, and tenant behavior remain preserved. No shared evidence-schema migration was needed.
+
+Changed files relative to the integrated base:
+
+- `.codex-fabric/audit.json`
+- `IMPLEMENTATION_STATUS.md`
+- `evals/release.py`
+- `src/k_slide/certification.py`
+- `src/k_slide/production.py`
+- `src/k_slide/recertification.py`
+- `tests/test_certification_closure.py`
+- `tests/test_ksa31_promotion_recertification.py`
+
+Validation performed:
+
+```text
+KSA-31 FIX01 promotion/recertification: 12 passed, including the end-to-end release bridge and subject-SHA policy scenario.
+KSA-26–31 plus certification/release closure: 180 passed; KSA-26 governed-runner and phase32–33 checks: 49 passed.
+KSA-21–25 compatibility/security/recovery: 93 passed; 1 skipped.
+CHG-16 through KSA-20 host/security/runtime regressions: 222 passed; 1 skipped.
+OpenCode host-attachment TypeScript regression: passed.
+TranslationPatch Python/schema/TypeScript and provenance checks: 43 passed; all 4 Draft 2020-12 JSON schemas validated.
+Full Python 3.11.7 discovery: 613 passed; 4 optional skips.
+Full isolated Python 3.12.9 discovery: 613 passed; no skips.
+Compileall on Python 3.11 and 3.12, and git diff --check: passed.
+```
+
+All recertification scenarios use deterministic synthetic evidence in temporary roots. The repository champion remains `UNSET`. No live target-Gemma evaluation or promotion, release, BUILD COMPLETE, or production certification was performed or claimed.
+
 ## Next phase
 
-KSA-31 and later work requires a separate scoped request. Existing external production-candidate prerequisites remain unproven and were not run by this KSA-30 implementation.
+KSA-32 and later work requires a separate scoped request. Authoritative target-Gemma evaluation and the remaining external production-candidate prerequisites are still unproven; no live promotion, release, or production certification was performed here.
 
 ## Architecture decisions
 
