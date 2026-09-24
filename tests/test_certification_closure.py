@@ -56,6 +56,8 @@ from k_slide.egress_policy import (
 )
 from k_slide.model_policy import load_model_policy
 from k_slide.quality_policy import QUALITY_POLICY_IDENTITY, policy_identity_record
+from k_slide.bilingual_adjudication import build_internal_bilingual_payload
+from tests.bilingual_review_fixtures import make_review_contract
 from evals.model_results import aggregate_model_results
 from k_slide.production import ProductionProfile, _asset_manifest_status, _manifest_and_fingerprint_status
 
@@ -1680,8 +1682,8 @@ class CertificationClosureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             subject = "a" * 40
-            deployment = deployment_fingerprint(build_deployment_factors(root, subject_git_sha=subject, model_policy=load_model_policy(root)))
             candidate = _candidate_spec(subject, ocr_provider="paddle", asset_manifest="manifest.json", asset_hash="a" * 64)
+            deployment = deployment_fingerprint(build_deployment_factors(root, subject_git_sha=subject, model_policy=load_model_policy(root)))
             runtime_path = root / "runtime-envelope.json"
             heavy_path = root / "heavy-envelope.json"
             build_machine_evidence(runtime_path, evidence_type="runtime", subject_git_sha=subject, deployment_fingerprint=deployment, sources=_runtime_sources(root))
@@ -1695,8 +1697,8 @@ class CertificationClosureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             subject = "a" * 40
-            deployment = deployment_fingerprint(build_deployment_factors(root, subject_git_sha=subject, model_policy=load_model_policy(root)))
             candidate = _candidate_spec(subject, ocr_provider="paddle", asset_manifest="manifest.json", asset_hash="a" * 64)
+            deployment = candidate_deployment_fingerprint(candidate)
             records = {}
             for evidence_type, source_factory in (("runtime", _runtime_sources), ("heavy_runtime", _heavy_sources)):
                 folder = root / evidence_type
@@ -1706,10 +1708,13 @@ class CertificationClosureTests(unittest.TestCase):
                 build_machine_evidence(envelope, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources)
                 records[evidence_type] = load_evidence(envelope, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root)
             model_records = {}
+            bilingual_manifest = None
             for evidence_type, split, repeats in (("model_validation", "validation", 3), ("model_high_risk_stability", "validation", 5), ("model_held_out", "held_out", 3)):
                 folder = root / evidence_type
                 folder.mkdir()
                 source = _model_sources(folder, split=split, repeats=repeats, subject=subject, deployment=deployment)
+                if evidence_type == "model_validation":
+                    bilingual_manifest = json.loads(source["experiment_manifest"].read_text(encoding="utf-8"))["corpus_manifest"]
                 envelope = folder / "evidence.json"
                 build_machine_evidence(envelope, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=source, root=Path.cwd())
                 model_records[evidence_type] = load_evidence(envelope, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=Path.cwd())
@@ -1717,7 +1722,7 @@ class CertificationClosureTests(unittest.TestCase):
             _write(root / "evals" / "champion.json", {"status": "FROZEN", "model": "google/gemma-4-31b-it", "effective_model": "google/gemma-4-31b-it", "deployment_fingerprint": deployment, "config_hash": model_records["model_validation"]["payload"]["behavior_configuration_hash"]})
             records.update(model_records)
             payloads = {
-                "internal_bilingual": {"attestation_id": "internal-test", "artifact_count": 50, "work_unit_count": 200, "critical_business_meaning_errors": 0, "critical_numeric_date_unit_errors": 0, "critical_modality_escalations": 0, "critical_table_mapping_errors": 0, "critical_trend_reversals": 0, "unsupported_critical_executive_claims": 0, "overall_noncritical_semantic_fidelity": 0.99, "unresolved_precision": 0.95, "material_unresolved_recall": 1.0, "quality_policy": policy_identity_record(), "quality_policy_identity": QUALITY_POLICY_IDENTITY, "locked_terminology": 0.999},
+                "internal_bilingual": build_internal_bilingual_payload(make_review_contract(subject=subject, deployment=deployment, manifest=bilingual_manifest)),
                 "zero_korean_comprehension": {"attestation_id": "human-test", "users": 10, "answers": 100, "critical_question_accuracy": 1.0, "overall_comprehension": 0.95, "critical_misunderstanding": 0},
                 "model_data_policy": {"attestation_id": "policy-test", "approved_for_internal_artifacts": True},
             }
@@ -1725,8 +1730,8 @@ class CertificationClosureTests(unittest.TestCase):
                 folder = root / evidence_type
                 folder.mkdir()
                 path = folder / "evidence.json"
-                write_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, payload=payload, generated_at="2026-09-09T00:00:00Z")
-                records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root)
+                write_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, payload=payload, generated_at="2026-09-09T00:00:00Z", candidate_spec=candidate if evidence_type == "internal_bilingual" else None)
+                records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate if evidence_type == "internal_bilingual" else None)
             state, blockers = derive_release_state("INTERNAL_VALIDATED", records=records, root=root, policy=load_model_policy(root), deployment_fp=deployment, candidate_spec=candidate)
             self.assertEqual(state, "INTERNAL_VALIDATED")
             self.assertEqual(blockers, [])
@@ -2029,17 +2034,20 @@ class CertificationClosureTests(unittest.TestCase):
                 path = folder / "evidence.json"
                 build_machine_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=root, candidate_spec=candidate)
                 records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate, require_candidate_spec=True)
+            bilingual_manifest = None
             for evidence_type, split, repeats in (("model_validation", "validation", 3), ("model_high_risk_stability", "validation", 5), ("model_held_out", "held_out", 3)):
                 folder = root / evidence_type
                 folder.mkdir()
                 sources = _candidate_model_sources(folder, split=split, repeats=repeats, subject=subject, deployment=deployment, candidate=candidate)
+                if evidence_type == "model_validation":
+                    bilingual_manifest = json.loads(sources["experiment_manifest"].read_text(encoding="utf-8"))["corpus_manifest"]
                 path = folder / "evidence.json"
                 build_machine_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, root=root, candidate_spec=candidate)
                 records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate, require_candidate_spec=True)
             (root / "evals").mkdir()
             _write(root / "evals" / "champion.json", {"status": "FROZEN", "model": target, "effective_model": target, "deployment_fingerprint": deployment, "config_hash": records["model_validation"]["payload"]["behavior_configuration_hash"]})
             attestations = {
-                "internal_bilingual": {"attestation_id": "internal-test", "artifact_count": 50, "work_unit_count": 200, "critical_business_meaning_errors": 0, "critical_numeric_date_unit_errors": 0, "critical_modality_escalations": 0, "critical_table_mapping_errors": 0, "critical_trend_reversals": 0, "unsupported_critical_executive_claims": 0, "overall_noncritical_semantic_fidelity": 0.99, "unresolved_precision": 0.95, "material_unresolved_recall": 1.0, "quality_policy": policy_identity_record(), "quality_policy_identity": QUALITY_POLICY_IDENTITY, "locked_terminology": 0.999},
+                "internal_bilingual": build_internal_bilingual_payload(make_review_contract(subject=subject, deployment=deployment, manifest=bilingual_manifest)),
                 "zero_korean_comprehension": {"attestation_id": "human-test", "users": 10, "answers": 100, "critical_question_accuracy": 1.0, "overall_comprehension": 0.95, "critical_misunderstanding": 0},
                 "model_data_policy": {"attestation_id": "policy-test", "approved_for_internal_artifacts": True},
             }

@@ -12,6 +12,7 @@ from evals.model_results import aggregate_model_results, derive_result_hard_gate
 from evals.governed_corpus import case_matrix_fingerprint, case_matrix_item_fingerprint
 from evals.model_scorers import score_translation_patch
 from k_slide.certification import EvidenceValidationError, load_evidence, validate_evidence_payload
+from k_slide.bilingual_adjudication import build_internal_bilingual_payload
 from k_slide.evidence_adapters import AdapterError, build_machine_evidence
 from k_slide.evidence_ir import EvidenceIR, EvidenceRegion, EvidenceTable, EvidenceTableCell
 from k_slide.quality_policy import (
@@ -26,6 +27,7 @@ from k_slide.quality_policy import (
 )
 from evals.noncritical_semantics import public_gold_contract_sha256
 from tests.test_certification_closure import _model_result_row, _model_sources, _write
+from tests.bilingual_review_fixtures import make_private_manifest, make_review_contract
 
 
 def _inject_semantic_gate(row: dict, gate: str) -> None:
@@ -179,16 +181,10 @@ def _apply_observations(row: dict, assertion_ids: list[str], correct: int) -> No
     row["semantic"]["noncritical_semantic_assertion_ids"] = assertion_ids
 
 
-def _bilingual_payload(**overrides) -> dict:
-    payload = {
-        "attestation_id": "synthetic-ksa27", "artifact_count": 50, "work_unit_count": 200,
-        "critical_business_meaning_errors": 0, "critical_numeric_date_unit_errors": 0,
-        "critical_modality_escalations": 0, "critical_table_mapping_errors": 0,
-        "critical_trend_reversals": 0, "unsupported_critical_executive_claims": 0,
-        "overall_noncritical_semantic_fidelity": 0.99, "unresolved_precision": 0.95,
-        "material_unresolved_recall": 1.0, "locked_terminology": 0.995,
-        "quality_policy": policy_identity_record(), "quality_policy_identity": QUALITY_POLICY_IDENTITY,
-    }
+def _bilingual_payload(*, fail_metric: str | None = None, **overrides) -> dict:
+    manifest = make_private_manifest()
+    contract = make_review_contract(subject="a" * 40, deployment="b" * 64, manifest=manifest, fail_metric=fail_metric)
+    payload = build_internal_bilingual_payload(contract)
     payload.update(overrides)
     return payload
 
@@ -672,16 +668,17 @@ class KSA27QualityPolicyTests(unittest.TestCase):
                                        deployment_fingerprint="b" * 64, sources=sources, root=Path.cwd())
 
     def test_internal_bilingual_floors_are_policy_bound_and_inclusive(self):
-        validate_evidence_payload("internal_bilingual", _bilingual_payload())
-        for overrides in (
-            {"overall_noncritical_semantic_fidelity": 0.989999},
-            {"unresolved_precision": 0.949999},
-            {"material_unresolved_recall": 0.999999},
-            {"locked_terminology": 0.994999},
-            {"quality_policy_identity": "f" * 64},
-        ):
-            with self.subTest(overrides=overrides), self.assertRaises(EvidenceValidationError):
-                validate_evidence_payload("internal_bilingual", _bilingual_payload(**overrides))
+        payload = _bilingual_payload()
+        self.assertEqual(payload["overall_noncritical_semantic_fidelity"], 0.99)
+        self.assertEqual(payload["unresolved_precision"], 0.95)
+        self.assertEqual(payload["material_unresolved_recall"], 1.0)
+        self.assertEqual(payload["locked_terminology"], 0.995)
+        validate_evidence_payload("internal_bilingual", payload)
+        for metric in ("overall_noncritical_semantic_fidelity", "unresolved_precision", "material_unresolved_recall", "locked_terminology"):
+            with self.subTest(metric=metric), self.assertRaises(EvidenceValidationError):
+                validate_evidence_payload("internal_bilingual", _bilingual_payload(fail_metric=metric))
+        with self.assertRaises(EvidenceValidationError):
+            validate_evidence_payload("internal_bilingual", _bilingual_payload(quality_policy_identity="f" * 64))
 
     def test_legacy_evidence_envelope_cannot_be_loaded_as_current(self):
         with tempfile.TemporaryDirectory() as directory:

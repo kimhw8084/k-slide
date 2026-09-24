@@ -51,6 +51,109 @@ questions. Keep the held-out set access-controlled and separate from prompt,
 rule, training, or threshold selection. The repository enforces evaluation
 purpose and candidate identity; it does not replace company IAM.
 
+## Bilingual human review and adjudication
+
+KSA-29 uses the existing `internal_bilingual` release evidence type. Its private
+review contract is `1.0`; the evidence envelope is `2.6`. Evidence from envelope
+`2.5` or earlier is stale and cannot qualify. The release option remains
+`--internal-bilingual-attestation`.
+
+The approved environment keeps source files, gold text, translations, comments,
+and full reviewer worksheets outside the repository. It emits a source-free
+review contract containing only opaque identifiers, hashes, counts, the exact
+candidate and corpus bindings, closed outcome codes, and the policy identity.
+Do not put reviewer names, source or gold text, output text, comments,
+filenames, local paths, model suggestions, or other private content in the
+contract or evidence envelope. Use 64-character lowercase SHA-256 values for
+reviewer, record, artifact, work-unit, and truth-unit identities. Existing
+governed `item_id` values are used unchanged.
+
+The deterministic contract has these top-level fields:
+
+| Field | Required contents |
+| --- | --- |
+| `schema_version` | `1.0` |
+| `subject_git_sha`, `deployment_fingerprint` | Exact release candidate identity |
+| `evaluation_purpose` | `private_evaluation` |
+| `corpus_set_identity`, `corpus_manifest` | Exact active `private_representative` manifest already bound by the candidate; source and gold are hashes only |
+| `policy_identity` | Exact current KSA-27 quality policy record |
+| `work_units` | Sorted inventory of reviewed output artifact, governed item, work unit, and decision-critical truth-unit identities |
+| `review_records` | Exactly two records for every work unit |
+| `adjudication_records` | One record for each truth unit where reviewers disagree; otherwise none |
+| `ai_assistance_records` | Optional suggestion provenance with `authority: non_authoritative_assistance` |
+| `truth_unit_decisions` | Per-truth-unit agreement/disagreement, exact review references, adjudication reference, and resolved outcome |
+
+Every work-unit inventory entry binds `item_id`, `source_sha256`,
+`gold_sha256`, `work_unit_id`, `artifact_id`, `artifact_sha256`, and a sorted
+list of `truth_units`. A truth unit has an opaque `truth_unit_id` and exactly
+one closed metric code: `critical_business_meaning_errors`,
+`critical_numeric_date_unit_errors`, `critical_modality_escalations`,
+`critical_table_mapping_errors`, `critical_trend_reversals`,
+`unsupported_critical_executive_claims`,
+`overall_noncritical_semantic_fidelity`, `unresolved_precision`,
+`material_unresolved_recall`, or `locked_terminology`.
+
+Each review record binds the candidate subject and deployment fingerprint,
+corpus-set identity hash, purpose, corpus item identity hash, KSA-27 policy
+identity hash, output artifact, and work unit. It contains an opaque reviewer
+identity, a distinct review-record identity and review-artifact identity,
+their hashes, and one `correct` or `incorrect` outcome for every listed truth
+unit. `reviewer_kind` is `independent_bilingual_human`,
+`decision_authority` is `human_review`, and `decision_basis` is
+`direct_source_gold_comparison`. Free-form role labels do not establish
+independence. Review-record, reviewer-pair, and review-artifact identities
+must be unique where the contract requires them; copied or replayed records
+fail validation.
+
+`review_record_sha256`, `adjudication_record_sha256`, and
+`assistance_record_sha256` are the SHA-256 of canonical JSON for that record
+with its own digest field omitted. Lists are sorted by their opaque identity;
+all JSON is UTF-8 and uses sorted keys. The evidence builder derives the
+attestation ID as the SHA-256 of the complete canonical review contract.
+
+For a disagreement, the separate adjudication record binds the same candidate,
+corpus item, policy, artifact, work unit, and truth unit. It cites the exact
+two `review_record_id` and `review_record_sha256` pairs. Its closed
+`resolution_outcome` is `correct` or `incorrect`, `adjudicator_kind` is
+`human_bilingual_adjudicator`, and `decision_authority` is
+`human_adjudication`. Missing, unresolved, extra, or unrelated adjudication
+records block evidence. Summary metrics cannot override the per-unit ledger.
+
+AI assistance may appear only as a separately hashed suggestion record with
+`authority: non_authoritative_assistance` and one of
+`translation_suggestion`, `terminology_suggestion`, or
+`comparison_suggestion`. It references a human review record and carries no
+outcome. AI-only review records and AI adjudication are not valid contract
+records and cannot establish authoritative truth.
+
+The private producer should construct the source-free contract after checking
+the exact manifest membership and then use the shared deterministic builder
+and the normal certification evidence writer:
+
+```python
+from k_slide.bilingual_adjudication import build_internal_bilingual_payload
+from k_slide.certification import write_evidence
+
+payload = build_internal_bilingual_payload(source_free_review_contract)
+write_evidence(
+    evidence_path,
+    evidence_type="internal_bilingual",
+    subject_git_sha=candidate["subject_git_sha"],
+    deployment_fingerprint=deployment_fingerprint,
+    payload=payload,
+    generated_at=generated_at,
+    candidate_spec=candidate,
+)
+```
+
+The builder requires at least 50 distinct output artifact identities and 200
+work units, two independent human reviews for each work unit, coverage of every
+closed metric category, and adjudication of every disagreement. It derives all
+existing bilingual counts and rates from resolved truth-unit outcomes, then
+applies the unchanged KSA-27.2 thresholds and KSA-27 hard-gate registry.
+Submit the resulting envelope through the existing release option; do not
+replace it with aggregate-only fields.
+
 ## Canonical external model-evaluation path
 
 Use the existing `evals.run_model_eval` command with explicit external corpus
