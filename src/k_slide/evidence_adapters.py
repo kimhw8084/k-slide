@@ -9,7 +9,10 @@ release gate while retaining hashes for every underlying result file.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
+import re
 from pathlib import Path
 from typing import Any, Callable
 
@@ -33,6 +36,14 @@ from .certification import (
     validate_ocr_asset_manifest,
 )
 from .model_policy import load_model_policy
+from .quality_policy import (
+    QUALITY_FLOORS,
+    QUALITY_POLICY_IDENTITY,
+    deterministic_mean,
+    make_hard_gate_finding,
+    policy_identity_record,
+    validate_policy_identity,
+)
 from .corpus_governance import (
     CorpusGovernanceError,
     is_certification_corpus_ready,
@@ -46,6 +57,7 @@ from .corpus_governance import (
     validate_corpus_bundle,
 )
 
+# 2.8 binds model result derivation to the current closed KSA-27 quality policy.
 # 2.7 binds model evidence to the candidate's four governed corpus identities
 # and re-derives the source-free corpus membership/contamination contract.
 # 2.6 retains and re-derives the exact PaddleX configuration selected by the
@@ -56,7 +68,7 @@ from .corpus_governance import (
 # candidate-bound identity/provenance contract introduced in 2.1.
 # separation and exact frozen scenario matrices. No production-certified v1
 # or 2.0 evidence exists, so ambiguous development envelopes are not migrated.
-ADAPTER_VERSION = "2.7"
+ADAPTER_VERSION = "2.8"
 
 _ROLES: dict[str, tuple[str, ...]] = {
     "runtime": ("diagnostic_ladder", "simple_run", "three_slide", "five_slide"),
@@ -180,6 +192,19 @@ def _number(value: Any, label: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise AdapterError(f"{label} must be numeric")
     return float(value)
+
+
+def _quality_rate(value: Any, label: str) -> float:
+    number = _number(value, label)
+    if not math.isfinite(number) or not 0.0 <= number <= 1.0:
+        raise AdapterError(f"{label} must be a finite rate in [0, 1]")
+    return number
+
+
+def _nonnegative_int(value: Any, label: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise AdapterError(f"{label} must be a non-negative integer")
+    return value
 
 
 def _sha256_text(value: Any, label: str) -> str:
@@ -498,9 +523,11 @@ def _model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]], *, exp
         )
     try:
         from evals.scenarios import scenario_specs
+        from evals.noncritical_semantics import public_assertion_ids_by_scenario
     except ImportError as exc:
         raise AdapterError("model matrix requires the frozen scenario manifest") from exc
     frozen = {item.scenario_id: item for item in scenario_specs()}
+    public_assertions = public_assertion_ids_by_scenario()
     if any(item not in frozen for item in scenario_ids):
         raise AdapterError("model experiment contains an unknown scenario_id")
     if any(frozen[item].split != expected_split for item in scenario_ids):
@@ -526,6 +553,10 @@ def _model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]], *, exp
         scenario = frozen.get(scenario_id)
         if scenario is None or row.get("category") != scenario.category:
             raise AdapterError(f"model result category does not match frozen scenario: {scenario_id}")
+        expected_assertion_ids = public_assertions.get(scenario_id, [])
+        semantic = row.get("semantic") if isinstance(row.get("semantic"), dict) else {}
+        if semantic.get("noncritical_semantic_assertion_ids") != expected_assertion_ids:
+            raise AdapterError("public result assertion IDs do not match the repository-controlled scenario gold")
     missing = sorted(declared - observed)
     extra = sorted(observed - declared)
     if missing or extra:
@@ -570,7 +601,7 @@ def _governed_model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]
         raise AdapterError("governed case matrix lacks the candidate-bound public regression manifest") from exc
     public_ids = {item["item_id"] for item in public_manifest["items"]}
     public_gold_hashes = {item["gold_sha256"] for item in public_manifest["items"]}
-    allowed_fields = {"item_id", "category", "protected_group", "split", "source_sha256", "gold_sha256", "gold_contract_sha256", "formats"}
+    allowed_fields = {"item_id", "category", "protected_group", "split", "source_sha256", "gold_sha256", "gold_contract_sha256", "noncritical_semantic_assertion_ids", "formats"}
     for item in case_matrix:
         if not isinstance(item, dict) or set(item) != allowed_fields:
             raise AdapterError("governed case matrix item has an unsupported shape")
@@ -584,6 +615,9 @@ def _governed_model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]
             raise AdapterError("governed case metadata reuses a public synthetic item or gold contract")
         if not isinstance(item.get("gold_contract_sha256"), str) or len(item["gold_contract_sha256"]) != 64 or set(item["gold_contract_sha256"]) - set("0123456789abcdef"):
             raise AdapterError("governed case gold contract identity is malformed")
+        assertion_ids = item.get("noncritical_semantic_assertion_ids")
+        if not isinstance(assertion_ids, list) or any(not isinstance(value, str) or not re.fullmatch(r"ncs-[0-9a-f]{24}", value) for value in assertion_ids) or assertion_ids != sorted(set(assertion_ids)):
+            raise AdapterError("governed case non-critical semantic assertion IDs are malformed")
         if item.get("split") != expected_split:
             raise AdapterError("governed case matrix split disagrees with its role contract")
         try:
@@ -622,6 +656,9 @@ def _governed_model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]
         matrix_item = matrix_items.get(scenario_id)
         if matrix_item is None or row.get("category") != matrix_item["category"]:
             raise AdapterError("model result category does not match governed case metadata")
+        semantic = row.get("semantic") if isinstance(row.get("semantic"), dict) else {}
+        if semantic.get("noncritical_semantic_assertion_ids") != matrix_item["noncritical_semantic_assertion_ids"]:
+            raise AdapterError("model result assertion IDs do not match the hash-bound governed gold contract")
         if row.get("case_identity_sha256") != case_matrix_item_fingerprint(matrix_item):
             raise AdapterError("model result case identity does not match governed case metadata")
     missing = sorted(declared - observed)
@@ -685,6 +722,458 @@ def _vision_input_proven(rows: list[dict[str, Any]]) -> bool:
     return True
 
 
+def _string_list(value: Any, label: str) -> list[str]:
+    if not isinstance(value, list) or any(not isinstance(item, str) or not item for item in value):
+        raise AdapterError(f"{label} must be a list of non-empty strings")
+    if len(value) != len(set(value)):
+        raise AdapterError(f"{label} contains duplicate values")
+    return value
+
+
+def _rederive_noncritical_observations(semantic: dict[str, Any], *, label: str, work_unit_id: str, verify_anchor: bool = True) -> tuple[list[dict[str, str]], int, int]:
+    observations = semantic.get("noncritical_semantic_observations")
+    if not isinstance(observations, list):
+        raise AdapterError(f"{label} is missing non-critical semantic observations")
+    ids: list[str] = []
+    normalized: list[dict[str, str]] = []
+    required = correct = 0
+    for item in observations:
+        if not isinstance(item, dict) or set(item) != {"assertion_id", "source_object_id", "anchor_kind", "anchor_sha256", "outcome"}:
+            raise AdapterError(f"{label} has an unknown non-critical semantic observation shape")
+        assertion_id = item.get("assertion_id")
+        source_object_id = item.get("source_object_id")
+        anchor_kind = item.get("anchor_kind")
+        anchor_sha256 = item.get("anchor_sha256")
+        outcome = item.get("outcome")
+        if not isinstance(assertion_id, str) or not re.fullmatch(r"ncs-[0-9a-f]{24}", assertion_id):
+            raise AdapterError(f"{label} has a malformed non-critical semantic assertion ID")
+        if not isinstance(source_object_id, str) or not source_object_id or anchor_kind not in {"region", "table_cell", "visual_element"}:
+            raise AdapterError(f"{label} has a malformed non-critical semantic source anchor")
+        if not isinstance(anchor_sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", anchor_sha256):
+            raise AdapterError(f"{label} has a malformed non-critical semantic anchor digest")
+        expected_anchor = hashlib.sha256(f"{work_unit_id}\0{anchor_kind}\0{source_object_id}".encode("utf-8")).hexdigest()
+        if verify_anchor and anchor_sha256 != expected_anchor:
+            raise AdapterError(f"{label} non-critical semantic anchor digest disagrees with its source identity")
+        if outcome not in {"CORRECT", "INCORRECT", "UNRESOLVED_EXEMPT"}:
+            raise AdapterError(f"{label} has an unknown non-critical semantic outcome")
+        ids.append(assertion_id)
+        normalized.append({
+            "assertion_id": assertion_id,
+            "source_object_id": source_object_id,
+            "anchor_kind": anchor_kind,
+            "anchor_sha256": anchor_sha256,
+            "outcome": outcome,
+        })
+        if outcome != "UNRESOLVED_EXEMPT":
+            required += 1
+            correct += int(outcome == "CORRECT")
+    if len(ids) != len(set(ids)):
+        raise AdapterError(f"{label} duplicates a non-critical semantic assertion ID")
+    if _nonnegative_int(semantic.get("noncritical_semantic_required_count"), f"{label} required count") != required:
+        raise AdapterError(f"{label} non-critical semantic required count disagrees with observations")
+    if _nonnegative_int(semantic.get("noncritical_semantic_correct_count"), f"{label} correct count") != correct:
+        raise AdapterError(f"{label} non-critical semantic correct count disagrees with observations")
+    rate = correct / required if required else 1.0
+    if abs(_quality_rate(semantic.get("noncritical_semantic_equivalence"), f"{label} equivalence") - rate) > 1e-12:
+        raise AdapterError(f"{label} non-critical semantic rate disagrees with observations")
+    return normalized, required, correct
+
+
+def _rederive_unit_semantics(unit_semantic: dict[str, Any], *, work_unit_id: str) -> tuple[set[str], float, set[str], set[str], set[str], list[dict[str, str]], int, int]:
+    """Rebuild scorer-critical codes and unresolved observations from persisted facts."""
+
+    evidence = unit_semantic.get("hard_gate_evidence")
+    if not isinstance(evidence, dict):
+        raise AdapterError("current model result is missing source-local hard-gate evidence")
+    missing_regions = set(_string_list(evidence.get("missing_required_region_ids"), "missing required region IDs"))
+    numeric_mismatches = set(_string_list(evidence.get("numeric_mismatch_fact_ids"), "numeric mismatch fact IDs"))
+    exec_codes = set(_string_list(evidence.get("executive_claim_failure_codes"), "executive claim failure codes"))
+    duplicate_regions = set(_string_list(evidence.get("duplicate_region_ids"), "duplicate region IDs"))
+    table_failures = set(_string_list(evidence.get("table_failure_codes"), "table failure codes"))
+    header_failure_ids = set(_string_list(evidence.get("table_header_failure_ids"), "table header failure IDs"))
+    chart_codes = set(_string_list(evidence.get("chart_failure_codes"), "chart failure codes"))
+    process_codes = set(_string_list(evidence.get("process_failure_codes"), "process failure codes"))
+    required_unresolved = set(_string_list(evidence.get("material_unresolved_required_ids"), "material unresolved source IDs"))
+    evidence_observed_material = set(_string_list(evidence.get("material_unresolved_observed_ids"), "observed material unresolved source IDs"))
+    unresolved_ids = set(_string_list(unit_semantic.get("unresolved_ids"), "unresolved source IDs"))
+    if not evidence_observed_material <= unresolved_ids:
+        raise AdapterError("material unresolved observations are not source-bound")
+    observed_material = required_unresolved & unresolved_ids
+    if observed_material != evidence_observed_material:
+        raise AdapterError("material unresolved observations disagree with source-local unresolved IDs")
+    modality = _quality_rate(evidence.get("modality_score"), "hard_gate_evidence.modality_score")
+    hangul_count = evidence.get("hangul_violation_count")
+    unsupported_count = evidence.get("unsupported_claim_count")
+    if not isinstance(hangul_count, int) or isinstance(hangul_count, bool) or hangul_count < 0:
+        raise AdapterError("Hangul violation count is invalid")
+    if not isinstance(unsupported_count, int) or isinstance(unsupported_count, bool) or unsupported_count < 0:
+        raise AdapterError("unsupported claim count is invalid")
+    if not isinstance(evidence.get("modality_source_binding_failure"), bool) or not isinstance(evidence.get("noncritical_semantic_source_binding_failure"), bool) or not isinstance(evidence.get("table_cardinality_mismatch"), bool):
+        raise AdapterError("source-local binding/table structure facts are invalid")
+
+    expected_critical: set[str] = set(exec_codes) | chart_codes | process_codes
+    if missing_regions:
+        expected_critical.add("SILENT_REGION_OMISSION")
+    if numeric_mismatches:
+        expected_critical.add("CRITICAL_NUMERIC_MISMATCH")
+    if modality < 1.0:
+        expected_critical.add("CRITICAL_MODALITY_MISMATCH")
+    if evidence["modality_source_binding_failure"] or evidence["noncritical_semantic_source_binding_failure"] or duplicate_regions:
+        expected_critical.add("SCORER_SOURCE_BINDING_FAILURE")
+    if hangul_count:
+        expected_critical.add("UNEXPECTED_HANGUL")
+    if unsupported_count:
+        expected_critical.add("UNSUPPORTED_EXECUTIVE_CLAIM")
+    if table_failures:
+        expected_critical.add("TABLE_CELL_SEMANTIC_FAILURE")
+    if evidence["table_cardinality_mismatch"]:
+        expected_critical.add("TABLE_CARDINALITY_MISMATCH")
+    if header_failure_ids:
+        expected_critical.add("TABLE_HEADER_SEMANTIC_FAILURE")
+    if process_codes:
+        expected_critical.add("VISUAL_RELATION_OMISSION")
+    if required_unresolved - observed_material:
+        expected_critical.add("MATERIAL_UNRESOLVED_MISSED")
+    stored_critical = set(_string_list(unit_semantic.get("critical_failures"), "semantic critical failures"))
+    if stored_critical != expected_critical:
+        raise AdapterError("semantic critical failure codes disagree with source-local scorer facts")
+
+    # Each canonical source-local failure remains a finding. More specific
+    # table membership failures are retained alongside the public scorer code.
+    finding_codes = set(expected_critical) | table_failures
+    metrics = ("coverage", "numeric_fidelity", "modality", "table_cell_fidelity", "visual_relation_recall")
+    values = [_quality_rate(unit_semantic.get(name), f"semantic.{name}") for name in metrics]
+    fidelity = min(values)
+    if abs(_quality_rate(unit_semantic.get("critical_axis_minimum_diagnostic"), "semantic.critical_axis_minimum_diagnostic") - fidelity) > 1e-12:
+        raise AdapterError("critical-axis diagnostic is not rederived from scorer metrics")
+    noncritical_observations, noncritical_required, noncritical_correct = _rederive_noncritical_observations(
+        unit_semantic, label="unit semantic", work_unit_id=work_unit_id,
+    )
+    for observation in noncritical_observations:
+        if observation["outcome"] == "UNRESOLVED_EXEMPT" and (
+            observation["source_object_id"] not in required_unresolved
+            or observation["source_object_id"] not in unresolved_ids
+        ):
+            raise AdapterError("non-critical semantic unresolved exemption is not bound to an observed material unresolved source")
+        if observation["outcome"] == "CORRECT" and observation["source_object_id"] in unresolved_ids:
+            raise AdapterError("unresolved source output cannot satisfy a non-critical semantic assertion")
+    false_negative = required_unresolved - unresolved_ids
+    false_positive = unresolved_ids - required_unresolved
+    if set(_string_list(unit_semantic.get("material_unresolved_false_negative_ids"), "material unresolved false negatives")) != false_negative:
+        raise AdapterError("material unresolved false-negative set disagrees with scorer facts")
+    if set(_string_list(unit_semantic.get("unresolved_false_positive_ids"), "unresolved false positives")) != false_positive:
+        raise AdapterError("unresolved false-positive set disagrees with scorer facts")
+    for field, derived in (
+        ("unresolved_count", len(unresolved_ids)),
+        ("material_unresolved_required_ids", sorted(required_unresolved)),
+        ("material_unresolved_observed_ids", sorted(observed_material)),
+        ("material_unresolved_false_negative_ids", sorted(false_negative)),
+        ("unresolved_false_positive_ids", sorted(false_positive)),
+        ("material_unresolved_recall", len(observed_material) / len(required_unresolved) if required_unresolved else 1.0),
+        ("unresolved_precision", len(observed_material) / len(unresolved_ids) if unresolved_ids else 1.0),
+    ):
+        value = unit_semantic.get(field)
+        if isinstance(derived, list):
+            if value != derived:
+                raise AdapterError(f"unit semantic {field} disagrees with source-local unresolved observations")
+        elif isinstance(derived, int):
+            if _nonnegative_int(value, f"semantic.{field}") != derived:
+                raise AdapterError(f"unit semantic {field} disagrees with source-local unresolved observations")
+        elif abs(_quality_rate(value, f"semantic.{field}") - derived) > 1e-12:
+            raise AdapterError(f"unit semantic {field} disagrees with source-local unresolved observations")
+    return finding_codes, fidelity, required_unresolved, observed_material, false_positive, noncritical_observations, noncritical_required, noncritical_correct
+
+
+def _derive_case_hard_gates(row: dict[str, Any], *, model_policy: Any) -> tuple[list[dict[str, str]], float, int, int, int, int, int, int]:
+    """Independently rederive one persisted result row's gates and floors."""
+
+    findings: dict[tuple[str, str, str], dict[str, str]] = {}
+
+    def add(code: str, unit_id: str | None = None) -> None:
+        finding = make_hard_gate_finding(code, work_unit_id=unit_id)
+        findings[(finding["code"], finding.get("unknown_code_sha256", ""), finding.get("work_unit_id", ""))] = finding
+
+    if row.get("quality_policy") != policy_identity_record() or row.get("quality_policy_identity") != QUALITY_POLICY_IDENTITY:
+        raise AdapterError("model result row is missing the exact current quality-policy identity")
+    if row.get("quality_metrics_authoritative") is True and row.get("semantic_scored") is not True:
+        raise AdapterError("authoritative model result is missing semantic scoring")
+    semantic = row.get("semantic") if isinstance(row.get("semantic"), dict) else {}
+    units = row.get("units")
+    if row.get("semantic_scored") is True and (not isinstance(units, list) or not units):
+        raise AdapterError("authoritative model result is missing source-local unit scores")
+    if not isinstance(units, list):
+        units = []
+    source_unit_ids: set[str] = set()
+    case_codes: set[str] = set()
+    fidelities: list[float] = []
+    required_unresolved = 0
+    true_positive = 0
+    observed_unresolved = 0
+    unnecessary_unresolved = 0
+    noncritical_observations: list[dict[str, str]] = []
+    noncritical_required = 0
+    noncritical_correct = 0
+    for unit in units:
+        if not isinstance(unit, dict) or not isinstance(unit.get("work_unit_id"), str) or not unit.get("work_unit_id") or not isinstance(unit.get("semantic"), dict):
+            raise AdapterError("model result unit score is malformed")
+        unit_id = unit["work_unit_id"]
+        if unit_id in source_unit_ids:
+            raise AdapterError("model result contains duplicate work-unit ownership")
+        source_unit_ids.add(unit_id)
+        codes, fidelity, expected, observed, extra, observations, semantic_required, semantic_correct = _rederive_unit_semantics(unit["semantic"], work_unit_id=unit_id)
+        case_codes.update(codes)
+        fidelities.append(fidelity)
+        required_unresolved += len(expected)
+        true_positive += len(observed)
+        observed_unresolved += len(_string_list(unit["semantic"].get("unresolved_ids"), "unresolved source IDs"))
+        unnecessary_unresolved += len(extra)
+        noncritical_observations.extend(observations)
+        noncritical_required += semantic_required
+        noncritical_correct += semantic_correct
+        for code in codes:
+            add(code, unit_id)
+
+    semantic_codes = set(_string_list(semantic.get("critical_failures", []), "case critical failures"))
+    derived_semantic_codes = set(case_codes)
+    if int(semantic.get("inconsistent_alternate_count", 0) or 0) > 0:
+        derived_semantic_codes.add("CROSS_SLIDE_TERM_INCONSISTENCY")
+    if semantic_codes != derived_semantic_codes:
+        raise AdapterError("case critical failure summary disagrees with source-local unit findings")
+    for code in derived_semantic_codes - case_codes:
+        add(code)
+
+    case_fidelity = deterministic_mean(fidelities)
+    if row.get("semantic_scored") is True:
+        case_observations, case_required, case_correct = _rederive_noncritical_observations(
+            semantic, label="case semantic", work_unit_id="", verify_anchor=False,
+        )
+        # Case observations repeat work-unit facts and are compared structurally;
+        # their anchor digests were already rederived with each real work-unit ID.
+        if case_observations != sorted(noncritical_observations, key=lambda item: item["assertion_id"]):
+            raise AdapterError("case non-critical semantic observations disagree with work-unit scorer results")
+        if (case_required, case_correct) != (noncritical_required, noncritical_correct):
+            raise AdapterError("case non-critical semantic counts disagree with work-unit observations")
+        expected_assertion_ids = _string_list(semantic.get("noncritical_semantic_assertion_ids"), "non-critical semantic expected assertion IDs")
+        if any(not re.fullmatch(r"ncs-[0-9a-f]{24}", value) for value in expected_assertion_ids) or expected_assertion_ids != sorted(expected_assertion_ids):
+            raise AdapterError("case non-critical semantic assertion membership is malformed")
+        observed_assertion_ids = sorted(item["assertion_id"] for item in noncritical_observations)
+        if expected_assertion_ids != observed_assertion_ids:
+            raise AdapterError("case non-critical semantic assertion IDs were dropped, duplicated, or changed")
+    elif noncritical_observations or noncritical_required or noncritical_correct:
+        raise AdapterError("unscored model result contains non-critical semantic observations")
+
+    opencode = row.get("opencode")
+    if not isinstance(opencode, dict):
+        raise AdapterError("model result is missing structured OpenCode facts")
+    execution = row.get("persisted_execution")
+    if not isinstance(execution, dict) or execution.get("available") is not True:
+        if row.get("quality_metrics_authoritative") is True:
+            raise AdapterError("authoritative result has no persisted execution/verification evidence")
+        execution = execution if isinstance(execution, dict) else {}
+    reported_complete = execution.get("reported_run_complete")
+    run_complete = execution.get("run_complete")
+    if execution.get("available") is True and (not isinstance(run_complete, bool) or not isinstance(reported_complete, bool)):
+        raise AdapterError("persisted completion facts are incomplete")
+    if execution.get("available") is True and reported_complete != run_complete:
+        add("ENGINE_EVIDENCE_CONTRACT_FAILURE")
+    if execution.get("available") is True and opencode.get("kslide_complete") is not reported_complete:
+        raise AdapterError("OpenCode completion claim disagrees with persisted K-Slide completion")
+    execution_required_count = _nonnegative_int(execution.get("material_unresolved_required_count", 0), "persisted material-unresolved count")
+    if execution.get("available") is True:
+        statuses = execution.get("work_unit_states")
+        if not isinstance(statuses, dict) or any(not isinstance(key, str) or not key or not isinstance(value, str) for key, value in statuses.items()):
+            raise AdapterError("persisted work-unit recovery states are malformed")
+        expected_false_done = bool(run_complete and (execution_required_count > 0 or any(value != "VERIFIED" for value in statuses.values())))
+        if execution.get("false_done_recovery_violation") is not expected_false_done:
+            raise AdapterError("persisted false-DONE finding disagrees with completion and recovery state")
+        if expected_false_done:
+            add("FALSE_DONE_WITH_MATERIAL_UNRESOLVED")
+        verification_count = execution.get("verification_critical_count")
+        if verification_count is not None and (not isinstance(verification_count, int) or isinstance(verification_count, bool) or verification_count < 0):
+            raise AdapterError("persisted verification critical count is invalid")
+        expected_verification_failure = execution.get("run_phase") == "COMPLETE" and (execution.get("verification_status") != "PASS" or verification_count != 0)
+        if execution.get("verification_contract_failure") is not expected_verification_failure:
+            raise AdapterError("persisted verification contract finding disagrees with verification evidence")
+        if expected_verification_failure:
+            add("ENGINE_EVIDENCE_CONTRACT_FAILURE")
+    if execution_required_count:
+        required_total = execution_required_count
+        unresolved_conflicts = execution.get("unresolved_conflict_count", 0)
+        if not isinstance(required_total, int) or isinstance(required_total, bool) or required_total < 0 or not isinstance(unresolved_conflicts, int) or isinstance(unresolved_conflicts, bool) or required_total != required_unresolved + unresolved_conflicts:
+            raise AdapterError("persisted material-unresolved count is inconsistent")
+        conflict_unresolved = unresolved_conflicts
+        if run_complete is True:
+            add("FALSE_DONE_WITH_MATERIAL_UNRESOLVED")
+        elif execution.get("run_phase") == "NEEDS_REVIEW" and conflict_unresolved:
+            true_positive += conflict_unresolved
+            observed_unresolved += conflict_unresolved
+            required_unresolved = required_total
+        else:
+            required_unresolved = required_total
+    conflict_codes = _string_list(execution.get("conflict_failure_codes", []), "persisted conflict failure codes")
+    conflict_count = execution.get("conflict_count", 0)
+    unresolved_conflict_count = execution.get("unresolved_conflict_count", 0)
+    if any(not isinstance(value, int) or isinstance(value, bool) or value < 0 for value in (conflict_count, unresolved_conflict_count)) or unresolved_conflict_count > conflict_count:
+        raise AdapterError("persisted conflict cardinality is invalid")
+    expected_conflict_failure = bool(conflict_codes) or bool(run_complete and unresolved_conflict_count > 0)
+    if execution.get("conflict_resolution_failure") is not expected_conflict_failure:
+        raise AdapterError("persisted conflict finding disagrees with KSA-23 assessment facts")
+    if expected_conflict_failure:
+        add("MATERIAL_CONFLICT_RESOLUTION_FAILURE")
+    if execution.get("conflict_resolution_failure") not in (None, True, False):
+        raise AdapterError("conflict resolution evidence state is invalid")
+    if execution.get("run_phase") == "NEEDS_REVIEW" and required_unresolved == 0 and observed_unresolved == 0:
+        observed_unresolved = 1
+        unnecessary_unresolved += 1
+    semantic_unresolved_counts = {
+        "material_unresolved_required_count": required_unresolved,
+        "material_unresolved_true_positive_count": true_positive,
+        "unresolved_observed_count": observed_unresolved,
+        "unresolved_false_positive_count": unnecessary_unresolved,
+    }
+    for field, derived in semantic_unresolved_counts.items():
+        if _nonnegative_int(semantic.get(field), f"semantic.{field}") != derived:
+            raise AdapterError(f"case semantic {field} disagrees with source-local and engine-owned unresolved truth")
+    expected_recall = true_positive / required_unresolved if required_unresolved else 1.0
+    expected_precision = true_positive / observed_unresolved if observed_unresolved else 1.0
+    for field, derived in (("material_unresolved_recall", expected_recall), ("unresolved_precision", expected_precision)):
+        value = semantic.get(field)
+        if abs(_quality_rate(value, f"semantic.{field}") - derived) > 1e-12:
+            raise AdapterError(f"case semantic {field} disagrees with source-local and engine-owned unresolved truth")
+    if execution.get("available") is True:
+        for field, derived in (("material_unresolved_recall", expected_recall), ("unresolved_precision", expected_precision)):
+            value = execution.get(field)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or abs(float(value) - derived) > 1e-12:
+                raise AdapterError(f"persisted execution {field} disagrees with rederived source/engine truth")
+
+    tool_calls = _string_list(opencode.get("tool_calls", []), "structured tool calls")
+    forbidden_attempts = _string_list(opencode.get("forbidden_attempts", []), "structured forbidden attempts")
+    if opencode.get("tool_call_count") != len(tool_calls) or opencode.get("forbidden_attempt_count") != len(forbidden_attempts):
+        raise AdapterError("structured OpenCode tool counts disagree with normalized events")
+    try:
+        from evals.opencode_events import FORBIDDEN_TOOL_NAMES
+    except ImportError as exc:
+        raise AdapterError("structured OpenCode tool registry is unavailable") from exc
+    diagnostics = opencode.get("diagnostics") if isinstance(opencode.get("diagnostics"), dict) else {}
+    if forbidden_attempts or any(value.lower() in FORBIDDEN_TOOL_NAMES for value in tool_calls) or int(diagnostics.get("read_policy_violation_count", 0) or 0) > 0:
+        add("FORBIDDEN_TOOL_ATTEMPT")
+
+    media_by_unit = row.get("media_by_work_unit")
+    if row.get("semantic_scored") is True:
+        global_media = opencode.get("media_compliance") if isinstance(opencode.get("media_compliance"), dict) else {}
+        media_traces = global_media.get("work_units") if isinstance(global_media.get("work_units"), dict) else {}
+        media_trace_valid = isinstance(media_by_unit, dict) and set(media_by_unit) == source_unit_ids and set(media_traces) == source_unit_ids
+        if media_trace_valid:
+            required_total = read_total = 0
+            context_ok = sequence_ok = True
+            for unit_id in source_unit_ids:
+                trace = media_traces.get(unit_id)
+                projected = media_by_unit.get(unit_id)
+                items = trace.get("items") if isinstance(trace, dict) else None
+                if not isinstance(trace, dict) or not isinstance(projected, dict) or not isinstance(items, list) or not items:
+                    media_trace_valid = False
+                    break
+                if any(not isinstance(item, dict) or not isinstance(item.get("id"), str) or not isinstance(item.get("read_observed"), bool) or not isinstance(item.get("read_before_submit"), bool) for item in items):
+                    media_trace_valid = False
+                    break
+                item_required = len(items)
+                item_read = sum(item["read_observed"] for item in items)
+                expected_context = next((item["read_observed"] for item in items if item["id"] == "context_image"), False)
+                expected_sequence = bool(items) and trace.get("submit_observed") is True and all(item["read_observed"] and item["read_before_submit"] for item in items)
+                crop_items = [item for item in items if item["id"] != "context_image"]
+                crop_recall = sum(item["read_observed"] for item in crop_items) / len(crop_items) if crop_items else 1.0
+                if (
+                    projected.get("required_count") != item_required
+                    or projected.get("read_count") != item_read
+                    or projected.get("required_context_image_read") is not expected_context
+                    or projected.get("media_sequence_valid") is not expected_sequence
+                    or abs(_quality_rate(projected.get("required_crop_recall"), "media required crop recall") - crop_recall) > 1e-12
+                    or trace.get("required_context_image_read") is not expected_context
+                    or trace.get("media_sequence_valid") is not expected_sequence
+                ):
+                    media_trace_valid = False
+                    break
+                required_total += item_required
+                read_total += item_read
+                context_ok = context_ok and expected_context
+                sequence_ok = sequence_ok and expected_sequence
+            if media_trace_valid and (
+                global_media.get("planned") is not True
+                or global_media.get("required_count") != required_total
+                or global_media.get("read_count") != read_total
+                or global_media.get("required_context_image_read") is not context_ok
+                or global_media.get("media_sequence_valid") is not sequence_ok
+            ):
+                media_trace_valid = False
+        if not media_trace_valid:
+            add("REQUIRED_MEDIA_READ_FAILURE")
+        if not isinstance(media_by_unit, dict) or set(media_by_unit) != source_unit_ids:
+            add("REQUIRED_MEDIA_READ_FAILURE")
+        elif any(
+            not isinstance(item, dict)
+            or item.get("required_context_image_read") is not True
+            or item.get("media_sequence_valid") is not True
+            or not isinstance(item.get("required_count"), int)
+            or isinstance(item.get("required_count"), bool)
+            or item.get("required_count", 0) < 1
+            or item.get("read_count") != item.get("required_count")
+            for item in media_by_unit.values()
+        ):
+            add("REQUIRED_MEDIA_READ_FAILURE")
+
+    identity = row.get("model_identity")
+    if not isinstance(identity, dict):
+        raise AdapterError("model result is missing per-case model identity facts")
+    requested = identity.get("requested_model")
+    effective = identity.get("effective_model")
+    if requested != opencode.get("model"):
+        raise AdapterError("requested model identity disagrees with structured OpenCode facts")
+    approved = isinstance(requested, str) and isinstance(effective, str) and model_policy.approved(requested=requested, effective=effective)
+    if identity.get("approved") is not approved or identity.get("proven") is not (diagnostics.get("model_identity_proven") is True) or identity.get("mixed") is not (diagnostics.get("mixed_effective_model_ids") is True):
+        raise AdapterError("per-case model identity summary disagrees with structured OpenCode facts")
+    event_count = opencode.get("event_count")
+    if not isinstance(event_count, int) or isinstance(event_count, bool) or event_count < 0:
+        raise AdapterError("structured OpenCode event count is invalid")
+    if len(tool_calls) > event_count or len(forbidden_attempts) > event_count:
+        raise AdapterError("structured OpenCode tool facts exceed the normalized event count")
+    executed = bool(event_count or units) and opencode.get("status") not in {"BLOCKED", "INSTALL_FAILED", "TIMEOUT", "CANDIDATE_CONFIG_BLOCKED", "AUTHENTICATION_BOUNDARY_BLOCKED"}
+    if identity.get("executed") is not executed:
+        raise AdapterError("model identity execution state disagrees with structured OpenCode events")
+    if identity.get("executed") is True and (not approved or identity.get("proven") is not True or identity.get("mixed") is True):
+        add("WRONG_MODEL_IDENTITY" if not approved or identity.get("mixed") else "MODEL_IDENTITY_UNPROVEN")
+
+    contract = row.get("work_unit_contract") if isinstance(row.get("work_unit_contract"), dict) else {}
+    statuses = contract.get("work_unit_states")
+    if not isinstance(statuses, dict) or set(statuses) != source_unit_ids:
+        if row.get("quality_metrics_authoritative") is True:
+            raise AdapterError("authoritative work-unit contract does not bind every scored unit")
+    if contract.get("pass") is not True:
+        add("WORK_UNIT_CONTRACT_FAILURE")
+    else:
+        if any(status not in {"VERIFIED", "NEEDS_REVIEW"} for status in statuses.values()):
+            raise AdapterError("work-unit pass summary contains an invalid unit state")
+        if statuses and not isinstance(contract.get("failures"), list):
+            raise AdapterError("work-unit failure list is malformed")
+    if execution.get("available") is True and execution.get("work_unit_states") != statuses:
+        raise AdapterError("persisted and evaluated work-unit states disagree")
+    if contract.get("pass") is True and contract.get("failures"):
+        raise AdapterError("work-unit contract claims PASS with recorded failures")
+    execution_contract = bool(
+        execution.get("available") is True
+        and ((execution.get("run_phase") == "COMPLETE" and run_complete is True and execution.get("verification_status") == "PASS" and execution.get("verification_critical_count") == 0 and bool(statuses) and all(status == "VERIFIED" for status in statuses.values()))
+             or (execution.get("run_phase") == "NEEDS_REVIEW" and isinstance(statuses, dict) and any(status == "NEEDS_REVIEW" for status in statuses.values())))
+    )
+    if execution.get("available") is True and execution.get("execution_contract_pass") is not execution_contract:
+        raise AdapterError("persisted execution authority state is not rederived from run and verification facts")
+    if row.get("engine_gate") != "PASS" and row.get("semantic_scored") is True:
+        add("ENGINE_EVIDENCE_CONTRACT_FAILURE")
+
+    findings = sorted(findings.values(), key=lambda item: (item["category"], item["code"], item.get("work_unit_id", ""), item.get("unknown_code_sha256", "")))
+    if row.get("hard_gate_findings") != findings:
+        raise AdapterError("result-row hard-gate findings do not match independently rederived evidence")
+    return findings, case_fidelity, required_unresolved, true_positive, observed_unresolved, unnecessary_unresolved, noncritical_required, noncritical_correct
+
+
 def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path | None) -> dict[str, Any]:
     summary, experiment, rows = _model_rows(values)
     if any(not isinstance(item.get("subject_git_sha"), str) or not item.get("subject_git_sha") or not isinstance(item.get("deployment_fingerprint"), str) or not item.get("deployment_fingerprint") for item in rows):
@@ -697,6 +1186,15 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
         raise AdapterError("model result provenance disagrees between summary and experiment")
     if summary.get("split") != expected_split or experiment.get("split") != expected_split or any(item.get("split") != expected_split for item in rows):
         raise AdapterError(f"model result split is not {expected_split}")
+    for owner, value in (("summary", summary), ("experiment", experiment)):
+        try:
+            validate_policy_identity(value.get("quality_policy"))
+        except ValueError as exc:
+            raise AdapterError(f"model {owner} lacks the current KSA-27 quality policy identity") from exc
+        if value.get("quality_policy_identity") != QUALITY_POLICY_IDENTITY:
+            raise AdapterError(f"model {owner} quality policy hash is inconsistent")
+    if any(item.get("quality_policy") != policy_identity_record() or item.get("quality_policy_identity") != QUALITY_POLICY_IDENTITY for item in rows):
+        raise AdapterError("model result rows do not all bind the current quality policy")
     candidate_specs = [item.get("candidate_spec") for item in (summary, experiment) if isinstance(item.get("candidate_spec"), dict)]
     if candidate_specs and isinstance(candidate_specs[0].get("model_policy"), dict):
         from .model_policy import ModelPolicy
@@ -723,7 +1221,51 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
     authoritative = bool(rows) and all(item.get("quality_metrics_authoritative") is True for item in rows)
     if summary.get("quality_metrics_authoritative") is not authoritative:
         raise AdapterError("summary quality authority disagrees with case results")
-    critical_count = sum(len(item.get("semantic", {}).get("critical_failures", [])) for item in rows if item.get("semantic_scored"))
+    case_findings: dict[int, list[dict[str, str]]] = {}
+    material_required = material_true_positive = unresolved_observed = unnecessary_unresolved = 0
+    noncritical_semantic_required = noncritical_semantic_correct = 0
+    for index, item in enumerate(rows):
+        findings, _axis_diagnostic, expected_count, true_positive_count, observed_count, false_positive_count, semantic_required, semantic_correct = _derive_case_hard_gates(item, model_policy=policy)
+        case_findings[index] = findings
+        material_required += expected_count
+        material_true_positive += true_positive_count
+        unresolved_observed += observed_count
+        unnecessary_unresolved += false_positive_count
+        noncritical_semantic_required += semantic_required
+        noncritical_semantic_correct += semantic_correct
+        execution = item.get("persisted_execution", {})
+        contract = item.get("work_unit_contract", {})
+        units = item.get("units", [])
+        media = item.get("media_by_work_unit", {})
+        expected_authoritative = bool(
+            item.get("semantic_scored") is True
+            and item.get("engine_gate") == "PASS"
+            and isinstance(contract, dict)
+            and contract.get("pass") is True
+            and isinstance(execution, dict)
+            and execution.get("execution_contract_pass") is True
+            and isinstance(units, list)
+            and bool(units)
+            and isinstance(media, dict)
+            and len(media) == len(units)
+        )
+        if item.get("quality_metrics_authoritative") is not expected_authoritative:
+            raise AdapterError("result-row quality authority disagrees with persisted execution contracts")
+    hard_gate_failure_count = sum(len(findings) for findings in case_findings.values())
+    hard_gate_failure_types = sorted({finding["code"] for findings in case_findings.values() for finding in findings})
+    critical_types = sorted(
+        {code for item in rows for code in (item.get("semantic", {}).get("critical_failures", []) if isinstance(item.get("semantic"), dict) else [])}
+        | set(hard_gate_failure_types)
+    )
+    for field, derived in (
+        ("critical_failure_count", hard_gate_failure_count),
+        ("hard_gate_failure_count", hard_gate_failure_count),
+        ("hard_gate_failure_types", hard_gate_failure_types),
+        ("critical_failure_types", critical_types),
+        ("hard_gate_pass", hard_gate_failure_count == 0),
+    ):
+        if summary.get(field) != derived:
+            raise AdapterError(f"model summary {field} disagrees with independently rederived result rows")
     media_rates = []
     review_rates = []
     unresolved_rates = []
@@ -738,8 +1280,8 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
             raise AdapterError("model result is missing semantic.unexpected_unresolved_rate")
         if "term_consistency_recall" not in semantic:
             raise AdapterError("model result is missing semantic.term_consistency_recall")
-        unexpected_rates.append(_number(semantic["unexpected_unresolved_rate"], "semantic.unexpected_unresolved_rate"))
-        terminology_rates.append(_number(semantic["term_consistency_recall"], "semantic.term_consistency_recall"))
+        unexpected_rates.append(_quality_rate(semantic["unexpected_unresolved_rate"], "semantic.unexpected_unresolved_rate"))
+        terminology_rates.append(_quality_rate(semantic["term_consistency_recall"], "semantic.term_consistency_recall"))
         review_rates.append(float(semantic.get("unresolved_region_rate", 0.0)) > 0)
         media = item.get("media_by_work_unit", {})
         media_rates.append(bool(media) and all(value.get("media_sequence_valid") is True for value in media.values() if isinstance(value, dict)))
@@ -761,23 +1303,48 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
         raise AdapterError("model summary experiment plan hash disagrees with experiment")
     if not terminology_rates or not unexpected_rates:
         raise AdapterError("model result has no certifiable semantic safety metrics")
-    derived_terminology = round(sum(terminology_rates) / len(terminology_rates), 12)
-    derived_unexpected = round(sum(unexpected_rates) / len(unexpected_rates), 12)
+    derived_terminology = deterministic_mean(terminology_rates)
+    derived_unexpected = sum(unexpected_rates) / len(unexpected_rates)
     if not isinstance(summary.get("locked_terminology_recall"), (int, float)) or isinstance(summary.get("locked_terminology_recall"), bool):
         raise AdapterError("model summary is missing locked_terminology_recall")
-    if abs(float(summary["locked_terminology_recall"]) - derived_terminology) > 1e-9:
+    if abs(_quality_rate(summary["locked_terminology_recall"], "summary.locked_terminology_recall") - derived_terminology) > 1e-12:
         raise AdapterError("model summary locked terminology disagrees with case results")
     if not isinstance(summary.get("unexpected_unresolved_rate"), (int, float)) or isinstance(summary.get("unexpected_unresolved_rate"), bool):
         raise AdapterError("model summary is missing unexpected_unresolved_rate")
-    if abs(float(summary["unexpected_unresolved_rate"]) - derived_unexpected) > 1e-9:
+    if abs(_quality_rate(summary["unexpected_unresolved_rate"], "summary.unexpected_unresolved_rate") - derived_unexpected) > 1e-12:
         raise AdapterError("model summary unexpected unresolved rate disagrees with case results")
+    derived_semantic_equivalence = noncritical_semantic_correct / noncritical_semantic_required if noncritical_semantic_required else 1.0
+    material_recall = material_true_positive / material_required if material_required else 1.0
+    precision = material_true_positive / unresolved_observed if unresolved_observed else 1.0
+    floor_pass = (
+        material_recall >= QUALITY_FLOORS["material_unresolved_recall_min"]
+        and derived_semantic_equivalence >= QUALITY_FLOORS["noncritical_semantic_equivalence_min"]
+        and precision >= QUALITY_FLOORS["unresolved_precision_min"]
+        and derived_terminology >= QUALITY_FLOORS["locked_terminology_recall_min"]
+    )
+    for field, derived in (
+        ("material_unresolved_recall", material_recall),
+        ("unresolved_precision", precision),
+        ("noncritical_semantic_equivalence", derived_semantic_equivalence),
+    ):
+        value = summary.get(field)
+        if abs(_quality_rate(value, f"summary.{field}") - derived) > 1e-12:
+            raise AdapterError(f"model summary {field} disagrees with per-case observations")
+    if summary.get("noncritical_floor_pass") is not floor_pass:
+        raise AdapterError("model summary non-critical floor result was edited")
+    if summary.get("noncritical_semantic_required_count") != noncritical_semantic_required or summary.get("noncritical_semantic_correct_count") != noncritical_semantic_correct:
+        raise AdapterError("model summary non-critical semantic counts disagree with scorer observations")
+    if summary.get("unresolved_observed_count") != unresolved_observed or summary.get("unnecessary_unresolved_count") != unnecessary_unresolved:
+        raise AdapterError("model summary unresolved precision counts disagree with result rows")
+    if authoritative and (hard_gate_failure_count or not floor_pass):
+        raise AdapterError("authoritative model results fail a non-compensable hard gate or quality floor")
     repetitions = int(experiment.get("repetitions", max((int(item.get("repeat", 1)) for item in rows), default=0)))
     matrix = _model_matrix(experiment, rows, expected_split=expected_split, require_full_split=False, root=root)
     if summary.get("case_count") is not None and summary.get("case_count") != len(rows):
         raise AdapterError("model summary case_count disagrees with result rows")
     if summary.get("semantic_scored_case_count") is not None and summary.get("semantic_scored_case_count") != sum(item.get("semantic_scored") is True for item in rows):
         raise AdapterError("model summary semantic_scored_case_count disagrees with result rows")
-    for field, derived in (("critical_failure_count", critical_count), ("repetitions", repetitions), ("required_media_compliance", bool(media_rates) and all(media_rates))):
+    for field, derived in (("repetitions", repetitions), ("required_media_compliance", bool(media_rates) and all(media_rates))):
         if field in summary and summary[field] != derived:
             raise AdapterError(f"model summary {field} disagrees with result rows")
     return {
@@ -787,7 +1354,20 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
         "effective_model_ids": effective,
         "target_model_approved": approved,
         "quality_metrics_authoritative": authoritative,
-        "critical_failure_count": critical_count,
+        "quality_policy": policy_identity_record(),
+        "quality_policy_identity": QUALITY_POLICY_IDENTITY,
+        "critical_failure_count": hard_gate_failure_count,
+        "hard_gate_failure_count": hard_gate_failure_count,
+        "hard_gate_failure_types": hard_gate_failure_types,
+        "hard_gate_pass": hard_gate_failure_count == 0,
+        "noncritical_floor_pass": floor_pass,
+        "noncritical_semantic_required_count": noncritical_semantic_required,
+        "noncritical_semantic_correct_count": noncritical_semantic_correct,
+        "noncritical_semantic_equivalence": derived_semantic_equivalence,
+        "material_unresolved_recall": material_recall,
+        "unresolved_precision": precision,
+        "unresolved_observed_count": unresolved_observed,
+        "unnecessary_unresolved_count": unnecessary_unresolved,
         "repetitions": repetitions,
         "configuration_hash": behavior_hash,
         "behavior_configuration_hash": behavior_hash,
@@ -898,14 +1478,15 @@ def _derive_validation(sources: dict[str, Path], *, root: Path | None) -> dict[s
     if (
         not payload["target_model_approved"]
         or not payload["quality_metrics_authoritative"]
+        or not payload["hard_gate_pass"]
+        or not payload["noncritical_floor_pass"]
         or payload["critical_failure_count"] != 0
         or payload["repetitions"] < 3
         or not payload["required_media_compliance"]
         or not payload["vision_input_proven"]
-        or payload["locked_terminology_recall"] + 1e-12 < 0.995
-        or payload["unexpected_unresolved_rate"] != 0
+        or payload["locked_terminology_recall"] < QUALITY_FLOORS["locked_terminology_recall_min"]
     ):
-        raise AdapterError("validation result fails target, authority, critical, repeat, media, vision, terminology, or unresolved gates")
+        raise AdapterError("validation result fails target, authority, hard-gate, floor, repeat, media, vision, or terminology gates")
     return payload
 
 
@@ -960,14 +1541,14 @@ def _derive_high_risk(sources: dict[str, Path], *, root: Path | None) -> dict[st
         repeats = sorted(item.get("repeat") for item in items)
         if repeats != list(range(1, int(experiment["repetitions"]) + 1)) or len(items) < 5:
             raise AdapterError(f"high-risk group fails repetition gate: {scenario_id}/{format_name}")
-        frequency = sum(bool(item.get("semantic", {}).get("critical_failures")) for item in items) / len(items)
+        frequency = sum(bool(item.get("hard_gate_findings")) for item in items) / len(items)
         key = f"{scenario_id}/{format_name}"
         coverage[key] = len(items)
         frequencies[key] = frequency
         category_coverage[str(items[0].get("category"))] = category_coverage.get(str(items[0].get("category")), 0) + 1
         if frequency != 0:
             raise AdapterError(f"high-risk group fails critical gate: {key}")
-    if payload["critical_failure_count"] != 0:
+    if payload["critical_failure_count"] != 0 or not payload["hard_gate_pass"] or not payload["noncritical_floor_pass"]:
         raise AdapterError("high-risk result has critical failures outside the selected group summaries")
     if not payload["vision_input_proven"]:
         raise AdapterError("high-risk result does not prove candidate-bound multimodal execution")
@@ -998,13 +1579,14 @@ def _derive_held_out(sources: dict[str, Path], *, root: Path | None) -> dict[str
     if (
         not payload["target_model_approved"]
         or not payload["quality_metrics_authoritative"]
+        or not payload["hard_gate_pass"]
+        or not payload["noncritical_floor_pass"]
         or payload["critical_failure_count"] != 0
         or not payload["required_media_compliance"]
         or not payload["vision_input_proven"]
-        or payload["locked_terminology_recall"] + 1e-12 < 0.995
-        or payload["unexpected_unresolved_rate"] != 0
+        or payload["locked_terminology_recall"] < QUALITY_FLOORS["locked_terminology_recall_min"]
     ):
-        raise AdapterError("held-out result fails target, authority, critical, media, vision, terminology, or unresolved gates")
+        raise AdapterError("held-out result fails target, authority, hard-gate, floor, media, vision, or terminology gates")
     payload.update({"corpus_fingerprint": corpus_fingerprint, "held_out_fingerprint": held_out_fingerprint})
     return payload
 

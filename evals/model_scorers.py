@@ -8,9 +8,11 @@ the fact.
 from __future__ import annotations
 
 import re
+import hashlib
 from typing import Any
 
 from k_slide.numeric import numeric_fact_matches
+from .noncritical_semantics import assertions_for_scenario, normalized_phrase_tokens
 
 
 _HANGUL = re.compile(r"[\uac00-\ud7a3]")
@@ -131,16 +133,56 @@ def _table_semantic_failures(scenario: Any, evidence: Any, patch: dict[str, Any]
     return failures, checked
 
 
-def _chart_semantic_score(scenario: Any, patch: dict[str, Any]) -> tuple[float, list[str]]:
+def _chart_semantic_score(scenario: Any, evidence: Any, patch: dict[str, Any]) -> tuple[float, list[str]]:
     chart = scenario.gold.get("chart") or {}
     if not chart:
         return 1.0, []
+    chart_elements = [item for item in getattr(evidence, "visual_elements", ()) if isinstance(item, dict) and (item.get("kind") == "chart" or item.get("chart"))]
+    if chart_elements:
+        from .gold_binding import bind_gold_roles
+
+        binding = bind_gold_roles(scenario, evidence)
+        chart_id = str(chart.get("chart_id") or "chart")
+        expected_element = binding.bindings.get(chart_id)
+        if not expected_element:
+            return 0.0, ["SCORER_SOURCE_BINDING_FAILURE"]
+        claims = [
+            item for item in patch.get("visual_interpretations", [])
+            if isinstance(item, dict)
+            and isinstance(item.get("chart_claim"), dict)
+            and item["chart_claim"].get("chart_element_id") == expected_element
+            and item["chart_claim"].get("kind") == "trend"
+        ]
+        if not claims:
+            return 0.0, ["CHART_TREND_UNSUPPORTED"]
+        observed = claims[0]
+        if expected_element not in observed.get("evidence_ids", []) or expected_element not in observed.get("source_element_ids", []):
+            return 0.0, ["SCORER_SOURCE_BINDING_FAILURE"]
+        expected_trend = chart.get("trend")
+        direction = (observed.get("chart_claim") or {}).get("direction")
+        if direction != expected_trend:
+            if direction in {"increasing", "decreasing"} and expected_trend in {"increasing", "decreasing"}:
+                return 0.0, ["CRITICAL_TREND_REVERSAL"]
+            return 0.0, ["CHART_TREND_UNSUPPORTED"]
+        return 1.0, []
     text = " ".join(str(item.get("interpretation", "")) for item in patch.get("visual_interpretations", []) if isinstance(item, dict)).lower()
     failures: list[str] = []
-    if chart.get("trend") == "increasing" and any(word in text for word in ("declin", "decreas", "fall", "downward", "down")):
-        failures.append("CRITICAL_TREND_REVERSAL")
-    if chart.get("trend") == "increasing" and not any(word in text for word in ("increas", "grow", "upward", "rise", "positive", "trend")):
-        failures.append("CHART_TREND_UNSUPPORTED")
+    directions = {
+        "increasing": ("increas", "grow", "upward", "rise", "positive", "trend"),
+        "decreasing": ("declin", "decreas", "fall", "downward", "down", "negative", "trend"),
+        "flat": ("flat", "stable", "unchanged", "constant"),
+    }
+    opposites = {
+        "increasing": ("declin", "decreas", "fall", "downward", "down", "negative"),
+        "decreasing": ("increas", "grow", "upward", "rise", "positive"),
+        "flat": ("declin", "decreas", "fall", "downward", "down", "increas", "grow", "upward", "rise"),
+    }
+    expected = chart.get("trend")
+    if expected in directions:
+        if any(word in text for word in opposites[expected]):
+            failures.append("CRITICAL_TREND_REVERSAL")
+        elif not any(word in text for word in directions[expected]):
+            failures.append("CHART_TREND_UNSUPPORTED")
     return (0.0 if failures else 1.0), failures
 
 
@@ -186,32 +228,178 @@ def _claim_score(scenario: Any, evidence: Any, patch: dict[str, Any]) -> tuple[i
     return len(failures), failures
 
 
+def _assertion_source_candidates(assertion: dict[str, Any], evidence: Any) -> list[tuple[str, str, str]]:
+    """Resolve an approved source-text anchor to immutable EvidenceIR IDs."""
+
+    surface = assertion["surface"]
+    source_text = assertion["source_text"].strip()
+    candidates: list[tuple[str, str, str]] = []
+    if surface in {"region", "executive_claim", "visual_interpretation"}:
+        for region in getattr(evidence, "regions", ()):
+            if str(region.selected_literal_candidate or "").strip() == source_text:
+                candidates.append((region.region_id, "region", str(region.recovery_status or "NOT_REQUIRED")))
+    if surface in {"table_cell", "executive_claim", "visual_interpretation"}:
+        for table in getattr(evidence, "tables", ()):
+            for cell in table.cells:
+                if str(cell.source_text or "").strip() == source_text:
+                    candidates.append((cell.cell_id, "table_cell", "NOT_REQUIRED"))
+    if surface == "visual_interpretation":
+        for element in getattr(evidence, "visual_elements", ()):
+            if not isinstance(element, dict) or not element.get("element_id"):
+                continue
+            label = element.get("source_text") or element.get("label") or element.get("title") or ""
+            if str(label).strip() == source_text:
+                candidates.append((str(element["element_id"]), "visual_element", "NOT_REQUIRED"))
+    return candidates
+
+
+def _assertion_output_text(surface: str, source_id: str, patch: dict[str, Any]) -> tuple[str | None, bool]:
+    """Return the exact source-owned output surface and its unresolved state."""
+
+    if surface == "region":
+        matches = [item for item in patch.get("regions", []) if isinstance(item, dict) and item.get("region_id") == source_id]
+        if len(matches) != 1:
+            return None, False
+        return str(matches[0].get("english", "")), matches[0].get("unresolved") is True
+    if surface == "table_cell":
+        matches = [
+            cell for table in patch.get("tables", []) if isinstance(table, dict)
+            for cell in table.get("cells", []) if isinstance(cell, dict) and cell.get("cell_id") == source_id
+        ]
+        if len(matches) != 1:
+            return None, False
+        return str(matches[0].get("english", "")), matches[0].get("unresolved") is True
+    if surface == "executive_claim":
+        matches = [
+            item for item in patch.get("executive_claims", []) if isinstance(item, dict)
+            and source_id in item.get("evidence_ids", [])
+        ]
+        if len(matches) != 1:
+            return None, False
+        return str(matches[0].get("text", "")), False
+    if surface == "visual_interpretation":
+        matches = [
+            item for item in patch.get("visual_interpretations", []) if isinstance(item, dict)
+            and (source_id in item.get("source_element_ids", []) or source_id in item.get("evidence_ids", []))
+        ]
+        if len(matches) != 1:
+            return None, False
+        return str(matches[0].get("interpretation", "")), False
+    return None, False
+
+
+def _matches_approved_meaning(text: str, accepted_phrases: list[str]) -> bool:
+    observed = normalized_phrase_tokens(text)
+    return bool(observed) and observed in {normalized_phrase_tokens(phrase) for phrase in accepted_phrases}
+
+
+def _noncritical_semantic_observations(scenario: Any, evidence: Any, patch: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
+    """Score only approved assertions whose exact EvidenceIR anchor is present."""
+
+    try:
+        assertions = assertions_for_scenario(scenario)
+    except (TypeError, ValueError):
+        return [], True
+    observations: list[dict[str, Any]] = []
+    binding_failure = False
+    work_unit_id = str(getattr(evidence, "work_unit_id", ""))
+    for assertion in assertions:
+        candidates = _assertion_source_candidates(assertion, evidence)
+        if not candidates:
+            # A different work unit may own this assertion. The case-level
+            # aggregation requires every approved ID to resolve exactly once.
+            continue
+        if len(candidates) != 1:
+            binding_failure = True
+            continue
+        source_id, source_kind, recovery_status = candidates[0]
+        text, unresolved = _assertion_output_text(assertion["surface"], source_id, patch)
+        if unresolved and recovery_status == "NEEDS_REVIEW" and scenario.gold.get("allowed_unresolved") is True:
+            outcome = "UNRESOLVED_EXEMPT"
+        else:
+            outcome = "CORRECT" if text is not None and _matches_approved_meaning(text, assertion["accepted_phrases"]) else "INCORRECT"
+        anchor_sha256 = hashlib.sha256(f"{work_unit_id}\0{source_kind}\0{source_id}".encode("utf-8")).hexdigest()
+        observations.append({
+            "assertion_id": assertion["assertion_id"],
+            "source_object_id": source_id,
+            "anchor_kind": source_kind,
+            "anchor_sha256": anchor_sha256,
+            "outcome": outcome,
+        })
+    return sorted(observations, key=lambda item: item["assertion_id"]), binding_failure
+
+
 def score_translation_patch(scenario: Any, evidence: Any, patch: dict[str, Any]) -> dict[str, Any]:
     source_regions = {region.region_id: region for region in evidence.regions if region.required_for_translation}
+    region_items = [item for item in patch.get("regions", []) if isinstance(item, dict)]
+    region_ids = [str(item.get("region_id", "")) for item in region_items]
     translated_regions = _patch_regions(patch)
-    coverage = sum(region_id in translated_regions and (not translated_regions[region_id].get("unresolved") or bool(translated_regions[region_id].get("unresolved_reason"))) for region_id in source_regions) / max(1, len(source_regions))
+    invalid_regions = [region_id for region_id in source_regions if region_id not in translated_regions or (translated_regions[region_id].get("unresolved") and not translated_regions[region_id].get("unresolved_reason"))]
+    duplicate_region_ids = sorted({region_id for region_id in region_ids if region_ids.count(region_id) > 1})
+    coverage = (len(source_regions) - len(invalid_regions)) / max(1, len(source_regions))
     numeric_results, numeric_details = _source_local_numeric_score(evidence, patch)
     modality, modality_detail = _modality_score(scenario, evidence, translated_regions)
     known_ids = set(getattr(evidence, "required_source_ids", ())) | {region.region_id for region in getattr(evidence, "regions", ())}
     hangul = _hangul_surfaces(patch, known_ids)
     claim_failures, claim_failure_codes = _claim_score(scenario, evidence, patch)
-    unsupported_claims = sum(not set(claim.get("evidence_ids", [])) & ({region.region_id for region in evidence.regions} | {element.get("element_id") for element in evidence.visual_elements}) for claim in patch.get("executive_claims", []) if isinstance(claim, dict))
+    known_claim_evidence_ids = (
+        {region.region_id for region in evidence.regions}
+        | {element.get("element_id") for element in evidence.visual_elements}
+        | {table.table_id for table in evidence.tables}
+        | {cell.cell_id for table in evidence.tables for cell in table.cells}
+    )
+    unsupported_claims = sum(not set(claim.get("evidence_ids", [])) & known_claim_evidence_ids for claim in patch.get("executive_claims", []) if isinstance(claim, dict))
     table_cells = _patch_cells(patch)
     table_failures: list[str] = []
+    table_structure: list[dict[str, Any]] = []
+    patch_tables = [item for item in patch.get("tables", []) if isinstance(item, dict)]
+    patch_table_ids = [str(item.get("table_id", "")) for item in patch_tables]
+    expected_table_ids = [table.table_id for table in evidence.tables if table.required_for_translation]
+    if len(patch_table_ids) != len(set(patch_table_ids)) or set(patch_table_ids) != set(expected_table_ids):
+        table_failures.append("TABLE_CARDINALITY_MISMATCH")
     for table in evidence.tables:
-        patch_table = next((item for item in patch.get("tables", []) if isinstance(item, dict) and item.get("table_id") == table.table_id), None)
+        if not table.required_for_translation:
+            continue
+        patch_table = next((item for item in patch_tables if item.get("table_id") == table.table_id), None)
+        expected = {cell.cell_id for cell in table.cells if cell.required_for_translation}
+        actual_items = [cell for cell in patch_table.get("cells", []) if isinstance(cell, dict)] if patch_table else []
+        actual_ids = [str(cell.get("cell_id", "")) for cell in actual_items]
+        missing = sorted(expected - set(actual_ids))
+        extra = sorted(set(actual_ids) - expected)
+        duplicated = sorted({cell_id for cell_id in actual_ids if actual_ids.count(cell_id) > 1})
+        if missing or extra or duplicated:
+            table_failures.append("TABLE_CARDINALITY_MISMATCH")
+        table_structure.append({
+            "table_id": table.table_id,
+            "expected_cell_ids": sorted(expected),
+            "observed_cell_ids": sorted(actual_ids),
+            "missing_cell_ids": missing,
+            "extra_cell_ids": extra,
+            "duplicate_cell_ids": duplicated,
+        })
         if patch_table is None and table.required_for_translation:
             table_failures.append(f"MISSING_TABLE:{table.table_id}")
             continue
         if patch_table is not None:
-            expected = {cell.cell_id for cell in table.cells if cell.required_for_translation}
-            actual = {cell.get("cell_id") for cell in patch_table.get("cells", []) if isinstance(cell, dict)}
-            table_failures.extend(f"MISSING_CELL:{cell_id}" for cell_id in sorted(expected - actual))
+            table_failures.extend(f"MISSING_CELL:{cell_id}" for cell_id in missing)
     table_header_failures, table_header_checked = _table_semantic_failures(scenario, evidence, patch)
-    chart_score, chart_failures = _chart_semantic_score(scenario, patch)
+    chart_score, chart_failures = _chart_semantic_score(scenario, evidence, patch)
     process_score, process_failures = _process_relation_score(scenario, evidence, patch)
-    unresolved_count = sum(1 for item in patch.get("regions", []) if isinstance(item, dict) and item.get("unresolved"))
-    unresolved_count += sum(1 for table in patch.get("tables", []) if isinstance(table, dict) for item in table.get("cells", []) if isinstance(item, dict) and item.get("unresolved"))
+    unresolved_ids = sorted({
+        str(item.get("region_id")) for item in patch.get("regions", [])
+        if isinstance(item, dict) and item.get("unresolved") and item.get("region_id")
+    } | {
+        str(item.get("cell_id")) for table in patch_tables for item in table.get("cells", [])
+        if isinstance(item, dict) and item.get("unresolved") and item.get("cell_id")
+    })
+    unresolved_count = len(unresolved_ids)
+    material_unresolved_ids = sorted(
+        region.region_id for region in evidence.regions
+        if region.required_for_translation and getattr(region, "recovery_status", None) == "NEEDS_REVIEW"
+    )
+    materially_unresolved = sorted(set(material_unresolved_ids) & set(unresolved_ids))
+    false_resolved_material = sorted(set(material_unresolved_ids) - set(unresolved_ids))
+    unnecessary_unresolved = sorted(set(unresolved_ids) - set(material_unresolved_ids))
     required_count = len(source_regions) + sum(len(table.cells) for table in evidence.tables if table.required_for_translation)
     allowed_unresolved = bool(scenario.gold.get("allowed_unresolved", False))
     expected_unresolved_max = int(scenario.gold.get("expected_unresolved_max", 1 if allowed_unresolved else 0))
@@ -231,14 +419,43 @@ def score_translation_patch(scenario: Any, evidence: Any, patch: dict[str, Any])
         critical.append("UNSUPPORTED_EXECUTIVE_CLAIM")
     if table_failures:
         critical.append("TABLE_CELL_SEMANTIC_FAILURE")
+    if "TABLE_CARDINALITY_MISMATCH" in table_failures:
+        critical.append("TABLE_CARDINALITY_MISMATCH")
     if table_header_failures:
         critical.append("TABLE_HEADER_SEMANTIC_FAILURE")
     critical.extend(chart_failures)
     critical.extend(process_failures)
-    if unexpected_unresolved:
-        critical.append("UNEXPECTED_UNRESOLVED")
     if process_score < 1.0:
         critical.append("VISUAL_RELATION_OMISSION")
+    if false_resolved_material:
+        critical.append("MATERIAL_UNRESOLVED_MISSED")
+    if duplicate_region_ids:
+        critical.append("SCORER_SOURCE_BINDING_FAILURE")
+    axis_minimum = min(coverage, sum(numeric_results) / len(numeric_results) if numeric_results else 1.0, modality, 0.0 if table_failures else 1.0, process_score if (scenario.gold.get("process") or {}).get("relations") else chart_score if scenario.gold.get("chart") else 1.0)
+    noncritical_observations, noncritical_binding_failure = _noncritical_semantic_observations(scenario, evidence, patch)
+    noncritical_required = sum(item["outcome"] != "UNRESOLVED_EXEMPT" for item in noncritical_observations)
+    noncritical_correct = sum(item["outcome"] == "CORRECT" for item in noncritical_observations)
+    noncritical_equivalence = noncritical_correct / noncritical_required if noncritical_required else 1.0
+    if noncritical_binding_failure:
+        critical.append("SCORER_SOURCE_BINDING_FAILURE")
+    hard_gate_evidence = {
+        "missing_required_region_ids": sorted(invalid_regions),
+        "numeric_mismatch_fact_ids": sorted(str(item.get("fact_id")) for item in numeric_details if not item.get("matched")),
+        "modality_score": modality,
+        "modality_source_binding_failure": modality_detail.get("failure") == "SCORER_SOURCE_BINDING_FAILURE",
+        "hangul_violation_count": sum(len(values) for values in hangul.values()),
+        "executive_claim_failure_codes": sorted(set(claim_failure_codes)),
+        "unsupported_claim_count": unsupported_claims,
+        "duplicate_region_ids": duplicate_region_ids,
+        "table_cardinality_mismatch": "TABLE_CARDINALITY_MISMATCH" in table_failures,
+        "table_failure_codes": sorted(set(table_failures)),
+        "table_header_failure_ids": sorted(set(table_header_failures)),
+        "chart_failure_codes": sorted(set(chart_failures)),
+        "process_failure_codes": sorted(set(process_failures)),
+        "material_unresolved_required_ids": material_unresolved_ids,
+        "material_unresolved_observed_ids": materially_unresolved,
+        "noncritical_semantic_source_binding_failure": noncritical_binding_failure,
+    }
     return {
         "coverage": coverage,
         "numeric_fidelity": sum(numeric_results) / len(numeric_results) if numeric_results else 1.0,
@@ -260,6 +477,20 @@ def score_translation_patch(scenario: Any, evidence: Any, patch: dict[str, Any])
         "unresolved_region_rate": unresolved_count / max(1, required_count),
         "unexpected_unresolved": unexpected_unresolved,
         "unexpected_unresolved_rate": float(unexpected_unresolved),
+        "unresolved_ids": unresolved_ids,
+        "material_unresolved_required_ids": material_unresolved_ids,
+        "material_unresolved_observed_ids": materially_unresolved,
+        "material_unresolved_false_negative_ids": false_resolved_material,
+        "unresolved_false_positive_ids": unnecessary_unresolved,
+        "material_unresolved_recall": len(materially_unresolved) / len(material_unresolved_ids) if material_unresolved_ids else 1.0,
+        "unresolved_precision": len(materially_unresolved) / len(unresolved_ids) if unresolved_ids else 1.0,
+        "critical_axis_minimum_diagnostic": axis_minimum,
+        "noncritical_semantic_observations": noncritical_observations,
+        "noncritical_semantic_required_count": noncritical_required,
+        "noncritical_semantic_correct_count": noncritical_correct,
+        "noncritical_semantic_equivalence": noncritical_equivalence,
+        "table_structure_evidence": table_structure,
+        "hard_gate_evidence": hard_gate_evidence,
         "critical_failures": sorted(set(critical)),
     }
 

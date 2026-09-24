@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from k_slide.evidence_ir import load_evidence
+from k_slide.errors import KSlideError
 from k_slide.ir import SlideIR
 from k_slide import __version__
 
@@ -35,6 +36,7 @@ from k_slide.runtime import discover_runtime
 from .generator import DEFAULT_VARIANT, generate_artifacts
 from .model_results import aggregate_model_results, write_results
 from .model_scorers import score_deck_consistency, score_translation_patch
+from .noncritical_semantics import assertions_for_scenario
 from .opencode_runner import OpenCodeEvalRunner, _latest_run
 from .scenarios import DATASET_VERSION, Scenario, scenario_specs, split_manifest
 from .corpus_governance import (
@@ -43,6 +45,7 @@ from .corpus_governance import (
     public_synthetic_manifest,
 )
 from k_slide.corpus_governance import CorpusGovernanceError, corpus_identity_fingerprint
+from k_slide.quality_policy import QUALITY_POLICY_IDENTITY, deterministic_mean, policy_identity_record
 from .governed_corpus import (
     GovernedCase,
     GovernedCaseError,
@@ -82,18 +85,46 @@ def collect_run_artifacts(run: Path | None) -> list[dict[str, Any]]:
     return collected
 
 
-def _aggregate_unit_semantics(unit_scores: list[dict[str, Any]]) -> dict[str, Any]:
+def _aggregate_unit_semantics(unit_scores: list[dict[str, Any]], scenario: Any) -> dict[str, Any]:
     if not unit_scores:
         return {}
     numeric = ("coverage", "numeric_fidelity", "modality", "table_cell_fidelity", "visual_relation_recall")
-    failures = sorted({failure for score in unit_scores for failure in score.get("critical_failures", [])})
+    failures = {failure for score in unit_scores for failure in score.get("critical_failures", [])}
+    expected_assertion_ids = sorted(item["assertion_id"] for item in assertions_for_scenario(scenario))
+    noncritical_observations = [
+        observation
+        for score in unit_scores
+        for observation in score.get("noncritical_semantic_observations", [])
+    ]
+    observed_assertion_ids = [item.get("assertion_id") for item in noncritical_observations if isinstance(item, dict)]
+    if len(observed_assertion_ids) != len(set(observed_assertion_ids)) or sorted(observed_assertion_ids) != expected_assertion_ids:
+        failures.add("SCORER_SOURCE_BINDING_FAILURE")
+    noncritical_observations.sort(key=lambda item: item.get("assertion_id", ""))
+    noncritical_required = sum(item.get("outcome") != "UNRESOLVED_EXEMPT" for item in noncritical_observations if isinstance(item, dict))
+    noncritical_correct = sum(item.get("outcome") == "CORRECT" for item in noncritical_observations if isinstance(item, dict))
+    required_unresolved = sum(len(score.get("material_unresolved_required_ids", [])) for score in unit_scores)
+    resolved_unresolved = sum(len(score.get("material_unresolved_observed_ids", [])) for score in unit_scores)
+    observed_unresolved = sum(len(score.get("unresolved_ids", [])) for score in unit_scores)
+    false_positive_unresolved = sum(len(score.get("unresolved_false_positive_ids", [])) for score in unit_scores)
     return {
         "unit_count": len(unit_scores),
-        **{name: sum(float(score.get(name, 0.0)) for score in unit_scores) / len(unit_scores) for name in numeric},
-        "critical_failures": failures,
+        **{name: deterministic_mean([float(score.get(name, 0.0)) for score in unit_scores]) for name in numeric},
+        "critical_axis_minimum_diagnostic": deterministic_mean([float(score.get("critical_axis_minimum_diagnostic", 0.0)) for score in unit_scores]),
+        "noncritical_semantic_assertion_ids": expected_assertion_ids,
+        "noncritical_semantic_observations": noncritical_observations,
+        "noncritical_semantic_required_count": noncritical_required,
+        "noncritical_semantic_correct_count": noncritical_correct,
+        "noncritical_semantic_equivalence": noncritical_correct / noncritical_required if noncritical_required else 1.0,
+        "critical_failures": sorted(failures),
         "units": unit_scores,
         "unresolved_region_rate": sum(float(score.get("unresolved_region_rate", 0.0)) for score in unit_scores) / len(unit_scores),
         "unexpected_unresolved_rate": sum(float(score.get("unexpected_unresolved_rate", 0.0)) for score in unit_scores) / len(unit_scores),
+        "material_unresolved_required_count": required_unresolved,
+        "material_unresolved_true_positive_count": resolved_unresolved,
+        "unresolved_observed_count": observed_unresolved,
+        "unresolved_false_positive_count": false_positive_unresolved,
+        "material_unresolved_recall": resolved_unresolved / required_unresolved if required_unresolved else 1.0,
+        "unresolved_precision": resolved_unresolved / observed_unresolved if observed_unresolved else 1.0,
     }
 
 
@@ -126,8 +157,9 @@ def _work_unit_contract(run: Path | None, artifacts: list[dict[str, Any]]) -> tu
         failures: list[str] = []
         if expected != actual:
             failures.append("WORK_UNIT_ARTIFACT_SET_MISMATCH")
-        if any(str(item.get("status")) != "VERIFIED" for item in units if isinstance(item, dict)):
-            failures.append("WORK_UNIT_NOT_VERIFIED")
+        statuses = {str(item.get("work_unit_id")): str(item.get("status")) for item in units if isinstance(item, dict) and item.get("work_unit_id")}
+        if any(status not in {"VERIFIED", "NEEDS_REVIEW"} for status in statuses.values()):
+            failures.append("WORK_UNIT_NOT_VERIFIED_OR_REVIEWABLE")
         return not failures, failures
     except (OSError, json.JSONDecodeError, TypeError):
         return False, ["WORK_QUEUE_UNREADABLE"]
@@ -142,6 +174,15 @@ def _source_free_semantic(value: dict[str, Any]) -> dict[str, Any]:
         "residual_hangul", "unsupported_executive_claims", "unresolved_count",
         "unresolved_region_rate", "unexpected_unresolved", "unexpected_unresolved_rate",
         "critical_failures", "term_consistency_recall", "inconsistent_alternate_count",
+        "critical_axis_minimum_diagnostic", "noncritical_semantic_assertion_ids",
+        "noncritical_semantic_observations", "noncritical_semantic_required_count",
+        "noncritical_semantic_correct_count", "noncritical_semantic_equivalence",
+        "material_unresolved_required_count",
+        "material_unresolved_true_positive_count", "unresolved_observed_count",
+        "unresolved_false_positive_count", "material_unresolved_recall", "unresolved_precision",
+        "unresolved_ids", "material_unresolved_required_ids", "material_unresolved_observed_ids",
+        "material_unresolved_false_negative_ids", "unresolved_false_positive_ids",
+        "table_structure_evidence", "hard_gate_evidence",
     )
     return {key: value[key] for key in allowed if key in value}
 
@@ -153,8 +194,23 @@ def _source_free_opencode(result: Any, workspace_label: str) -> dict[str, Any]:
         "planned", "required_count", "read_count", "required_context_image_read",
         "required_crop_recall", "media_sequence_valid", "attempt_count", "evidence_event_count",
     ) if key in media}
+    if isinstance(media.get("work_units"), dict):
+        safe_media["work_units"] = {
+            str(work_unit_id): {
+                key: unit[key]
+                for key in ("required_context_image_read", "required_crop_recall", "media_sequence_valid", "attempt_count", "evidence_event_index", "submit_event_index", "submit_observed")
+                if key in unit
+            } | {
+                "items": [
+                    {key: item[key] for key in ("id", "read_observed", "read_before_submit") if key in item}
+                    for item in unit.get("items", []) if isinstance(item, dict)
+                ]
+            }
+            for work_unit_id, unit in media["work_units"].items() if isinstance(unit, dict)
+        }
     diagnostics = value.get("diagnostics") if isinstance(value.get("diagnostics"), dict) else {}
-    safe_diagnostics = {key: diagnostics[key] for key in ("effective_model", "model_identity_proven", "structured_error_count") if key in diagnostics}
+    safe_diagnostics = {key: diagnostics[key] for key in ("effective_model", "model_identity_proven", "structured_error_count", "mixed_effective_model_ids") if key in diagnostics}
+    safe_diagnostics["read_policy_violation_count"] = len(diagnostics.get("read_policy_violations", [])) if isinstance(diagnostics.get("read_policy_violations"), list) else 0
     return {
         "status": value.get("status"),
         "mode": value.get("mode"),
@@ -164,13 +220,120 @@ def _source_free_opencode(result: Any, workspace_label: str) -> dict[str, Any]:
         "duration_seconds": value.get("duration_seconds"),
         "event_count": value.get("event_count"),
         "tool_call_count": len(value.get("tool_calls", [])),
+        "tool_calls": sorted(set(str(item) for item in value.get("tool_calls", []) if isinstance(item, str))),
         "forbidden_attempt_count": len(value.get("forbidden_attempts", [])),
+        "forbidden_attempts": sorted(set(str(item) for item in value.get("forbidden_attempts", []) if isinstance(item, str))),
         "media_read_observed": value.get("media_read_observed"),
         "media_compliance": safe_media,
         "run_artifact_count": value.get("run_artifact_count", 0),
         "kslide_complete": value.get("kslide_complete", False),
         "quality_metrics_authoritative": value.get("quality_metrics_authoritative", False),
         "diagnostics": safe_diagnostics,
+    }
+
+
+def _persisted_execution(run: Path | None, *, result: Any, work_unit_states: dict[str, str], semantic: dict[str, Any]) -> dict[str, Any]:
+    """Reduce engine-owned state, verification, and conflict facts to safe codes."""
+
+    if run is None:
+        return {"available": False, "reported_run_complete": bool(getattr(result, "kslide_complete", False))}
+    phase = None
+    verification_status = None
+    verification_critical_count = None
+    conflict_status = "NOT_REQUIRED"
+    conflict_count = 0
+    unresolved_conflict_count = 0
+    conflict_failure_codes: list[str] = []
+    try:
+        queue = json.loads((run / "WORK_QUEUE.json").read_text(encoding="utf-8"))
+        work_unit_states = {
+            str(item.get("work_unit_id")): str(item.get("status"))
+            for item in queue.get("work_units", [])
+            if isinstance(item, dict) and item.get("work_unit_id")
+        }
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
+        work_unit_states = {}
+    try:
+        state = json.loads((run / "RUN_STATE.json").read_text(encoding="utf-8"))
+        phase = state.get("phase") if isinstance(state, dict) else None
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        pass
+    try:
+        verification = json.loads((run / "verification" / "summary.json").read_text(encoding="utf-8"))
+        if isinstance(verification, dict):
+            verification_status = verification.get("status")
+            verification_critical_count = verification.get("critical_count")
+            for issue in verification.get("issues", []):
+                if not isinstance(issue, dict):
+                    continue
+                code = str(issue.get("code", ""))
+                if "CONFLICT" in code or "SUPERSESSION" in code:
+                    conflict_failure_codes.append(code)
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        pass
+    try:
+        from k_slide.conflicts import conflict_assessment_status, conflict_contract_required, load_conflict_registry
+
+        if conflict_contract_required(run):
+            conflict_status = conflict_assessment_status(run)
+            registry = load_conflict_registry(run)
+            if registry is None:
+                conflict_failure_codes.append("CONFLICT_REGISTRY_MISSING")
+            else:
+                conflict_count = len(registry.conflicts)
+                unresolved_conflict_count = sum(item.resolution_state == "unresolved" for item in registry.conflicts)
+    except (ImportError, OSError, ValueError, TypeError, KSlideError) as exc:
+        # Conflict validation details never escape this source-free evidence row.
+        if type(exc).__name__ not in {"ImportError"}:
+            conflict_failure_codes.append("CONFLICT_ASSESSMENT_FAILURE")
+    run_complete = phase == "COMPLETE" and (run / "RUN_COMPLETE.md").is_file()
+    required_unresolved_count = int(semantic.get("material_unresolved_required_count", 0)) + unresolved_conflict_count
+    if unresolved_conflict_count and phase == "NEEDS_REVIEW":
+        semantic["material_unresolved_required_count"] = required_unresolved_count
+        semantic["material_unresolved_true_positive_count"] = int(semantic.get("material_unresolved_true_positive_count", 0)) + unresolved_conflict_count
+        semantic["unresolved_observed_count"] = int(semantic.get("unresolved_observed_count", 0)) + unresolved_conflict_count
+    elif unresolved_conflict_count:
+        semantic["material_unresolved_required_count"] = required_unresolved_count
+    if phase == "NEEDS_REVIEW" and required_unresolved_count == 0 and int(semantic.get("unresolved_observed_count", 0)) == 0:
+        semantic["unresolved_observed_count"] = 1
+        semantic["unresolved_false_positive_count"] = int(semantic.get("unresolved_false_positive_count", 0)) + 1
+    semantic["material_unresolved_recall"] = (
+        int(semantic.get("material_unresolved_true_positive_count", 0)) / required_unresolved_count
+        if required_unresolved_count else 1.0
+    )
+    semantic["unresolved_precision"] = (
+        int(semantic.get("material_unresolved_true_positive_count", 0)) / int(semantic.get("unresolved_observed_count", 0))
+        if int(semantic.get("unresolved_observed_count", 0)) else 1.0
+    )
+    complete_with_review_units = run_complete and any(status != "VERIFIED" for status in work_unit_states.values())
+    false_done_recovery_violation = run_complete and (required_unresolved_count > 0 or complete_with_review_units)
+    verification_contract_failure = (
+        phase == "COMPLETE"
+        and (verification_status != "PASS" or verification_critical_count != 0)
+    )
+    conflict_failure = bool(conflict_failure_codes) or (run_complete and unresolved_conflict_count > 0)
+    return {
+        "available": True,
+        "run_phase": phase,
+        "run_complete": run_complete,
+        "false_done_recovery_violation": false_done_recovery_violation,
+        "reported_run_complete": bool(getattr(result, "kslide_complete", False)),
+        "verification_status": verification_status,
+        "verification_critical_count": verification_critical_count,
+        "verification_contract_failure": verification_contract_failure,
+        "work_unit_states": dict(sorted(work_unit_states.items())),
+        "material_unresolved_required_count": required_unresolved_count,
+        "material_unresolved_recall": semantic["material_unresolved_recall"],
+        "unresolved_precision": semantic["unresolved_precision"],
+        "conflict_assessment_status": conflict_status,
+        "conflict_count": conflict_count,
+        "unresolved_conflict_count": unresolved_conflict_count,
+        "conflict_failure_codes": sorted(set(conflict_failure_codes)),
+        "conflict_resolution_failure": conflict_failure,
+        "execution_contract_pass": bool(
+            (phase == "COMPLETE" and run_complete and verification_status == "PASS" and verification_critical_count == 0 and bool(work_unit_states) and all(status == "VERIFIED" for status in work_unit_states.values()))
+            or (phase == "NEEDS_REVIEW" and any(status == "NEEDS_REVIEW" for status in work_unit_states.values()))
+        ),
     }
 
 
@@ -271,7 +434,7 @@ class ModelEvaluationRunner:
 
     @staticmethod
     def _blocked_record(output: Path, *, model: str, split: str, reason: str) -> dict[str, Any]:
-        record = {"status": "CANDIDATE_PROFILE_BLOCKED", "evaluation_state": EvaluationState.CAPABILITY_BLOCKED.value, "reason": reason, "model": model, "split": split, "quality_metrics_authoritative": False}
+        record = {"status": "CANDIDATE_PROFILE_BLOCKED", "evaluation_state": EvaluationState.CAPABILITY_BLOCKED.value, "reason": reason, "model": model, "split": split, "quality_metrics_authoritative": False, "quality_policy": policy_identity_record(), "quality_policy_identity": QUALITY_POLICY_IDENTITY}
         write_results(output, [], {**record, "case_count": 0}, "# K-Slide Model Evaluation\n\n`CANDIDATE_PROFILE_BLOCKED`\n\n" + reason + "\n")
         return record
 
@@ -425,6 +588,8 @@ class ModelEvaluationRunner:
         plan_hash = experiment_plan_hash(plan)
         run_manifest = {
             "experiment_id": "governed-external-model-evaluation" if governed else self.output.name,
+            "quality_policy": policy_identity_record(),
+            "quality_policy_identity": QUALITY_POLICY_IDENTITY,
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "git_commit": subject_sha,
             "subject_git_sha": subject_sha,
@@ -468,7 +633,7 @@ class ModelEvaluationRunner:
             if contamination_report is not None:
                 run_manifest["contamination_report"] = contamination_report
         if self.mode == "quality" and self.model not in set(model_policy.approved_model_ids) | set(model_policy.approved_aliases):
-            record = {"status": "GEMMA_QUALITY_EVALUATION_BLOCKED", "evaluation_state": EvaluationState.CAPABILITY_BLOCKED.value, "reason": "GEMMA CERTIFICATION BLOCKED — target endpoint is not the selected model", "model": self.model, "split": self.split, "quality_metrics_authoritative": False}
+            record = {"status": "GEMMA_QUALITY_EVALUATION_BLOCKED", "evaluation_state": EvaluationState.CAPABILITY_BLOCKED.value, "reason": "GEMMA CERTIFICATION BLOCKED — target endpoint is not the selected model", "model": self.model, "split": self.split, "quality_metrics_authoritative": False, "quality_policy": policy_identity_record(), "quality_policy_identity": QUALITY_POLICY_IDENTITY}
             write_results(self.output, [], {**record, "case_count": 0}, "# K-Slide Model Evaluation\n\n`GEMMA CERTIFICATION BLOCKED`\n\nNon-target model runs are protocol smoke only.\n")
             (self.output / "experiment.json").write_text(json.dumps(run_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             return record
@@ -477,7 +642,7 @@ class ModelEvaluationRunner:
             if not governed:
                 generate_artifacts(scenarios, corpus_root, formats=self.formats, variants=(DEFAULT_VARIANT,))
         except Exception as exc:
-            record = {"status": "CAPABILITY_BLOCK", "evaluation_state": EvaluationState.CAPABILITY_BLOCKED.value, "reason": f"Artifact generation unavailable ({type(exc).__name__}).", "model": self.model, "split": self.split, "quality_metrics_authoritative": False}
+            record = {"status": "CAPABILITY_BLOCK", "evaluation_state": EvaluationState.CAPABILITY_BLOCKED.value, "reason": f"Artifact generation unavailable ({type(exc).__name__}).", "model": self.model, "split": self.split, "quality_metrics_authoritative": False, "quality_policy": policy_identity_record(), "quality_policy_identity": QUALITY_POLICY_IDENTITY}
             write_results(self.output, [], {**record, "case_count": 0}, "# K-Slide Model Evaluation\n\n`CAPABILITY_BLOCK`\n\nArtifact generation unavailable.\n")
             return record
         results: list[dict[str, Any]] = []
@@ -500,24 +665,45 @@ class ModelEvaluationRunner:
                         {"work_unit_id": item["work_unit_id"], **score_translation_patch(scenario, item["evidence"], item["patch"])}
                         for item in artifacts
                     ]
-                    semantic = _aggregate_unit_semantics(unit_scores)
+                    semantic = _aggregate_unit_semantics(unit_scores, scenario)
                     term_consistency = score_deck_consistency([item["patch"] for item in artifacts], scenario.gold)
                     semantic["term_consistency_recall"] = float(term_consistency["term_consistency_recall"])
                     semantic["inconsistent_alternate_count"] = int(term_consistency["inconsistent_alternate_count"])
                     semantic["critical_failures"] = sorted(set(semantic.get("critical_failures", [])) | set(term_consistency.get("critical_failures", [])))
                     effective_model = result.diagnostics.get("effective_model")
                     media_units = result.media_compliance.get("work_units", {})
-                    media_valid = bool(artifacts) and all(media_units.get(item["work_unit_id"], {}).get("media_sequence_valid") is True for item in artifacts)
+                    media_by_work_unit: dict[str, dict[str, Any]] = {}
+                    for work_unit_id, media_unit in media_units.items():
+                        if not isinstance(media_unit, dict):
+                            continue
+                        media_items = [item for item in media_unit.get("items", []) if isinstance(item, dict)]
+                        read_count = sum(item.get("read_observed") is True for item in media_items)
+                        required_count = len(media_items)
+                        media_by_work_unit[str(work_unit_id)] = {
+                            "required_context_image_read": media_unit.get("required_context_image_read") is True,
+                            "required_count": required_count,
+                            "read_count": read_count,
+                            "required_crop_recall": media_unit.get("required_crop_recall", 0.0),
+                            "media_sequence_valid": media_unit.get("media_sequence_valid") is True,
+                        }
+                    persisted_execution = _persisted_execution(latest, result=result, work_unit_states={}, semantic=semantic)
+                    work_unit_states = persisted_execution.get("work_unit_states", {})
+                    executed_identity = bool(result.events or unit_scores) and result.status not in {"BLOCKED", "INSTALL_FAILED", "TIMEOUT", "CANDIDATE_CONFIG_BLOCKED", "AUTHENTICATION_BOUNDARY_BLOCKED"}
+                    row_identity = {
+                        "requested_model": self.model,
+                        "effective_model": effective_model,
+                        "proven": result.diagnostics.get("model_identity_proven") is True,
+                        "approved": model_policy.approved(requested=self.model, effective=effective_model) if effective_model else False,
+                        "mixed": result.diagnostics.get("mixed_effective_model_ids") is True,
+                        "executed": executed_identity,
+                    }
                     quality_contract = bool(
-                        model_policy.approved(requested=self.model, effective=effective_model)
-                        and result.diagnostics.get("model_identity_proven") is True
-                        and result.status == "PASS"
-                        and result.kslide_complete
+                        unit_scores
                         and engine_gate == "PASS"
                         and units_complete
                         and artifacts
                         and len(artifacts) == len(media_units)
-                        and media_valid
+                        and persisted_execution.get("execution_contract_pass") is True
                     )
                     result_row = {
                         "scenario_id": scenario.scenario_id,
@@ -528,13 +714,17 @@ class ModelEvaluationRunner:
                         "status": result.status,
                         "engine_gate": engine_gate,
                         "engine_failures": engine_failures,
-                        "work_unit_contract": {"pass": units_complete, "failures": unit_contract_failures},
+                        "work_unit_contract": {"pass": units_complete, "failures": unit_contract_failures, "work_unit_states": work_unit_states},
                         "semantic_scored": bool(unit_scores),
                         "semantic": _source_free_semantic(semantic) if governed else semantic,
                         "units": [{"work_unit_id": item["work_unit_id"], "semantic": _source_free_semantic(score) if governed else score} for item, score in zip(artifacts, unit_scores)],
-                        "media_by_work_unit": ({key: {"media_sequence_valid": value.get("media_sequence_valid") is True} for key, value in media_units.items()} if governed else media_units),
+                        "media_by_work_unit": media_by_work_unit,
+                        "model_identity": row_identity,
+                        "persisted_execution": persisted_execution,
+                        "quality_policy": policy_identity_record(),
+                        "quality_policy_identity": QUALITY_POLICY_IDENTITY,
                         "quality_metrics_authoritative": quality_contract,
-                        "opencode": _source_free_opencode(result, f"cases/{scenario.scenario_id}/{format_name}/repeat-{repetition:02d}") if governed else result.as_dict(),
+                        "opencode": _source_free_opencode(result, f"cases/{scenario.scenario_id}/{format_name}/repeat-{repetition:02d}"),
                     }
                     if governed and external_case is not None:
                         result_row["case_identity_sha256"] = case_matrix_item_fingerprint(external_case.matrix_item)
@@ -565,6 +755,8 @@ class ModelEvaluationRunner:
             item["deployment_fingerprint"] = final_deployment
             item["candidate_deployment_fingerprint"] = final_deployment
             item["effective_model"] = item.get("opencode", {}).get("diagnostics", {}).get("effective_model") or "UNSET"
+            item["quality_policy"] = policy_identity_record()
+            item["quality_policy_identity"] = QUALITY_POLICY_IDENTITY
         run_manifest["deployment_fingerprint"] = final_deployment
         run_manifest["candidate_spec"] = canonical_candidate_factors(final_spec)
         run_manifest["effective_model"] = effective_identity or "UNSET"
@@ -575,6 +767,8 @@ class ModelEvaluationRunner:
         (self.output / "experiment.json").write_text(json.dumps(run_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         summary = aggregate_model_results(results, model=self.model, split=self.split)
         summary["requested_model"] = self.model
+        summary["quality_policy"] = policy_identity_record()
+        summary["quality_policy_identity"] = QUALITY_POLICY_IDENTITY
         summary["effective_model"] = effective_identity or "UNSET"
         summary["effective_model_identity_proven"] = authoritative_effective
         summary["candidate_spec"] = canonical_candidate_factors(final_spec)
@@ -593,7 +787,7 @@ class ModelEvaluationRunner:
         summary["deployment_fingerprint"] = final_deployment
         summary["target_model_approved"] = authoritative_effective and model_policy.approved(requested=self.model, effective=effective_identity)
         summary["execution_runtime_provenance"] = run_manifest["execution_runtime_provenance"]
-        if summary["quality_metrics_authoritative"] and summary.get("critical_failure_count", 0):
+        if summary["quality_metrics_authoritative"] and (summary.get("hard_gate_failure_count", 0) or not summary.get("noncritical_floor_pass", False)):
             summary["status"] = EvaluationState.CERTIFICATION_FAIL.value
         elif summary["quality_metrics_authoritative"]:
             summary["status"] = EvaluationState.MEASURED.value

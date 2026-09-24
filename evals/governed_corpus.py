@@ -25,6 +25,7 @@ from k_slide.corpus_governance import (
     validate_role_purpose,
 )
 from .certification import CATEGORY_POLICY
+from .noncritical_semantics import validate_assertions
 
 
 SUPPORTED_FORMATS = frozenset({"png", "jpg", "jpeg", "webp", "pdf", "pptx"})
@@ -162,6 +163,10 @@ def _validate_gold_contract(category: str, gold: Any, role: str) -> dict[str, An
     visual_elements = gold.get("visual_elements")
     if not isinstance(visual_elements, list) or not visual_elements or any(not isinstance(item, str) or not item for item in visual_elements):
         raise GovernedCaseError("governed case visual_elements must be a non-empty string list")
+    try:
+        gold["noncritical_semantic_assertions"] = validate_assertions(gold.get("noncritical_semantic_assertions", []))
+    except (TypeError, ValueError) as exc:
+        raise GovernedCaseError("governed case non-critical semantic contract is malformed") from exc
     for field in ("numeric_facts", "required_terms"):
         values = gold.get(field)
         if values is not None and (not isinstance(values, list) or any(not isinstance(item, str) or not item for item in values)):
@@ -392,6 +397,7 @@ def load_governed_external_cases(
                 "source_sha256": item["source_sha256"],
                 "gold_sha256": item["gold_sha256"],
                 "gold_contract_sha256": gold_contract_sha256,
+                "noncritical_semantic_assertion_ids": sorted(item["assertion_id"] for item in gold["noncritical_semantic_assertions"]),
                 "formats": sorted(artifact_paths),
             }
             cases.append(GovernedCase(SimpleNamespace(scenario_id=item_id, category=category, split=expected_split, gold=gold), artifact_paths, matrix_item))

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import subprocess
 import ast
 import os
@@ -27,7 +28,7 @@ from .corpus_governance import (
 )
 
 
-EVIDENCE_SCHEMA_VERSION = "2.3"
+EVIDENCE_SCHEMA_VERSION = "2.5"
 EVIDENCE_TYPES = (
     "runtime",
     "heavy_runtime",
@@ -1538,10 +1539,10 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
     requirements: dict[str, tuple[str, ...]] = {
         "runtime": ("runtime_pass", "required_media_compliance", "run_complete", "simple_pass", "three_slide_pass", "five_slide_pass"),
         "heavy_runtime": ("heavy_pass", "networkless_pass", "representative_engine_pass", "full_engine_pass", "unexpected_capability_blocks", "dependency_subject", "resolved_dependency_set_sha256", "resolved_dependency_lock_sha256", "built_image_dependency_set_sha256"),
-        "model_validation": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_media_compliance", "vision_input_proven", "locked_terminology_recall", "unexpected_unresolved_rate", "corpus_set_identity", "evaluation_purpose"),
-        "model_high_risk_stability": ("requested_model", "effective_model", "target_model_approved", "critical_failure_count", "worst_critical_frequency", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_group_coverage", "group_critical_frequency", "category_coverage", "vision_input_proven", "corpus_set_identity", "evaluation_purpose"),
-        "model_held_out": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "corpus_fingerprint", "held_out_fingerprint", "required_media_compliance", "vision_input_proven", "locked_terminology_recall", "unexpected_unresolved_rate", "corpus_set_identity", "evaluation_purpose", "contamination_report_sha256"),
-        "internal_bilingual": ("attestation_id", "artifact_count", "work_unit_count", "critical_business_meaning_errors", "critical_numeric_date_unit_errors", "critical_modality_escalations", "critical_table_mapping_errors", "critical_trend_reversals", "unsupported_critical_executive_claims", "overall_noncritical_semantic_fidelity", "locked_terminology"),
+        "model_validation": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "hard_gate_failure_count", "hard_gate_failure_types", "hard_gate_pass", "noncritical_floor_pass", "noncritical_semantic_required_count", "noncritical_semantic_correct_count", "noncritical_semantic_equivalence", "material_unresolved_recall", "unresolved_precision", "quality_policy", "quality_policy_identity", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_media_compliance", "vision_input_proven", "locked_terminology_recall", "unexpected_unresolved_rate", "corpus_set_identity", "evaluation_purpose"),
+        "model_high_risk_stability": ("requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "hard_gate_failure_count", "hard_gate_failure_types", "hard_gate_pass", "noncritical_floor_pass", "noncritical_semantic_required_count", "noncritical_semantic_correct_count", "noncritical_semantic_equivalence", "material_unresolved_recall", "unresolved_precision", "quality_policy", "quality_policy_identity", "locked_terminology_recall", "required_media_compliance", "worst_critical_frequency", "repetitions", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "required_group_coverage", "group_critical_frequency", "category_coverage", "vision_input_proven", "corpus_set_identity", "evaluation_purpose"),
+        "model_held_out": ("split", "requested_model", "effective_model", "target_model_approved", "quality_metrics_authoritative", "critical_failure_count", "hard_gate_failure_count", "hard_gate_failure_types", "hard_gate_pass", "noncritical_floor_pass", "noncritical_semantic_required_count", "noncritical_semantic_correct_count", "noncritical_semantic_equivalence", "material_unresolved_recall", "unresolved_precision", "quality_policy", "quality_policy_identity", "configuration_hash", "behavior_configuration_hash", "experiment_plan_hash", "scenario_ids", "formats", "corpus_fingerprint", "held_out_fingerprint", "required_media_compliance", "vision_input_proven", "locked_terminology_recall", "unexpected_unresolved_rate", "corpus_set_identity", "evaluation_purpose", "contamination_report_sha256"),
+        "internal_bilingual": ("attestation_id", "artifact_count", "work_unit_count", "critical_business_meaning_errors", "critical_numeric_date_unit_errors", "critical_modality_escalations", "critical_table_mapping_errors", "critical_trend_reversals", "unsupported_critical_executive_claims", "overall_noncritical_semantic_fidelity", "unresolved_precision", "material_unresolved_recall", "quality_policy", "quality_policy_identity", "locked_terminology"),
         "zero_korean_comprehension": ("attestation_id", "users", "answers", "critical_question_accuracy", "overall_comprehension", "critical_misunderstanding"),
         "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings", "audited_dependency_set_sha256", "resolved_dependency_set_sha256", "resolved_dependency_lock_sha256", "production_sbom_sha256", "candidate_constraints_sha256", "pip_audit_version", "semgrep_version", "semgrep_ruleset_identity", "semgrep_ruleset_sha256"),
         "reliability": ("timeout_recovery_pass", "resume_pass", "fifty_slide_pass", "concurrency_pass", "slo_pass", "concurrent_runs"),
@@ -1552,6 +1553,56 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
     missing = [key for key in requirements.get(evidence_type, ()) if key not in payload]
     if missing:
         raise EvidenceValidationError(f"{evidence_type} evidence is missing payload fields: {', '.join(missing)}")
+    from .quality_policy import QUALITY_FLOORS, QUALITY_POLICY_IDENTITY, policy_identity_record, validate_policy_identity
+
+    model_evidence_types = {"model_validation", "model_high_risk_stability", "model_held_out"}
+    if evidence_type in model_evidence_types:
+        try:
+            validate_policy_identity(payload.get("quality_policy"))
+        except ValueError as exc:
+            raise EvidenceValidationError("model evidence quality-policy identity is missing or stale") from exc
+        if payload.get("quality_policy_identity") != QUALITY_POLICY_IDENTITY:
+            raise EvidenceValidationError("model evidence quality-policy hash is inconsistent")
+        finding_types = payload.get("hard_gate_failure_types")
+        if not isinstance(finding_types, list) or any(not isinstance(item, str) or not item for item in finding_types):
+            raise EvidenceValidationError("model evidence hard-gate findings are malformed")
+        if payload.get("critical_failure_count") != 0 or payload.get("hard_gate_failure_count") != 0 or finding_types or payload.get("hard_gate_pass") is not True:
+            raise EvidenceValidationError("model evidence has a non-compensable hard-gate failure")
+        if payload.get("noncritical_floor_pass") is not True:
+            raise EvidenceValidationError("model evidence fails one or more non-critical quality floors")
+        required = payload.get("noncritical_semantic_required_count")
+        correct = payload.get("noncritical_semantic_correct_count")
+        if not _positive_int(required, 0) or not _positive_int(correct, 0) or correct > required:
+            raise EvidenceValidationError("model evidence non-critical semantic assertion counts are malformed")
+        derived_equivalence = correct / required if required else 1.0
+        metric = payload.get("noncritical_semantic_equivalence")
+        if isinstance(metric, bool) or not isinstance(metric, (int, float)) or not math.isfinite(metric) or abs(float(metric) - derived_equivalence) > 1e-12:
+            raise EvidenceValidationError("model evidence non-critical semantic rate disagrees with assertion counts")
+        for field, floor in (
+            ("noncritical_semantic_equivalence", QUALITY_FLOORS["noncritical_semantic_equivalence_min"]),
+            ("material_unresolved_recall", QUALITY_FLOORS["material_unresolved_recall_min"]),
+            ("unresolved_precision", QUALITY_FLOORS["unresolved_precision_min"]),
+            ("locked_terminology_recall", QUALITY_FLOORS["locked_terminology_recall_min"]),
+        ):
+            value = payload.get(field)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or float(value) < floor:
+                raise EvidenceValidationError(f"model evidence fails the {field} quality floor")
+    if evidence_type == "internal_bilingual":
+        try:
+            validate_policy_identity(payload.get("quality_policy"))
+        except ValueError as exc:
+            raise EvidenceValidationError("internal bilingual evidence quality-policy identity is missing or stale") from exc
+        if payload.get("quality_policy_identity") != QUALITY_POLICY_IDENTITY:
+            raise EvidenceValidationError("internal bilingual evidence quality-policy hash is inconsistent")
+        for field, floor in (
+            ("overall_noncritical_semantic_fidelity", QUALITY_FLOORS["noncritical_semantic_equivalence_min"]),
+            ("unresolved_precision", QUALITY_FLOORS["unresolved_precision_min"]),
+            ("material_unresolved_recall", QUALITY_FLOORS["material_unresolved_recall_min"]),
+            ("locked_terminology", QUALITY_FLOORS["locked_terminology_recall_min"]),
+        ):
+            value = payload.get(field)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or float(value) < floor:
+                raise EvidenceValidationError(f"internal bilingual evidence fails the {field} quality floor")
     model_corpus_contracts = {
         "model_validation": ("private_representative", "private_evaluation"),
         "model_high_risk_stability": ("frozen_high_risk", "comparison"),
@@ -1578,8 +1629,8 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
             raise EvidenceValidationError("validation evidence fails critical/repetition gates")
         if not _is_true(payload["vision_input_proven"]):
             raise EvidenceValidationError("validation evidence does not prove multimodal execution")
-        if float(payload["locked_terminology_recall"]) + 1e-12 < 0.995 or float(payload["unexpected_unresolved_rate"]) != 0:
-            raise EvidenceValidationError("validation evidence fails terminology or unexpected-unresolved gates")
+        if float(payload["locked_terminology_recall"]) < QUALITY_FLOORS["locked_terminology_recall_min"]:
+            raise EvidenceValidationError("validation evidence fails the locked-terminology floor")
     elif evidence_type == "model_high_risk_stability":
         coverage = payload["required_group_coverage"]
         frequencies = payload["group_critical_frequency"]
@@ -1590,7 +1641,7 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
         categories = payload["category_coverage"]
         if not isinstance(categories, dict) or any(not _positive_int(value, 1) for value in categories.values()):
             raise EvidenceValidationError("high-risk evidence has incomplete protected-category coverage")
-        if not _is_true(payload["target_model_approved"]) or not _is_true(payload["vision_input_proven"]) or payload["critical_failure_count"] != 0 or payload["worst_critical_frequency"] != 0 or not _positive_int(payload["repetitions"], 5):
+        if not _is_true(payload["target_model_approved"]) or not _is_true(payload["quality_metrics_authoritative"]) or not _is_true(payload["vision_input_proven"]) or not _is_true(payload["required_media_compliance"]) or payload["critical_failure_count"] != 0 or payload["worst_critical_frequency"] != 0 or not _positive_int(payload["repetitions"], 5):
             raise EvidenceValidationError("high-risk stability evidence fails target, critical-frequency, or repetition gates")
     elif evidence_type == "model_held_out":
         if payload["split"] != "held_out" or not _is_true(payload["target_model_approved"]) or not _is_true(payload["quality_metrics_authoritative"]):
@@ -1601,13 +1652,13 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
             digest = payload["contamination_report_sha256"]
             if not isinstance(digest, str) or len(digest) != 64 or set(digest) - _HEX64:
                 raise EvidenceValidationError("held-out contamination report identity is malformed")
-        if not _is_true(payload["required_media_compliance"]) or not _is_true(payload["vision_input_proven"]) or float(payload["locked_terminology_recall"]) + 1e-12 < 0.995 or float(payload["unexpected_unresolved_rate"]) != 0:
-            raise EvidenceValidationError("held-out evidence fails media, vision, terminology, or unexpected-unresolved gates")
+        if not _is_true(payload["required_media_compliance"]) or not _is_true(payload["vision_input_proven"]) or float(payload["locked_terminology_recall"]) < QUALITY_FLOORS["locked_terminology_recall_min"]:
+            raise EvidenceValidationError("held-out evidence fails media, vision, or terminology gates")
     elif evidence_type == "internal_bilingual":
         if not str(payload["attestation_id"]) or payload["attestation_id"] == "UNSET" or not _positive_int(payload["artifact_count"], 50) or not _positive_int(payload["work_unit_count"], 200):
             raise EvidenceValidationError("internal bilingual sample/attestation is insufficient")
         critical = ("critical_business_meaning_errors", "critical_numeric_date_unit_errors", "critical_modality_escalations", "critical_table_mapping_errors", "critical_trend_reversals", "unsupported_critical_executive_claims")
-        if any(payload[key] != 0 for key in critical) or float(payload["overall_noncritical_semantic_fidelity"]) < 0.98 or float(payload["locked_terminology"]) < 0.995:
+        if any(payload[key] != 0 for key in critical) or float(payload["overall_noncritical_semantic_fidelity"]) < QUALITY_FLOORS["noncritical_semantic_equivalence_min"] or float(payload["unresolved_precision"]) < QUALITY_FLOORS["unresolved_precision_min"] or float(payload["material_unresolved_recall"]) < QUALITY_FLOORS["material_unresolved_recall_min"] or float(payload["locked_terminology"]) < QUALITY_FLOORS["locked_terminology_recall_min"]:
             raise EvidenceValidationError("internal bilingual quality gates failed")
     elif evidence_type == "zero_korean_comprehension":
         if not str(payload["attestation_id"]) or payload["attestation_id"] == "UNSET" or not _positive_int(payload["users"], 10) or not _positive_int(payload["answers"], 100):

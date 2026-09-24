@@ -101,13 +101,18 @@ class Phase33CertificationTests(unittest.TestCase):
                 (run / "ir" / f"u{index}.json").write_text(json.dumps(SlideIR(slide_id=f"u{index}").as_dict()), encoding="utf-8")
             self.assertEqual({item["work_unit_id"] for item in collect_run_artifacts(run)}, {"u1", "u2"})
 
-    def test_clean_unresolved_is_unexpected_but_degraded_unresolved_is_allowed(self):
+    def test_unnecessary_safe_review_is_noncritical_and_measured_by_precision(self):
         evidence = _evidence()
         patch = {"regions": [{"region_id": "u1-r1", "english": "[unreadable]", "unresolved": True, "unresolved_reason": "blurred"}]}
         clean = type("Scenario", (), {"gold": {}})()
         degraded = type("Scenario", (), {"gold": {"allowed_unresolved": True, "expected_unresolved_max": 1}})()
-        self.assertIn("UNEXPECTED_UNRESOLVED", score_translation_patch(clean, evidence, patch)["critical_failures"])
-        self.assertNotIn("UNEXPECTED_UNRESOLVED", score_translation_patch(degraded, evidence, patch)["critical_failures"])
+        clean_score = score_translation_patch(clean, evidence, patch)
+        degraded_score = score_translation_patch(degraded, evidence, patch)
+        self.assertNotIn("UNEXPECTED_UNRESOLVED", clean_score["critical_failures"])
+        self.assertNotIn("UNEXPECTED_UNRESOLVED", degraded_score["critical_failures"])
+        self.assertEqual(clean_score["unresolved_precision"], 0.0)
+        self.assertEqual(degraded_score["unresolved_precision"], 0.0)
+        self.assertEqual(clean_score["material_unresolved_recall"], 1.0)
 
     def test_modality_does_not_fallback_to_unrelated_region(self):
         evidence = EvidenceIR("doc", "u", {}, (EvidenceRegion("r1", selected_literal_candidate="다른 문구"), EvidenceRegion("r2", selected_literal_candidate="2H 적용 예정")), required_source_ids=("r1", "r2")).with_revision()
@@ -117,12 +122,12 @@ class Phase33CertificationTests(unittest.TestCase):
         self.assertIn("SCORER_SOURCE_BINDING_FAILURE", score["critical_failures"])
 
     def test_repeated_critical_frequency_is_computed(self):
-        rows = [{"scenario_id": "s1", "format": "png", "category": "financial_table", "semantic_scored": True, "semantic": {"coverage": 1, "critical_failures": (["CRITICAL"] if index == 0 else [])}, "status": "PASS", "quality_metrics_authoritative": True, "engine_gate": "PASS"} for index in range(5)]
+        rows = [{"scenario_id": "s1", "format": "png", "category": "financial_table", "semantic_scored": True, "semantic": {"coverage": 1, "critical_failures": (["CRITICAL"] if index == 0 else []), "noncritical_semantic_assertion_ids": [], "noncritical_semantic_observations": [], "noncritical_semantic_required_count": 0, "noncritical_semantic_correct_count": 0, "noncritical_semantic_equivalence": 1.0}, "status": "PASS", "quality_metrics_authoritative": True, "engine_gate": "PASS"} for index in range(5)]
         summary = aggregate_model_results(rows, model="google/gemma-4-31b-it", split="validation")
         self.assertEqual(summary["stability_groups"]["s1/png"]["critical_frequency"], 0.2)
 
     def test_authoritative_critical_measurement_is_certification_failure(self):
-        rows = [{"scenario_id": "s1", "format": "png", "category": "modality_decision_state", "semantic_scored": True, "semantic": {"coverage": 1, "critical_failures": ["CRITICAL_MODALITY_MISMATCH"]}, "status": "PASS", "quality_metrics_authoritative": True, "engine_gate": "PASS", "opencode": {"mode": "quality"}}]
+        rows = [{"scenario_id": "s1", "format": "png", "category": "modality_decision_state", "semantic_scored": True, "semantic": {"coverage": 1, "critical_failures": ["CRITICAL_MODALITY_MISMATCH"], "noncritical_semantic_assertion_ids": [], "noncritical_semantic_observations": [], "noncritical_semantic_required_count": 0, "noncritical_semantic_correct_count": 0, "noncritical_semantic_equivalence": 1.0}, "status": "PASS", "quality_metrics_authoritative": True, "engine_gate": "PASS", "opencode": {"mode": "quality"}}]
         summary = aggregate_model_results(rows, model="google/gemma-4-31b-it", split="validation")
         self.assertEqual(summary["evaluation_state"], EvaluationState.CERTIFICATION_FAIL.value)
 
