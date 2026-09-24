@@ -34,7 +34,7 @@ from k_slide.certification import (
 )
 from k_slide.runtime import discover_runtime
 from .generator import DEFAULT_VARIANT, generate_artifacts
-from .model_results import aggregate_model_results, write_results
+from .model_results import aggregate_model_results, persisted_false_done, write_results
 from .model_scorers import score_deck_consistency, score_translation_patch
 from .noncritical_semantics import assertions_for_scenario
 from .opencode_runner import OpenCodeEvalRunner, _latest_run
@@ -305,18 +305,15 @@ def _persisted_execution(run: Path | None, *, result: Any, work_unit_states: dic
         int(semantic.get("material_unresolved_true_positive_count", 0)) / int(semantic.get("unresolved_observed_count", 0))
         if int(semantic.get("unresolved_observed_count", 0)) else 1.0
     )
-    complete_with_review_units = run_complete and any(status != "VERIFIED" for status in work_unit_states.values())
-    false_done_recovery_violation = run_complete and (required_unresolved_count > 0 or complete_with_review_units)
     verification_contract_failure = (
         phase == "COMPLETE"
         and (verification_status != "PASS" or verification_critical_count != 0)
     )
     conflict_failure = bool(conflict_failure_codes) or (run_complete and unresolved_conflict_count > 0)
-    return {
+    execution_facts = {
         "available": True,
         "run_phase": phase,
         "run_complete": run_complete,
-        "false_done_recovery_violation": false_done_recovery_violation,
         "reported_run_complete": bool(getattr(result, "kslide_complete", False)),
         "verification_status": verification_status,
         "verification_critical_count": verification_critical_count,
@@ -330,6 +327,11 @@ def _persisted_execution(run: Path | None, *, result: Any, work_unit_states: dic
         "unresolved_conflict_count": unresolved_conflict_count,
         "conflict_failure_codes": sorted(set(conflict_failure_codes)),
         "conflict_resolution_failure": conflict_failure,
+    }
+    false_done_recovery_violation = persisted_false_done(execution_facts)
+    return {
+        **execution_facts,
+        "false_done_recovery_violation": false_done_recovery_violation,
         "execution_contract_pass": bool(
             (phase == "COMPLETE" and run_complete and verification_status == "PASS" and verification_critical_count == 0 and bool(work_unit_states) and all(status == "VERIFIED" for status in work_unit_states.values()))
             or (phase == "NEEDS_REVIEW" and any(status == "NEEDS_REVIEW" for status in work_unit_states.values()))
@@ -352,11 +354,20 @@ def _source_free_runtime_provenance(value: dict[str, Any]) -> dict[str, Any]:
 
 
 class ModelEvaluationRunner:
-    def __init__(self, *, model: str, output: Path, split: str = "development", formats: tuple[str, ...] = ("png",), repeats: int = 1, timeout: int = 180, mode: str = "quality", limit: int | None = None, categories: tuple[str, ...] = (), scenario_ids: tuple[str, ...] = (), configuration: dict[str, Any] | None = None, ocr_provider: str = "none", candidate_profile: Path | None = None, high_risk: bool = False, model_policy: Any | None = None, corpus_source: str = "public_synthetic", governed_manifest: Path | None = None, governed_manifest_bundle: Path | None = None, governed_history: Path | None = None, evaluation_purpose: str | None = None, artifact_root: Path | None = None, case_descriptor: str | Path = "cases.json", contamination_report: Path | None = None):
+    def __init__(self, *, model: str, output: Path, split: str = "development", formats: tuple[str, ...] = ("png",), repeats: int | None = None, timeout: int = 180, mode: str = "quality", limit: int | None = None, categories: tuple[str, ...] = (), scenario_ids: tuple[str, ...] = (), configuration: dict[str, Any] | None = None, ocr_provider: str = "none", candidate_profile: Path | None = None, high_risk: bool = False, model_policy: Any | None = None, corpus_source: str = "public_synthetic", governed_manifest: Path | None = None, governed_manifest_bundle: Path | None = None, governed_history: Path | None = None, evaluation_purpose: str | None = None, artifact_root: Path | None = None, case_descriptor: str | Path = "cases.json", contamination_report: Path | None = None):
         self.model = model
         self.output = output
         self.split = split
         self.formats = tuple(item.lower() for item in formats)
+        if repeats is not None and (not isinstance(repeats, int) or isinstance(repeats, bool) or repeats < 1):
+            raise ValueError("repeats must be a positive integer")
+        self._repeats_defaulted = repeats is None
+        if repeats is None:
+            full_quality_request = mode == "quality" and (
+                corpus_source == "governed_external"
+                or (split in {"validation", "held_out"} and limit is None and not categories and not scenario_ids)
+            )
+            repeats = 5 if high_risk else 3 if full_quality_request else 1
         self.repeats = repeats
         self.timeout = timeout
         self.mode = mode
@@ -518,6 +529,8 @@ class ModelEvaluationRunner:
                 expected_split = "held_out" if role == "sealed_held_out" else "validation"
                 if self.split != expected_split:
                     raise GovernedCaseError("governed role does not match the explicit matrix split")
+                if self._repeats_defaulted and role == "frozen_high_risk":
+                    self.repeats = 5
                 if role == "frozen_high_risk" and self.repeats < 5:
                     raise GovernedCaseError("frozen high-risk evaluation requires at least five repetitions")
                 if self.high_risk and role != "frozen_high_risk":
@@ -765,7 +778,13 @@ class ModelEvaluationRunner:
         if not authoritative_effective:
             run_manifest["deployment_fingerprint_provisional"] = provisional_deployment
         (self.output / "experiment.json").write_text(json.dumps(run_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        summary = aggregate_model_results(results, model=self.model, split=self.split)
+        expected_matrix = [
+            (scenario.scenario_id, format_name, repetition)
+            for scenario in scenarios
+            for format_name in self.formats
+            for repetition in range(1, self.repeats + 1)
+        ] or None
+        summary = aggregate_model_results(results, model=self.model, split=self.split, expected_matrix=expected_matrix)
         summary["requested_model"] = self.model
         summary["quality_policy"] = policy_identity_record()
         summary["quality_policy_identity"] = QUALITY_POLICY_IDENTITY

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -27,6 +28,80 @@ def repeated_group_key(row: dict[str, Any]) -> tuple[str, str]:
     if not isinstance(format_name, str) or not format_name:
         raise ValueError("model result row is missing format")
     return scenario_id, format_name.lower()
+
+
+def certification_matrix_metadata(cells: Iterable[tuple[str, str, int]]) -> dict[str, Any]:
+    """Return the deterministic identity of a declared result-cell matrix."""
+
+    normalized: list[tuple[str, str, int]] = []
+    seen: set[tuple[str, str, int]] = set()
+    for scenario_id, format_name, repeat in cells:
+        if not isinstance(scenario_id, str) or not scenario_id or not isinstance(format_name, str) or not format_name:
+            raise ValueError("certification matrix contains an invalid scenario or format")
+        if not isinstance(repeat, int) or isinstance(repeat, bool) or repeat < 1:
+            raise ValueError("certification matrix contains an invalid repetition ordinal")
+        cell = (scenario_id, format_name.lower(), repeat)
+        if cell in seen:
+            raise ValueError("certification matrix contains duplicate cells")
+        seen.add(cell)
+        normalized.append(cell)
+    if not normalized:
+        raise ValueError("certification matrix must not be empty")
+    ordered = sorted(normalized)
+    encoded = json.dumps(ordered, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    return {
+        "certification_matrix_complete": True,
+        "certification_matrix_cell_count": len(ordered),
+        "certification_matrix_sha256": hashlib.sha256(encoded).hexdigest(),
+    }
+
+
+def derive_stability_groups(rows: Iterable[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Reconstruct per-artifact stability from case rows and derived hard gates."""
+
+    groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        groups[repeated_group_key(row)].append(row)
+    result: dict[str, dict[str, Any]] = {}
+    for (scenario, format_name), group in sorted(groups.items()):
+        critical_runs = sum(
+            bool(item.get("semantic", {}).get("critical_failures"))
+            or bool(item.get("hard_gate_findings"))
+            for item in group
+        )
+        result[f"{scenario}/{format_name}"] = {
+            "repetitions": len(group),
+            "critical_failure_runs": critical_runs,
+            "critical_frequency": critical_runs / len(group),
+            "mean_hard_score": (len(group) - critical_runs) / len(group),
+            "minimum_hard_score": min((float(item.get("semantic", {}).get("coverage", 0.0)) for item in group), default=0.0),
+            "maximum_hard_score": max((float(item.get("semantic", {}).get("coverage", 0.0)) for item in group), default=0.0),
+        }
+    return result
+
+
+def persisted_false_done(execution: dict[str, Any]) -> bool:
+    """Derive false completion from persisted completion, recovery, and verification facts."""
+
+    complete = execution.get("run_complete") is True
+    reported = execution.get("reported_run_complete") is True
+    statuses = execution.get("work_unit_states")
+    has_review_units = not isinstance(statuses, dict) or not statuses or any(value != "VERIFIED" for value in statuses.values())
+    unresolved_count = execution.get("material_unresolved_required_count", 0)
+    conflict_count = execution.get("unresolved_conflict_count", 0)
+    verification_failure = execution.get("run_phase") == "COMPLETE" and (
+        execution.get("verification_status") != "PASS"
+        or execution.get("verification_critical_count") != 0
+    )
+    conflict_failure = execution.get("conflict_resolution_failure") is True
+    unsafe_completion = complete and (
+        bool(unresolved_count)
+        or bool(conflict_count)
+        or has_review_units
+        or verification_failure
+        or conflict_failure
+    )
+    return unsafe_completion or (reported and not complete)
 
 
 def _scorer_gate_codes(semantic: dict[str, Any]) -> set[str]:
@@ -173,7 +248,7 @@ def derive_result_hard_gate_findings(row: dict[str, Any]) -> list[dict[str, str]
     if row.get("engine_gate") not in {None, "PASS"} and row.get("semantic_scored") is True:
         add("ENGINE_EVIDENCE_CONTRACT_FAILURE")
     execution = row.get("persisted_execution") if isinstance(row.get("persisted_execution"), dict) else {}
-    if execution.get("false_done_recovery_violation") is True or (execution.get("material_unresolved_required_count", 0) and execution.get("run_complete") is True):
+    if persisted_false_done(execution):
         add("FALSE_DONE_WITH_MATERIAL_UNRESOLVED")
     if execution.get("verification_contract_failure") is True:
         add("ENGINE_EVIDENCE_CONTRACT_FAILURE")
@@ -185,19 +260,35 @@ def derive_result_hard_gate_findings(row: dict[str, Any]) -> list[dict[str, str]
     return sorted(findings.values(), key=lambda item: (item["category"], item["code"], item.get("work_unit_id", ""), item.get("unknown_code_sha256", "")))
 
 
-def aggregate_model_results(results: Iterable[dict[str, Any]], *, model: str, split: str) -> dict[str, Any]:
+def aggregate_model_results(results: Iterable[dict[str, Any]], *, model: str, split: str, expected_matrix: Iterable[tuple[str, str, int]] | None = None) -> dict[str, Any]:
     cases = list(results)
+    matrix_metadata: dict[str, Any] | None = None
+    if expected_matrix is not None:
+        matrix_cells = list(expected_matrix)
+        matrix_metadata = certification_matrix_metadata(matrix_cells)
+        declared = {(scenario, format_name.lower(), repeat) for scenario, format_name, repeat in matrix_cells}
+        observed: set[tuple[str, str, int]] = set()
+        for item in cases:
+            scenario = item.get("scenario_id")
+            format_name = item.get("format")
+            repeat = item.get("repeat")
+            if not isinstance(scenario, str) or not isinstance(format_name, str) or not format_name or not isinstance(repeat, int) or isinstance(repeat, bool):
+                raise ValueError("model result matrix contains an invalid scenario, format, or repetition ordinal")
+            cell = (scenario, format_name.lower(), repeat)
+            if cell in observed:
+                raise ValueError("model result matrix contains duplicate cells")
+            observed.add(cell)
+        if observed != declared:
+            raise ValueError("model result matrix is incomplete or misaligned with its experiment contract")
     scored = [item for item in cases if item.get("semantic_scored")]
     metric_names = ("coverage", "numeric_fidelity", "modality", "table_cell_fidelity", "visual_relation_recall")
     mean_scores = {name: deterministic_mean([float(item.get("semantic", {}).get(name, 0.0)) for item in scored]) for name in metric_names}
     category_values: dict[str, list[dict[str, Any]]] = defaultdict(list)
     format_values: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    repeated_groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     critical_types: Counter[str] = Counter()
     for item in scored:
         category_values[str(item.get("category"))].append(item)
         format_values[str(item.get("format"))].append(item)
-        repeated_groups[repeated_group_key(item)].append(item)
         critical_types.update(item.get("semantic", {}).get("critical_failures", []))
     for item in cases:
         findings = derive_result_hard_gate_findings(item)
@@ -254,17 +345,7 @@ def aggregate_model_results(results: Iterable[dict[str, Any]], *, model: str, sp
         and locked_terminology_recall >= QUALITY_FLOORS["locked_terminology_recall_min"]
     )
     hard_gate_failure_count = sum(len(item.get("hard_gate_findings", [])) for item in cases)
-    stability_groups = {
-        f"{scenario}/{format_name}": {
-            "repetitions": len(group),
-            "critical_failure_runs": sum(bool(item.get("semantic", {}).get("critical_failures")) for item in group),
-            "critical_frequency": sum(bool(item.get("semantic", {}).get("critical_failures")) for item in group) / len(group),
-            "mean_hard_score": sum(not item.get("semantic", {}).get("critical_failures") for item in group) / len(group),
-            "minimum_hard_score": min((float(item.get("semantic", {}).get("coverage", 0.0)) for item in group), default=0.0),
-            "maximum_hard_score": max((float(item.get("semantic", {}).get("coverage", 0.0)) for item in group), default=0.0),
-        }
-        for (scenario, format_name), group in sorted(repeated_groups.items())
-    }
+    stability_groups = derive_stability_groups(cases)
     worst_case_frequency = max((item["critical_frequency"] for item in stability_groups.values()), default=0.0)
     protocol_smoke = any(item.get("status") == "PROTOCOL_SMOKE_ONLY" or item.get("opencode", {}).get("mode") == "protocol" for item in cases)
     if quality_authoritative:
@@ -279,7 +360,7 @@ def aggregate_model_results(results: Iterable[dict[str, Any]], *, model: str, sp
         evaluation_state = EvaluationState.CAPABILITY_BLOCKED.value
     else:
         evaluation_state = EvaluationState.NOT_MEASURED.value
-    return {
+    summary = {
         "model": model,
         "requested_model": requested_models[0] if len(requested_models) == 1 else model,
         "effective_model_ids": effective_models,
@@ -321,6 +402,9 @@ def aggregate_model_results(results: Iterable[dict[str, Any]], *, model: str, sp
         "by_category": {key: summarize(value) for key, value in sorted(category_values.items())},
         "by_format": {key: summarize(value) for key, value in sorted(format_values.items())},
     }
+    if matrix_metadata is not None:
+        summary.update(matrix_metadata)
+    return summary
 
 
 def write_results(output: Path, results: list[dict[str, Any]], summary: dict[str, Any], report: str) -> None:

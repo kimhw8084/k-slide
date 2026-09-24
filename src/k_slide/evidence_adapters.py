@@ -44,6 +44,7 @@ from .quality_policy import (
     policy_identity_record,
     validate_policy_identity,
 )
+from evals.model_results import certification_matrix_metadata, derive_stability_groups, persisted_false_done
 from .corpus_governance import (
     CorpusGovernanceError,
     is_certification_corpus_ready,
@@ -561,7 +562,7 @@ def _model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]], *, exp
     extra = sorted(observed - declared)
     if missing or extra:
         raise AdapterError(f"model result matrix mismatch; missing={missing[:3]}; extra={extra[:3]}")
-    return {"scenario_ids": sorted(scenario_ids), "formats": formats, "repetitions": repetitions, "case_count": len(rows), "matrix_hash": _sha256_text(experiment.get("experiment_plan_hash"), "experiment_plan_hash")}
+    return {"scenario_ids": sorted(scenario_ids), "formats": formats, "repetitions": repetitions, "case_count": len(rows), "matrix_hash": _sha256_text(experiment.get("experiment_plan_hash"), "experiment_plan_hash"), **certification_matrix_metadata(declared)}
 
 
 def _governed_model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]], *, expected_split: str, require_full_split: bool, scenario_ids: list[str], formats: list[str], repetitions: int) -> dict[str, Any]:
@@ -665,7 +666,7 @@ def _governed_model_matrix(experiment: dict[str, Any], rows: list[dict[str, Any]
     extra = sorted(observed - declared)
     if missing or extra:
         raise AdapterError(f"model result matrix mismatch; missing={missing[:3]}; extra={extra[:3]}")
-    return {"scenario_ids": sorted(scenario_ids), "formats": formats, "repetitions": repetitions, "case_count": len(rows), "matrix_hash": _sha256_text(experiment.get("experiment_plan_hash"), "experiment_plan_hash")}
+    return {"scenario_ids": sorted(scenario_ids), "formats": formats, "repetitions": repetitions, "case_count": len(rows), "matrix_hash": _sha256_text(experiment.get("experiment_plan_hash"), "experiment_plan_hash"), **certification_matrix_metadata(declared)}
 
 
 def _model_identity(summary: dict[str, Any], experiment: dict[str, Any], rows: list[dict[str, Any]], policy: Any) -> tuple[str, list[str], bool]:
@@ -983,7 +984,7 @@ def _derive_case_hard_gates(row: dict[str, Any], *, model_policy: Any) -> tuple[
         statuses = execution.get("work_unit_states")
         if not isinstance(statuses, dict) or any(not isinstance(key, str) or not key or not isinstance(value, str) for key, value in statuses.items()):
             raise AdapterError("persisted work-unit recovery states are malformed")
-        expected_false_done = bool(run_complete and (execution_required_count > 0 or any(value != "VERIFIED" for value in statuses.values())))
+        expected_false_done = persisted_false_done(execution)
         if execution.get("false_done_recovery_violation") is not expected_false_done:
             raise AdapterError("persisted false-DONE finding disagrees with completion and recovery state")
         if expected_false_done:
@@ -1340,6 +1341,14 @@ def _aggregate_model(values: dict[str, Path], *, expected_split: str, root: Path
         raise AdapterError("authoritative model results fail a non-compensable hard gate or quality floor")
     repetitions = int(experiment.get("repetitions", max((int(item.get("repeat", 1)) for item in rows), default=0)))
     matrix = _model_matrix(experiment, rows, expected_split=expected_split, require_full_split=False, root=root)
+    for field in ("certification_matrix_complete", "certification_matrix_cell_count", "certification_matrix_sha256"):
+        if summary.get(field) != matrix[field]:
+            raise AdapterError(f"model summary {field} disagrees with the contract-bound result matrix")
+    checked_rows = [{**item, "hard_gate_findings": case_findings[index]} for index, item in enumerate(rows)]
+    derived_stability = derive_stability_groups(checked_rows)
+    worst_frequency = max((item["critical_frequency"] for item in derived_stability.values()), default=0.0)
+    if summary.get("stability_groups") != derived_stability or summary.get("worst_case_critical_frequency") != worst_frequency:
+        raise AdapterError("model stability summary disagrees with persisted case rows")
     if summary.get("case_count") is not None and summary.get("case_count") != len(rows):
         raise AdapterError("model summary case_count disagrees with result rows")
     if summary.get("semantic_scored_case_count") is not None and summary.get("semantic_scored_case_count") != sum(item.get("semantic_scored") is True for item in rows):
@@ -1523,6 +1532,17 @@ def _derive_high_risk(sources: dict[str, Path], *, root: Path | None) -> dict[st
             raise AdapterError("governed high-risk manifest does not cover the complete protected-group policy")
     else:
         selected_categories = set(PROTECTED_CATEGORIES)
+        try:
+            from evals.scenarios import scenario_specs
+
+            expected_ids = {
+                next(item.scenario_id for item in scenario_specs() if item.category == category and item.split == "validation")
+                for category in PROTECTED_CATEGORIES
+            }
+        except (ImportError, StopIteration) as exc:
+            raise AdapterError("public high-risk matrix requires every frozen protected-category scenario") from exc
+        if set(scenario_ids) != expected_ids:
+            raise AdapterError("public high-risk matrix does not match the frozen protected-category membership")
     declared_categories = experiment.get("high_risk_categories")
     if not isinstance(declared_categories, list) or len(declared_categories) != len(selected_categories) or set(declared_categories) != selected_categories:
         raise AdapterError("high-risk experiment does not declare the complete protected-category policy")
@@ -1584,6 +1604,7 @@ def _derive_held_out(sources: dict[str, Path], *, root: Path | None) -> dict[str
         or payload["critical_failure_count"] != 0
         or not payload["required_media_compliance"]
         or not payload["vision_input_proven"]
+        or payload["repetitions"] < 3
         or payload["locked_terminology_recall"] < QUALITY_FLOORS["locked_terminology_recall_min"]
     ):
         raise AdapterError("held-out result fails target, authority, hard-gate, floor, media, vision, or terminology gates")
