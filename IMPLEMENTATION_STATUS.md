@@ -522,9 +522,47 @@ git diff --check: passed.
 
 The synthetic release regression exercises the existing release state machine using temporary fixtures only. No employee study, company human scoring, expert reference preparation, live private evaluation, candidate promotion, release, BUILD COMPLETE, or production certification was performed. `evals/champion.json` remains `UNSET`; approved company execution and actual source-free results remain future blockers.
 
+## CHG-16 / KSA-31 champion promotion and scoped recertification BUILD candidate
+
+This implementation candidate starts from exact integrated base `6b2531d7620fd632f886bb1963a8f8b189d617b9` on branch `codex/k-slide-chg16-champion-recertification-01`. HEAD remains at that base, the changes are uncommitted, and main was not moved or merged. This records KSA-31 implementation and test evidence; it does not claim BUILD COMPLETE, a live promotion, a release, or production certification. `evals/champion.json` remains `UNSET`.
+
+The champion promotion contract is closed and versioned `1.0`, with only `PROMOTED` and `FROZEN_PROMOTED` states. Promotion is built from the canonical candidate already owned by the candidate-spec contract and the exact authoritative `model_validation`, `model_high_risk_stability`, and `model_held_out` envelopes. Validation reloads each envelope and checks candidate subject/deployment/factors, requested and effective target model, behavior configuration, corpus role and purpose, hard gates, model policy, and immutable evidence and envelope hashes. The record also binds the governed termbase identity, provider/backend/revision/quantization, inference route/endpoint, runtime/dependency and OCR factors, and other canonical candidate factors. The record has a deterministic content identity. Editable status strings, legacy minimal `FROZEN` records, and summary fields do not establish promotion.
+
+The repository-owned change-impact policy is closed and versioned `1.0`; its identity is derived from the explicit evidence-producer dependency registry. Model-validation, high-risk, and held-out evidence depend on the model execution factors and governed corpus. Runtime, heavy-runtime, security, human-review, zero-Korean, model-data-policy, pilot, and governance evidence each have their own declared dependency projections. A changed field invalidates the evidence classes whose producers consume it, and any changed deployment fingerprint makes the old champion stale. Unknown or unmapped dimensions fail closed. No filename heuristics or caller-supplied dependency maps are used.
+
+Recertification contract `1.0` carries evidence only through a deterministic exemption that binds exact old/new subject and deployment identities, changed canonical dimensions, impact-policy identity, original evidence identity and envelope hash, and matching old/new dependency projections. Only the closed `CARRY_FORWARD` / `DEPENDENCY_PROJECTION_UNCHANGED` outcome is accepted. Release construction and production freshness independently reload and revalidate prior evidence, the prior manifest hash, impact record, exemption identity, projections, and candidate bindings. Carried evidence stays bound to its original envelope; it cannot promote the new candidate or make the old profile current. Extended certification fingerprint contract `2.0` binds the new candidate, validated promotion when present, current evidence, recertification record, and accepted exemption identities; legacy callers without these identities retain the existing fingerprint form. A retention-policy-only change demonstrates scoped reuse of unaffected runtime evidence while invalidating its declared model-data-policy and pilot dependents.
+
+Evidence schema `2.6`, KSA-29 bilingual-review `1.0`, KSA-30 zero-Korean `1.0`, KSA-27 policy and hard gates, KSA-28 repetition/matrix/false-DONE checks, and KSA-29/30 human-authority, privacy, security, runtime, and tenant boundaries remain unchanged. No shared evidence-schema migration was needed.
+
+Changed implementation and test files:
+
+- `evals/release.py`
+- `src/k_slide/certification.py`
+- `src/k_slide/production.py`
+- `src/k_slide/recertification.py`
+- `tests/test_certification_closure.py`
+- `tests/test_ksa31_promotion_recertification.py`
+- `IMPLEMENTATION_STATUS.md`
+- `.codex-fabric/audit.json`
+
+Validation performed on this candidate:
+
+```text
+KSA-31 adversarial, KSA-26–30, certification/release, and phase32–35 regressions: 258 passed.
+KSA-21–25 compatibility/security/recovery: 93 passed; 1 skipped.
+CHG-16 through KSA-20 host/security/runtime regressions: 222 passed; 1 skipped.
+Full Python 3.11.7 discovery: 611 passed; 4 optional skips.
+Full isolated Python 3.12.9 discovery: 611 passed.
+OpenCode host-attachment TypeScript regression: passed.
+TranslationPatch Python/schema/TypeScript checks: 43 passed; all 4 Draft 2020-12 JSON schemas validated.
+Compileall on Python 3.11 and 3.12, and git diff --check: passed.
+```
+
+All model-promotion and recertification scenarios use deterministic synthetic evidence in temporary roots. Authoritative target-Gemma promotion evidence, a fully resolved live candidate, release inputs, and production certification remain blockers and were not produced or claimed. KSA-32 and later work remains outside this scope.
+
 ## Next phase
 
-KSA-31 and later work requires a separate scoped request. Existing external production-candidate prerequisites remain unproven and were not run by this KSA-30 implementation.
+KSA-32 and later work requires a separate scoped request. Authoritative target-Gemma evaluation and the remaining external production-candidate prerequisites are still unproven; no live promotion, release, or production certification was performed here.
 
 ## Architecture decisions
 

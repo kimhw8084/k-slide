@@ -1,89 +1,86 @@
 {
   "ancestry": {
-    "branch_at_final_identity_check": "codex/k-slide-chg16-zero-korean-study-01",
-    "head_at_final_identity_check": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
+    "branch_at_final_identity_check": "codex/k-slide-chg16-champion-recertification-01",
+    "head_at_final_identity_check": "6b2531d7620fd632f886bb1963a8f8b189d617b9",
     "main_moved": false,
     "merge_to_main_performed": false,
-    "starting_head": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
+    "starting_head": "6b2531d7620fd632f886bb1963a8f8b189d617b9",
     "starting_head_is_exact_requested_base": true
   },
   "candidate": {
-    "base_integrated_main": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
-    "branch": "codex/k-slide-chg16-zero-korean-study-01",
+    "base_integrated_main": "6b2531d7620fd632f886bb1963a8f8b189d617b9",
+    "branch": "codex/k-slide-chg16-champion-recertification-01",
     "candidate_commit": null,
+    "candidate_source_content_sha256": "c42d7a49ae200f7034950860702e56046f4662a7c49aa7614adf9c6490ad3bd4",
+    "candidate_subject_git_sha": "6b2531d7620fd632f886bb1963a8f8b189d617b9",
     "candidate_source_content_manifest": [
       {
         "path": "IMPLEMENTATION_STATUS.md",
-        "sha256": "36b94a9291a12fa70f96a586609d81b333d7b89fb964736a4e193302fc0b30dd"
-      },
-      {
-        "path": "docs/zero-korean-human-study.md",
-        "sha256": "c315b9f93ceca955a95f4c0316725066eb18b95a04219a3bfcc20f7c391723c7"
+        "sha256": "597461c23be0b5d3871034c53918355b1cc6f31fffa56be29271aaa9ae3b465f"
       },
       {
         "path": "evals/release.py",
-        "sha256": "e9e12c421c3c371d2126aacd64d9fdc573d35b5ad23fe00b583d01483572973d"
-      },
-      {
-        "path": "private-evals/README.md",
-        "sha256": "78ceab99d0b073e1634f1a9e4e87192a4ad31e5e57586d345317f14fa5f46d16"
+        "sha256": "907a8d7e36405bdb9b0b0f1ce5753a3bd7726d6440a12b94b4775d581c7cff98"
       },
       {
         "path": "src/k_slide/certification.py",
-        "sha256": "4f7d6ec621e5220e750257c084c3995a2769e47653768f7cd040af0b19293fa8"
+        "sha256": "bda72abfc79041cba1c38d4ea3bbda58b0679f78ee0128f8beef71b7c57cfb06"
       },
       {
-        "path": "src/k_slide/zero_korean_study.py",
-        "sha256": "8f634e819e88d353602cac46f7aee15da184661ad20544fe65b3712618cb6cfa"
+        "path": "src/k_slide/production.py",
+        "sha256": "d4d6987c598afa1208823b126769413eed6b71519f5b93c155d69aa267c6dfce"
+      },
+      {
+        "path": "src/k_slide/recertification.py",
+        "sha256": "47201383bbdad07bbabbce406eadbb88698396f1112be2e47eb89261d02c7989"
       },
       {
         "path": "tests/test_certification_closure.py",
-        "sha256": "f66c1d5869b00cfa8040ad1bdb0e20a9271abb5d561186c7eb4d02c20255a9ad"
+        "sha256": "fcf6252c989a01f34b0822b7809650cbff3e0da8f4b14e0ecf03886048cdfe71"
       },
       {
-        "path": "tests/test_ksa30_zero_korean_study.py",
-        "sha256": "ec1436969a1e25724fb259da3f93225582a77ed56d820bb330b9889afba6f46c"
-      },
-      {
-        "path": "tests/zero_korean_study_fixtures.py",
-        "sha256": "be3ff7e1963a92b2e4070e1f99d9dd5073339100a893cec988cf1348ff218b8c"
+        "path": "tests/test_ksa31_promotion_recertification.py",
+        "sha256": "2ed7c6d0d95656967dd2583921d9a34b42fb3d4cd829c744019ff17095f9c240"
       }
     ],
-    "candidate_source_content_sha256": "5d2a36c5cf4f7d0887619232640229ba3f698a2097b4f345f6a100a629b259ed",
-    "candidate_source_hash_scope": "Sorted path and SHA-256 pairs for changed implementation, test, and documentation files; .codex-fabric/audit.json excluded to avoid self-reference.",
-    "candidate_subject_git_sha": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
+    "candidate_source_hash_scope": "SHA-256 over canonical JSON of sorted path/SHA-256 pairs for changed implementation, test, and status files; .codex-fabric/audit.json excluded to avoid self-reference.",
     "changes_committed": false,
-    "fabric_candidate_identity_sha256": "be7857aebcf6dcc5510ad411777220ec080b27ba3f60d45ed758f3073f80947c",
-    "final_work_head": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
+    "deployment_candidate_identity": "UNSET: no live target-Gemma candidate was resolved or promoted in this BUILD.",
+    "fabric_candidate_identity_sha256": "029c7605ee532c8e622dbfd6d04b84803d85c59ffe50bcfbc09719ec8b0cc647",
+    "fabric_candidate_identity_scheme": "SHA-256 over canonical JSON of base_integrated_main, branch, candidate_commit, candidate_source_content_sha256, and candidate_subject_git_sha.",
+    "final_work_head": "6b2531d7620fd632f886bb1963a8f8b189d617b9",
     "working_tree_changes_present": true
   },
   "changed_files": [
     ".codex-fabric/audit.json",
     "IMPLEMENTATION_STATUS.md",
-    "docs/zero-korean-human-study.md",
     "evals/release.py",
-    "private-evals/README.md",
     "src/k_slide/certification.py",
-    "src/k_slide/zero_korean_study.py",
+    "src/k_slide/production.py",
+    "src/k_slide/recertification.py",
     "tests/test_certification_closure.py",
-    "tests/test_ksa30_zero_korean_study.py",
-    "tests/zero_korean_study_fixtures.py"
+    "tests/test_ksa31_promotion_recertification.py"
   ],
   "checks": [
     {
-      "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_ksa30_zero_korean_study tests.test_ksa29_bilingual_adjudication tests.test_ksa28_stability_calibration tests.test_ksa27_quality_policy tests.test_ksa26_corpus_governance tests.test_ksa26_governed_runner tests.test_certification_closure tests.test_phase32 tests.test_phase33 tests.test_phase34 tests.test_phase35",
+      "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_ksa31_promotion_recertification",
       "exit_code": 0,
-      "result": "249 KSA-30, KSA-29, KSA-28, KSA-27, KSA-26, certification/release, and phase32-35 regression tests passed."
+      "result": "All 9 focused KSA-31 promotion and recertification adversarial tests passed."
     },
     {
-      "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_ksa24_modality_conformance tests.test_ksa24_f24_repairs tests.test_ksa24_f24_real_path tests.test_ksa25_recovery_law",
+      "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_ksa31_promotion_recertification tests.test_ksa30_zero_korean_study tests.test_ksa29_bilingual_adjudication tests.test_ksa28_stability_calibration tests.test_ksa27_quality_policy tests.test_ksa26_corpus_governance tests.test_ksa26_governed_runner tests.test_certification_closure tests.test_phase32 tests.test_phase33 tests.test_phase34 tests.test_phase35",
+      "exit_code": 0,
+      "result": "258 KSA-31, KSA-26–30, certification/release, and phase32–35 regression tests passed."
+    },
+    {
+      "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_ksa24_f24_real_path tests.test_ksa24_f24_repairs tests.test_ksa24_modality_conformance tests.test_ksa25_recovery_law",
       "exit_code": 0,
       "result": "93 KSA-21–25 compatibility, security, and recovery tests passed; 1 skipped."
     },
     {
-      "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_chg16_foundation tests.test_chg16_storage_planes tests.test_chg16_durable_execution tests.test_chg16_accesskey_nonleakage tests.test_chg16_deletion tests.test_chg16_host_integration tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support tests.test_chg16_environment_binding tests.test_chg16_classification_admission tests.test_chg16_retention_policy tests.test_chg16_scoped_admission tests.test_chg16_paas_worker tests.test_chg16_authentication_transport",
+      "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_classification_admission tests.test_chg16_deletion tests.test_chg16_durable_execution tests.test_chg16_environment_binding tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_chg16_paas_worker tests.test_chg16_retention_policy tests.test_chg16_scoped_admission tests.test_chg16_storage_planes tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support tests.test_runtime_artifact",
       "exit_code": 0,
-      "result": "216 KSA-15–20 host, security, and runtime regressions passed; 1 skipped."
+      "result": "222 CHG-16 through KSA-20 host, security, and runtime regression tests passed; 1 skipped."
     },
     {
       "command": "rtk proxy npx --yes tsx tests/test_chg16_opencode_plugin.ts",
@@ -91,35 +88,38 @@
       "result": "OpenCode host attachment TypeScript regression passed."
     },
     {
-      "command": "rtk proxy python3 -c 'import json; from pathlib import Path; from jsonschema import Draft202012Validator; paths=sorted(Path(\"schemas\").glob(\"*.schema.json\")); [Draft202012Validator.check_schema(json.loads(path.read_text(encoding=\"utf-8\"))) for path in paths]; print(f\"{len(paths)} Draft 2020-12 JSON schemas valid\")'",
+      "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_phase34 tests.test_phase35 tests.test_ksa22_provenance",
+      "exit_code": 0,
+      "result": "43 TranslationPatch Python/schema/TypeScript contract and provenance tests passed."
+    },
+    {
+      "command": "rtk env python3 -c 'import glob,json; from jsonschema import Draft202012Validator; paths=sorted(glob.glob(\"schemas/*.schema.json\")); [Draft202012Validator.check_schema(json.load(open(path, encoding=\"utf-8\"))) for path in paths]; print(f\"validated {len(paths)} Draft 2020-12 schemas\")'",
       "exit_code": 0,
       "result": "All 4 repository JSON schemas passed Draft 2020-12 validation."
     },
     {
-      "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_phase34 tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript",
-      "exit_code": 0,
-      "result": "11 TranslationPatch Python/schema/TypeScript contract tests passed."
-    },
-    {
-      "command": "rtk env PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py' -q",
+      "command": "rtk env PYTHONPATH=src python3 -m unittest discover -s tests -q",
       "exit_code": 0,
       "python_version": "3.11.7",
-      "result": "Full Python 3.11.7 discovery: 602 tests passed; 4 optional skips."
+      "result": "Full Python 3.11.7 unittest discovery: 611 passed; 4 optional skips."
     },
     {
-      "command": "rtk env PYTHONPATH=src /tmp/k-slide-chg16-python312/bin/python -m unittest discover -s tests -p 'test_*.py' -q",
+      "command": "rtk env PYTHONPATH=src /tmp/k-slide-chg16-python312/bin/python -m unittest discover -s tests -q",
       "exit_code": 0,
       "python_version": "3.12.9",
-      "result": "Full isolated Python 3.12.9 discovery: 602 tests passed; no skips."
+      "result": "Full isolated Python 3.12.9 unittest discovery: 611 passed; no skips."
     },
     {
-      "command": "rtk env PYTHONPATH=src python3 -m compileall -q src tests evals && rtk env PYTHONPATH=src /tmp/k-slide-chg16-python312/bin/python -m compileall -q src tests evals && rtk proxy python3 --version && rtk proxy /tmp/k-slide-chg16-python312/bin/python --version",
+      "command": "rtk env PYTHONPATH=src python3 -m compileall -q src evals tests",
       "exit_code": 0,
-      "python_versions": [
-        "3.11.7",
-        "3.12.9"
-      ],
-      "result": "Compileall passed on Python 3.11.7 and isolated Python 3.12.9."
+      "python_version": "3.11.7",
+      "result": "Compileall passed on Python 3.11.7."
+    },
+    {
+      "command": "rtk env PYTHONPATH=src /tmp/k-slide-chg16-python312/bin/python -m compileall -q src evals tests",
+      "exit_code": 0,
+      "python_version": "3.12.9",
+      "result": "Compileall passed on isolated Python 3.12.9."
     },
     {
       "command": "rtk proxy git diff --check",
@@ -127,22 +127,246 @@
       "result": "No whitespace errors."
     },
     {
-      "command": "rtk proxy python3 -c 'import json; json.load(open(\".codex-fabric/audit.json\", encoding=\"utf-8\"))'",
+      "command": "rtk cat evals/champion.json",
       "exit_code": 0,
-      "result": "Fabric audit evidence JSON parsed successfully."
+      "result": "Repository champion remains UNSET; no target-Gemma promotion was performed."
     }
   ],
   "diagnostic_checks": [],
   "environment": {
-    "actual_study_results_present": false,
-    "private_study_data_persisted": false,
+    "actual_target_gemma_promotion_performed": false,
+    "candidate_subject_git_sha": "6b2531d7620fd632f886bb1963a8f8b189d617b9",
+    "production_certification_claimed": false,
     "python_311": "3.11.7",
     "python_312": "3.12.9",
-    "study_execution": "NOT_RUN"
+    "release_claimed": false,
+    "synthetic_model_and_recertification_fixtures_only": true
   },
-  "fabric_evidence_identity_sha256": "659f2715de9caacf513e28825ec7a5ebb0222621de666aa12057b374f016ccd0",
   "generated_at": "2026-09-24",
   "history": [
+    {
+      "ancestry": {
+        "branch_at_final_identity_check": "codex/k-slide-chg16-zero-korean-study-01",
+        "head_at_final_identity_check": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
+        "main_moved": false,
+        "merge_to_main_performed": false,
+        "starting_head": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
+        "starting_head_is_exact_requested_base": true
+      },
+      "candidate": {
+        "base_integrated_main": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
+        "branch": "codex/k-slide-chg16-zero-korean-study-01",
+        "candidate_commit": null,
+        "candidate_source_content_manifest": [
+          {
+            "path": "IMPLEMENTATION_STATUS.md",
+            "sha256": "36b94a9291a12fa70f96a586609d81b333d7b89fb964736a4e193302fc0b30dd"
+          },
+          {
+            "path": "docs/zero-korean-human-study.md",
+            "sha256": "c315b9f93ceca955a95f4c0316725066eb18b95a04219a3bfcc20f7c391723c7"
+          },
+          {
+            "path": "evals/release.py",
+            "sha256": "e9e12c421c3c371d2126aacd64d9fdc573d35b5ad23fe00b583d01483572973d"
+          },
+          {
+            "path": "private-evals/README.md",
+            "sha256": "78ceab99d0b073e1634f1a9e4e87192a4ad31e5e57586d345317f14fa5f46d16"
+          },
+          {
+            "path": "src/k_slide/certification.py",
+            "sha256": "4f7d6ec621e5220e750257c084c3995a2769e47653768f7cd040af0b19293fa8"
+          },
+          {
+            "path": "src/k_slide/zero_korean_study.py",
+            "sha256": "8f634e819e88d353602cac46f7aee15da184661ad20544fe65b3712618cb6cfa"
+          },
+          {
+            "path": "tests/test_certification_closure.py",
+            "sha256": "f66c1d5869b00cfa8040ad1bdb0e20a9271abb5d561186c7eb4d02c20255a9ad"
+          },
+          {
+            "path": "tests/test_ksa30_zero_korean_study.py",
+            "sha256": "ec1436969a1e25724fb259da3f93225582a77ed56d820bb330b9889afba6f46c"
+          },
+          {
+            "path": "tests/zero_korean_study_fixtures.py",
+            "sha256": "be3ff7e1963a92b2e4070e1f99d9dd5073339100a893cec988cf1348ff218b8c"
+          }
+        ],
+        "candidate_source_content_sha256": "5d2a36c5cf4f7d0887619232640229ba3f698a2097b4f345f6a100a629b259ed",
+        "candidate_source_hash_scope": "Sorted path and SHA-256 pairs for changed implementation, test, and documentation files; .codex-fabric/audit.json excluded to avoid self-reference.",
+        "candidate_subject_git_sha": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
+        "changes_committed": false,
+        "fabric_candidate_identity_sha256": "be7857aebcf6dcc5510ad411777220ec080b27ba3f60d45ed758f3073f80947c",
+        "final_work_head": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
+        "working_tree_changes_present": true
+      },
+      "changed_files": [
+        ".codex-fabric/audit.json",
+        "IMPLEMENTATION_STATUS.md",
+        "docs/zero-korean-human-study.md",
+        "evals/release.py",
+        "private-evals/README.md",
+        "src/k_slide/certification.py",
+        "src/k_slide/zero_korean_study.py",
+        "tests/test_certification_closure.py",
+        "tests/test_ksa30_zero_korean_study.py",
+        "tests/zero_korean_study_fixtures.py"
+      ],
+      "checks": [
+        {
+          "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_ksa30_zero_korean_study tests.test_ksa29_bilingual_adjudication tests.test_ksa28_stability_calibration tests.test_ksa27_quality_policy tests.test_ksa26_corpus_governance tests.test_ksa26_governed_runner tests.test_certification_closure tests.test_phase32 tests.test_phase33 tests.test_phase34 tests.test_phase35",
+          "exit_code": 0,
+          "result": "249 KSA-30, KSA-29, KSA-28, KSA-27, KSA-26, certification/release, and phase32-35 regression tests passed."
+        },
+        {
+          "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_ksa24_modality_conformance tests.test_ksa24_f24_repairs tests.test_ksa24_f24_real_path tests.test_ksa25_recovery_law",
+          "exit_code": 0,
+          "result": "93 KSA-21–25 compatibility, security, and recovery tests passed; 1 skipped."
+        },
+        {
+          "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_chg16_foundation tests.test_chg16_storage_planes tests.test_chg16_durable_execution tests.test_chg16_accesskey_nonleakage tests.test_chg16_deletion tests.test_chg16_host_integration tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support tests.test_chg16_environment_binding tests.test_chg16_classification_admission tests.test_chg16_retention_policy tests.test_chg16_scoped_admission tests.test_chg16_paas_worker tests.test_chg16_authentication_transport",
+          "exit_code": 0,
+          "result": "216 KSA-15–20 host, security, and runtime regressions passed; 1 skipped."
+        },
+        {
+          "command": "rtk proxy npx --yes tsx tests/test_chg16_opencode_plugin.ts",
+          "exit_code": 0,
+          "result": "OpenCode host attachment TypeScript regression passed."
+        },
+        {
+          "command": "rtk proxy python3 -c 'import json; from pathlib import Path; from jsonschema import Draft202012Validator; paths=sorted(Path(\"schemas\").glob(\"*.schema.json\")); [Draft202012Validator.check_schema(json.loads(path.read_text(encoding=\"utf-8\"))) for path in paths]; print(f\"{len(paths)} Draft 2020-12 JSON schemas valid\")'",
+          "exit_code": 0,
+          "result": "All 4 repository JSON schemas passed Draft 2020-12 validation."
+        },
+        {
+          "command": "rtk env PYTHONPATH=src python3 -m unittest -q tests.test_phase34 tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript",
+          "exit_code": 0,
+          "result": "11 TranslationPatch Python/schema/TypeScript contract tests passed."
+        },
+        {
+          "command": "rtk env PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py' -q",
+          "exit_code": 0,
+          "python_version": "3.11.7",
+          "result": "Full Python 3.11.7 discovery: 602 tests passed; 4 optional skips."
+        },
+        {
+          "command": "rtk env PYTHONPATH=src /tmp/k-slide-chg16-python312/bin/python -m unittest discover -s tests -p 'test_*.py' -q",
+          "exit_code": 0,
+          "python_version": "3.12.9",
+          "result": "Full isolated Python 3.12.9 discovery: 602 tests passed; no skips."
+        },
+        {
+          "command": "rtk env PYTHONPATH=src python3 -m compileall -q src tests evals && rtk env PYTHONPATH=src /tmp/k-slide-chg16-python312/bin/python -m compileall -q src tests evals && rtk proxy python3 --version && rtk proxy /tmp/k-slide-chg16-python312/bin/python --version",
+          "exit_code": 0,
+          "python_versions": [
+            "3.11.7",
+            "3.12.9"
+          ],
+          "result": "Compileall passed on Python 3.11.7 and isolated Python 3.12.9."
+        },
+        {
+          "command": "rtk proxy git diff --check",
+          "exit_code": 0,
+          "result": "No whitespace errors."
+        },
+        {
+          "command": "rtk proxy python3 -c 'import json; json.load(open(\".codex-fabric/audit.json\", encoding=\"utf-8\"))'",
+          "exit_code": 0,
+          "result": "Fabric audit evidence JSON parsed successfully."
+        }
+      ],
+      "diagnostic_checks": [],
+      "environment": {
+        "actual_study_results_present": false,
+        "private_study_data_persisted": false,
+        "python_311": "3.11.7",
+        "python_312": "3.12.9",
+        "study_execution": "NOT_RUN"
+      },
+      "fabric_evidence_identity_sha256": "659f2715de9caacf513e28825ec7a5ebb0222621de666aa12057b374f016ccd0",
+      "generated_at": "2026-09-24",
+      "job_id": "CHG-16-KSA-30-ZERO-KOREAN-STUDY-01",
+      "kind": "codex-fabric-audit-evidence",
+      "locator": {
+        "base_integrated_main": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
+        "branch": "codex/k-slide-chg16-zero-korean-study-01",
+        "path": ".codex-fabric/audit.json"
+      },
+      "notes": [
+        "All KSA-30 outcome examples are source-free synthetic test fixtures, not participant observations or human-study results.",
+        "Release-state tests use temporary roots and synthetic attestations only; their test fixture output is not a release or certification.",
+        "evals/champion.json remains UNSET. No study was run and no human-study, production-certification, or BUILD COMPLETE claim is made."
+      ],
+      "operation": "BUILD",
+      "policy_and_schema_preservation": {
+        "allocation_ratio": {
+          "expert_english_reference": 1,
+          "kslide_output": 1
+        },
+        "alpha_one_sided": "0.025",
+        "analysis_unit": "participant_mean_fraction_correct; repeated questions aggregated within participant.",
+        "assumed_participant_score_means": {
+          "expert_english_reference": "0.95",
+          "kslide_output": "0.95"
+        },
+        "assumed_participant_score_standard_deviations": {
+          "expert_english_reference": "0.10",
+          "kslide_output": "0.10"
+        },
+        "bilingual_review_contract_version": "1.0 unchanged",
+        "bilingual_review_semantics": "Preserved.",
+        "condition_count": 2,
+        "conditions": [
+          "kslide_output",
+          "expert_english_reference"
+        ],
+        "confidence_convention": "97.5% one-sided lower bound; two-sided 95% lower endpoint",
+        "evidence_schema_advance_scope": "No shared envelope advance; strict zero-Korean study payload contract 1.0 rejects aggregate-only predecessor attestations.",
+        "evidence_schema_version": "2.6 unchanged",
+        "fixed_enrollment_target": "Exactly 85 analyzable participants per arm; no interim analysis or outcome-driven extension.",
+        "non_inferiority_margin": "0.05 exactly",
+        "original_korean_employee_facing_condition": false,
+        "power_method": "ceil(((z_alpha+z_power)^2*(sd_kslide^2+sd_reference^2))/(margin+assumed_effect_difference)^2), normal approximation for independent participant-level means.",
+        "raw_sample_size_per_arm": "84.0593844915249361179725304",
+        "required_analyzable_participants_per_arm": 85,
+        "safety_preservation": "100% critical correctness, at least 95% overall comprehension, and zero critical misunderstandings per arm; any serious_misleading outcome fails.",
+        "statistical_inference": "Observed independent-arm Welch standard error and predeclared normal 97.5% one-sided lower bound; round display only to 12 places half-up.",
+        "target_power": "0.90",
+        "z_values": {
+          "z_1_minus_alpha": "1.959963984540054",
+          "z_target_power": "1.281551565544600"
+        },
+        "zero_korean_analysis_plan_identity_sha256": "cd912ae9e79152d132ded61b60e262204fdeb69320a28f862badc71d066f34fd",
+        "zero_korean_protocol_identity_sha256": "1643e9ac88533a61afcfec6ec7808d87cc42885432a604369d07c63a793c1377",
+        "zero_korean_study_contract_version": "1.0"
+      },
+      "project_id": "k-slide",
+      "remaining_blockers": [
+        "Approved company execution, real eligible employee participants, the expert-English reference, and approved bilingual gold remain required before study evidence can exist.",
+        "Production model/runtime, company security, governance, pilot, and other existing release gates remain outside this BUILD."
+      ],
+      "request": "chg16-ksa30-zero-korean-study-protocol-and-analysis-plan",
+      "schema_version": 1,
+      "scope": {
+        "excluded": [
+          "Live employee study, recruitment, study scoring, or result production.",
+          "KSA-31 and later work.",
+          "Champion promotion, pilot approval, release, BUILD COMPLETE, or production certification.",
+          "Merge, rebase, commit, or movement of main or the requested branch."
+        ],
+        "included": [
+          "Frozen zero-Korean study protocol and analysis contract version 1.0 with exactly the K-Slide output and expert-English reference conditions.",
+          "Deterministic independent participant-level power calculation and strict non-inferiority lower-bound test with exact absolute margin 0.05.",
+          "Source-free participant assignment, question/outcome, paired independent human scoring, required human bilingual adjudication, KSA-29 gold/output binding, and summary rederivation in the existing zero_korean_comprehension evidence path.",
+          "Independent per-arm critical and overall-comprehension floors and non-compensable serious-misleading hard failure.",
+          "Private execution specification, deterministic source-free synthetic fixtures, release compatibility, and adversarial acceptance coverage."
+        ]
+      },
+      "status": "EXECUTED_CHANGE"
+    },
     {
       "ancestry": {
         "branch_at_final_identity_check": "codex/k-slide-chg16-stability-calibration-01",
@@ -892,82 +1116,57 @@
       "status": "EXECUTED_CHANGE"
     }
   ],
-  "job_id": "CHG-16-KSA-30-ZERO-KOREAN-STUDY-01",
+  "job_id": "CHG-16-KSA-31-CHAMPION-RECERTIFICATION-01",
   "kind": "codex-fabric-audit-evidence",
   "locator": {
-    "base_integrated_main": "a5eb14ce5cafdbea15d663669149ddd46ceb89e3",
-    "branch": "codex/k-slide-chg16-zero-korean-study-01",
+    "base_integrated_main": "6b2531d7620fd632f886bb1963a8f8b189d617b9",
+    "branch": "codex/k-slide-chg16-champion-recertification-01",
+    "candidate_source_content_sha256": "c42d7a49ae200f7034950860702e56046f4662a7c49aa7614adf9c6490ad3bd4",
+    "fabric_candidate_identity_sha256": "029c7605ee532c8e622dbfd6d04b84803d85c59ffe50bcfbc09719ec8b0cc647",
     "path": ".codex-fabric/audit.json"
   },
   "notes": [
-    "All KSA-30 outcome examples are source-free synthetic test fixtures, not participant observations or human-study results.",
-    "Release-state tests use temporary roots and synthetic attestations only; their test fixture output is not a release or certification.",
-    "evals/champion.json remains UNSET. No study was run and no human-study, production-certification, or BUILD COMPLETE claim is made."
+    "This is an uncommitted implementation candidate bound to exact base 6b2531d7620fd632f886bb1963a8f8b189d617b9 by candidate_source_content_sha256; no merge or main movement occurred.",
+    "Promotion and recertification acceptance tests used deterministic synthetic fixtures in temporary roots. They are repository-contract evidence only, not live target-Gemma qualification.",
+    "The repository champion remains UNSET. No live promotion, release, production certification, or BUILD COMPLETE claim was made; KSA-32+ is outside scope."
   ],
   "operation": "BUILD",
   "policy_and_schema_preservation": {
-    "allocation_ratio": {
-      "expert_english_reference": 1,
-      "kslide_output": 1
-    },
-    "alpha_one_sided": "0.025",
-    "analysis_unit": "participant_mean_fraction_correct; repeated questions aggregated within participant.",
-    "assumed_participant_score_means": {
-      "expert_english_reference": "0.95",
-      "kslide_output": "0.95"
-    },
-    "assumed_participant_score_standard_deviations": {
-      "expert_english_reference": "0.10",
-      "kslide_output": "0.10"
-    },
     "bilingual_review_contract_version": "1.0 unchanged",
-    "bilingual_review_semantics": "Preserved.",
-    "condition_count": 2,
-    "conditions": [
-      "kslide_output",
-      "expert_english_reference"
-    ],
-    "confidence_convention": "97.5% one-sided lower bound; two-sided 95% lower endpoint",
-    "evidence_schema_advance_scope": "No shared envelope advance; strict zero-Korean study payload contract 1.0 rejects aggregate-only predecessor attestations.",
+    "change_impact_policy_version": "1.0",
+    "champion_promotion_contract_version": "1.0",
     "evidence_schema_version": "2.6 unchanged",
-    "fixed_enrollment_target": "Exactly 85 analyzable participants per arm; no interim analysis or outcome-driven extension.",
-    "non_inferiority_margin": "0.05 exactly",
-    "original_korean_employee_facing_condition": false,
-    "power_method": "ceil(((z_alpha+z_power)^2*(sd_kslide^2+sd_reference^2))/(margin+assumed_effect_difference)^2), normal approximation for independent participant-level means.",
-    "raw_sample_size_per_arm": "84.0593844915249361179725304",
-    "required_analyzable_participants_per_arm": 85,
-    "safety_preservation": "100% critical correctness, at least 95% overall comprehension, and zero critical misunderstandings per arm; any serious_misleading outcome fails.",
-    "statistical_inference": "Observed independent-arm Welch standard error and predeclared normal 97.5% one-sided lower bound; round display only to 12 places half-up.",
-    "target_power": "0.90",
-    "z_values": {
-      "z_1_minus_alpha": "1.959963984540054",
-      "z_target_power": "1.281551565544600"
-    },
-    "zero_korean_analysis_plan_identity_sha256": "cd912ae9e79152d132ded61b60e262204fdeb69320a28f862badc71d066f34fd",
-    "zero_korean_protocol_identity_sha256": "1643e9ac88533a61afcfec6ec7808d87cc42885432a604369d07c63a793c1377",
-    "zero_korean_study_contract_version": "1.0"
+    "ksa27_quality_policy_and_hard_gates": "Preserved.",
+    "ksa28_repetition_matrix_and_false_done_rules": "Preserved.",
+    "ksa29_human_authority_and_privacy_boundaries": "Preserved.",
+    "ksa30_zero_korean_study_contract_version": "1.0 unchanged",
+    "recertification_contract_version": "1.0",
+    "security_runtime_and_tenant_boundaries": "Preserved.",
+    "certification_fingerprint_contract_version": "2.0 extended identity form"
   },
   "project_id": "k-slide",
   "remaining_blockers": [
-    "Approved company execution, real eligible employee participants, the expert-English reference, and approved bilingual gold remain required before study evidence can exist.",
-    "Production model/runtime, company security, governance, pilot, and other existing release gates remain outside this BUILD."
+    "A fully resolved live target-Gemma candidate and approved endpoint/provider/runtime/OCR/termbase/dependency material identities are not supplied.",
+    "Authoritative target-model validation, high-risk stability, and held-out promotion evidence do not exist for a live candidate.",
+    "Existing company security, governance, pilot, and other production prerequisites remain unproven; no release or production certification is claimed."
   ],
-  "request": "chg16-ksa30-zero-korean-study-protocol-and-analysis-plan",
+  "request": "chg16-ksa31-closed-champion-promotion-and-scoped-recertification",
   "schema_version": 1,
   "scope": {
     "excluded": [
-      "Live employee study, recruitment, study scoring, or result production.",
-      "KSA-31 and later work.",
-      "Champion promotion, pilot approval, release, BUILD COMPLETE, or production certification.",
+      "Live target-Gemma experiment or champion promotion.",
+      "Release, production certification, or BUILD COMPLETE claim.",
+      "KSA-32 and later work.",
       "Merge, rebase, commit, or movement of main or the requested branch."
     ],
     "included": [
-      "Frozen zero-Korean study protocol and analysis contract version 1.0 with exactly the K-Slide output and expert-English reference conditions.",
-      "Deterministic independent participant-level power calculation and strict non-inferiority lower-bound test with exact absolute margin 0.05.",
-      "Source-free participant assignment, question/outcome, paired independent human scoring, required human bilingual adjudication, KSA-29 gold/output binding, and summary rederivation in the existing zero_korean_comprehension evidence path.",
-      "Independent per-arm critical and overall-comprehension floors and non-compensable serious-misleading hard failure.",
-      "Private execution specification, deterministic source-free synthetic fixtures, release compatibility, and adversarial acceptance coverage."
+      "Closed champion promotion contract 1.0 with exact canonical candidate, target evidence, and content identity.",
+      "Repository-owned material change impact policy 1.0 with evidence-producer dependency projections and fail-closed unknown dimensions.",
+      "Machine-verifiable recertification contract 1.0 with per-evidence immutable carry-forward exemptions.",
+      "Release and production-freshness revalidation, candidate-bound fingerprints, and adversarial synthetic tests.",
+      "KSA-01–30 behavior, shared evidence schema 2.6, security/runtime/tenant boundaries, and champion UNSET default preservation."
     ]
   },
-  "status": "EXECUTED_CHANGE"
+  "status": "EXECUTED_CHANGE",
+  "fabric_evidence_identity_sha256": "e3750be2e39babd8e3dbbe6fcc8572199dc3cd8b42ec942dcfd2b867123785d7"
 }

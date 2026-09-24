@@ -30,6 +30,7 @@ from .certification import (
     load_dependency_lock,
     load_evidence,
     resolve_candidate_spec,
+    safe_path_under,
     repository_execution_configuration,
     canonical_exact_version,
     explicit_unavailable_value,
@@ -38,6 +39,11 @@ from .certification import (
     sha256_file,
     validate_ocr_asset_manifest,
     validate_cyclonedx_1_5,
+)
+from .recertification import (
+    validate_champion_promotion,
+    validate_recertification_record,
+    recertification_exemption_identities,
 )
 from .errors import ErrorCode, KSlideError
 from .authentication import authentication_readiness
@@ -244,19 +250,101 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
         evidence_hashes = manifest.get("evidence_hashes")
         if not isinstance(evidence_hashes, dict) or not evidence_hashes:
             raise ValueError("release manifest has no evidence hashes")
+        recertification = manifest.get("recertification")
+        prior_records: dict[str, dict[str, Any]] = {}
+        exemption_ids = recertification_exemption_identities(recertification)
+        old_candidate = recertification.get("old_candidate_spec") if isinstance(recertification, dict) else None
+        prior_manifest_document: dict[str, Any] | None = None
+        if recertification is not None:
+            prior_manifest_raw = manifest.get("prior_release_manifest")
+            prior_manifest_ok = False
+            try:
+                prior_manifest_path = safe_path_under(root, str(prior_manifest_raw), label="prior release manifest", require_file=True)
+                parsed_prior = json.loads(prior_manifest_path.read_text(encoding="utf-8"))
+                prior_manifest_ok = bool(
+                    isinstance(prior_manifest_raw, str)
+                    and isinstance(parsed_prior, dict)
+                    and sha256_file(prior_manifest_path) == recertification.get("prior_release_manifest_sha256")
+                    and parsed_prior.get("subject_git_sha") == recertification.get("old_subject_git_sha")
+                    and parsed_prior.get("deployment_fingerprint") == recertification.get("old_deployment_fingerprint")
+                    and isinstance(parsed_prior.get("candidate_spec"), dict)
+                    and canonical_candidate_factors(parsed_prior["candidate_spec"]) == recertification.get("old_candidate_spec")
+                )
+                if prior_manifest_ok:
+                    prior_manifest_document = parsed_prior
+            except (EvidenceValidationError, OSError, TypeError, ValueError):
+                prior_manifest_ok = False
+            checks.append(_check("Prior release manifest binding", prior_manifest_ok, str(prior_manifest_raw)))
+            stale_prior = (
+                recertification.get("prior_certification_status") == "STALE_FOR_NEW_CANDIDATE"
+                and recertification.get("old_deployment_fingerprint") != recertification.get("new_deployment_fingerprint")
+            )
+            checks.append(_check("Prior certification stale for new candidate", stale_prior, str(recertification.get("prior_certification_status"))))
+            if not isinstance(old_candidate, dict):
+                checks.append(_check("Scoped recertification", False, "old candidate specification is missing"))
+                old_candidate = {}
+        current_records: dict[str, dict[str, Any]] = {}
         for evidence_type, expected_hash in evidence_hashes.items():
             evidence_path = manifest.get("evidence_paths", {}).get(evidence_type) if isinstance(manifest.get("evidence_paths"), dict) else None
             if not evidence_path:
                 checks.append(_check(f"Evidence {evidence_type}", False, "path is missing"))
                 continue
             try:
-                record = load_evidence(_resolve_path(root, str(evidence_path)), expected_type=str(evidence_type), subject_git_sha=profile.subject_git_sha, deployment_fingerprint=profile.deployment_fingerprint, repository_root=root, candidate_spec=profile.candidate_spec, require_candidate_spec=True)
+                evidence_file = safe_path_under(root, str(evidence_path), label=f"release evidence {evidence_type}", require_file=True)
+                if evidence_type in exemption_ids:
+                    if not isinstance(old_candidate, dict):
+                        raise EvidenceValidationError("recertification old candidate is missing")
+                    record = load_evidence(evidence_file, expected_type=str(evidence_type), subject_git_sha=str(old_candidate.get("subject_git_sha") or ""), deployment_fingerprint=candidate_deployment_fingerprint(old_candidate), repository_root=root, candidate_spec=old_candidate, require_candidate_spec=True)
+                    prior_records[str(evidence_type)] = record
+                else:
+                    record = load_evidence(evidence_file, expected_type=str(evidence_type), subject_git_sha=profile.subject_git_sha, deployment_fingerprint=profile.deployment_fingerprint, repository_root=root, candidate_spec=profile.candidate_spec, require_candidate_spec=True)
+                    current_records[str(evidence_type)] = record
                 checks.append(_check(f"Evidence {evidence_type}", record.get("evidence_identity") == expected_hash, f"identity={record.get('evidence_identity')}"))
                 expected_envelope = manifest.get("evidence_envelope_hashes", {}).get(evidence_type) if isinstance(manifest.get("evidence_envelope_hashes"), dict) else None
                 if expected_envelope:
                     checks.append(_check(f"Evidence {evidence_type} envelope hash", record.get("envelope_sha256") == expected_envelope, f"sha256={record.get('envelope_sha256')}"))
             except (EvidenceValidationError, OSError, ValueError) as exc:
                 checks.append(_check(f"Evidence {evidence_type}", False, _safe_exception_detail(exc)))
+        if recertification is not None and isinstance(old_candidate, dict):
+            try:
+                validate_recertification_record(
+                    recertification,
+                    profile.candidate_spec or {},
+                    prior_records,
+                    root=root,
+                    expected_prior_release_manifest_sha256=str(recertification.get("prior_release_manifest_sha256") or ""),
+                )
+                exemption_types = set(exemption_ids)
+                evidence_path_types = set(manifest.get("evidence_paths", {})) if isinstance(manifest.get("evidence_paths"), dict) else set()
+                prior_hashes = prior_manifest_document.get("evidence_hashes", {}) if isinstance(prior_manifest_document, dict) else {}
+                prior_envelopes = prior_manifest_document.get("evidence_envelope_hashes", {}) if isinstance(prior_manifest_document, dict) else {}
+                prior_paths = prior_manifest_document.get("evidence_paths", {}) if isinstance(prior_manifest_document, dict) else {}
+                current_paths = manifest.get("evidence_paths", {}) if isinstance(manifest.get("evidence_paths"), dict) else {}
+                exemption_bindings_ok = all(
+                    evidence_type in prior_hashes
+                    and evidence_type in prior_envelopes
+                    and evidence_type in prior_paths
+                    and evidence_type in current_paths
+                    and prior_hashes[evidence_type] == next(item.get("evidence_identity") for item in recertification["exemptions"] if item.get("evidence_type") == evidence_type)
+                    and prior_envelopes[evidence_type] == next(item.get("envelope_sha256") for item in recertification["exemptions"] if item.get("evidence_type") == evidence_type)
+                    and prior_paths[evidence_type] == current_paths[evidence_type]
+                    for evidence_type in exemption_types
+                )
+                valid_types = exemption_types <= evidence_path_types and exemption_types <= set(evidence_hashes) and exemption_bindings_ok
+                checks.append(_check("Scoped recertification", valid_types, f"exemptions={sorted(exemption_types)}"))
+            except (EvidenceValidationError, OSError, ValueError, TypeError) as exc:
+                checks.append(_check("Scoped recertification", False, _safe_exception_detail(exc)))
+        promotion = manifest.get("champion_promotion")
+        promotion_ok = False
+        promotion_detail = "validated promotion contract is missing"
+        if isinstance(promotion, dict):
+            try:
+                validated_promotion = validate_champion_promotion(promotion, profile.candidate_spec or {}, current_records, policy=load_model_policy(root), root=root)
+                promotion_ok = validated_promotion.get("promotion_identity") == manifest.get("promotion_identity")
+                promotion_detail = str(validated_promotion.get("promotion_identity"))
+            except (EvidenceValidationError, OSError, ValueError, TypeError) as exc:
+                promotion_detail = _safe_exception_detail(exc)
+        checks.append(_check("Champion promotion contract", promotion_ok, promotion_detail))
         production_dependencies = manifest.get("production_dependencies")
         if manifest.get("release_state") == ReleaseState.PRODUCTION_CERTIFIED.value:
             if not isinstance(production_dependencies, dict):
@@ -323,6 +411,10 @@ def _manifest_and_fingerprint_status(root: Path, profile: ProductionProfile, run
             evidence_hashes={str(key): str(value) for key, value in evidence_hashes.items()},
             release_state=ReleaseState.PRODUCTION_CERTIFIED.value,
             champion_hash=manifest.get("champion_hash"),
+            candidate_identity=manifest.get("candidate_identity"),
+            promotion_identity=manifest.get("promotion_identity"),
+            recertification_identity=recertification.get("recertification_identity") if isinstance(recertification, dict) else None,
+            exemption_identities=exemption_ids,
         )
         certification_match = expected_certification == profile.certification_fingerprint == manifest.get("certification_fingerprint")
         checks.append(_check("Certification fingerprint", certification_match, f"expected={expected_certification}; profile={profile.certification_fingerprint}"))
