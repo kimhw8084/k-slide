@@ -246,7 +246,7 @@ def _fake_runtime():
     return FakeOpenCode(), runtime, scored, consistency
 
 
-def _run_fixture(fixture: dict, *, repeats: int, scenario_ids: tuple[str, ...] = (), scorer=None, **overrides):
+def _run_fixture(fixture: dict, *, repeats: int | None = None, scenario_ids: tuple[str, ...] = (), scorer=None, **overrides):
     fake, runtime, scored, consistency = _fake_runtime()
     defaults = {
         "model": TARGET,

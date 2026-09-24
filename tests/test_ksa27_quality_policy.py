@@ -123,7 +123,8 @@ def _refresh_model_sources(root: Path, sources: dict[str, Path], rows: list[dict
     experiment["case_matrix_sha256"] = matrix_hash
     experiment["case_descriptor_identity"]["case_matrix_sha256"] = matrix_hash
     summary = json.loads(sources["model_summary"].read_text(encoding="utf-8"))
-    derived = aggregate_model_results(rows, model="google/gemma-4-31b-it", split=summary["split"])
+    expected_matrix = [(scenario_id, format_name, repeat) for scenario_id in experiment["scenario_ids"] for format_name in experiment["formats"] for repeat in range(1, experiment["repetitions"] + 1)]
+    derived = aggregate_model_results(rows, model="google/gemma-4-31b-it", split=summary["split"], expected_matrix=expected_matrix)
     summary.update(derived)
     summary["case_matrix_sha256"] = matrix_hash
     summary["case_descriptor_identity"] = experiment["case_descriptor_identity"]

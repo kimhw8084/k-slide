@@ -412,7 +412,8 @@ def _model_sources(root: Path, split: str = "validation", critical: int = 0, rep
     corpus_identity = {"schema_version": "1.0", "sets": [manifest_identity(item) for item in corpus_manifests]}
     corpus_fingerprint = corpus_identity_fingerprint(corpus_identity)
     held_out_fingerprint = corpus_set_identity["manifest_fingerprint"] if evidence_type == "model_held_out" else None
-    summary = aggregate_model_results(rows, model="google/gemma-4-31b-it", split=split)
+    expected_matrix = [(scenario_id, format_name, repeat) for scenario_id in scenario_ids for format_name in formats for repeat in range(1, repeats + 1)]
+    summary = aggregate_model_results(rows, model="google/gemma-4-31b-it", split=split, expected_matrix=expected_matrix)
     summary.update({"model": "google/gemma-4-31b-it", "requested_model": "google/gemma-4-31b-it", "effective_model": "google/gemma-4-31b-it", "locked_terminology_recall": 1.0, "required_media_compliance": True, "case_count": len(rows), "semantic_scored_case_count": len(rows), "repetitions": repeats, "subject_git_sha": subject, "deployment_fingerprint": deployment, "behavior_configuration_hash": behavior_hash, "configuration_hash": behavior_hash, "experiment_plan_hash": plan_hash, "corpus_fingerprint": corpus_fingerprint, "held_out_fingerprint": held_out_fingerprint, "corpus_set_identity": corpus_set_identity, "evaluation_purpose": evaluation_purpose, "case_matrix_sha256": case_matrix_fingerprint(case_matrix), "case_descriptor_identity": descriptor_identity})
     (root / "results.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
     _write(root / "summary.json", summary)

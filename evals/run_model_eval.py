@@ -17,7 +17,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--model", required=True)
     parser.add_argument("--split", choices=("development", "validation", "held_out", "all"), default="development")
     parser.add_argument("--formats", nargs="+", default=["png"])
-    parser.add_argument("--repeats", type=int, default=1)
+    parser.add_argument("--repeats", type=int, help="Explicit artifact repetition count; certification defaults to 3 (5 for high-risk)")
     parser.add_argument("--timeout", type=int, default=180)
     parser.add_argument("--mode", choices=("protocol", "quality"), default="quality")
     parser.add_argument("--limit", type=int)
@@ -49,7 +49,7 @@ def main(argv: list[str] | None = None) -> int:
         output=args.output,
         split=args.split,
         formats=tuple(args.formats),
-        repeats=max(1, args.repeats),
+        repeats=args.repeats,
         timeout=max(1, args.timeout),
         mode=args.mode,
         limit=args.limit,

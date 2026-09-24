@@ -5,62 +5,57 @@
   "status": "EXECUTED_CHANGE",
   "generated_at": "2026-09-23",
   "project_id": "k-slide",
-  "request": "chg16-ksa27-f27-01-distinct-source-backed-noncritical-semantic-equivalence",
-  "job_id": "CHG-16-KSA-27-F27-01",
+  "request": "chg16-ksa28-repetition-stability-and-false-done-calibration",
+  "job_id": "CHG-16-KSA-28-STABILITY-CALIBRATION-01",
   "candidate": {
-    "branch": "codex/k-slide-chg16-hard-gates-01-fix01",
-    "base_integrated_main": "fa03989e002864081609a25add1fb36b282d99a7",
-    "predecessor_build_candidate": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
+    "branch": "codex/k-slide-chg16-stability-calibration-01",
+    "base_integrated_main": "4ed21e107443d926f06489f6668188b9dc4e66cd",
     "candidate_commit": null,
-    "final_work_head": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
+    "final_work_head": "4ed21e107443d926f06489f6668188b9dc4e66cd",
+    "candidate_source_content_sha256": "1e31caee96e83a1b804781628814641ce22d95314154672ff9eaaded69bbac8d",
     "changes_committed": false,
     "working_tree_changes_present": true
   },
   "ancestry": {
     "starting_head_is_exact_requested_base": true,
-    "starting_head": "fa03989e002864081609a25add1fb36b282d99a7",
-    "predecessor_candidate_is_exact_requested_commit": true,
-    "predecessor_candidate_parent_is_exact_base": true,
-    "predecessor_fast_forwarded_onto_work_branch_before_repair": true,
-    "head_at_final_identity_check": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
-    "merge_to_main_performed": false
+    "starting_head": "4ed21e107443d926f06489f6668188b9dc4e66cd",
+    "head_at_final_identity_check": "4ed21e107443d926f06489f6668188b9dc4e66cd",
+    "branch_at_final_identity_check": "codex/k-slide-chg16-stability-calibration-01",
+    "merge_to_main_performed": false,
+    "main_moved": false
   },
   "changed_files": [
     ".codex-fabric/audit.json",
-    "IMPLEMENTATION_STATUS.md",
-    "evals/governed_corpus.py",
     "evals/model_eval.py",
     "evals/model_results.py",
-    "evals/model_scorers.py",
-    "evals/noncritical_semantics.py",
-    "src/k_slide/certification.py",
+    "evals/run_model_eval.py",
     "src/k_slide/evidence_adapters.py",
-    "src/k_slide/quality_policy.py",
     "tests/test_certification_closure.py",
     "tests/test_ksa26_governed_runner.py",
     "tests/test_ksa27_quality_policy.py",
+    "tests/test_ksa28_stability_calibration.py",
     "tests/test_phase33.py"
   ],
   "checks": [
     {
-      "command": "rtk proxy env PYTHONPATH=src:evals:. python3 -m unittest tests.test_ksa27_quality_policy tests.test_ksa26_corpus_governance tests.test_ksa26_governed_runner -q",
+      "command": "rtk proxy env PYTHONPATH=src:evals:. python3 -m unittest -q tests.test_ksa28_stability_calibration",
       "exit_code": 0,
-      "result": "63 tests passed. Covers repaired scorer/gold semantics, exact 0.99 and below-floor behavior, governed corpus hash binding, private result source-free boundary, stale policy, and KSA-26 governance/runner behavior."
+      "result": "9 KSA-28 stability/repetition/false-DONE tests passed."
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:evals:. python3 -m unittest tests.test_certification_closure tests.test_phase32 tests.test_phase33 tests.test_phase35 -q",
+      "command": "rtk proxy env PYTHONPATH=src:evals:. python3 -m unittest -q tests.test_ksa28_stability_calibration tests.test_ksa26_corpus_governance tests.test_ksa26_governed_runner tests.test_ksa27_quality_policy tests.test_certification_closure tests.test_phase33 tests.test_phase32 tests.test_phase34 tests.test_phase35",
       "exit_code": 0,
-      "result": "139 certification closure and phase32/33/35 tests passed."
+      "result": "221 KSA-28, KSA-26, KSA-27, certification-closure, and phase32-35 regression tests passed."
     },
     {
       "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_ksa24_modality_conformance tests.test_ksa24_f24_repairs tests.test_ksa24_f24_real_path tests.test_ksa25_recovery_law",
       "exit_code": 0,
-      "result": "93 KSA-21–25 regression tests passed; 1 skipped."
+      "result": "93 KSA-21–25 compatibility/security/recovery tests passed; 1 skipped."
     },
     {
       "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_chg16_foundation tests.test_chg16_storage_planes tests.test_chg16_durable_execution tests.test_chg16_accesskey_nonleakage tests.test_chg16_deletion tests.test_chg16_host_integration tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support tests.test_chg16_environment_binding tests.test_chg16_classification_admission tests.test_chg16_retention_policy tests.test_chg16_scoped_admission tests.test_chg16_paas_worker tests.test_chg16_authentication_transport",
       "exit_code": 0,
-      "result": "216 KSA-15–20 security/host/runtime regression tests passed; 1 skipped."
+      "result": "216 KSA-15–20 compatibility/security/host/runtime tests passed; 1 skipped."
     },
     {
       "command": "rtk proxy npx --yes tsx tests/test_chg16_opencode_plugin.ts",
@@ -68,34 +63,24 @@
       "result": "OpenCode TypeScript host attachment regression passed."
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. python3 -c 'import json,pathlib; from jsonschema import Draft202012Validator; files=sorted(pathlib.Path(\"schemas\").glob(\"*.json\")); [Draft202012Validator.check_schema(json.loads(p.read_text())) for p in files]; print(f\"{len(files)} schemas: Draft 2020-12 valid\")'",
+      "command": "rtk proxy env PYTHONPATH=src:. python3 -c 'import json,pathlib; from jsonschema import Draft202012Validator; files=sorted(pathlib.Path(\"schemas\").glob(\"*.json\")); [Draft202012Validator.check_schema(json.loads(p.read_text())) for p in files]; print(f\"{len(files)} schemas: Draft 2020-12 valid\")' && rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript",
       "exit_code": 0,
-      "result": "All 4 repository JSON schemas validated as Draft 2020-12."
-    },
-    {
-      "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript",
-      "exit_code": 0,
-      "result": "TranslationPatch Python parser, JSON schema, and TypeScript contract test passed."
+      "result": "All 4 repository JSON schemas validated as Draft 2020-12; TranslationPatch Python/schema/TypeScript contract test passed."
     },
     {
       "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest discover -s tests -p 'test_*.py' -q",
       "exit_code": 0,
-      "result": "565 tests passed, 4 skipped on Python 3.11.7. Synthetic release-state fixture output is not release evidence."
+      "result": "574 tests ran and passed on Python 3.11.7; 4 skipped."
     },
     {
       "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m unittest discover -s tests -p 'test_*.py' -q",
       "exit_code": 0,
-      "result": "565 tests passed on isolated Python 3.12.9. Synthetic release-state fixture output is not release evidence."
+      "result": "574 tests ran and passed on isolated Python 3.12.9."
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. python3 -m compileall -q src evals tests",
+      "command": "rtk proxy env PYTHONPATH=src:. python3 -m compileall -q src evals tests && rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m compileall -q src evals tests",
       "exit_code": 0,
-      "result": "compileall passed under Python 3.11.7."
-    },
-    {
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m compileall -q src evals tests",
-      "exit_code": 0,
-      "result": "compileall passed under isolated Python 3.12.9."
+      "result": "compileall passed under Python 3.11.7 and isolated Python 3.12.9."
     },
     {
       "command": "rtk git diff --check",
@@ -105,85 +90,275 @@
     {
       "command": "rtk proxy env PYTHONPATH=src:evals:. python3 -c 'from k_slide.certification import EVIDENCE_SCHEMA_VERSION; from k_slide.quality_policy import QUALITY_POLICY_IDENTITY, QUALITY_POLICY_VERSION, HARD_GATE_REGISTRY_VERSION; print(QUALITY_POLICY_VERSION, QUALITY_POLICY_IDENTITY, HARD_GATE_REGISTRY_VERSION, EVIDENCE_SCHEMA_VERSION)'",
       "exit_code": 0,
-      "result": "Current policy ksa-27.2 identity 4656283f7ce7506695e42e54008eea190bfcaab9a971b737280af27405801fd1; registry ksa-27-hard-gates-1; evidence schema 2.5."
-    },
-    {
-      "command": "rtk proxy cat evals/champion.json",
-      "exit_code": 0,
-      "result": "Champion remains UNSET; no authoritative target-Gemma validation experiment has passed promotion policy."
-    },
-    {
-      "command": "rtk git show -s --format=%H\\ %P b2ca101733ee450e123bf8b630ceca6eda9cc20a",
-      "exit_code": 0,
-      "result": "Predecessor candidate b2ca101733ee450e123bf8b630ceca6eda9cc20a has exact parent fa03989e002864081609a25add1fb36b282d99a7."
-    },
-    {
-      "command": "rtk proxy env PYTHONPATH=src:evals:. python3 -m unittest -q tests.test_ksa27_quality_policy.KSA27QualityPolicyTests.test_approved_paraphrase_passes_fluent_wrong_meaning_fails_and_other_region_cannot_satisfy",
-      "exit_code": 0,
-      "result": "Approved paraphrase passes; a contradictory sentence, fluent wrong meaning, and a phrase on the wrong source region fail the non-critical assertion without becoming hard-gate findings."
+      "result": "ksa-27.2 identity 4656283f7ce7506695e42e54008eea190bfcaab9a971b737280af27405801fd1; registry ksa-27-hard-gates-1; evidence schema 2.5."
     }
   ],
   "diagnostic_checks": [
     {
-      "command": "rtk pytest tests/test_ksa26_governed_runner.py tests/test_certification_closure.py -q",
-      "exit_code": 2,
-      "result": "RTK pytest invocation reported no tests collected; this repository verification uses unittest discovery, which was run successfully below."
-    },
-    {
-      "command": "rtk python -m unittest tests.test_ksa27_quality_policy -q",
+      "command": "rtk proxy env PYTHONPATH=src:evals:. python3 -m unittest -q tests.test_phase33 tests.test_certification_closure tests.test_ksa27_quality_policy",
       "exit_code": 1,
-      "result": "The initial command omitted PYTHONPATH=src and could not import k_slide; rerun with PYTHONPATH=src passed."
-    },
-    {
-      "command": "rtk proxy env PYTHONPATH=src:evals:. python3 -m unittest tests.test_certification_closure tests.test_phase32 tests.test_phase33 tests.test_phase35 -q",
-      "exit_code": 1,
-      "result": "Initial closure run found two phase33 synthetic rows without empty non-critical observation facts. Fixtures were updated; the complete same suite then passed with 139 tests."
-    },
-    {
-      "command": "rtk proxy env PYTHONPATH=src:evals:. python3 -m unittest -q tests.test_ksa27_quality_policy.Ksa27QualityPolicyTests.test_approved_paraphrase_passes_fluent_wrong_meaning_fails_and_other_region_cannot_satisfy",
-      "exit_code": 1,
-      "result": "Manual targeted selector used an incorrect unittest class capitalization. Corrected selector passed, and the complete KSA-27 focused suite passed."
+      "result": "Initial focused pass exposed one stability-frequency fixture lacking valid persisted work-unit/media facts. The fixture was corrected; KSA-28, KSA-26/27, certification, and full discovery suites subsequently passed."
     }
   ],
   "scope": {
     "included": [
-      "F27-01 only: deterministic source-bound non-critical semantic assertion gold and scoring for public synthetic scenarios and governed external gold wrappers.",
-      "Policy ksa-27.2 advances the semantic floor identity while retaining hard-gate registry ksa-27-hard-gates-1.",
-      "Machine result and evidence adapter rederive assertion membership, source-free outcomes, counts, rates, and the 0.99 floor.",
-      "Evidence schema 2.5 invalidates predecessor 2.4 machine evidence under the repaired current policy.",
-      "The predecessor KSA-27 hard-gate architecture and KSA-26 governed/private-data boundary remain covered by regression tests.",
-      "Public DATASET_VERSION and corpus/held-out fingerprints remain unchanged through a compatibility-safe sidecar."
+      "Certification-quality evaluation defaults to 3 repetitions per artifact; development/protocol defaults remain 1, high-risk defaults to 5, and valid larger counts remain supported.",
+      "Runner aggregation requires an exact expected scenario × format × repetition matrix. Public synthetic and governed adapters reconstruct membership and ordinal completeness from the frozen corpus or hash-bound manifest contract.",
+      "Result summaries bind deterministic matrix count/hash and per-artifact stability telemetry. Evidence reconstruction independently re-derives both from case rows and rejects edited summaries.",
+      "Every repetition contributes to non-compensable hard-gate failure and critical-frequency telemetry; clean repetitions cannot compensate for a stochastic critical or false-DONE defect.",
+      "False-DONE derivation uses persisted completion, work-unit, verification, unresolved material, and conflict facts with existing hard-gate codes and execution-contract semantics.",
+      "Source-free governed result/evidence metadata and KSA-26 manifest/hash/contamination boundaries are preserved.",
+      "Focused tests cover defaults, 5/7 repetitions, clean certification, incomplete/duplicate/out-of-range/misbound matrices, matrix/stability tampering, stochastic failures, and unreadable/partial/conflict/verification/under-evidenced completion claims."
     ],
     "excluded": [
-      "KSA-28 and later.",
-      "Merge to main.",
-      "Live company, Gemma, private-human, or security qualification.",
-      "Champion assignment or release.",
-      "BUILD COMPLETE and production certification claims."
+      "KSA-29 and later.",
+      "Live company, Gemma, or private-human execution/qualification.",
+      "Champion promotion, release, BUILD COMPLETE, or production certification.",
+      "Merge, rebase, or movement of main/target branches."
     ]
   },
+  "policy_and_schema_preservation": {
+    "quality_policy": "ksa-27.2",
+    "quality_policy_identity_sha256": "4656283f7ce7506695e42e54008eea190bfcaab9a971b737280af27405801fd1",
+    "hard_gate_registry": "ksa-27-hard-gates-1",
+    "evidence_schema_version": "2.5",
+    "noncritical_semantic_equivalence_floor": "Preserved as the distinct KSA-27 source-bound semantic-equivalence floor.",
+    "model_identity_media_security_and_tenant_rules": "Preserved."
+  },
   "environment": {
-    "python_3_11": "Python 3.11.7.",
-    "python_3_12": "Isolated /tmp/k-slide-py312-fix05 interpreter, Python 3.12.9."
+    "python_3_11": "Python 3.11.7",
+    "python_3_12": "Isolated Python 3.12.9 at /tmp/k-slide-py312-fix05/bin/python"
   },
   "notes": [
-    "F27-01 is an uncommitted repair working tree on exact predecessor BUILD candidate b2ca101733ee450e123bf8b630ceca6eda9cc20a; that commit is a direct child of requested integrated main fa03989e002864081609a25add1fb36b282d99a7.",
-    "The 0.99 floor now uses explicit source-bound approved assertion observations; it is not derived from coverage, numeric fidelity, modality, table, or visual critical axes.",
-    "Private assertion text and acceptable phrases remain only in the hash-bound external gold wrapper. Persisted result/evidence boundaries contain IDs, outcomes, counts, hashes, and rates only.",
-    "Machine evidence and release metadata carry repaired policy identity and non-critical counts/rate. Deployment fingerprints remain independent of certification policy.",
-    "Public corpus DATASET_VERSION 1.0 and accepted public corpus fingerprints are preserved.",
-    "Synthetic governed fixture output is contract verification only. Live company/Gemma/private-human qualification was excluded.",
-    "Synthetic test fixtures may print example PRODUCTION_CERTIFIED states; no release or production certification was performed or claimed.",
-    "evals/champion.json remains UNSET. KSA-28+ was not entered.",
-    "Accepted phrase alternatives are matched against the complete normalized output surface with exact token equality; embedding an approved phrase in contradictory or unapproved extra text does not count as equivalent."
+    "Candidate is an uncommitted patch bound to exact base 4ed21e107443d926f06489f6668188b9dc4e66cd by candidate_source_content_sha256; no merge or main movement occurred.",
+    "The evaluation tests use deterministic synthetic fixtures and validate repository contracts only. No live Gemma, company/private-human qualification, champion promotion, release, BUILD COMPLETE, or production certification was performed.",
+    "evals/champion.json remains UNSET."
   ],
   "locator": {
-    "branch": "codex/k-slide-chg16-hard-gates-01-fix01",
-    "base_integrated_main": "fa03989e002864081609a25add1fb36b282d99a7",
-    "predecessor_build_candidate": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
+    "branch": "codex/k-slide-chg16-stability-calibration-01",
+    "base_integrated_main": "4ed21e107443d926f06489f6668188b9dc4e66cd",
+    "candidate_source_content_sha256": "1e31caee96e83a1b804781628814641ce22d95314154672ff9eaaded69bbac8d",
     "path": ".codex-fabric/audit.json"
   },
   "history": [
+    {
+      "schema_version": 1,
+      "kind": "codex-fabric-audit-evidence",
+      "operation": "BUILD",
+      "status": "EXECUTED_CHANGE",
+      "generated_at": "2026-09-23",
+      "project_id": "k-slide",
+      "request": "chg16-ksa27-f27-01-distinct-source-backed-noncritical-semantic-equivalence",
+      "job_id": "CHG-16-KSA-27-F27-01",
+      "candidate": {
+        "branch": "codex/k-slide-chg16-hard-gates-01-fix01",
+        "base_integrated_main": "fa03989e002864081609a25add1fb36b282d99a7",
+        "predecessor_build_candidate": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
+        "candidate_commit": null,
+        "final_work_head": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
+        "changes_committed": false,
+        "working_tree_changes_present": true
+      },
+      "ancestry": {
+        "starting_head_is_exact_requested_base": true,
+        "starting_head": "fa03989e002864081609a25add1fb36b282d99a7",
+        "predecessor_candidate_is_exact_requested_commit": true,
+        "predecessor_candidate_parent_is_exact_base": true,
+        "predecessor_fast_forwarded_onto_work_branch_before_repair": true,
+        "head_at_final_identity_check": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
+        "merge_to_main_performed": false
+      },
+      "changed_files": [
+        ".codex-fabric/audit.json",
+        "IMPLEMENTATION_STATUS.md",
+        "evals/governed_corpus.py",
+        "evals/model_eval.py",
+        "evals/model_results.py",
+        "evals/model_scorers.py",
+        "evals/noncritical_semantics.py",
+        "src/k_slide/certification.py",
+        "src/k_slide/evidence_adapters.py",
+        "src/k_slide/quality_policy.py",
+        "tests/test_certification_closure.py",
+        "tests/test_ksa26_governed_runner.py",
+        "tests/test_ksa27_quality_policy.py",
+        "tests/test_phase33.py"
+      ],
+      "checks": [
+        {
+          "command": "rtk proxy env PYTHONPATH=src:evals:. python3 -m unittest tests.test_ksa27_quality_policy tests.test_ksa26_corpus_governance tests.test_ksa26_governed_runner -q",
+          "exit_code": 0,
+          "result": "63 tests passed. Covers repaired scorer/gold semantics, exact 0.99 and below-floor behavior, governed corpus hash binding, private result source-free boundary, stale policy, and KSA-26 governance/runner behavior."
+        },
+        {
+          "command": "rtk proxy env PYTHONPATH=src:evals:. python3 -m unittest tests.test_certification_closure tests.test_phase32 tests.test_phase33 tests.test_phase35 -q",
+          "exit_code": 0,
+          "result": "139 certification closure and phase32/33/35 tests passed."
+        },
+        {
+          "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_ksa24_modality_conformance tests.test_ksa24_f24_repairs tests.test_ksa24_f24_real_path tests.test_ksa25_recovery_law",
+          "exit_code": 0,
+          "result": "93 KSA-21–25 regression tests passed; 1 skipped."
+        },
+        {
+          "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_chg16_foundation tests.test_chg16_storage_planes tests.test_chg16_durable_execution tests.test_chg16_accesskey_nonleakage tests.test_chg16_deletion tests.test_chg16_host_integration tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support tests.test_chg16_environment_binding tests.test_chg16_classification_admission tests.test_chg16_retention_policy tests.test_chg16_scoped_admission tests.test_chg16_paas_worker tests.test_chg16_authentication_transport",
+          "exit_code": 0,
+          "result": "216 KSA-15–20 security/host/runtime regression tests passed; 1 skipped."
+        },
+        {
+          "command": "rtk proxy npx --yes tsx tests/test_chg16_opencode_plugin.ts",
+          "exit_code": 0,
+          "result": "OpenCode TypeScript host attachment regression passed."
+        },
+        {
+          "command": "rtk proxy env PYTHONPATH=src:. python3 -c 'import json,pathlib; from jsonschema import Draft202012Validator; files=sorted(pathlib.Path(\"schemas\").glob(\"*.json\")); [Draft202012Validator.check_schema(json.loads(p.read_text())) for p in files]; print(f\"{len(files)} schemas: Draft 2020-12 valid\")'",
+          "exit_code": 0,
+          "result": "All 4 repository JSON schemas validated as Draft 2020-12."
+        },
+        {
+          "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest -q tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript",
+          "exit_code": 0,
+          "result": "TranslationPatch Python parser, JSON schema, and TypeScript contract test passed."
+        },
+        {
+          "command": "rtk proxy env PYTHONPATH=src:. python3 -m unittest discover -s tests -p 'test_*.py' -q",
+          "exit_code": 0,
+          "result": "565 tests passed, 4 skipped on Python 3.11.7. Synthetic release-state fixture output is not release evidence."
+        },
+        {
+          "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m unittest discover -s tests -p 'test_*.py' -q",
+          "exit_code": 0,
+          "result": "565 tests passed on isolated Python 3.12.9. Synthetic release-state fixture output is not release evidence."
+        },
+        {
+          "command": "rtk proxy env PYTHONPATH=src:. python3 -m compileall -q src evals tests",
+          "exit_code": 0,
+          "result": "compileall passed under Python 3.11.7."
+        },
+        {
+          "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-py312-fix05/bin/python -m compileall -q src evals tests",
+          "exit_code": 0,
+          "result": "compileall passed under isolated Python 3.12.9."
+        },
+        {
+          "command": "rtk git diff --check",
+          "exit_code": 0,
+          "result": "No whitespace errors."
+        },
+        {
+          "command": "rtk proxy env PYTHONPATH=src:evals:. python3 -c 'from k_slide.certification import EVIDENCE_SCHEMA_VERSION; from k_slide.quality_policy import QUALITY_POLICY_IDENTITY, QUALITY_POLICY_VERSION, HARD_GATE_REGISTRY_VERSION; print(QUALITY_POLICY_VERSION, QUALITY_POLICY_IDENTITY, HARD_GATE_REGISTRY_VERSION, EVIDENCE_SCHEMA_VERSION)'",
+          "exit_code": 0,
+          "result": "Current policy ksa-27.2 identity 4656283f7ce7506695e42e54008eea190bfcaab9a971b737280af27405801fd1; registry ksa-27-hard-gates-1; evidence schema 2.5."
+        },
+        {
+          "command": "rtk proxy cat evals/champion.json",
+          "exit_code": 0,
+          "result": "Champion remains UNSET; no authoritative target-Gemma validation experiment has passed promotion policy."
+        },
+        {
+          "command": "rtk git show -s --format=%H\\ %P b2ca101733ee450e123bf8b630ceca6eda9cc20a",
+          "exit_code": 0,
+          "result": "Predecessor candidate b2ca101733ee450e123bf8b630ceca6eda9cc20a has exact parent fa03989e002864081609a25add1fb36b282d99a7."
+        },
+        {
+          "command": "rtk proxy env PYTHONPATH=src:evals:. python3 -m unittest -q tests.test_ksa27_quality_policy.KSA27QualityPolicyTests.test_approved_paraphrase_passes_fluent_wrong_meaning_fails_and_other_region_cannot_satisfy",
+          "exit_code": 0,
+          "result": "Approved paraphrase passes; a contradictory sentence, fluent wrong meaning, and a phrase on the wrong source region fail the non-critical assertion without becoming hard-gate findings."
+        }
+      ],
+      "diagnostic_checks": [
+        {
+          "command": "rtk pytest tests/test_ksa26_governed_runner.py tests/test_certification_closure.py -q",
+          "exit_code": 2,
+          "result": "RTK pytest invocation reported no tests collected; this repository verification uses unittest discovery, which was run successfully below."
+        },
+        {
+          "command": "rtk python -m unittest tests.test_ksa27_quality_policy -q",
+          "exit_code": 1,
+          "result": "The initial command omitted PYTHONPATH=src and could not import k_slide; rerun with PYTHONPATH=src passed."
+        },
+        {
+          "command": "rtk proxy env PYTHONPATH=src:evals:. python3 -m unittest tests.test_certification_closure tests.test_phase32 tests.test_phase33 tests.test_phase35 -q",
+          "exit_code": 1,
+          "result": "Initial closure run found two phase33 synthetic rows without empty non-critical observation facts. Fixtures were updated; the complete same suite then passed with 139 tests."
+        },
+        {
+          "command": "rtk proxy env PYTHONPATH=src:evals:. python3 -m unittest -q tests.test_ksa27_quality_policy.Ksa27QualityPolicyTests.test_approved_paraphrase_passes_fluent_wrong_meaning_fails_and_other_region_cannot_satisfy",
+          "exit_code": 1,
+          "result": "Manual targeted selector used an incorrect unittest class capitalization. Corrected selector passed, and the complete KSA-27 focused suite passed."
+        }
+      ],
+      "scope": {
+        "included": [
+          "F27-01 only: deterministic source-bound non-critical semantic assertion gold and scoring for public synthetic scenarios and governed external gold wrappers.",
+          "Policy ksa-27.2 advances the semantic floor identity while retaining hard-gate registry ksa-27-hard-gates-1.",
+          "Machine result and evidence adapter rederive assertion membership, source-free outcomes, counts, rates, and the 0.99 floor.",
+          "Evidence schema 2.5 invalidates predecessor 2.4 machine evidence under the repaired current policy.",
+          "The predecessor KSA-27 hard-gate architecture and KSA-26 governed/private-data boundary remain covered by regression tests.",
+          "Public DATASET_VERSION and corpus/held-out fingerprints remain unchanged through a compatibility-safe sidecar."
+        ],
+        "excluded": [
+          "KSA-28 and later.",
+          "Merge to main.",
+          "Live company, Gemma, private-human, or security qualification.",
+          "Champion assignment or release.",
+          "BUILD COMPLETE and production certification claims."
+        ]
+      },
+      "environment": {
+        "python_3_11": "Python 3.11.7.",
+        "python_3_12": "Isolated /tmp/k-slide-py312-fix05 interpreter, Python 3.12.9."
+      },
+      "notes": [
+        "F27-01 is an uncommitted repair working tree on exact predecessor BUILD candidate b2ca101733ee450e123bf8b630ceca6eda9cc20a; that commit is a direct child of requested integrated main fa03989e002864081609a25add1fb36b282d99a7.",
+        "The 0.99 floor now uses explicit source-bound approved assertion observations; it is not derived from coverage, numeric fidelity, modality, table, or visual critical axes.",
+        "Private assertion text and acceptable phrases remain only in the hash-bound external gold wrapper. Persisted result/evidence boundaries contain IDs, outcomes, counts, hashes, and rates only.",
+        "Machine evidence and release metadata carry repaired policy identity and non-critical counts/rate. Deployment fingerprints remain independent of certification policy.",
+        "Public corpus DATASET_VERSION 1.0 and accepted public corpus fingerprints are preserved.",
+        "Synthetic governed fixture output is contract verification only. Live company/Gemma/private-human qualification was excluded.",
+        "Synthetic test fixtures may print example PRODUCTION_CERTIFIED states; no release or production certification was performed or claimed.",
+        "evals/champion.json remains UNSET. KSA-28+ was not entered.",
+        "Accepted phrase alternatives are matched against the complete normalized output surface with exact token equality; embedding an approved phrase in contradictory or unapproved extra text does not count as equivalent."
+      ],
+      "locator": {
+        "branch": "codex/k-slide-chg16-hard-gates-01-fix01",
+        "base_integrated_main": "fa03989e002864081609a25add1fb36b282d99a7",
+        "predecessor_build_candidate": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
+        "path": ".codex-fabric/audit.json"
+      },
+      "predecessor": {
+        "request": "chg16-ksa27-versioned-noncompensable-certification-quality-policy",
+        "job_id": "CHG-16-KSA-27 predecessor BUILD",
+        "candidate": {
+          "branch": "codex/k-slide-chg16-hard-gates-01",
+          "base_integrated_main": "fa03989e002864081609a25add1fb36b282d99a7",
+          "candidate_commit": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
+          "changes_committed": true
+        },
+        "quality_policy": {
+          "policy_version": "ksa-27.1",
+          "hard_gate_registry_version": "ksa-27-hard-gates-1",
+          "identity_sha256": "41736413cb8fdb0714b03b46c402ca8567c2d09903b17bb2886dc8313d2e739f",
+          "evidence_schema_version": "2.4"
+        },
+        "superseded_by": "CHG-16 / KSA-27 F27-01; predecessor behavior and hard-gate architecture are preserved."
+      },
+      "quality_policy": {
+        "predecessor": {
+          "policy_version": "ksa-27.1",
+          "identity_sha256": "41736413cb8fdb0714b03b46c402ca8567c2d09903b17bb2886dc8313d2e739f",
+          "hard_gate_registry_version": "ksa-27-hard-gates-1"
+        },
+        "current": {
+          "policy_version": "ksa-27.2",
+          "identity_sha256": "4656283f7ce7506695e42e54008eea190bfcaab9a971b737280af27405801fd1",
+          "hard_gate_registry_version": "ksa-27-hard-gates-1"
+        },
+        "evidence_schema_predecessor": "2.4",
+        "evidence_schema_current": "2.5"
+      },
+      "superseded_by": "CHG-16 / KSA-28 repetition stability and false-DONE calibration BUILD."
+    },
     {
       "request": "chg16-ksa27-versioned-noncompensable-certification-quality-policy",
       "job_id": "CHG-16-KSA-27 predecessor BUILD",
@@ -424,36 +599,5 @@
         "path": ".codex-fabric/audit.json"
       }
     }
-  ],
-  "predecessor": {
-    "request": "chg16-ksa27-versioned-noncompensable-certification-quality-policy",
-    "job_id": "CHG-16-KSA-27 predecessor BUILD",
-    "candidate": {
-      "branch": "codex/k-slide-chg16-hard-gates-01",
-      "base_integrated_main": "fa03989e002864081609a25add1fb36b282d99a7",
-      "candidate_commit": "b2ca101733ee450e123bf8b630ceca6eda9cc20a",
-      "changes_committed": true
-    },
-    "quality_policy": {
-      "policy_version": "ksa-27.1",
-      "hard_gate_registry_version": "ksa-27-hard-gates-1",
-      "identity_sha256": "41736413cb8fdb0714b03b46c402ca8567c2d09903b17bb2886dc8313d2e739f",
-      "evidence_schema_version": "2.4"
-    },
-    "superseded_by": "CHG-16 / KSA-27 F27-01; predecessor behavior and hard-gate architecture are preserved."
-  },
-  "quality_policy": {
-    "predecessor": {
-      "policy_version": "ksa-27.1",
-      "identity_sha256": "41736413cb8fdb0714b03b46c402ca8567c2d09903b17bb2886dc8313d2e739f",
-      "hard_gate_registry_version": "ksa-27-hard-gates-1"
-    },
-    "current": {
-      "policy_version": "ksa-27.2",
-      "identity_sha256": "4656283f7ce7506695e42e54008eea190bfcaab9a971b737280af27405801fd1",
-      "hard_gate_registry_version": "ksa-27-hard-gates-1"
-    },
-    "evidence_schema_predecessor": "2.4",
-    "evidence_schema_current": "2.5"
-  }
+  ]
 }
