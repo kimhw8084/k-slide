@@ -1,186 +1,488 @@
 {
-  "artifact_bridge": {
-    "published": false,
-    "reason": "No Project OS Artifact Bridge tool is exposed in this session; deterministic evidence is committed locally for independent audit.",
-    "requested_bridge": "Project OS Artifact Bridge",
-    "tool_available_in_active_session": false
+  "accepted_at": "2026-09-25T17:34:56Z",
+  "changed_files": [
+    {
+      "additions": 102,
+      "deletions": 227,
+      "path": ".codex-fabric/audit.json",
+      "status": "M"
+    },
+    {
+      "additions": 47,
+      "deletions": 1,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "additions": 12,
+      "deletions": 0,
+      "path": "deploy/README.md",
+      "status": "M"
+    },
+    {
+      "additions": 50,
+      "deletions": 0,
+      "path": "docs/adr/0045-candidate-bound-rollout-controls.md",
+      "status": "A"
+    },
+    {
+      "additions": 97,
+      "deletions": 0,
+      "path": "docs/ksa34-rollout-controls.md",
+      "status": "A"
+    },
+    {
+      "additions": 146,
+      "deletions": 0,
+      "path": "schemas/rollout-control.schema.json",
+      "status": "A"
+    },
+    {
+      "additions": 56,
+      "deletions": 0,
+      "path": "src/k_slide/ingest.py",
+      "status": "M"
+    },
+    {
+      "additions": 647,
+      "deletions": 0,
+      "path": "src/k_slide/rollout.py",
+      "status": "A"
+    },
+    {
+      "additions": 21,
+      "deletions": 0,
+      "path": "tests/rollout_fixtures.py",
+      "status": "A"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "tests/test_chg16_environment_binding.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "tests/test_ksa19_employee_path.py",
+      "status": "M"
+    },
+    {
+      "additions": 387,
+      "deletions": 0,
+      "path": "tests/test_ksa34_rollout.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '500,610p' src/k_slide/rollout.py && rtk sed -n '180,245p' src/k_slide/ingest.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '490,535p' src/k_slide/rollout.py && rtk sed -n '45,62p' tests/test_ksa34_rollout.py && rtk rg -n 'rollback_rule|transition_action' schemas/rollout-control.schema.json\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"_verify_reference_history|history_files|previous_state_identity.*inconsistent|latest_identity\" src/k_slide/rollout.py tests/test_ksa34_rollout.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '536,574p' src/k_slide/rollout.py && rtk sed -n '64,95p' tests/test_ksa34_rollout.py && rtk sed -n '85,103p' schemas/rollout-control.schema.json\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '32,75p' docs/ksa34-rollout-controls.md && rtk sed -n '15,42p' docs/adr/0045-candidate-bound-rollout-controls.md && rtk rg -n \\\"monotonic head|transition history|signed actor|audit\\\" deploy/README.md\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '12,34p' docs/adr/0045-candidate-bound-rollout-controls.md && rtk sed -n '45,70p' docs/adr/0045-candidate-bound-rollout-controls.md && rtk sed -n '90,104p' deploy/README.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk cat docs/adr/0045-candidate-bound-rollout-controls.md && rtk sed -n '28,75p' docs/ksa34-rollout-controls.md && rtk rg -n \\\"KSA-34 candidate-bound\\\" README.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk status --short && rtk git diff --stat && rtk sed -n '1,280p' src/k_slide/rollout.py && rtk sed -n '1,240p' schemas/rollout-control.schema.json\"",
+      "exit_code": 127,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'command -v rtk; command -v git; pwd; ls -la /Users/haewonkim/.codex/bin'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk cat /Users/haewonkim/.codex/RTK.md; rtk cat /Users/haewonkim/.codex/law.md; rtk git status --short; rtk git diff --stat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,360p' src/k_slide/rollout.py; rtk cat schemas/rollout-control.schema.json; rtk cat docs/ksa34-rollout-controls.md; rtk cat docs/adr/0045-candidate-bound-rollout-controls.md; rtk cat deploy/README.md; rtk tail -n 18 README.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '300,760p' src/k_slide/rollout.py; rtk sed -n '1,260p' tests/test_ksa34_rollout.py; rtk sed -n '1,160p' src/k_slide/ingest.py; rtk git diff -- README.md deploy/README.md src/k_slide/ingest.py tests/test_chg16_environment_binding.py tests/test_ksa19_employee_path.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3.11 -m unittest tests.test_ksa34_rollout -v'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,140p' tests/test_ksa34_rollout.py; rtk sed -n '270,360p' tests/test_ksa34_rollout.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '150,260p' src/k_slide/ingest.py; rtk rg -n \\\"prepare_run\\\\(\\\" src/k_slide\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk cat tests/rollout_fixtures.py; rtk rg -n 'validate_rollout_admission|RolloutAdmission\\\\(' tests/test_ksa34_rollout.py\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3.11 -m unittest tests.test_ksa34_rollout -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk cat .codex-fabric/IMPLEMENTATION_STATUS.md; rtk cat .codex-fabric/audit.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files .github/workflows; rtk rg -n \\\"security_controls|runtime|workflow|schema|python3\\\\.12|3\\\\.12|qualification|ksa-34|KSA-34\\\" scripts evals .github .codex-fabric\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short; rtk git diff --check; rtk git branch --show-current; rtk git rev-parse HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk cat IMPLEMENTATION_STATUS.md; rtk git show -s --format='%H %T %s' HEAD; rtk git status --branch --short; rtk sed -n '1,140p' evals/security_controls.py; rtk rg -n \\\"python -m unittest|compileall|schema validation|schema.*Draft202012|yaml.safe_load\\\" .github scripts tests evals -g '*.py' -g '*.yml' -g '*.md'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3.11 -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python - <<'PY'\nimport subprocess\nfrom pathlib import Path\nimport yaml\nfrom jsonschema import Draft202012Validator\nschemas = sorted(Path('schemas').glob('*.json'))\nfor path in schemas:\n    Draft202012Validator.check_schema(__import__('json').loads(path.read_text(encoding='utf-8')))\nworkflows = sorted(Path('.github/workflows').glob('*.yml'))\nshell_steps = 0\nfor path in workflows:\n    workflow = yaml.safe_load(path.read_text(encoding='utf-8'))\n    for job in workflow.get('jobs', {}).values():\n        for step in job.get('steps', []):\n            script = step.get('run')\n            if isinstance(script, str):\n                checked = subprocess.run(['bash', '-n'], input=script, text=True, capture_output=True)\n                if checked.returncode:\n                    raise SystemExit(f'{path}: shell syntax invalid')\n                shell_steps += 1\nprint(f'PASS schemas={len(schemas)} workflows={len(workflows)} shell_steps={shell_steps}')\nPY\nrtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m compileall -q src evals tests\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy env PYTHONPATH=src:. python3.11 - <<'PY'\nimport subprocess\nfrom pathlib import Path\nimport yaml\nfrom jsonschema import Draft202012Validator\nschemas = sorted(Path('schemas').glob('*.json'))\nfor path in schemas:\n    Draft202012Validator.check_schema(__import__('json').loads(path.read_text(encoding='utf-8')))\nworkflows = sorted(Path('.github/workflows').glob('*.yml'))\nshell_steps = 0\nfor path in workflows:\n    workflow = yaml.safe_load(path.read_text(encoding='utf-8'))\n    for job in workflow.get('jobs', {}).values():\n        for step in job.get('steps', []):\n            script = step.get('run')\n            if isinstance(script, str):\n                checked = subprocess.run(['bash', '-n'], input=script, text=True, capture_output=True)\n                if checked.returncode:\n                    raise SystemExit(f'{path}: shell syntax invalid')\n                shell_steps += 1\nprint(f'PASS schemas={len(schemas)} workflows={len(workflows)} shell_steps={shell_steps}')\nPY\nrtk proxy env PYTHONPATH=src:. python3.11 -m compileall -q src evals tests\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3.11 -m evals.security_controls --root . --output /tmp/k-slide-ksa34-controls-final-311.json --run-id 972811 --run-attempt 1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m evals.security_controls --root . --output /tmp/k-slide-ksa34-controls-final-312.json --run-id 972812 --run-attempt 1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python - <<'PY'\nimport json\nfrom pathlib import Path\nfrom jsonschema import Draft202012Validator\nschemas = sorted(Path('schemas').glob('*.json'))\nfor path in schemas:\n    Draft202012Validator.check_schema(json.loads(path.read_text(encoding='utf-8')))\nprint(f'PASS schemas={len(schemas)}')\nPY\nrtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m compileall -q src evals tests\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"Next phase|KSA-34 and later|At the FIX02 scope|Architecture decisions|candidate profile still\\\" IMPLEMENTATION_STATUS.md; rtk sed -n '845,890p' IMPLEMENTATION_STATUS.md; rtk sed -n '900,930p' IMPLEMENTATION_STATUS.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '654,744p' IMPLEMENTATION_STATUS.md\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check; rtk git status --short; rtk git diff --stat; rtk git diff -- IMPLEMENTATION_STATUS.md README.md deploy/README.md; rtk rg -n \"KSA-34 and later|KSA-35\" IMPLEMENTATION_STATUS.md'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add IMPLEMENTATION_STATUS.md README.md deploy/README.md docs/adr/0045-candidate-bound-rollout-controls.md docs/ksa34-rollout-controls.md schemas/rollout-control.schema.json src/k_slide/ingest.py src/k_slide/rollout.py tests/rollout_fixtures.py tests/test_chg16_environment_binding.py tests/test_ksa19_employee_path.py tests/test_ksa34_rollout.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --cached --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --cached --stat; rtk git diff --cached --numstat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git commit -m \"Implement KSA-34 candidate-bound rollout controls\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk sha256sum .codex-fabric/audit.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short; rtk git show --stat --oneline --summary HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rev-parse HEAD; rtk git rev-parse HEAD''^; rtk git rev-parse HEAD''^{tree}'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"def source_tree_sha256|TREE_DOMAIN|domain-separated\\\" src/k_slide/runtime_artifact.py evals/security_release.py evals -g '*.py'; rtk sed -n '60,105p' src/k_slide/runtime_artifact.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '420,460p' src/k_slide/runtime_artifact.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nfrom pathlib import Path\nimport hashlib\nimport json\n\nroot = Path('.')\nfiles = [\n    'IMPLEMENTATION_STATUS.md', 'README.md', 'deploy/README.md',\n    'docs/adr/0045-candidate-bound-rollout-controls.md', 'docs/ksa34-rollout-controls.md',\n    'schemas/rollout-control.schema.json', 'src/k_slide/ingest.py', 'src/k_slide/rollout.py',\n    'tests/rollout_fixtures.py', 'tests/test_chg16_environment_binding.py',\n    'tests/test_ksa19_employee_path.py', 'tests/test_ksa34_rollout.py',\n]\nmanifest = [{'path': name, 'sha256': hashlib.sha256((root / name).read_bytes()).hexdigest()} for name in files]\ndef canonical(value):\n    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')\nchecks = [\n    {'name': 'Focused KSA-34 rollout state-machine and host integration', 'command': 'rtk proxy env PYTHONPATH=src:. python3.11 -m unittest tests.test_ksa34_rollout -q', 'exit_code': 0, 'result': '17 tests passed'},\n    {'name': 'Full repository unittest suite, Python 3.11', 'command': 'rtk proxy env PYTHONPATH=src:. python3.11 -m unittest discover -s tests -q', 'exit_code': 0, 'result': '687 tests passed; 4 optional skips'},\n    {'name': 'Full repository unittest suite, Python 3.12', 'command': 'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m unittest discover -s tests -q', 'exit_code': 0, 'result': '687 tests passed'},\n    {'name': 'Accepted KSA-15/17/18/21/32 controls, Python 3.11', 'command': 'rtk proxy env PYTHONPATH=src:. python3.11 -m evals.security_controls --root . --output /tmp/k-slide-ksa34-controls-final-311.json --run-id 972811 --run-attempt 1', 'exit_code': 0, 'result': '5 suites passed; 100 tests run; safe summary only'},\n    {'name': 'Accepted KSA-15/17/18/21/32 controls, Python 3.12', 'command': 'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m evals.security_controls --root . --output /tmp/k-slide-ksa34-controls-final-312.json --run-id 972812 --run-attempt 1', 'exit_code': 0, 'result': '5 suites passed; 100 tests run; safe summary only'},\n    {'name': 'Repository JSON schemas, Python 3.11 and 3.12', 'exit_code': 0, 'result': 'All 7 schemas passed Draft 2020-12 schema validation on each version'},\n    {'name': 'Workflow syntax', 'exit_code': 0, 'result': 'All 6 workflow YAML files parsed; all 49 embedded shell steps passed bash -n'},\n    {'name': 'Compileall, Python 3.11 and 3.12', 'exit_code': 0, 'result': 'Passed on both versions'},\n    {'name': 'Whitespace and patch validation', 'command': 'rtk git diff --cached --check', 'exit_code': 0, 'result': 'Passed'},\n]\nevidence = {\n    'artifact_bridge': {\n        'published': False,\n        'reason': 'No Project OS Artifact Bridge tool is exposed in this session; deterministic evidence is committed locally for independent audit.',\n        'requested_bridge': 'Project OS Artifact Bridge',\n        'tool_available_in_active_session': False,\n    },\n    'artifact_path': '.codex-fabric/audit.json',\n    'base_commit_sha': '0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a',\n    'base_tree_oid': '317ca774598820ccd6c8d0bcb82c9cc1dbfc1670',\n    'candidate': {\n        'base_commit_sha': '0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a',\n        'base_tree_oid': '317ca774598820ccd6c8d0bcb82c9cc1dbfc1670',\n        'branch': 'codex/k-slide-chg16-rollout-controls-01',\n        'candidate_changes_committed': True,\n        'candidate_commit_sha': '01a2c87caa92bb392fa0762abcdf521e04538df5',\n        'candidate_tree_oid': '64f26880f147b3ade4a652f8068d10a23565a17c',\n        'candidate_source_content_manifest': manifest,\n        'candidate_source_content_manifest_sha256': hashlib.sha256(canonical(manifest)).hexdigest(),\n        'working_tree_clean_before_audit_write': True,\n    },\n    'checks': checks,\n    'company_environment': {\n        'authenticated_cohort_resolution': 'UNQUALIFIED',\n        'deployed_runtime_identity': 'UNQUALIFIED',\n        'live_company_approval': 'NOT_CLAIMED',\n        'live_paas_or_feature_flags': 'NOT_MUTATED',\n        'rollout_control_plane_persistence': 'UNQUALIFIED',\n    },\n    'fabric_evidence_identity_scheme': 'SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators, excluding fabric_evidence_identity_sha256 itself',\n    'fabric_job_id': 'CHG-16-KSA-34-ROLLOUT-CONTROLS-01',\n    'generated_at': '2026-09-25',\n    'issue_id': 'CHG-16',\n    'job_id': 'CHG-16-KSA-34-ROLLOUT-CONTROLS-01',\n    'kind': 'codex-fabric-audit-evidence',\n    'operation': 'IMPLEMENT',\n    'predecessor_audit_sha256': 'ca0a491ae39a28df784ff8af4da5f3084ff066efc2522b5463deb463f487e061',\n    'project_id': 'k-slide',\n    'qualification_status': 'NOT_QUALIFIED',\n    'release_or_production_claim': False,\n    'request': 'chg16-ksa34-rollout-controls-01',\n    'rollout_evidence': {\n        'durable_admission_and_transition_evidence_source_free': True,\n        'durable_source_document_content': False,\n        'employee_pilot_or_canary_run': 'NOT_RUN',\n        'live_cohort_or_rollout_state': 'NOT_CREATED',\n        'reference_file_adapter': 'TEST_AND_LOCAL_QUALIFICATION_ONLY',\n        'rollout_controls_change_release_or_certification_state': False,\n        'scenario_coverage': [\n            'named cohort inclusion and exclusion', 'explicit staged expansion and contraction',\n            'immediate disable and re-enable', 'authorized rollback and restoration',\n            'restart and reload', 'stale and malformed policy', 'unauthorized policy/state/history mutation',\n            'exact candidate mismatch and policy drift', 'replay and monotonic history',\n            'rollback target mismatch', 'in-flight run identity preservation',\n            'shared CLI and OpenCode host boundary',\n        ],\n        'versioned_inflight_rule': 'BOUND_RUNS_COMPLETE_OR_STOP_ON_IDENTITY_MISMATCH_V1',\n    },\n    'schema_version': 1,\n    'scope': {\n        'implemented': ['KSA-34 repository-owned candidate-bound rollout admission controls only'],\n        'preserved': ['Accepted KSA-01 through KSA-33 behavior', 'Existing evidence-derived release/certification machinery', 'KSA-31 champion/change-impact, KSA-32 governance, and KSA-33 candidate/security authority'],\n        'excluded': ['KSA-35 and later', 'Live company PaaS or feature-flag mutation', 'Real employee pilot or canary', 'Moving or merging main', 'Release, BUILD COMPLETE, champion promotion, or production certification'],\n    },\n    'status': 'EXECUTED_CHANGE',\n}\nevidence['fabric_evidence_identity_sha256'] = hashlib.sha256(canonical(evidence)).hexdigest()\n(root / '.codex-fabric/audit.json').write_text(json.dumps(evidence, ensure_ascii=False, sort_keys=True, indent=2) + '\\\\n', encoding='utf-8')\nprint(f\\\"WROTE {evidence['artifact_path']} manifest_entries={len(manifest)} checks={len(checks)} identity={evidence['fabric_evidence_identity_sha256']}\\\")\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nfrom pathlib import Path\nimport hashlib\nimport json\npath = Path('.codex-fabric/audit.json')\nvalue = json.loads(path.read_text(encoding='utf-8'))\nidentity = value.pop('fabric_evidence_identity_sha256')\ncanonical = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')\nassert hashlib.sha256(canonical).hexdigest() == identity\nfor item in value['candidate']['candidate_source_content_manifest']:\n    assert hashlib.sha256(Path(item['path']).read_bytes()).hexdigest() == item['sha256']\nassert value['candidate']['candidate_commit_sha'] == '01a2c87caa92bb392fa0762abcdf521e04538df5'\nprint(f'PASS audit_identity={identity} manifest_entries={len(value[\\\"candidate\\\"][\\\"candidate_source_content_manifest\\\"])}')\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short; rtk git rev-parse HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add .codex-fabric/audit.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git commit -m \"Record KSA-34 Fabric audit evidence\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nfrom pathlib import Path\nimport hashlib\nimport json\nvalue = json.loads(Path('.codex-fabric/audit.json').read_text(encoding='utf-8'))\nidentity = value.pop('fabric_evidence_identity_sha256')\ncanonical = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')\nassert hashlib.sha256(canonical).hexdigest() == identity\nprint(json.dumps({'candidate': value['candidate']['candidate_commit_sha'], 'base': value['candidate']['base_commit_sha'], 'audit_identity': identity, 'qualification': value['qualification_status'], 'published': value['artifact_bridge']['published']}, sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch; rtk git log -2 --oneline --decorate; rtk git diff HEAD''^ --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.156.1",
+    "configured_model": "gpt-6-luna",
+    "event_count": 342,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 98.1,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 21345792,
+      "fresh_input_tokens": 413726,
+      "input_tokens": 21759518,
+      "non_reasoning_output_tokens": 54258,
+      "output_tokens": 116239,
+      "reasoning_output_tokens": 61981,
+      "total_processed_tokens": 21875757
+    },
+    "warnings": []
   },
-  "artifact_path": ".codex-fabric/audit.json",
-  "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
-  "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
-  "candidate": {
-    "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
-    "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
-    "branch": "codex/k-slide-chg16-rollout-controls-01",
-    "candidate_changes_committed": true,
-    "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
-    "candidate_source_content_manifest": [
+  "commits": [
+    {
+      "sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
+      "subject": "Record KSA-34 Fabric audit evidence"
+    },
+    {
+      "sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
+      "subject": "Implement KSA-34 candidate-bound rollout controls"
+    }
+  ],
+  "diff": {
+    "additions": 1571,
+    "changed_files": 13,
+    "commit_count": 2,
+    "deletions": 230
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 7,
+    "items": [
       {
+        "bytes": 7721,
+        "path": ".codex-fabric/audit.json",
+        "sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302"
+      },
+      {
+        "bytes": 89232,
         "path": "IMPLEMENTATION_STATUS.md",
         "sha256": "e7f4a02f65a17fa61189a82a211b87e888ef4f16309868c99a4cf52c69d9f41a"
       },
       {
+        "bytes": 14419,
         "path": "README.md",
         "sha256": "325faadde2da37ec9d2df7707e4d5d90b1c03e4cd2258c5f00b31cee05bbe748"
       },
       {
+        "bytes": 6456,
         "path": "deploy/README.md",
         "sha256": "9d7d795580a75b745ebbdd38014d1096e01f64a3edc20df76105277434343c3a"
       },
       {
+        "bytes": 2604,
         "path": "docs/adr/0045-candidate-bound-rollout-controls.md",
         "sha256": "1fb275ece0ef96c05aca16277cc09daee22d21e69b96f1e56319edc2c1702d5f"
       },
       {
+        "bytes": 5414,
         "path": "docs/ksa34-rollout-controls.md",
         "sha256": "80fc0e40784b5543f0ef03b705ed42f25a97178cc65483032081a0d762e0dd43"
       },
       {
+        "bytes": 6769,
         "path": "schemas/rollout-control.schema.json",
         "sha256": "26b9114fc256f64b3a7c88c1d0af00739ee5e38df14369f30171a05824ac258e"
-      },
-      {
-        "path": "src/k_slide/ingest.py",
-        "sha256": "5e91ffe1ecdab5802fed52e37d45a3f952ff5dc1e5bb841ee4864fb2ee033e60"
-      },
-      {
-        "path": "src/k_slide/rollout.py",
-        "sha256": "a33a603652764b56dd1b5df667f6317eddac492e4b7e183d5be75b41da09dec5"
-      },
-      {
-        "path": "tests/rollout_fixtures.py",
-        "sha256": "06f86cbd5b44154cc796586c7abd7e16fa1457d543d0d05481aeece4e8bb9bd2"
-      },
-      {
-        "path": "tests/test_chg16_environment_binding.py",
-        "sha256": "68c4011c5be52749f63d32c84aebdc298d2d07ec7d41e116f3d7b6cf599252cf"
-      },
-      {
-        "path": "tests/test_ksa19_employee_path.py",
-        "sha256": "b5339256211fc0e0e6d3f01839f5a1a3f68d350e8f12e582d252f44ba054dbae"
-      },
-      {
-        "path": "tests/test_ksa34_rollout.py",
-        "sha256": "50f4fcaef3e5eff4955fecab0b0df664c61a8dfd5799b3bbc730ab2a21bc9cc1"
       }
     ],
-    "candidate_source_content_manifest_sha256": "9da57ab7186bbf84ba3fbff1dfb40f35318d2807bd243f16852ff14b58089594",
-    "candidate_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
-    "working_tree_clean_before_audit_write": true
+    "version": 1
   },
-  "checks": [
-    {
-      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m unittest tests.test_ksa34_rollout -q",
-      "exit_code": 0,
-      "name": "Focused KSA-34 rollout state-machine and host integration",
-      "result": "17 tests passed"
-    },
-    {
-      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m unittest discover -s tests -q",
-      "exit_code": 0,
-      "name": "Full repository unittest suite, Python 3.11",
-      "result": "687 tests passed; 4 optional skips"
-    },
-    {
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m unittest discover -s tests -q",
-      "exit_code": 0,
-      "name": "Full repository unittest suite, Python 3.12",
-      "result": "687 tests passed"
-    },
-    {
-      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m evals.security_controls --root . --output /tmp/k-slide-ksa34-controls-final-311.json --run-id 972811 --run-attempt 1",
-      "exit_code": 0,
-      "name": "Accepted KSA-15/17/18/21/32 controls, Python 3.11",
-      "result": "5 suites passed; 100 tests run; safe summary only"
-    },
-    {
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m evals.security_controls --root . --output /tmp/k-slide-ksa34-controls-final-312.json --run-id 972812 --run-attempt 1",
-      "exit_code": 0,
-      "name": "Accepted KSA-15/17/18/21/32 controls, Python 3.12",
-      "result": "5 suites passed; 100 tests run; safe summary only"
-    },
-    {
-      "exit_code": 0,
-      "name": "Repository JSON schemas, Python 3.11 and 3.12",
-      "result": "All 7 schemas passed Draft 2020-12 schema validation on each version"
-    },
-    {
-      "exit_code": 0,
-      "name": "Workflow syntax",
-      "result": "All 6 workflow YAML files parsed; all 49 embedded shell steps passed bash -n"
-    },
-    {
-      "exit_code": 0,
-      "name": "Compileall, Python 3.11 and 3.12",
-      "result": "Passed on both versions"
-    },
-    {
-      "command": "rtk git diff --cached --check",
-      "exit_code": 0,
-      "name": "Whitespace and patch validation",
-      "result": "Passed"
+  "evidence_publisher_release": "1.2.5-dashboard-controls-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
     }
-  ],
-  "company_environment": {
-    "authenticated_cohort_resolution": "UNQUALIFIED",
-    "deployed_runtime_identity": "UNQUALIFIED",
-    "live_company_approval": "NOT_CLAIMED",
-    "live_paas_or_feature_flags": "NOT_MUTATED",
-    "rollout_control_plane_persistence": "UNQUALIFIED"
   },
-  "fabric_evidence_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators, excluding fabric_evidence_identity_sha256 itself",
-  "fabric_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5",
-  "fabric_job_id": "CHG-16-KSA-34-ROLLOUT-CONTROLS-01",
-  "generated_at": "2026-09-25",
-  "issue_id": "CHG-16",
-  "job_id": "CHG-16-KSA-34-ROLLOUT-CONTROLS-01",
+  "fabric_release": "1.2.5-dashboard-controls-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-25T18:29:35Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
+    "branch": "codex/k-slide-chg16-rollout-controls-01",
+    "detached_verify": false,
+    "head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
+    "remote_exact_head": true,
+    "remote_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
+    "work_branch": "codex/k-slide-chg16-rollout-controls-01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-972811ab7d024a50b1eb98d0",
   "kind": "codex-fabric-audit-evidence",
-  "operation": "IMPLEMENT",
-  "predecessor_audit_sha256": "ca0a491ae39a28df784ff8af4da5f3084ff066efc2522b5463deb463f487e061",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-rollout-controls-01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-rollout-controls-01"
+  },
+  "operation": "BUILD",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.5-dashboard-controls-candidate",
+    "policy_sha256": "123615bf2f6e57dcac197e49ca98ceac59ada86a55e2c84445ea5d00812c0833",
+    "registry_sha256": "af81b8552f9d6a33847310e3c6bcd2d48401782b963a58efd2993e93570cb4aa"
+  },
   "project_id": "k-slide",
-  "qualification_status": "NOT_QUALIFIED",
-  "release_or_production_claim": false,
-  "request": "chg16-ksa34-rollout-controls-01",
-  "rollout_evidence": {
-    "durable_admission_and_transition_evidence_source_free": true,
-    "durable_source_document_content": false,
-    "employee_pilot_or_canary_run": "NOT_RUN",
-    "live_cohort_or_rollout_state": "NOT_CREATED",
-    "reference_file_adapter": "TEST_AND_LOCAL_QUALIFICATION_ONLY",
-    "rollout_controls_change_release_or_certification_state": false,
-    "scenario_coverage": [
-      "named cohort inclusion and exclusion",
-      "explicit staged expansion and contraction",
-      "immediate disable and re-enable",
-      "authorized rollback and restoration",
-      "restart and reload",
-      "stale and malformed policy",
-      "unauthorized policy/state/history mutation",
-      "exact candidate mismatch and policy drift",
-      "replay and monotonic history",
-      "rollback target mismatch",
-      "in-flight run identity preservation",
-      "shared CLI and OpenCode host boundary"
-    ],
-    "versioned_inflight_rule": "BOUND_RUNS_COMPLETE_OR_STOP_ON_IDENTITY_MISMATCH_V1"
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
   },
+  "request": "chg16-rollout-controls-01",
   "schema_version": 1,
-  "scope": {
-    "excluded": [
-      "KSA-35 and later",
-      "Live company PaaS or feature-flag mutation",
-      "Real employee pilot or canary",
-      "Moving or merging main",
-      "Release, BUILD COMPLETE, champion promotion, or production certification"
-    ],
-    "implemented": [
-      "KSA-34 repository-owned candidate-bound rollout admission controls only"
-    ],
-    "preserved": [
-      "Accepted KSA-01 through KSA-33 behavior",
-      "Existing evidence-derived release/certification machinery",
-      "KSA-31 champion/change-impact, KSA-32 governance, and KSA-33 candidate/security authority"
-    ]
+  "started_at": "2026-09-25T17:34:56Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 3279,
+    "queue_seconds": 0,
+    "total_seconds": 3279
   },
-  "status": "EXECUTED_CHANGE"
+  "transport": {
+    "bytes": 3103,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 2790,
+    "prompt_sha256": "465807fee2ebcd343bb9224801ac3f34472c1646d0ffb076d2db0bf743c8c336",
+    "sha256": "972811ab7d024a50b1eb98d06a90bf1bc5cce1e53cf0f58438da0cd5e25f01a3"
+  }
 }
