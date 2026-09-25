@@ -1562,7 +1562,7 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
             "protocol", "protocol_identity", "analysis_plan", "analysis_plan_identity",
             "truth_authority", "participants", "outcome_records", "derived_results",
         ),
-        "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings", "audited_dependency_set_sha256", "resolved_dependency_set_sha256", "resolved_dependency_lock_sha256", "production_sbom_sha256", "candidate_constraints_sha256", "pip_audit_version", "semgrep_version", "semgrep_ruleset_identity", "semgrep_ruleset_sha256"),
+        "security": ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "container_scan_pass", "security_release", "unresolved_high_findings", "unresolved_critical_findings", "secret_findings", "audited_dependency_set_sha256", "resolved_dependency_set_sha256", "resolved_dependency_lock_sha256", "production_sbom_sha256", "candidate_constraints_sha256", "pip_audit_version", "semgrep_version", "semgrep_ruleset_identity", "semgrep_ruleset_sha256"),
         "reliability": ("timeout_recovery_pass", "resume_pass", "fifty_slide_pass", "concurrency_pass", "slo_pass", "concurrent_runs"),
         "model_data_policy": ("attestation_id", "approved_for_internal_artifacts"),
         "pilot_canary": ("attestation_id", "users", "artifacts", "critical_confirmed_errors", "cross_user_exposure", "security_incidents", "silent_incomplete_output"),
@@ -1696,8 +1696,13 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
         except ZeroKoreanStudyError as exc:
             raise EvidenceValidationError(f"zero-Korean study contract is invalid ({type(exc).__name__})") from exc
     elif evidence_type == "security":
-        if not all(_is_true(payload[key]) for key in ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass")) or any(payload[key] != 0 for key in ("unresolved_high_findings", "unresolved_critical_findings", "secret_findings")):
+        security_release = payload.get("security_release")
+        if not isinstance(security_release, dict) or security_release.get("contract_version") != "1.0":
+            raise EvidenceValidationError("security evidence has no supported KSA-33 release contract")
+        if not all(_is_true(payload[key]) for key in ("dependency_audit_pass", "secret_scan_pass", "static_scan_pass", "container_scan_pass")) or any(payload[key] != 0 for key in ("unresolved_high_findings", "unresolved_critical_findings", "secret_findings")):
             raise EvidenceValidationError("security evidence has failed or unresolved findings")
+        if security_release.get("unresolved_vulnerability_count") != 0 or security_release.get("repository_security_pass") is not True:
+            raise EvidenceValidationError("security evidence has unresolved or unqualified repository findings")
     elif evidence_type == "reliability":
         if not all(_is_true(payload[key]) for key in ("timeout_recovery_pass", "resume_pass", "fifty_slide_pass", "concurrency_pass", "slo_pass")) or not _positive_int(payload["concurrent_runs"], 5):
             raise EvidenceValidationError("reliability evidence fails recovery, load, or SLO gates")
