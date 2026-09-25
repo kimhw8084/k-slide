@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import uuid
 from datetime import datetime, timezone
@@ -26,6 +27,15 @@ from .queue import create_queue, save_queue
 from .policy import COMPLETION_POLICY
 from .runtime import discover_runtime
 from .redaction import safe_diagnostic_text_or_placeholder, sanitize_operational
+from .rollout import (
+    RolloutAdmission,
+    RolloutAdmissionProvider,
+    RolloutCandidateBinding,
+    RolloutControlError,
+    deployment_rollout_control,
+    managed_candidate_environment,
+    validate_rollout_admission,
+)
 from .security import InputArtifact, SUPPORTED_EXTENSIONS, sha256_file, validate_input
 from .session import bind_session
 from .storage import StorageArtifact, StorageLayout, StoragePlane, storage_path
@@ -143,6 +153,7 @@ def prepare_run(
     environment_identity: RunEnvironmentIdentity | None = None,
     inference_data_use_policy: InferenceDataUsePolicy | dict[str, Any] | None = None,
     classification_policy: InferenceDataUsePolicy | dict[str, Any] | None = None,
+    rollout_control: RolloutAdmissionProvider | None = None,
 ) -> Path:
     """Create an immutable run, returning its directory even for failed input.
 
@@ -184,6 +195,51 @@ def prepare_run(
         )
     )
     _write_recovery(run_dir, run_id)
+
+    # Rollout admission is resolved only through deployment process context,
+    # before paths, filenames, classifications, or source bytes are inspected.
+    # Both the OpenCode tool and the standalone CLI use this shared engine
+    # seam; neither host surface accepts rollout or cohort arguments.
+    rollout_requested = rollout_control is not None or managed_candidate_environment(bound_environment) or bool(os.environ.get("KSLIDE_ROLLOUT_CONTROL_FACTORY"))
+    if rollout_requested:
+        candidate_binding = RolloutCandidateBinding.from_environment(bound_environment)
+        receipt: RolloutAdmission | None = None
+        failure_reason = "CONTROL_INVALID"
+        try:
+            control = rollout_control if rollout_control is not None else deployment_rollout_control()
+            if control is None:
+                failure_reason = "AUTHORITY_UNAVAILABLE"
+                raise RolloutControlError("rollout authority is unavailable")
+            receipt = validate_rollout_admission(control.admit(candidate_binding), candidate_binding)
+        except Exception:
+            receipt = RolloutAdmission("REJECTED", failure_reason, candidate_binding)
+
+        if receipt is None:
+            receipt = RolloutAdmission("REJECTED", failure_reason, candidate_binding)
+        atomic_write_json(
+            storage_path(run_dir, StorageArtifact.ADMISSION_RECORD, "admission/ROLLOUT_ADMISSION.json", create_parent=True),
+            receipt.as_dict(),
+            mode=0o600,
+        )
+        if receipt.status != "ADMITTED":
+            state.transition(
+                RunPhase.FAILED_INPUT,
+                next_action="Ask the deployment administrator to restore authorized rollout admission, then start a fresh run.",
+                error_code=ErrorCode.EXECUTION_AUTHORIZATION_REQUIRED.value,
+                error_message="Deployment rollout admission was denied or unavailable.",
+            )
+            save_state(run_dir, state)
+            sync_workspace_execution(run_dir, environment_identity=bound_environment)
+            atomic_write_json(
+                storage_path(run_dir, StorageArtifact.INPUT_INVENTORY, "00_input_inventory.json", create_parent=True),
+                {"schema_version": SCHEMA_VERSION, "status": "rollout_admission_failed", "rollout_admission": receipt.as_dict()},
+                mode=0o600,
+            )
+            atomic_write_text(
+                storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True),
+                "# FAILED\n\nDeployment rollout admission was denied or unavailable. No source files were read or copied.\n\nError code: `KSLIDE_EXECUTION_AUTHORIZATION_REQUIRED`\n",
+            )
+            return run_dir
 
     try:
         raw_host_refs = tuple(

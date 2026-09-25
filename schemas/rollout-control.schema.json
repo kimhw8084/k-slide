@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://k-slide.invalid/schemas/rollout-control.schema.json",
+  "title": "K-Slide KSA-34 rollout control contract",
+  "oneOf": [
+    { "$ref": "#/$defs/policyEnvelope" },
+    { "$ref": "#/$defs/stateEnvelope" },
+    { "$ref": "#/$defs/headEnvelope" },
+    { "$ref": "#/$defs/admission" }
+  ],
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_git_sha", "deployment_fingerprint", "run_environment_identity_sha256"],
+      "properties": {
+        "subject_git_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "deployment_fingerprint": { "$ref": "#/$defs/digest" },
+        "run_environment_identity_sha256": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "signature": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "stageCohorts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["NAMED_COHORT", "PILOT", "CANARY", "PHASED", "FULL"],
+      "properties": {
+        "NAMED_COHORT": { "$ref": "#/$defs/namedCohorts" },
+        "PILOT": { "$ref": "#/$defs/namedCohorts" },
+        "CANARY": { "$ref": "#/$defs/namedCohorts" },
+        "PHASED": { "$ref": "#/$defs/namedCohorts" },
+        "FULL": { "$ref": "#/$defs/namedCohorts" }
+      }
+    },
+    "namedCohorts": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,63}$" }
+    },
+    "signedObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["payload", "signature"],
+      "properties": {
+        "payload": { "type": "object" },
+        "signature": { "$ref": "#/$defs/signature" }
+      }
+    },
+    "policyEnvelope": {
+      "allOf": [
+        { "$ref": "#/$defs/signedObject" },
+        {
+          "type": "object",
+          "properties": {
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["schema_version", "policy_id", "policy_version", "policy_revision", "issued_at", "expires_at", "candidate_binding", "rollback_target_binding", "stage_cohorts", "rollback_rule"],
+              "properties": {
+                "schema_version": { "const": "1.0" },
+                "policy_id": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,63}$" },
+                "policy_version": { "const": "1.0" },
+                "policy_revision": { "type": "integer", "minimum": 1 },
+                "issued_at": { "type": "string", "format": "date-time" },
+                "expires_at": { "type": "string", "format": "date-time" },
+                "candidate_binding": { "$ref": "#/$defs/candidate" },
+                "rollback_target_binding": { "oneOf": [{ "$ref": "#/$defs/candidate" }, { "type": "null" }] },
+                "stage_cohorts": { "$ref": "#/$defs/stageCohorts" },
+                "rollback_rule": { "const": "BOUND_RUNS_COMPLETE_OR_STOP_ON_IDENTITY_MISMATCH_V1" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "stateEnvelope": {
+      "allOf": [
+        { "$ref": "#/$defs/signedObject" },
+        {
+          "type": "object",
+          "properties": {
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["schema_version", "policy_identity", "revision", "previous_state_identity", "candidate_binding", "actor_ref", "transitioned_at", "stage", "admissions_enabled", "admitted_cohorts", "rollback_rule", "transition_id", "transition_action"],
+              "properties": {
+                "schema_version": { "const": "1.0" },
+                "policy_identity": { "$ref": "#/$defs/digest" },
+                "revision": { "type": "integer", "minimum": 1 },
+                "previous_state_identity": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+                "candidate_binding": { "$ref": "#/$defs/candidate" },
+                "actor_ref": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,63}$" },
+                "transitioned_at": { "type": "string", "format": "date-time" },
+                "stage": { "enum": ["DISABLED", "NAMED_COHORT", "PILOT", "CANARY", "PHASED", "FULL"] },
+                "admissions_enabled": { "type": "boolean" },
+                "admitted_cohorts": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,63}$" } },
+                "rollback_rule": { "const": "BOUND_RUNS_COMPLETE_OR_STOP_ON_IDENTITY_MISMATCH_V1" },
+                "transition_id": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,63}$" },
+                "transition_action": { "enum": ["INITIALIZE", "SET_STAGE", "DISABLE", "ROLLBACK", "RESTORE_CANDIDATE"] }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "headEnvelope": {
+      "allOf": [
+        { "$ref": "#/$defs/signedObject" },
+        {
+          "type": "object",
+          "properties": {
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["schema_version", "revision", "state_identity"],
+              "properties": {
+                "schema_version": { "const": "1.0" },
+                "revision": { "type": "integer", "minimum": 1 },
+                "state_identity": { "$ref": "#/$defs/digest" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "admission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "status", "reason_code", "candidate_binding", "policy_identity", "policy_version", "state_revision", "stage", "cohort_id", "rollback_rule"],
+      "properties": {
+        "schema_version": { "const": "1.0" },
+        "status": { "enum": ["ADMITTED", "DENIED", "REJECTED"] },
+        "reason_code": { "enum": ["COHORT_ADMITTED", "COHORT_NOT_ADMITTED", "ADMISSIONS_DISABLED", "CONTROL_INVALID", "AUTHORITY_UNAVAILABLE"] },
+        "candidate_binding": { "$ref": "#/$defs/candidate" },
+        "policy_identity": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+        "policy_version": { "oneOf": [{ "const": "1.0" }, { "type": "null" }] },
+        "state_revision": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }] },
+        "stage": { "oneOf": [{ "enum": ["DISABLED", "NAMED_COHORT", "PILOT", "CANARY", "PHASED", "FULL"] }, { "type": "null" }] },
+        "cohort_id": { "oneOf": [{ "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,63}$" }, { "type": "null" }] },
+        "rollback_rule": { "const": "BOUND_RUNS_COMPLETE_OR_STOP_ON_IDENTITY_MISMATCH_V1" }
+      }
+    }
+  }
+}

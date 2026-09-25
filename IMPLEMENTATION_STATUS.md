@@ -693,7 +693,7 @@ Credentialless capture stopped with GOVERNANCE_READ_CREDENTIAL_MISSING before an
 
 ## Next phase
 
-KSA-33 is implemented as a candidate-bound repository security evidence contract below. KSA-34 and later work requires a separate scoped request. Authoritative target-Gemma evaluation and the remaining external production-candidate prerequisites are still unproven; no live promotion, release, or production certification was performed here.
+KSA-33 is implemented as a candidate-bound repository security evidence contract below. KSA-35 and later work requires a separate scoped request. Authoritative target-Gemma evaluation and the remaining external production-candidate prerequisites are still unproven; no live promotion, release, or production certification was performed here.
 
 ## CHG-16 / KSA-33 candidate-bound security release evidence — NOT QUALIFIED
 
@@ -728,6 +728,51 @@ KSA-15/17/18/21/32 control runner passed all five suites (100 tests); broad
 schemas validated, and workflow YAML plus all 13 shell steps parsed and passed
 `bash -n`. These are repository/test results, not actual candidate scanner or
 company-environment qualification.
+
+## CHG-16 / KSA-34 candidate-bound rollout controls — NOT QUALIFIED
+
+This scoped candidate starts from the exact supplied base commit
+`0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a` and tree
+`317ca774598820ccd6c8d0bcb82c9cc1dbfc1670` on branch
+`codex/k-slide-chg16-rollout-controls-01`. KSA-34 is the only new work item;
+KSA-01 through KSA-33 behavior and evidence-derived release/certification
+machinery remain in place. KSA-35 and later remain out of scope.
+
+KSA-34 adds a source-free, versioned rollout policy/state contract at the
+shared engine admission boundary used by the CLI and OpenCode `/k-slide` host.
+Signed state binds the exact source revision, deployment fingerprint, full
+run-environment identity, policy identity, and monotonic state revision.
+Deployment-resolved named cohorts enter through explicit
+`NAMED_COHORT` → `PILOT` → `CANARY` → `PHASED` → `FULL` stage changes; signed
+compare-and-swap transitions also support contraction, immediate disable,
+authorized rollback, and restoration. The versioned in-flight rule preserves
+the run's exact candidate/model/config identity or stops at the existing
+identity-safe operation boundary. Local reference persistence is for tests and
+qualification only. A production adapter must use deployment-owned identity,
+durable anti-replay state, and append-only source-free transition history.
+
+Rollout controls gate admissions only. They do not contribute champion,
+governance, security, release, or certification state. No live PaaS/feature
+flag, real employee pilot/canary, promotion, release, `BUILD COMPLETE`, or
+production certification was changed or claimed. Qualification remains
+**NOT QUALIFIED**.
+
+KSA-34 verification performed:
+
+```text
+Focused KSA-34 rollout state-machine/host integration: 17 tests passed on Python 3.11.
+Full unittest discovery: 687 passed, 4 optional skips on Python 3.11; 687 passed on Python 3.12.
+Accepted KSA-15/17/18/21/32 control runner: 5 suites, 100 tests passed on each Python version.
+All 7 JSON schemas passed Draft 2020-12 validation on Python 3.11 and 3.12.
+All 6 workflow YAML files parsed; 49 embedded shell steps passed `bash -n`.
+Compileall on Python 3.11 and 3.12: passed.
+git diff --check: passed.
+```
+
+These are repository tests and deterministic local contract checks. Live
+deployment persistence, authenticated company cohort resolution, target-Gemma
+qualification, employee-study results, and production authority remain external
+qualification gates.
 
 ## Architecture decisions
 
@@ -769,3 +814,4 @@ company-environment qualification.
 - [ADR 0037 — Result-derived machine evidence](docs/adr/0037-result-derived-machine-evidence.md)
 - [ADR 0038 — Versioned durable execution contract](docs/adr/0038-versioned-durable-execution-contract.md)
 - [ADR 0044 — Classification admission for the configured inference route](docs/adr/0044-classification-admission.md)
+- [ADR 0045 — Candidate-bound rollout controls](docs/adr/0045-candidate-bound-rollout-controls.md)

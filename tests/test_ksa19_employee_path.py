@@ -21,6 +21,7 @@ from k_slide.queue import WorkUnitStatus, load_queue, save_queue
 from k_slide.state import RunPhase, load_state, save_state
 from k_slide.verify import verify_run
 from tests.reference_fixtures import reference_environment
+from tests.rollout_fixtures import TestOnlyRolloutAdmission
 
 
 def _write(path: Path, value: dict) -> None:
@@ -68,7 +69,7 @@ class EmployeeGovernedTermbasePathTests(unittest.TestCase):
         environment = replace(reference_environment(), ocr_provider="approved-ocr", termbase_identity=identity["hash"], termbase_version=identity["version"])
         source = root / "slide.png"
         source.write_bytes(b"\x89PNG\r\n\x1a\nfixture")
-        run = prepare_run(root, explicit_paths=[str(source)], environment_identity=environment)
+        run = prepare_run(root, explicit_paths=[str(source)], environment_identity=environment, rollout_control=TestOnlyRolloutAdmission())
         queue = load_queue(run)
         unit = queue.work_units[0]
         region_id = f"{unit.work_unit_id}-r001"

@@ -1,117 +1,134 @@
 {
   "artifact_bridge": {
     "published": false,
-    "reason": "No Project OS Artifact Bridge tool is exposed in this session; no real scanner reports or logs were generated locally. This deterministic audit artifact remains in the Fabric workspace.",
+    "reason": "No Project OS Artifact Bridge tool is exposed in this session; deterministic FIX01 evidence is committed locally for independent audit.",
     "requested_bridge": "Project OS Artifact Bridge",
     "tool_available_in_active_session": false
   },
   "artifact_path": ".codex-fabric/audit.json",
+  "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
+  "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
   "candidate": {
-    "base_commit_sha": "82acfb2c2526232ff3384906292480f91b52a526",
-    "base_tree_oid": "a83ac105bfc4b972b36091f73aec9884c84d65c6",
-    "branch": "codex/k-slide-chg16-security-release-evidence-01",
+    "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
+    "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
+    "branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
     "candidate_changes_committed": true,
-    "candidate_commit_sha": "765404032cf3ff2e66728fc3e5514216643fde1d",
-    "candidate_identity_sha256": "0d95340df07aafbc6e834a80d756bdedbec211c1bcab3ebb9c4f7e3b808e4800",
+    "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
     "candidate_source_content_manifest": [
       {
-        "path": ".github/workflows/k-slide-security.yml",
-        "sha256": "034ce6d036356a80524aea0c0c120fa635028df2a74e46c58f585f9dae651877"
-      },
-      {
         "path": "IMPLEMENTATION_STATUS.md",
-        "sha256": "b139c167498980f3962e0b94f699427f15f5ca760d9c04a09a169c983fedb02c"
+        "sha256": "e7f4a02f65a17fa61189a82a211b87e888ef4f16309868c99a4cf52c69d9f41a"
       },
       {
-        "path": "docs/ksa33-security-release-evidence.md",
-        "sha256": "381e71ba25561b4d6e68ab1354ef3209ea10eb3ea6b67bf0bc6499dc83a2c902"
+        "path": "README.md",
+        "sha256": "325faadde2da37ec9d2df7707e4d5d90b1c03e4cd2258c5f00b31cee05bbe748"
       },
       {
-        "path": "evals/build_security_release_context.py",
-        "sha256": "2b21c00f56c3f7dc182203fb955df07509c9f16a9abcb595f5d241e0508edc5a"
+        "path": "deploy/README.md",
+        "sha256": "9d7d795580a75b745ebbdd38014d1096e01f64a3edc20df76105277434343c3a"
       },
       {
-        "path": "evals/enforce_security.py",
-        "sha256": "13444c86707f337af7e06b4dfaa89764d18d019ad3ff6ee2e92a503e79b6d746"
+        "path": "docs/adr/0045-candidate-bound-rollout-controls.md",
+        "sha256": "1fb275ece0ef96c05aca16277cc09daee22d21e69b96f1e56319edc2c1702d5f"
       },
       {
-        "path": "evals/security_controls.py",
-        "sha256": "fab766af4fbf741106346d12520f3c0c64e60328ece8418fe8a4269dbe88b6b7"
+        "path": "docs/ksa34-rollout-controls.md",
+        "sha256": "80fc0e40784b5543f0ef03b705ed42f25a97178cc65483032081a0d762e0dd43"
       },
       {
-        "path": "evals/security_reports.py",
-        "sha256": "bb93694c45578f7a9084ee596d4c336e485ce5aebf02ca34743d771c272948c2"
+        "path": "schemas/rollout-control.schema.json",
+        "sha256": "26b9114fc256f64b3a7c88c1d0af00739ee5e38df14369f30171a05824ac258e"
       },
       {
-        "path": "schemas/security-release-evidence.schema.json",
-        "sha256": "02c9fa086fdc363ae567394990f9e389fd91f07a20e9e3d60a537389d00850d8"
+        "path": "src/k_slide/ingest.py",
+        "sha256": "5e91ffe1ecdab5802fed52e37d45a3f952ff5dc1e5bb841ee4864fb2ee033e60"
       },
       {
-        "path": "schemas/vulnerability-dispositions.schema.json",
-        "sha256": "8580fe6225a9a935d809064fe13f098f1ebf9fe6747a931ced1f19fe6ca9aa5d"
+        "path": "src/k_slide/rollout.py",
+        "sha256": "a33a603652764b56dd1b5df667f6317eddac492e4b7e183d5be75b41da09dec5"
       },
       {
-        "path": "security/release-security-policy.json",
-        "sha256": "c9569b93c65b8e1c8ab72232c737dcf36fa4f7599990bdea3f46bb663f7dfb60"
+        "path": "tests/rollout_fixtures.py",
+        "sha256": "06f86cbd5b44154cc796586c7abd7e16fa1457d543d0d05481aeece4e8bb9bd2"
       },
       {
-        "path": "security/vulnerability-dispositions.json",
-        "sha256": "77654e90944995aff6e4bfd777baa8010d84a50719e283d0d8fd917705212d93"
+        "path": "tests/test_chg16_environment_binding.py",
+        "sha256": "68c4011c5be52749f63d32c84aebdc298d2d07ec7d41e116f3d7b6cf599252cf"
       },
       {
-        "path": "src/k_slide/certification.py",
-        "sha256": "d0c59aa23c402428079278da852998369f9cfa9f5fde9a51d759aed07e4ba079"
+        "path": "tests/test_ksa19_employee_path.py",
+        "sha256": "b5339256211fc0e0e6d3f01839f5a1a3f68d350e8f12e582d252f44ba054dbae"
       },
       {
-        "path": "src/k_slide/evidence_adapters.py",
-        "sha256": "d9cde1da558719557a93e6bf25ec5827fdad1fcd05ce721dbabb73036fdd8d03"
-      },
-      {
-        "path": "src/k_slide/security_release.py",
-        "sha256": "dfb2cbf19bc78f44bbc9d16bf807abb4d1c2d6770816a1c850e661b3d83e95e2"
-      },
-      {
-        "path": "tests/test_certification_closure.py",
-        "sha256": "fff5d806f19f9d9f79686ce7fff889de7a68d18f590f42f5190e7eca4fa1b93d"
-      },
-      {
-        "path": "tests/test_ksa33_security_release.py",
-        "sha256": "82246e2214c03cabd852034e26586ad1f5bd99942e76a7a8b7c153e6f18c7346"
+        "path": "tests/test_ksa34_rollout.py",
+        "sha256": "50f4fcaef3e5eff4955fecab0b0df664c61a8dfd5799b3bbc730ab2a21bc9cc1"
       }
     ],
-    "candidate_source_content_manifest_sha256": "9af598e905381ddc992c9ff58e90b7f66d159cbaf58750e9b07af0ac361729a4",
-    "candidate_tree_oid": "de0324e20dc098ab78ab4812a0ce92e412832cca",
-    "candidate_tree_sha256": "72d9e1d18438540f9811385ca567fee65d7c18956287f4b537353ca00002c71e",
-    "working_tree_clean_before_audit_write": true
+    "candidate_source_content_manifest_sha256": "9da57ab7186bbf84ba3fbff1dfb40f35318d2807bd243f16852ff14b58089594",
+    "candidate_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
+    "working_tree_clean_before_audit_write": true,
+    "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
+    "product_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
+    "product_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
+    "candidate_identity": {
+      "project_id": "k-slide",
+      "logical_request": "chg16-rollout-controls-01",
+      "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
+      "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
+      "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
+      "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
+      "candidate_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
+      "product_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
+      "product_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
+      "candidate_source_content_manifest_sha256": "9da57ab7186bbf84ba3fbff1dfb40f35318d2807bd243f16852ff14b58089594"
+    },
+    "candidate_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
+    "candidate_identity_sha256": "223a07c3dde460d4e6423470b75a16e848c65f4a83c00b75976b8362e330915c"
   },
   "checks": [
     {
-      "command": "rtk env PYTHONPATH=src:. python3.11 -m unittest tests.test_ksa33_security_release tests.test_certification_closure -q",
+      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m unittest tests.test_ksa34_rollout -q",
       "exit_code": 0,
-      "name": "KSA-33 and certification closure",
-      "result": "96 tests passed"
+      "name": "Focused KSA-34 rollout state-machine and host integration, Python 3.11",
+      "result": "17 tests passed"
     },
     {
-      "command": "rtk env PYTHONPATH=src:. python3.11 -m unittest discover -s tests -p 'test_*.py' -q",
+      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m unittest tests.test_ksa34_rollout -q",
       "exit_code": 0,
-      "name": "Broad regression/security/runtime suite",
-      "result": "667 tests passed; 4 skipped"
+      "name": "Focused KSA-34 rollout state-machine and host integration, Python 3.12",
+      "result": "17 tests passed"
     },
     {
-      "command": "rtk env PYTHONPATH=src:. python3.11 -m evals.security_controls --root . --output /tmp/k-slide-ksa33-controls-final.json --run-id 501 --run-attempt 1",
+      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m unittest discover -s tests -q",
       "exit_code": 0,
-      "name": "Accepted KSA-15/17/18/21/32 control suites",
-      "result": "5 suites passed; 100 tests run; safe summary only"
+      "name": "Full repository unittest suite, Python 3.11",
+      "result": "687 tests passed; 4 optional skips"
+    },
+    {
+      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m unittest discover -s tests -q",
+      "exit_code": 0,
+      "name": "Full repository unittest suite, Python 3.12",
+      "result": "687 tests passed"
     },
     {
       "exit_code": 0,
-      "name": "Repository JSON schemas",
-      "result": "All 6 schemas passed Draft 2020-12 schema validation"
+      "name": "Repository JSON schemas, Python 3.11 and 3.12",
+      "result": "All 7 schemas passed Draft 2020-12 schema validation on each version"
     },
     {
       "exit_code": 0,
-      "name": "Security workflow syntax",
-      "result": "Workflow YAML parsed; all 13 shell steps passed bash -n"
+      "name": "Workflow YAML and embedded shell syntax",
+      "result": "All 6 workflow YAML files parsed; all 49 embedded shell steps passed bash -n"
+    },
+    {
+      "exit_code": 0,
+      "name": "Compileall, Python 3.11 and 3.12",
+      "result": "Passed on both versions"
+    },
+    {
+      "exit_code": 0,
+      "name": "Candidate, operation, predecessor, manifest, and Fabric evidence identities",
+      "result": "All provenance identities independently rederived from Git objects and canonical JSON"
     },
     {
       "command": "rtk git diff --check",
@@ -121,191 +138,123 @@
     }
   ],
   "company_environment": {
+    "authenticated_cohort_resolution": "UNQUALIFIED",
     "deployed_runtime_identity": "UNQUALIFIED",
-    "iam": "UNQUALIFIED",
     "live_company_approval": "NOT_CLAIMED",
-    "network_egress": "UNQUALIFIED"
+    "live_paas_or_feature_flags": "NOT_MUTATED",
+    "rollout_control_plane_persistence": "UNQUALIFIED"
   },
   "fabric_evidence_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators, excluding fabric_evidence_identity_sha256 itself",
-  "fabric_evidence_identity_sha256": "52003b1e821caefb2703547511d616b0a40d2875cef1ac13d78b6fb0ccb6d75d",
-  "fabric_job_id": "CHG-16-KSA-33-SECURITY-RELEASE-EVIDENCE-01",
+  "fabric_job_id": "CF-972811ab7d024a50b1eb98d0",
   "generated_at": "2026-09-25",
   "issue_id": "CHG-16",
-  "job_id": "CHG-16-KSA-33-SECURITY-RELEASE-EVIDENCE-01",
+  "job_id": "CF-972811ab7d024a50b1eb98d0",
   "kind": "codex-fabric-audit-evidence",
-  "operation": "IMPLEMENT",
-  "portability_repair": {
-    "base_commit_sha": "82acfb2c2526232ff3384906292480f91b52a526",
-    "base_tree_oid": "a83ac105bfc4b972b36091f73aec9884c84d65c6",
-    "candidate_branch": "codex/k-slide-chg16-security-release-evidence-01-fix01",
-    "candidate_commit_sha": "05ff1f405381cc0a1707890067dc3ac9ae696525",
-    "candidate_parent_sha": "1078eb166cca75d560e3fbc666ce8f43844927b8",
-    "candidate_tree_oid": "69b928d2e5f6b105f21470e12ea4485777b97b86",
-    "candidate_tree_sha256": "b4a3db2b55ddc5f93806a840565a5a47630bdb577a0a9cf6743ba96333c6cd08",
-    "candidate_worktree_clean_before_audit_write": true,
-    "dependency_change": {
-      "constraint": ">=4.18,<5",
-      "dependency_group": "dev",
-      "distribution": "jsonschema",
-      "production_runtime_dependency": false
-    },
-    "live_company_approval_or_release_claimed": false,
-    "predecessor_candidate_code_sha": "765404032cf3ff2e66728fc3e5514216643fde1d",
-    "predecessor_candidate_sha": "1078eb166cca75d560e3fbc666ce8f43844927b8",
-    "predecessor_candidate_tree_oid": "42ad0c04245fa593fde115fd096ac2c953bc9a9f",
-    "preserved_security_semantics": [
-      "Candidate, Git tree, runtime image, dependency lock, SBOM, and egress bindings remain unchanged.",
-      "pip-audit, Gitleaks, Semgrep, and Trivy failure boundaries and source-free scanner projections remain unchanged.",
-      "AccessKey non-leakage, tenant isolation, KSA-15/17/18/21/32 control reuse, and one-to-one vulnerability disposition checks remain unchanged.",
-      "Company IAM, network egress, and deployed runtime remain UNQUALIFIED."
-    ],
-    "python_environments": [
-      {
-        "jsonschema": "4.26.0",
-        "version": "3.11.7"
-      },
-      {
-        "jsonschema": "4.26.0",
-        "version": "3.12.9"
-      }
-    ],
-    "real_scanner_execution": "NOT_RUN_LOCALLY; unit fixtures are not scanner reports",
-    "repair_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators, excluding repair_identity_sha256 itself",
-    "repair_identity_sha256": "b688b461ed18493c8bf415a2f6b6aa5cf43b6f7b1d70720278d0168d30dda94c",
-    "repair_source_content_manifest": [
-      {
-        "path": "pyproject.toml",
-        "sha256": "326b499d33cd5c26c97666b46e129f3338256ca9bd496603b84d8780522013ec"
-      },
-      {
-        "path": "tests/test_certification_closure.py",
-        "sha256": "63f449e35ebc845d42d5970fa2f37284abb2805a0eba0bc30ec4cae229f90cbe"
-      },
-      {
-        "path": "tests/test_ksa33_security_release.py",
-        "sha256": "5080c19169eacbf75cffd3c9afe4d69267683c5931592427a908854c643ea17e"
-      }
-    ],
-    "repair_source_content_manifest_sha256": "68edf2311696f57dc976590475f87430751d06f330dd542e618b01f5f7d9ef7e",
-    "runtime_identity_regression": {
-      "fixture_production_python": "3.11.13",
-      "fixture_security_runner_python": "3.11.13",
-      "non_311_production_runtime_rejected": "3.12.9",
-      "production_qualification_rule_changed": false
-    },
-    "scope": "CI and test-environment portability only",
-    "status": "EXECUTED_CHANGE",
-    "validation": [
-      {
-        "name": "Focused KSA-33 and certification closure on Python 3.11",
-        "status": "PASS",
-        "tests": 99
-      },
-      {
-        "name": "Focused KSA-33 and certification closure on Python 3.12",
-        "status": "PASS",
-        "tests": 99
-      },
-      {
-        "name": "Full repository unittest suite on Python 3.11",
-        "status": "PASS",
-        "tests": 670
-      },
-      {
-        "name": "Full repository unittest suite on Python 3.12",
-        "status": "PASS",
-        "tests": 670
-      },
-      {
-        "name": "Phase 3.2/3.5 focused suites on Python 3.11",
-        "status": "PASS",
-        "tests": 38
-      },
-      {
-        "name": "Phase 3.2/3.5 focused suites on Python 3.12",
-        "status": "PASS",
-        "tests": 38
-      },
-      {
-        "control_suites": 5,
-        "name": "KSA-15/17/18/21/32 security controls on Python 3.11",
-        "status": "PASS",
-        "tests": 100
-      },
-      {
-        "control_suites": 5,
-        "name": "KSA-15/17/18/21/32 security controls on Python 3.12",
-        "status": "PASS",
-        "tests": 100
-      },
-      {
-        "name": "Repository JSON schemas on Python 3.11",
-        "schemas": 6,
-        "status": "PASS"
-      },
-      {
-        "name": "Repository JSON schemas on Python 3.12",
-        "schemas": 6,
-        "status": "PASS"
-      },
-      {
-        "name": "Workflow YAML and embedded bash syntax",
-        "status": "PASS",
-        "workflows": 6
-      },
-      {
-        "name": "compileall on Python 3.11 and Python 3.12",
-        "status": "PASS"
-      },
-      {
-        "name": "git diff --check",
-        "status": "PASS"
-      }
-    ],
-    "work_item": "KSA-33 F33-01"
-  },
-  "predecessor_audit_sha256": "2178f23a33139b2dc3d3c113bee6546171bc714a710dbe7a9211a63aa9da4783",
+  "operation": "BUILD",
+  "predecessor_audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
   "project_id": "k-slide",
   "qualification_status": "NOT_QUALIFIED",
   "release_or_production_claim": false,
-  "request": "chg16-security-release-evidence-01",
+  "request": "chg16-rollout-controls-01",
+  "rollout_evidence": {
+    "durable_admission_and_transition_evidence_source_free": true,
+    "durable_source_document_content": false,
+    "employee_pilot_or_canary_run": "NOT_RUN",
+    "live_cohort_or_rollout_state": "NOT_CREATED",
+    "reference_file_adapter": "TEST_AND_LOCAL_QUALIFICATION_ONLY",
+    "rollout_controls_change_release_or_certification_state": false,
+    "scenario_coverage": [
+      "named cohort inclusion and exclusion",
+      "explicit staged expansion and contraction",
+      "immediate disable and re-enable",
+      "authorized rollback and restoration",
+      "restart and reload",
+      "stale and malformed policy",
+      "unauthorized policy/state/history mutation",
+      "exact candidate mismatch and policy drift",
+      "replay and monotonic history",
+      "rollback target mismatch",
+      "in-flight run identity preservation",
+      "shared CLI and OpenCode host boundary"
+    ],
+    "versioned_inflight_rule": "BOUND_RUNS_COMPLETE_OR_STOP_ON_IDENTITY_MISMATCH_V1"
+  },
   "schema_version": 1,
   "scope": {
     "excluded": [
-      "KSA-34 and later",
-      "Live GitHub/company security, network, or IAM settings",
+      "KSA-35 and later",
+      "Live company PaaS or feature-flag mutation",
+      "Real employee pilot or canary",
       "Moving or merging main",
-      "Live company approval or qualification",
-      "Target-Gemma certification",
-      "Release, pilot/canary, BUILD COMPLETE, or production certification"
+      "Release, BUILD COMPLETE, champion promotion, or production certification"
     ],
     "implemented": [
-      "KSA-33 candidate-bound security release evidence contract only",
-      "KSA-33 F33-01 CI/test-environment portability repair"
+      "KSA-34 repository-owned candidate-bound rollout admission controls only"
     ],
     "preserved": [
-      "Accepted KSA-01 through KSA-32 behavior",
-      "Existing release-state separation",
-      "KSA-15, KSA-17, KSA-18, KSA-21, and KSA-32 control mechanisms"
+      "Accepted KSA-01 through KSA-33 behavior",
+      "Existing evidence-derived release/certification machinery",
+      "KSA-31 champion/change-impact, KSA-32 governance, and KSA-33 candidate/security authority"
     ]
   },
-  "security_evidence": {
-    "adversarial_controls": "KSA-15/17/18/21/32 reused; KSA-33 replay, stale, missing, malformed, mismatch, leakage, and disposition bypass tests present",
-    "candidate_scanner_evidence": "NOT_GENERATED_LOCALLY",
-    "dependency_scanning_contract": "REQUIRED_FAIL_CLOSED",
-    "durable_accesskey_values": false,
-    "durable_raw_scanner_payloads": false,
-    "durable_source_document_content": false,
-    "image_scanning_contract": "REQUIRED_FAIL_CLOSED",
-    "local_container_runtime_execution": "NOT_RUN_DOCKER_DAEMON_UNAVAILABLE",
-    "repository_contract": "IMPLEMENTED",
-    "runtime_source_binding": "RUNTIME_MANIFEST_SOURCE_HASH_MATCHED_TO_EXACT_CANDIDATE_GIT_ARCHIVE",
-    "secret_scanning_contract": "REQUIRED_FAIL_CLOSED",
-    "source_tree_binding": "SHA256_DOMAIN_SEPARATED_FROM_EXACT_GIT_TREE_OID",
-    "static_security_analysis_contract": "REQUIRED_FAIL_CLOSED",
-    "synthetic_scanner_fixtures_are_scanner_results": false,
-    "vulnerability_disposition": "EXPLICIT_CANDIDATE_BOUND_ONE_TO_ONE_POLICY_CHECKED"
-  },
   "status": "EXECUTED_CHANGE",
-  "supersedes_audit_sha256": "94497251c64a3cdb459096570d6e6de45a6f8f5308f96f468983ebd739541923"
+  "fix_request": "chg16-rollout-controls-01-fix01",
+  "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
+  "upstream_predecessor_audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
+  "predecessor_work_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
+  "predecessor_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5",
+  "predecessor_evidence": {
+    "commit_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
+    "audit_path": ".codex-fabric/audit.json",
+    "audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
+    "fabric_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5",
+    "identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators, excluding fabric_evidence_identity_sha256 itself"
+  },
+  "historical_build_evidence": {
+    "project_id": "k-slide",
+    "request": "chg16-rollout-controls-01",
+    "operation": "BUILD",
+    "job_id": "CF-972811ab7d024a50b1eb98d0",
+    "evidence_commit_sha": "4f98ec924309337db2de985d7e913a9c28f8cf1f",
+    "evidence_audit_sha256": "8829b9fa93cd58afd236c20ccc97d4d4bbef6f588b43d73c92f5b0abd2f8ca02",
+    "original_work_branch": "codex/k-slide-chg16-rollout-controls-01",
+    "candidate_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
+    "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
+    "candidate_audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
+    "evidence_manifest_candidate_audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
+    "locator_ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-rollout-controls-01"
+  },
+  "operation_identity": {
+    "project_id": "k-slide",
+    "logical_request": "chg16-rollout-controls-01",
+    "operation": "BUILD",
+    "build_job_id": "CF-972811ab7d024a50b1eb98d0",
+    "fix_request": "chg16-rollout-controls-01-fix01",
+    "work_item": "KSA-34 F34-01",
+    "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
+    "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
+    "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
+    "product_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
+    "predecessor_work_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
+    "predecessor_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5"
+  },
+  "operation_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
+  "operation_identity_sha256": "36a262c507dbe7bd33f666d961619877f16e5d9aaff6b3dcde2072200497e411",
+  "fix01": {
+    "request": "chg16-rollout-controls-01-fix01",
+    "work_item": "KSA-34 F34-01",
+    "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
+    "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
+    "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
+    "predecessor_work_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
+    "predecessor_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5",
+    "scope": "Candidate-side audit/evidence provenance correction only.",
+    "changed_paths": [
+      ".codex-fabric/audit.json"
+    ],
+    "rollout_source_tree_changed": false,
+    "live_company_approval_or_release_claimed": false,
+    "status": "EXECUTED_CHANGE"
+  },
+  "fabric_evidence_identity_sha256": "e845136108d88710fa241e2d347eb3e0a089b3151ebd0cd0693ed513047570cb"
 }
