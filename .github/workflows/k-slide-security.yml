@@ -16,6 +16,10 @@ on:
         description: "Authoritative SHA-256 digest of the private bundle archive"
         required: false
         type: string
+      vulnerability_dispositions_json:
+        description: "Optional candidate-bound, policy-reviewed vulnerability disposition document"
+        required: false
+        type: string
   pull_request:
     paths:
       - "**"
@@ -26,7 +30,7 @@ permissions:
 
 jobs:
   security:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: .
@@ -36,11 +40,20 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install pinned security tools
-        run: python -m pip install --disable-pip-version-check pip-audit==2.9.0 semgrep==1.89.0
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pip-audit==2.9.0 semgrep==1.89.0
+          trivy_root="$RUNNER_TEMP/k-slide-security/bin"
+          mkdir -p "$trivy_root"
+          curl --fail --silent --show-error --location https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz -o "$RUNNER_TEMP/trivy.tar.gz"
+          echo '2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a  '"$RUNNER_TEMP/trivy.tar.gz" | sha256sum --check --status
+          tar -xzf "$RUNNER_TEMP/trivy.tar.gz" -C "$trivy_root" trivy
+          "$trivy_root/trivy" --version | head -n 1 | grep -Fx 'Version: 0.74.0'
       - name: Prepare sanitized scanner directory
         run: |
-          mkdir -p "$RUNNER_TEMP/k-slide-security"
+          mkdir -p "$RUNNER_TEMP/k-slide-security/raw" "$RUNNER_TEMP/k-slide-security/evidence" "$RUNNER_TEMP/k-slide-security/source-tree"
           cp --preserve=mode security/semgrep-production.yml "$RUNNER_TEMP/k-slide-security/semgrep-production.yml"
+          git archive "$GITHUB_SHA" | tar -x -C "$RUNNER_TEMP/k-slide-security/source-tree"
       - name: Download and verify authorized private certification bundle
         if: github.event_name == 'workflow_dispatch' && inputs.certification_bundle_run_id != ''
         env:
@@ -119,23 +132,27 @@ jobs:
         run: |
           set +e
           production_site=$($RUNNER_TEMP/k-slide-security/production-env/bin/python -c 'import site; print(site.getsitepackages()[0])')
-          pip-audit --strict --format json --output "$RUNNER_TEMP/k-slide-security/evidence/pip-audit.json" --path "$production_site"
+          pip-audit --strict --format json --output "$RUNNER_TEMP/k-slide-security/raw/pip-audit.json" --path "$production_site" >/dev/null 2>"$RUNNER_TEMP/k-slide-security/raw/pip-audit.log"
           code=$?
-          printf '%s\n' "$code" > "$RUNNER_TEMP/k-slide-security/evidence/pip-audit.exit"
+          printf '%s\n' "$code" > "$RUNNER_TEMP/k-slide-security/raw/pip-audit.exit"
+          date -u +%Y-%m-%dT%H:%M:%SZ > "$RUNNER_TEMP/k-slide-security/raw/pip-audit.finished"
           exit 0
       - name: Secret scan
         run: |
           set +e
-          docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" -v "$RUNNER_TEMP/k-slide-security/evidence:/reports" zricethezav/gitleaks:v8.24.2 detect --source=/repo --no-banner --redact --report-format json --report-path /reports/gitleaks.json
+          docker run --rm zricethezav/gitleaks:v8.24.2 version > "$RUNNER_TEMP/k-slide-security/raw/gitleaks.version" 2>"$RUNNER_TEMP/k-slide-security/raw/gitleaks-version.log"
+          docker run --rm -v "$RUNNER_TEMP/k-slide-security/source-tree:/repo:ro" -v "$RUNNER_TEMP/k-slide-security/raw:/reports" zricethezav/gitleaks:v8.24.2 detect --source=/repo --no-git --no-banner --redact --report-format json --report-path /reports/gitleaks.json >/dev/null 2>"$RUNNER_TEMP/k-slide-security/raw/gitleaks.log"
           code=$?
-          printf '%s\n' "$code" > "$RUNNER_TEMP/k-slide-security/evidence/gitleaks.exit"
+          printf '%s\n' "$code" > "$RUNNER_TEMP/k-slide-security/raw/gitleaks.exit"
+          date -u +%Y-%m-%dT%H:%M:%SZ > "$RUNNER_TEMP/k-slide-security/raw/gitleaks.finished"
           exit 0
       - name: Static security scan
         run: |
           set +e
-          semgrep --config security/semgrep-production.yml --error --json --output "$RUNNER_TEMP/k-slide-security/evidence/semgrep.json" src evals
+          semgrep --config "$RUNNER_TEMP/k-slide-security/semgrep-production.yml" --error --json --output "$RUNNER_TEMP/k-slide-security/raw/semgrep.json" "$RUNNER_TEMP/k-slide-security/source-tree" >/dev/null 2>"$RUNNER_TEMP/k-slide-security/raw/semgrep.log"
           code=$?
-          printf '%s\n' "$code" > "$RUNNER_TEMP/k-slide-security/evidence/semgrep.exit"
+          printf '%s\n' "$code" > "$RUNNER_TEMP/k-slide-security/raw/semgrep.exit"
+          date -u +%Y-%m-%dT%H:%M:%SZ > "$RUNNER_TEMP/k-slide-security/raw/semgrep.finished"
           exit 0
       - name: Assemble scanner exit codes
         if: always()
@@ -146,7 +163,7 @@ jobs:
           import subprocess
           from pathlib import Path
 
-          root = Path(os.environ["RUNNER_TEMP"]) / "k-slide-security" / "evidence"
+          root = Path(os.environ["RUNNER_TEMP"]) / "k-slide-security" / "raw"
           exits = {}
           for name in ("pip-audit", "gitleaks", "semgrep"):
               path = root / f"{name}.exit"
@@ -163,10 +180,11 @@ jobs:
         if: always()
         run: |
           PYTHONPATH=src:. python -m evals.enforce_security \
-            --pip-audit "$RUNNER_TEMP/k-slide-security/evidence/pip-audit.json" \
-            --gitleaks "$RUNNER_TEMP/k-slide-security/evidence/gitleaks.json" \
-            --semgrep "$RUNNER_TEMP/k-slide-security/evidence/semgrep.json" \
-            --scanner-exits "$RUNNER_TEMP/k-slide-security/evidence/scanner-exits.json"
+            --pip-audit "$RUNNER_TEMP/k-slide-security/raw/pip-audit.json" \
+            --gitleaks "$RUNNER_TEMP/k-slide-security/raw/gitleaks.json" \
+            --semgrep "$RUNNER_TEMP/k-slide-security/raw/semgrep.json" \
+            --scanner-exits "$RUNNER_TEMP/k-slide-security/raw/scanner-exits.json" \
+            --allow-disposition-review
       - name: Compute deployment identity
         if: always()
         run: |
@@ -221,7 +239,8 @@ jobs:
               name, separator, version = line.partition("==")
               if separator and name and version:
                   constraint_versions[name.strip()] = version.strip()
-          audit_value = json.loads((evidence_root / "pip-audit.json").read_text(encoding="utf-8"))
+          from evals.security_reports import sanitize_pip_audit
+          audit_value = sanitize_pip_audit(json.loads((Path(os.environ["RUNNER_TEMP"]) / "k-slide-security" / "raw" / "pip-audit.json").read_text(encoding="utf-8")))
           audited_versions = {item.get("name"): item.get("version") for item in audit_value.get("dependencies", []) if isinstance(item, dict)}
           context = {
               "schema_version": "1.0",
@@ -243,7 +262,11 @@ jobs:
           PY
       - name: Derive security evidence and enforce result
         if: always()
+        env:
+          VULNERABILITY_DISPOSITIONS_JSON: ${{ inputs.vulnerability_dispositions_json }}
+          WORKFLOW_ACTOR: ${{ github.actor }}
         run: |
+          set -euo pipefail
           eligible=$(python -c 'import json,os; print(str(json.load(open(os.path.join(os.environ["RUNNER_TEMP"],"k-slide-security","identity.json"))).get("production_evidence_eligible", False)).lower())')
           if [ "$eligible" != "true" ]; then
             python - <<'PY'
@@ -256,26 +279,111 @@ jobs:
           PY
             exit 0
           fi
-          set +e
           subject=$(python -c 'import json,os; print(json.load(open(os.path.join(os.environ["RUNNER_TEMP"],"k-slide-security","identity.json")))["subject_git_sha"])')
           deployment=$(python -c 'import json,os; print(json.load(open(os.path.join(os.environ["RUNNER_TEMP"],"k-slide-security","identity.json")))["deployment_fingerprint"])')
+          runtime_root="$RUNNER_TEMP/k-slide-security/runtime-artifact"
+          raw_root="$RUNNER_TEMP/k-slide-security/raw"
+          evidence_root="$RUNNER_TEMP/k-slide-security/evidence"
+          test -f ocr/manifest.json || { echo 'candidate-bound OCR runtime assets are required for security qualification' >&2; exit 2; }
+          test -f .k-slide-config/egress-policy.json || { echo 'candidate default-deny egress policy is required for security qualification' >&2; exit 2; }
+          PYTHONPATH=src:. python scripts/build_runtime_artifact.py build \
+            --root . \
+            --source-revision "$subject" \
+            --image k-slide-runtime:security \
+            --output "$runtime_root" \
+            --lock .k-slide-config/production-requirements.lock \
+            --inventory .k-slide-config/production-dependency-inventory.json \
+            --ocr-root ocr
+          image_digest=$(python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["image_identity"]["value"])' "$runtime_root/artifact-identity.json")
+          set +e
+          "$RUNNER_TEMP/k-slide-security/bin/trivy" image --image-src docker --scanners vuln --list-all-pkgs --cache-dir "$RUNNER_TEMP/k-slide-security/trivy-cache" --format json --output "$raw_root/trivy.json" "$image_digest" >/dev/null 2>"$raw_root/trivy.log"
+          trivy_code=$?
+          set -e
+          printf '%s\n' "$trivy_code" > "$raw_root/trivy.exit"
+          date -u +%Y-%m-%dT%H:%M:%SZ > "$raw_root/trivy.finished"
+          cp --preserve=mode "$RUNNER_TEMP/k-slide-security/trivy-cache/db/metadata.json" "$raw_root/trivy-db-metadata.json"
+          if [ -n "$VULNERABILITY_DISPOSITIONS_JSON" ]; then
+            test "$WORKFLOW_ACTOR" = "kimhw8084" || { echo 'vulnerability disposition input requires the named policy owner' >&2; exit 2; }
+            VULNERABILITY_DISPOSITIONS_JSON="$VULNERABILITY_DISPOSITIONS_JSON" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          value = json.loads(os.environ["VULNERABILITY_DISPOSITIONS_JSON"])
+          if not isinstance(value, dict):
+              raise SystemExit("vulnerability disposition document must be an object")
+          target = Path(os.environ["RUNNER_TEMP"]) / "k-slide-security" / "vulnerability-dispositions.json"
+          target.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+          PY
+          else
+            cp security/vulnerability-dispositions.json "$RUNNER_TEMP/k-slide-security/vulnerability-dispositions.json"
+          fi
+          cp security/release-security-policy.json "$evidence_root/release-security-policy.json"
+          cp "$RUNNER_TEMP/k-slide-security/vulnerability-dispositions.json" "$evidence_root/vulnerability-dispositions.json"
+          cp .k-slide-config/egress-policy.json "$evidence_root/release-egress-policy.json"
+          PYTHONPATH=src:. python -m evals.security_controls --root . --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" --output "$evidence_root/security-controls.json"
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "k-slide-security"
+          raw = root / "raw"
+          names = ("pip_audit", "gitleaks", "semgrep", "trivy")
+          exits = {name: int((raw / f"{name.replace('_', '-')}.exit").read_text(encoding="utf-8").strip()) for name in names}
+          finished = {name: (raw / f"{name.replace('_', '-')}.finished").read_text(encoding="utf-8").strip() for name in names}
+          versions = {
+              "pip_audit": subprocess.check_output([str(root / "production-env" / "bin" / "pip-audit"), "--version"], text=True).strip(),
+              "gitleaks": (raw / "gitleaks.version").read_text(encoding="utf-8").strip(),
+              "semgrep": subprocess.check_output(["semgrep", "--version"], text=True).strip(),
+              "trivy": subprocess.check_output([str(root / "bin" / "trivy"), "--version"], text=True).splitlines()[0].strip(),
+          }
+          for filename, value in (("scanner-exits-all.json", exits), ("scanner-finished.json", finished), ("scanner-versions.json", versions)):
+              (raw / filename).write_text(json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+          PY
+          PYTHONPATH=src:. python -m evals.security_reports \
+            --raw-root "$raw_root" \
+            --output-root "$evidence_root" \
+            --image-digest "$image_digest"
+          cp --preserve=mode "$raw_root/scanner-exits.json" "$evidence_root/scanner-exits.json"
+          PYTHONPATH=src:. python -m evals.enforce_security \
+            --pip-audit "$evidence_root/pip-audit.json" \
+            --gitleaks "$evidence_root/gitleaks.json" \
+            --semgrep "$evidence_root/semgrep.json" \
+            --scanner-exits "$evidence_root/scanner-exits.json" \
+            --allow-disposition-review
+          PYTHONPATH=src:. python -m evals.build_security_release_context \
+            --root . \
+            --source-tree "$RUNNER_TEMP/k-slide-security/source-tree" \
+            --evidence "$evidence_root" \
+            --runtime "$runtime_root" \
+            --identity "$RUNNER_TEMP/k-slide-security/identity.json" \
+            --egress .k-slide-config/egress-policy.json \
+            --controls "$evidence_root/security-controls.json" \
+            --exits "$raw_root/scanner-exits-all.json" \
+            --finished "$raw_root/scanner-finished.json" \
+            --versions "$raw_root/scanner-versions.json" \
+            --output "$evidence_root/security-release-context.json"
           PYTHONPATH=src:. python -m k_slide.evidence_adapters security \
-            --output "$RUNNER_TEMP/k-slide-security/evidence/security.evidence.json" \
+            --output "$evidence_root/security.evidence.json" \
             --root . \
             --candidate-profile "$RUNNER_TEMP/k-slide-security/candidate.json" \
             --subject-sha "$subject" \
             --deployment-fingerprint "$deployment" \
-            --source pip_audit="$RUNNER_TEMP/k-slide-security/evidence/pip-audit.json" \
-            --source gitleaks="$RUNNER_TEMP/k-slide-security/evidence/gitleaks.json" \
-            --source semgrep="$RUNNER_TEMP/k-slide-security/evidence/semgrep.json" \
-            --source scanner_exits="$RUNNER_TEMP/k-slide-security/evidence/scanner-exits.json" \
-            --source audit_context="$RUNNER_TEMP/k-slide-security/evidence/audit-context.json" \
-            --source semgrep_ruleset="$RUNNER_TEMP/k-slide-security/evidence/semgrep-production.yml" \
-            --source dependency_inventory="$RUNNER_TEMP/k-slide-security/evidence/production-dependency-inventory.json" \
-            --source production_lock="$RUNNER_TEMP/k-slide-security/evidence/production-requirements.lock" \
-            --source production_sbom="$RUNNER_TEMP/k-slide-security/evidence/production-sbom.json"
-          code=$?
-          exit $code
+            --source pip_audit="$evidence_root/pip-audit.json" \
+            --source gitleaks="$evidence_root/gitleaks.json" \
+            --source semgrep="$evidence_root/semgrep.json" \
+            --source scanner_exits="$evidence_root/scanner-exits.json" \
+            --source audit_context="$evidence_root/audit-context.json" \
+            --source semgrep_ruleset="$evidence_root/semgrep-production.yml" \
+            --source dependency_inventory="$evidence_root/production-dependency-inventory.json" \
+            --source production_lock="$evidence_root/production-requirements.lock" \
+            --source production_sbom="$evidence_root/production-sbom.json" \
+            --source container_scan="$evidence_root/container-scan.json" \
+            --source security_release_context="$evidence_root/security-release-context.json" \
+            --source release_security_policy="$evidence_root/release-security-policy.json" \
+            --source vulnerability_dispositions="$evidence_root/vulnerability-dispositions.json" \
+            --source release_egress_policy="$evidence_root/release-egress-policy.json"
       - name: Upload sanitized security evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -286,5 +394,8 @@ jobs:
         if: always()
         run: |
           rm -rf "$RUNNER_TEMP/k-slide-security/private-transport" "$RUNNER_TEMP/k-slide-security/certification-bundle.zip"
+          rm -rf "$RUNNER_TEMP/k-slide-security/raw" "$RUNNER_TEMP/k-slide-security/runtime-artifact" "$RUNNER_TEMP/k-slide-security/trivy-cache"
+          rm -rf "$RUNNER_TEMP/k-slide-security/source-tree"
+          rm -f "$RUNNER_TEMP/k-slide-security/vulnerability-dispositions.json"
           rm -f .k-slide-config/production-candidate.json .k-slide-config/termbase.local.json
           rm -rf ocr

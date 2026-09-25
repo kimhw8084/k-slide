@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "contract": {
+    "id": "k-slide.candidate-security-release-evidence",
+    "version": "1.0"
+  },
+  "policy": {
+    "id": "kimhw8084-k-slide-security-release",
+    "version": "1.0"
+  },
+  "max_scanner_age_minutes": 120,
+  "max_vulnerability_database_age_hours": 48,
+  "max_vulnerability_exception_days": 30,
+  "scanners": [
+    {"id": "pip_audit", "version": "2.9.0", "subject": "production_dependency_lock"},
+    {"id": "gitleaks", "version": "8.24.2", "subject": "candidate_source_tree"},
+    {"id": "semgrep", "version": "1.89.0", "subject": "candidate_source_tree"},
+    {"id": "trivy", "version": "0.74.0", "archive_sha256": "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a", "subject": "pinned_runtime_image"}
+  ],
+  "required_controls": [
+    {"id": "KSA-15", "test_module": "tests.test_chg16_accesskey_nonleakage", "source_path": "tests/test_chg16_accesskey_nonleakage.py"},
+    {"id": "KSA-17", "test_module": "tests.test_chg17_run_scope_authorization", "source_path": "tests/test_chg17_run_scope_authorization.py"},
+    {"id": "KSA-18", "test_module": "tests.test_chg18_default_deny_egress", "source_path": "tests/test_chg18_default_deny_egress.py"},
+    {"id": "KSA-21", "test_module": "tests.test_ksa21_adversarial_security", "source_path": "tests/test_ksa21_adversarial_security.py"},
+    {"id": "KSA-32", "test_module": "tests.test_ksa32_release_governance", "source_path": "tests/test_ksa32_release_governance.py"}
+  ],
+  "vulnerability_dispositions": {
+    "allowed": ["accepted_risk", "not_affected"],
+    "accepted_risk_severities": ["LOW", "MEDIUM"],
+    "reason_codes": ["upstream_disputed", "unreachable_vulnerable_code", "platform_not_affected", "temporary_low_severity_exception"],
+    "approval_owner": "kimhw8084"
+  },
+  "company_environment_status": {
+    "iam": "UNQUALIFIED",
+    "network_egress": "UNQUALIFIED",
+    "deployed_runtime_identity": "UNQUALIFIED"
+  }
+}

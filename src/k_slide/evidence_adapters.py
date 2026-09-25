@@ -58,6 +58,8 @@ from .corpus_governance import (
     validate_corpus_bundle,
 )
 
+# 2.9 adds the candidate-bound KSA-33 security release contract to the
+# existing security adapter; earlier derivation behavior remains unchanged.
 # 2.8 binds model result derivation to the current closed KSA-27 quality policy.
 # 2.7 binds model evidence to the candidate's four governed corpus identities
 # and re-derives the source-free corpus membership/contamination contract.
@@ -69,7 +71,7 @@ from .corpus_governance import (
 # candidate-bound identity/provenance contract introduced in 2.1.
 # separation and exact frozen scenario matrices. No production-certified v1
 # or 2.0 evidence exists, so ambiguous development envelopes are not migrated.
-ADAPTER_VERSION = "2.8"
+ADAPTER_VERSION = "2.9"
 
 _ROLES: dict[str, tuple[str, ...]] = {
     "runtime": ("diagnostic_ladder", "simple_run", "three_slide", "five_slide"),
@@ -77,7 +79,7 @@ _ROLES: dict[str, tuple[str, ...]] = {
     "model_validation": ("model_summary", "experiment_manifest", "results_jsonl"),
     "model_high_risk_stability": ("model_summary", "experiment_manifest", "results_jsonl"),
     "model_held_out": ("model_summary", "experiment_manifest", "results_jsonl"),
-    "security": ("pip_audit", "gitleaks", "semgrep", "scanner_exits", "audit_context", "semgrep_ruleset", "dependency_inventory", "production_lock", "production_sbom"),
+    "security": ("pip_audit", "gitleaks", "semgrep", "scanner_exits", "audit_context", "semgrep_ruleset", "dependency_inventory", "production_lock", "production_sbom", "container_scan", "security_release_context", "release_security_policy", "vulnerability_dispositions", "release_egress_policy"),
     "reliability": ("failure_injection", "concurrency", "large_deck", "performance_slo"),
     "governance": (
         "repository_metadata", "target_branch", "ruleset_collection", "ruleset_details",
@@ -138,7 +140,7 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def enforce_security_scanners(sources: dict[str, Path]) -> dict[str, Any]:
+def enforce_security_scanners(sources: dict[str, Path], *, allow_disposition_review: bool = False) -> dict[str, Any]:
     """Enforce scanner execution/results independently of candidate eligibility.
 
     This is intentionally separate from ``_derive_security``: an incomplete
@@ -154,7 +156,7 @@ def enforce_security_scanners(sources: dict[str, Path]) -> dict[str, Any]:
     if not isinstance(pip, dict) or not isinstance(pip.get("dependencies"), list) or not pip["dependencies"]:
         raise AdapterError("pip-audit output is missing or has an empty dependency set")
     for item in pip["dependencies"]:
-        if not isinstance(item, dict) or not isinstance(item.get("name"), str) or not item["name"] or not isinstance(item.get("version"), str) or not item["version"] or not isinstance(item.get("vulns", []), list):
+        if not isinstance(item, dict) or not isinstance(item.get("name"), str) or not item["name"] or not isinstance(item.get("version"), str) or not item["version"] or "vulns" not in item or not isinstance(item["vulns"], list):
             raise AdapterError("pip-audit output is malformed")
     if not isinstance(leaks, list):
         raise AdapterError("gitleaks output is malformed")
@@ -164,10 +166,12 @@ def enforce_security_scanners(sources: dict[str, Path]) -> dict[str, Any]:
         raise AdapterError("scanner exit-code evidence is missing or malformed")
     if any(isinstance(exits.get(name), bool) or not isinstance(exits.get(name), int) for name in _SCANNER_EXIT_KEYS):
         raise AdapterError("scanner exit-code evidence is malformed")
-    if any(exits[name] != 0 for name in _SCANNER_EXIT_KEYS):
+    if any(exits[name] != 0 for name in _SCANNER_EXIT_KEYS if name != "pip_audit"):
         raise AdapterError("one or more security scanners failed to execute cleanly")
-    vulnerability_count = sum(len(item.get("vulns", [])) for item in pip["dependencies"])
-    if vulnerability_count:
+    vulnerability_count = sum(len(item["vulns"]) for item in pip["dependencies"])
+    if exits["pip_audit"] not in ({0, 1} if vulnerability_count else {0}):
+        raise AdapterError("pip-audit did not complete with an explainable result")
+    if vulnerability_count and not allow_disposition_review:
         raise AdapterError("production dependency vulnerabilities were found")
     if leaks:
         raise AdapterError("secret findings were found")
@@ -1618,12 +1622,12 @@ def _derive_held_out(sources: dict[str, Path], *, root: Path | None) -> dict[str
     return payload
 
 
-def _derive_security(sources: dict[str, Path], *, root: Path | None = None, candidate_spec: dict[str, Any] | None = None) -> dict[str, Any]:
+def _derive_security(sources: dict[str, Path], *, root: Path | None = None, candidate_spec: dict[str, Any] | None = None, subject_git_sha: str | None = None, deployment_fingerprint: str | None = None) -> dict[str, Any]:
     values, _ = source_records(sources, expected=_ROLES["security"])
     # Apply the same scanner enforcement used by the workflow before deriving
     # candidate-bound evidence.  Certification eligibility must not create a
     # second, weaker interpretation of scanner output.
-    enforce_security_scanners({role: values[role] for role in _SECURITY_SCANNER_ROLES})
+    enforce_security_scanners({role: values[role] for role in _SECURITY_SCANNER_ROLES}, allow_disposition_review=True)
     pip = _read_json(values["pip_audit"])
     leaks = _read_json(values["gitleaks"])
     semgrep = _read_json(values["semgrep"])
@@ -1744,12 +1748,46 @@ def _derive_security(sources: dict[str, Path], *, root: Path | None = None, cand
     static_findings = len(semgrep.get("results", []))
     high_findings = sum(1 for item in semgrep.get("results", []) if isinstance(item, dict) and str(item.get("extra", {}).get("metadata", {}).get("severity", "")).upper() in {"HIGH", "CRITICAL"})
     secret_findings = len(leaks)
-    exit_ok = all(isinstance(exits.get(name), int) and exits.get(name) == 0 for name in ("pip_audit", "gitleaks", "semgrep"))
+    exit_ok = (
+        isinstance(exits.get("pip_audit"), int)
+        and exits.get("pip_audit") in ({0, 1} if dependency_findings else {0})
+        and all(isinstance(exits.get(name), int) and exits.get(name) == 0 for name in ("gitleaks", "semgrep"))
+    )
     if not exit_ok:
         raise AdapterError("one or more security scanners failed to execute cleanly")
-    if dependency_findings or secret_findings or static_findings:
+    if secret_findings or static_findings:
         raise AdapterError("security scanner findings fail the production security gate")
-    return {"dependency_audit_pass": exit_ok and dependency_findings == 0, "secret_scan_pass": exit_ok and secret_findings == 0, "static_scan_pass": exit_ok and static_findings == 0, "dependency_findings": dependency_findings, "unresolved_high_findings": high_findings, "unresolved_critical_findings": sum(1 for item in semgrep.get("results", []) if isinstance(item, dict) and str(item.get("extra", {}).get("metadata", {}).get("severity", "")).upper() == "CRITICAL"), "secret_findings": secret_findings, "scanner_exit_codes": {key: exits.get(key) for key in sorted(exits)}, "audited_dependency_set_sha256": audited_hash, "resolved_dependency_set_sha256": inventory_hash, "resolved_dependency_lock_sha256": lock_hash, "candidate_constraints_sha256": constraints_hash, "production_sbom_sha256": sbom_hash, "audited_dependency_versions": inventory_packages, "pip_audit_version": context["pip_audit_version"], "semgrep_version": context["semgrep_version"], "semgrep_ruleset_identity": context["semgrep_ruleset_identity"], "semgrep_ruleset_sha256": ruleset_hash}
+    from .security_release import SecurityReleaseEvidenceError, derive_security_release_evidence
+
+    try:
+        from .certification import candidate_deployment_fingerprint
+
+        release_context = _read_json(values["security_release_context"])
+        bound_subject = subject_git_sha or (str(candidate_spec.get("subject_git_sha")) if candidate_spec else str(release_context["candidate"]["subject_git_sha"]))
+        bound_deployment = deployment_fingerprint or (candidate_deployment_fingerprint(candidate_spec) if candidate_spec else str(release_context["candidate"]["deployment_fingerprint"]))
+        security_release = derive_security_release_evidence(
+            context=release_context,
+            policy_source=values["release_security_policy"],
+            disposition_source=_read_json(values["vulnerability_dispositions"]),
+            egress_source=_read_json(values["release_egress_policy"]),
+            pip_audit=pip,
+            gitleaks=leaks,
+            semgrep=semgrep,
+            trivy=_read_json(values["container_scan"]),
+            scanner_source_hashes={
+                "pip_audit": sha256_file(values["pip_audit"]),
+                "gitleaks": sha256_file(values["gitleaks"]),
+                "semgrep": sha256_file(values["semgrep"]),
+                "container_scan": sha256_file(values["container_scan"]),
+            },
+            subject_git_sha=bound_subject,
+            deployment_fingerprint=bound_deployment,
+            candidate_spec=candidate_spec,
+            repository_root=root,
+        )
+    except (SecurityReleaseEvidenceError, KeyError, TypeError, ValueError) as exc:
+        raise AdapterError(f"candidate security release evidence is incomplete or invalid ({type(exc).__name__})") from exc
+    return {"dependency_audit_pass": exit_ok and security_release["unresolved_vulnerability_count"] == 0, "secret_scan_pass": exit_ok and secret_findings == 0, "static_scan_pass": exit_ok and static_findings == 0, "container_scan_pass": security_release["container_scan_pass"], "dependency_findings": dependency_findings, "unresolved_high_findings": high_findings, "unresolved_critical_findings": sum(1 for item in semgrep.get("results", []) if isinstance(item, dict) and str(item.get("extra", {}).get("metadata", {}).get("severity", "")).upper() == "CRITICAL"), "secret_findings": secret_findings, "scanner_exit_codes": {key: exits.get(key) for key in sorted(exits)}, "audited_dependency_set_sha256": audited_hash, "resolved_dependency_set_sha256": inventory_hash, "resolved_dependency_lock_sha256": lock_hash, "candidate_constraints_sha256": constraints_hash, "production_sbom_sha256": sbom_hash, "audited_dependency_versions": inventory_packages, "pip_audit_version": context["pip_audit_version"], "semgrep_version": context["semgrep_version"], "semgrep_ruleset_identity": context["semgrep_ruleset_identity"], "semgrep_ruleset_sha256": ruleset_hash, "security_release": security_release}
 
 
 def _derive_reliability(sources: dict[str, Path]) -> dict[str, Any]:
@@ -1844,7 +1882,7 @@ def derive_payload(evidence_type: str, sources: dict[str, Path], *, root: Path |
     if evidence_type == "heavy_runtime":
         return deriver(sources, root=root, candidate_spec=candidate_spec)
     if evidence_type == "security":
-        return deriver(sources, root=root, candidate_spec=candidate_spec)
+        return deriver(sources, root=root, candidate_spec=candidate_spec, subject_git_sha=subject_git_sha, deployment_fingerprint=deployment_fingerprint)
     if evidence_type == "governance":
         if subject_git_sha is None or deployment_fingerprint is None:
             raise AdapterError("governance requires its exact subject and candidate deployment identity")

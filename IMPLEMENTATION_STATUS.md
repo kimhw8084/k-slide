@@ -651,7 +651,7 @@ Compileall on Python 3.11.7 and isolated Python 3.12.9: passed.
 git diff --check: passed.
 ```
 
-The release-state assertions use synthetic temporary evidence only. No real governance qualification, release, BUILD COMPLETE, or production certification is claimed. KSA-33 and later work remains out of scope.
+The release-state assertions use synthetic temporary evidence only. No real governance qualification, release, BUILD COMPLETE, or production certification is claimed. At the KSA-32 FIX01 milestone boundary, KSA-33 and later work remained out of scope.
 
 ## CHG-16 / KSA-32 FIX02 — F32-02 closed; NOT QUALIFIED
 
@@ -661,7 +661,7 @@ FIX02 adds the closed raw source role `head_commit_pull_requests`, captured from
 
 The governance evidence contract moved from `1.1` to `1.2` for the required raw role and source-free payload extension. Policy behavior and policy version `1.1` remain unchanged; its identity is rederived because the pinned contract identity changed. Shared evidence schema `2.6`, machine adapter `2.8`, subject-sensitive change-impact policy `1.2`, governance release authority, and KSA-31 promotion/recertification contracts remain. The required five checks and all protection, review, CODEOWNERS, candidate-binding, merge-subject, and release-state gates remain in force.
 
-The candidate profile remains incomplete on `provider`, `behavior_configuration`, `corpus_identity.governed_sets`, and `opencode_version`. Current live status remains **NOT QUALIFIED**: `main` is unprotected, repository rulesets are empty, legacy protection detail is unavailable through the current App, PR #31 has zero reviews, CODEOWNERS still names only `@kimhw8084`, and `KSLIDE_GOVERNANCE_READ_TOKEN` is not configured. No live GitHub settings or reviewers were changed, and no live API capture, qualification, release, BUILD COMPLETE, or production certification is claimed. KSA-33 and later remain out of scope.
+The candidate profile remains incomplete on `provider`, `behavior_configuration`, `corpus_identity.governed_sets`, and `opencode_version`. Current live status remains **NOT QUALIFIED**: `main` is unprotected, repository rulesets are empty, legacy protection detail is unavailable through the current App, PR #31 has zero reviews, CODEOWNERS still names only `@kimhw8084`, and `KSLIDE_GOVERNANCE_READ_TOKEN` is not configured. No live GitHub settings or reviewers were changed, and no live API capture, qualification, release, BUILD COMPLETE, or production certification is claimed. At the FIX02 scope boundary, KSA-33 and later work remained out of scope.
 
 Changed files for FIX02:
 
@@ -693,7 +693,41 @@ Credentialless capture stopped with GOVERNANCE_READ_CREDENTIAL_MISSING before an
 
 ## Next phase
 
-KSA-33 and later work requires a separate scoped request. Authoritative target-Gemma evaluation and the remaining external production-candidate prerequisites are still unproven; no live promotion, release, or production certification was performed here.
+KSA-33 is implemented as a candidate-bound repository security evidence contract below. KSA-34 and later work requires a separate scoped request. Authoritative target-Gemma evaluation and the remaining external production-candidate prerequisites are still unproven; no live promotion, release, or production certification was performed here.
+
+## CHG-16 / KSA-33 candidate-bound security release evidence — NOT QUALIFIED
+
+This scoped candidate starts from exact supplied base commit
+`82acfb2c2526232ff3384906292480f91b52a526` and Git tree
+`a83ac105bfc4b972b36091f73aec9884c84d65c6` on branch
+`codex/k-slide-chg16-security-release-evidence-01`. KSA-33 is the only new
+work item. The existing `security` evidence type and release-state separation
+remain in place. The versioned security evidence contract is `1.0`; the
+result-derived machine adapter is `2.9`.
+
+KSA-33 binds scanner, runtime/image, default-deny egress-policy, and KSA-15,
+KSA-17, KSA-18, KSA-21, and KSA-32 control-suite results to the exact
+candidate SHA/tree and deployment fingerprint. Dependency/image findings
+require complete candidate-bound, policy-valid, expiring dispositions. Raw
+scanner reports and logs remain runner-temporary; durable reports are
+minimized and source-free. The 64-character candidate tree identity is a
+domain-separated SHA-256 derived from the exact 40-character Git tree object
+ID. The contract and qualification boundary are
+documented in [KSA-33 security release evidence](docs/ksa33-security-release-evidence.md).
+
+Local verification uses synthetic scanner fixtures and repository control
+tests. The local environment has no Docker daemon, so no actual candidate image
+build or image scan is claimed. Live company IAM, network egress, and deployed
+runtime identity remain **UNQUALIFIED**. No live company settings were
+changed; no merge, promotion, release, pilot/canary, `BUILD COMPLETE`, target
+Gemma certification, or production certification is claimed.
+
+Verification: KSA-33 plus certification-closure suites passed (96 tests); the
+KSA-15/17/18/21/32 control runner passed all five suites (100 tests); broad
+`unittest` discovery passed (667 tests, 4 skipped). All 6 repository JSON
+schemas validated, and workflow YAML plus all 13 shell steps parsed and passed
+`bash -n`. These are repository/test results, not actual candidate scanner or
+company-environment qualification.
 
 ## Architecture decisions
 

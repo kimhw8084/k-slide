@@ -4,7 +4,6 @@ import copy
 import hashlib
 import json
 import os
-import platform
 import shutil
 import subprocess
 import tempfile
@@ -57,6 +56,7 @@ from k_slide.egress_policy import (
 )
 from k_slide.model_policy import load_model_policy
 from k_slide.quality_policy import QUALITY_POLICY_IDENTITY, policy_identity_record
+from k_slide.security_release import SECURITY_RELEASE_POLICY, canonical_bytes as security_canonical_bytes, sha256 as security_sha256
 from k_slide.bilingual_adjudication import build_internal_bilingual_payload
 from tests.bilingual_review_fixtures import make_review_contract
 from tests.zero_korean_study_fixtures import zero_korean_payload
@@ -69,7 +69,7 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-TEST_PYTHON_VERSION = platform.python_version()
+PINNED_PRODUCTION_PYTHON_VERSION = "3.11.13"
 
 
 def _write(path: Path, value: object) -> Path:
@@ -168,7 +168,7 @@ def _write_opencode_bootstrap(root: Path) -> Path:
 
 
 def _runtime_sources(root: Path, *, provider: str = "google", ocr_provider: str = "none") -> dict[str, Path]:
-    _write(root / "diagnostic.json", {"levels": [{"level": name, "status": "PASS"} for name in ("level1a_pure_opencode", "level1_plain_opencode", "level2_explicit_model", "level3_k_slide_agent")], "runtime_provenance": {"opencode_version": "1.3.9", "python_version": TEST_PYTHON_VERSION, "provider": provider, "ocr_provider": ocr_provider}})
+    _write(root / "diagnostic.json", {"levels": [{"level": name, "status": "PASS"} for name in ("level1a_pure_opencode", "level1_plain_opencode", "level2_explicit_model", "level3_k_slide_agent")], "runtime_provenance": {"opencode_version": "1.3.9", "python_version": PINNED_PRODUCTION_PYTHON_VERSION, "provider": provider, "ocr_provider": ocr_provider}})
     contract = {"status": "PASS", "kslide_complete": True, "run_complete": True, "required_media_compliance": True, "forbidden_tool_attempts": []}
     _write(root / "simple.json", contract)
     _write(root / "three.json", {**contract, "expected_units": 3, "artifact_units": 3})
@@ -179,7 +179,7 @@ def _runtime_sources(root: Path, *, provider: str = "google", ocr_provider: str 
 def _doctor(networkless: bool = False) -> dict[str, object]:
     value = {key: {"status": "PASS"} for key in ("libreoffice", "pymupdf", "python_pptx", "pillow", "paddleocr", "paddlepaddle", "korean_font", "paddle_load", "libreoffice_roundtrip", "paddle_ocr_roundtrip")}
     value["network"] = {"networkless_asserted": networkless, "network_required": not networkless}
-    value["runtime_provenance"] = {"python_version": TEST_PYTHON_VERSION, "paddle_version": "3.0.0", "paddleocr_version": "3.0.3", "libreoffice_version": "25.2.3"}
+    value["runtime_provenance"] = {"python_version": PINNED_PRODUCTION_PYTHON_VERSION, "paddle_version": "3.0.0", "paddleocr_version": "3.0.3", "libreoffice_version": "25.2.3"}
     return value
 
 
@@ -431,7 +431,7 @@ def _model_sources(root: Path, split: str = "validation", critical: int = 0, rep
     return {"model_summary": root / "summary.json", "experiment_manifest": root / "experiment.json", "results_jsonl": root / "results.jsonl"}
 
 
-def _security_sources(root: Path, *, vulnerable: bool = False, constraints_hash: str = "c" * 64) -> dict[str, Path]:
+def _security_sources(root: Path, *, vulnerable: bool = False, constraints_hash: str = "c" * 64, subject: str = "a" * 40, deployment: str = "b" * 64, candidate_spec: dict[str, object] | None = None) -> dict[str, Path]:
     packages = [{"name": name, "version": "1.0"} for name in ("Pillow", "PyMuPDF", "python-pptx", "paddlepaddle", "paddleocr")]
     inventory = canonical_dependency_inventory(packages)
     _write(root / "dependency-inventory.json", inventory)
@@ -452,7 +452,90 @@ def _security_sources(root: Path, *, vulnerable: bool = False, constraints_hash:
         staged_ruleset.write_text("rules: []\n", encoding="utf-8")
     inventory_sha = dependency_inventory_hash(inventory)
     _write(root / "audit-context.json", {"schema_version": "1.0", "audited_dependency_subject": "production-env", "audited_dependency_set_sha256": inventory_sha, "resolved_dependency_set_sha256": inventory_sha, "resolved_dependency_lock_sha256": _sha(root / "production-requirements.lock"), "production_sbom_sha256": _sha(root / "production-sbom.json"), "candidate_constraints_sha256": constraints_hash, "audited_dependency_names": list(versions), "constraint_versions": versions, "pip_audit_version": "pip-audit 2.9.0", "semgrep_version": "semgrep 1.89.0", "semgrep_ruleset_identity": "security/semgrep-production.yml", "semgrep_ruleset_sha256": ruleset_hash})
-    return {"pip_audit": root / "pip-audit.json", "gitleaks": root / "gitleaks.json", "semgrep": root / "semgrep.json", "scanner_exits": root / "scanner-exits.json", "audit_context": root / "audit-context.json", "semgrep_ruleset": staged_ruleset, "dependency_inventory": root / "dependency-inventory.json", "production_lock": root / "production-requirements.lock", "production_sbom": root / "production-sbom.json"}
+    from k_slide.runtime_artifact import BASE_IMAGE_DIGEST, BASE_IMAGE_NAME, BASE_IMAGE_TAG, SUPPORTED_PLATFORM
+    from k_slide.security_release import SECURITY_RELEASE_POLICY
+
+    image_digest = "sha256:" + "f" * 64
+    source_tree_sha = "d" * 64
+    candidate_identity = security_sha256(security_canonical_bytes(canonical_candidate_factors(candidate_spec))) if candidate_spec is not None else "0" * 64
+    candidate_runtime_identity = candidate_spec.get("runtime_artifact_identity") if candidate_spec else None
+    if isinstance(candidate_runtime_identity, dict):
+        candidate_runtime_identity = candidate_runtime_identity.get("sha256")
+    runtime_version = str(candidate_spec.get("python_version")) if candidate_spec else PINNED_PRODUCTION_PYTHON_VERSION
+    runtime = {
+        "artifact_identity_sha256": candidate_runtime_identity if isinstance(candidate_runtime_identity, str) and len(candidate_runtime_identity) == 64 else "e" * 64,
+        "manifest_sha256": str(candidate_spec.get("runtime_artifact_manifest_sha256")) if candidate_spec and candidate_spec.get("runtime_artifact_manifest_sha256") not in (None, "UNSET") else "a" * 64,
+        "sbom_sha256": str(candidate_spec.get("runtime_sbom_sha256")) if candidate_spec and candidate_spec.get("runtime_sbom_sha256") not in (None, "UNSET") else "b" * 64,
+        "dependency_lock_sha256": _sha(root / "production-requirements.lock"),
+        "image_digest": image_digest,
+        "base_image": f"{BASE_IMAGE_NAME}:{BASE_IMAGE_TAG}@{BASE_IMAGE_DIGEST}",
+        "platform": SUPPORTED_PLATFORM,
+        "source_revision": subject,
+        "source_tree_sha256": "c" * 64,
+        "python_version": runtime_version,
+    }
+    endpoint = opencode_route_identity(provider_id="google", model_id="gemma-4-31b-it", api_id="gemma-4-31b-it", api_npm="@ai-sdk/google", api_url="https://generativelanguage.googleapis.com/v1beta")
+    capabilities = [
+        {"capability_class": EGRESS_CAPABILITY_INFERENCE_ROUTE, "purpose": "model_inference", "service_identity": "test-inference-service", "route_identity": "test-inference-route", "endpoint_identity": endpoint, "data_class": "source_content"},
+        {"capability_class": EGRESS_CAPABILITY_DURABLE_JOB_CONTROL, "purpose": "job_control", "service_identity": "test-job-service", "route_identity": None, "endpoint_identity": None, "data_class": "operational_metadata"},
+        {"capability_class": EGRESS_CAPABILITY_SCOPED_STORAGE, "purpose": "scoped_storage", "service_identity": "test-storage-service", "route_identity": None, "endpoint_identity": None, "data_class": "source_content"},
+        {"capability_class": EGRESS_CAPABILITY_NON_CONTENT_TELEMETRY, "purpose": "non_content_telemetry", "service_identity": "test-telemetry-service", "route_identity": None, "endpoint_identity": None, "data_class": EGRESS_DATA_CLASS_NON_CONTENT},
+    ]
+    policy_version = "test-1"
+    policy_hash = egress_policy_hash_for_mapping(policy_version=policy_version, capabilities=capabilities)
+    egress = {"schema_version": "1.0", "policy_version": policy_version, "policy_hash": policy_hash, "policy_identity": egress_policy_identity_for_mapping(policy_version=policy_version, policy_hash=policy_hash), "default_action": "deny", "capabilities": capabilities}
+    for base in (root, root.parent, Path.cwd()):
+        configured_egress = base / ".k-slide-config" / "egress-policy.json"
+        if configured_egress.is_file() and not configured_egress.is_symlink():
+            egress = json.loads(configured_egress.read_text(encoding="utf-8"))
+            break
+    (root / "release-security-policy.json").write_text(json.dumps(SECURITY_RELEASE_POLICY, sort_keys=True) + "\n", encoding="utf-8")
+    (root / "vulnerability-dispositions.json").write_text(json.dumps({"schema_version": "1.0", "policy_id": "kimhw8084-k-slide-security-release", "candidate_binding": None, "dispositions": []}, sort_keys=True) + "\n", encoding="utf-8")
+    _write(root / "release-egress-policy.json", egress)
+    _write(root / "container-scan.json", {"schema_version": "1.0", "target_image_digest": image_digest, "scanned_classes": ["lang-pkgs", "os-pkgs"], "scanned_class_package_counts": {"lang-pkgs": 5, "os-pkgs": 12}, "database_updated_at": "2025-12-31T23:00:00Z", "database_version": 1, "database_schema_version": 2, "error_count": 0, "vulnerabilities": []})
+    captured = "2026-01-01T00:10:00Z"
+    scanners = []
+    scanner_sources = {
+        "pip_audit": ("pip-audit", _sha(root / "production-requirements.lock"), sum(len(item.get("vulns", [])) for item in json.loads((root / "pip-audit.json").read_text(encoding="utf-8"))["dependencies"]), 0),
+        "gitleaks": ("gitleaks", source_tree_sha, len(json.loads((root / "gitleaks.json").read_text(encoding="utf-8"))), 0),
+        "semgrep": ("semgrep", source_tree_sha, len(json.loads((root / "semgrep.json").read_text(encoding="utf-8"))["results"]), len(json.loads((root / "semgrep.json").read_text(encoding="utf-8"))["errors"])),
+        "trivy": ("container-scan", image_digest, 0, 0),
+    }
+    scanner_versions = {"pip_audit": "2.9.0", "gitleaks": "8.24.2", "semgrep": "1.89.0", "trivy": "0.74.0"}
+    roles = {"pip_audit": "pip-audit.json", "gitleaks": "gitleaks.json", "semgrep": "semgrep.json", "trivy": "container-scan.json"}
+    for scanner_id in ("pip_audit", "gitleaks", "semgrep", "trivy"):
+        _, scanned_subject, finding_count, error_count = scanner_sources[scanner_id]
+        report_path = root / roles[scanner_id]
+        scanners.append({"id": scanner_id, "version": scanner_versions[scanner_id], "status": "PASS", "exit_code": 0, "report_sha256": _sha(report_path), "finished_at": "2026-01-01T00:09:00Z", "run_id": "1", "run_attempt": 1, "finding_count": finding_count, "error_count": error_count, "subject_identity": scanned_subject})
+    controls = []
+    for item in SECURITY_RELEASE_POLICY["required_controls"]:
+        source = Path.cwd() / item["source_path"]
+        controls.append({"id": item["id"], "status": "PASS", "tests_run": 1, "tests_failed": 0, "tests_skipped": 0, "source_sha256": _sha(source), "run_id": "1", "run_attempt": 1})
+    context = {
+        "schema_version": "1.0",
+        "contract": SECURITY_RELEASE_POLICY["contract"],
+        "candidate": {"subject_git_sha": subject, "source_tree_sha256": source_tree_sha, "deployment_fingerprint": deployment if candidate_spec is None else candidate_deployment_fingerprint(candidate_spec), "candidate_spec_identity_sha256": candidate_identity},
+        "run": {"workflow": "K-Slide security evidence", "run_id": "1", "run_attempt": 1, "captured_at": captured},
+        "runner": {"image": "ubuntu-24.04", "image_version": "20260924.1", "python_version": "3.11.13"},
+        "runtime": runtime,
+        "egress_policy": {"version": egress["policy_version"], "hash": egress["policy_hash"], "identity": egress["policy_identity"], "default_action": egress["default_action"]},
+        "scanners": scanners,
+        "controls": controls,
+        "privacy": {"raw_scanner_payloads_persisted": False, "source_document_content_persisted": False, "access_key_values_persisted": False, "accesskey_nonleakage_test_pass": True},
+        "company_environment": {"iam": "UNQUALIFIED", "network_egress": "UNQUALIFIED", "deployed_runtime_identity": "UNQUALIFIED"},
+    }
+    _write(root / "security-release-context.json", context)
+    return {"pip_audit": root / "pip-audit.json", "gitleaks": root / "gitleaks.json", "semgrep": root / "semgrep.json", "scanner_exits": root / "scanner-exits.json", "audit_context": root / "audit-context.json", "semgrep_ruleset": staged_ruleset, "dependency_inventory": root / "dependency-inventory.json", "production_lock": root / "production-requirements.lock", "production_sbom": root / "production-sbom.json", "container_scan": root / "container-scan.json", "security_release_context": root / "security-release-context.json", "release_security_policy": root / "release-security-policy.json", "vulnerability_dispositions": root / "vulnerability-dispositions.json", "release_egress_policy": root / "release-egress-policy.json"}
+
+
+def _refresh_security_scanner_report(sources: dict[str, Path], scanner_id: str, role: str, *, finding_count: int | None = None) -> None:
+    context_path = sources["security_release_context"]
+    context = json.loads(context_path.read_text(encoding="utf-8"))
+    scanner = next(item for item in context["scanners"] if item["id"] == scanner_id)
+    scanner["report_sha256"] = _sha(sources[role])
+    if finding_count is not None:
+        scanner["finding_count"] = finding_count
+    _write(context_path, context)
 
 
 def _reliability_sources(root: Path) -> dict[str, Path]:
@@ -514,7 +597,7 @@ def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model
         "ocr_asset_manifest_sha256": asset_hash,
         "normalization_behavior": {"render_dpi": 220},
         "repair_policy": {"max_auto_repairs_per_unit": 2},
-        "python_version": TEST_PYTHON_VERSION,
+        "python_version": PINNED_PRODUCTION_PYTHON_VERSION,
         "paddle_version": "3.0.0",
         "paddleocr_version": "3.0.3",
         "libreoffice_version": "25.2.3",
@@ -563,6 +646,31 @@ def _candidate_model_sources(root: Path, *, split: str, repeats: int, subject: s
 
 
 class CertificationClosureTests(unittest.TestCase):
+    def test_certification_runtime_fixtures_encode_the_pinned_production_interpreter(self):
+        self.assertEqual(PINNED_PRODUCTION_PYTHON_VERSION, "3.11.13")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runtime_root = root / "runtime"
+            heavy_root = root / "heavy"
+            security_root = root / "security"
+            runtime_root.mkdir()
+            heavy_root.mkdir()
+            security_root.mkdir()
+
+            runtime_sources = _runtime_sources(runtime_root)
+            heavy_sources = _heavy_sources(heavy_root)
+            security_sources = _security_sources(security_root)
+            candidate = _candidate_spec("a" * 40)
+
+            diagnostic = json.loads(runtime_sources["diagnostic_ladder"].read_text(encoding="utf-8"))
+            doctor = json.loads(heavy_sources["required_doctor"].read_text(encoding="utf-8"))
+            security_context = json.loads(security_sources["security_release_context"].read_text(encoding="utf-8"))
+            self.assertEqual(diagnostic["runtime_provenance"]["python_version"], PINNED_PRODUCTION_PYTHON_VERSION)
+            self.assertEqual(doctor["runtime_provenance"]["python_version"], PINNED_PRODUCTION_PYTHON_VERSION)
+            self.assertEqual(candidate["python_version"], PINNED_PRODUCTION_PYTHON_VERSION)
+            self.assertEqual(security_context["runtime"]["python_version"], PINNED_PRODUCTION_PYTHON_VERSION)
+            self.assertEqual(security_context["runner"]["python_version"], "3.11.13")
+
     def test_repository_execution_binding_rejects_wrong_material_behavior(self):
         base = _candidate_spec("a" * 40)
         cases = (
@@ -693,7 +801,7 @@ class CertificationClosureTests(unittest.TestCase):
 
         with self.assertRaises(EvidenceValidationError):
             canonical_exact_version("3.11", "python_version")
-        self.assertEqual(canonical_exact_version(TEST_PYTHON_VERSION, "python_version"), TEST_PYTHON_VERSION)
+        self.assertEqual(canonical_exact_version(PINNED_PRODUCTION_PYTHON_VERSION, "python_version"), PINNED_PRODUCTION_PYTHON_VERSION)
         self.assertEqual(parse_libreoffice_version("LibreOffice 25.2.3.1 40(Build:1)"), "25.2.3.1")
         self.assertIsNone(parse_libreoffice_version("LibreOffice 25.2"))
         from k_slide.runtime import _version as runtime_version
@@ -802,6 +910,7 @@ class CertificationClosureTests(unittest.TestCase):
                 {"name": "setuptools", "version": "83.0.0", "vulns": []},
             ])
             _write(root / "pip-audit.json", audit)
+            _refresh_security_scanner_report(sources, "pip_audit", "pip_audit", finding_count=0)
             build_machine_evidence(root / "safe-base-tools.json", evidence_type="security", subject_git_sha="a" * 40, deployment_fingerprint="b" * 64, sources=sources)
             audit["dependencies"][-2]["vulns"] = [{"id": "PYSEC-TEST-BASE-TOOL"}]
             _write(root / "pip-audit.json", audit)
@@ -813,7 +922,7 @@ class CertificationClosureTests(unittest.TestCase):
         deployment = candidate_deployment_fingerprint(candidate)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            sources = _security_sources(root, constraints_hash=str(candidate["constraints_sha256"]))
+            sources = _security_sources(root, constraints_hash=str(candidate["constraints_sha256"]), subject="a" * 40, deployment=deployment, candidate_spec=candidate)
             context = json.loads((root / "audit-context.json").read_text(encoding="utf-8"))
             context["candidate_constraints_sha256"] = "d" * 64
             _write(root / "audit-context.json", context)
@@ -1119,7 +1228,7 @@ class CertificationClosureTests(unittest.TestCase):
         deployment = candidate_deployment_fingerprint(candidate)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            sources = _security_sources(root, constraints_hash=str(candidate["constraints_sha256"]))
+            sources = _security_sources(root, constraints_hash=str(candidate["constraints_sha256"]), subject=subject, deployment=deployment, candidate_spec=candidate)
             evidence = root / "security.json"
             build_machine_evidence(evidence, evidence_type="security", subject_git_sha=subject, deployment_fingerprint=deployment, sources=sources, candidate_spec=candidate)
             self.assertEqual(load_evidence(evidence, expected_type="security", candidate_spec=candidate, subject_git_sha=subject, deployment_fingerprint=deployment)["payload"]["audited_dependency_set_sha256"], dependency_inventory_hash(json.loads((root / "dependency-inventory.json").read_text(encoding="utf-8"))))
@@ -1355,7 +1464,11 @@ class CertificationClosureTests(unittest.TestCase):
         self.assertNotIn("paddleocr==3.0.3", constraints)
         self.assertIn("pip==26.2.1", workflow)
         self.assertIn("setuptools==83.0.0", workflow)
-        self.assertIn('pip-audit --strict --format json --output "$RUNNER_TEMP/k-slide-security/evidence/pip-audit.json" --path "$production_site"', workflow)
+        self.assertIn('pip-audit --strict --format json --output "$RUNNER_TEMP/k-slide-security/raw/pip-audit.json" --path "$production_site"', workflow)
+        self.assertIn('runs-on: ubuntu-24.04', workflow)
+        self.assertIn('security-release-context.json', workflow)
+        self.assertIn('security/vulnerability-dispositions.json', workflow)
+        self.assertIn('container-scan.json', workflow)
         self.assertNotIn("--ignore-vuln", workflow)
         self.assertIn("production_site", workflow)
         self.assertIn("evidence/production-requirements.lock", workflow)
@@ -1752,7 +1865,7 @@ class CertificationClosureTests(unittest.TestCase):
             for evidence_type, source_factory in (("security", _security_sources), ("reliability", _reliability_sources)):
                 folder = root / evidence_type
                 folder.mkdir()
-                source = source_factory(folder)
+                source = source_factory(folder, subject=subject, deployment=deployment, candidate_spec=candidate) if evidence_type == "security" else source_factory(folder)
                 path = folder / "evidence.json"
                 build_machine_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=source, root=Path.cwd())
                 records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=Path.cwd())
@@ -1958,7 +2071,7 @@ class CertificationClosureTests(unittest.TestCase):
 
             scored = {"coverage": 1.0, "numeric_fidelity": 1.0, "modality": 1.0, "table_cell_fidelity": 1.0, "visual_relation_recall": 1.0, "critical_failures": [], "unresolved_region_rate": 0.0, "unexpected_unresolved_rate": 0.0}
             consistency = {"term_consistency_recall": 1.0, "inconsistent_alternate_count": 0, "critical_failures": []}
-            runtime = SimpleNamespace(as_dict=lambda: {"opencode_version": "1.3.9", "python_version": TEST_PYTHON_VERSION, "provider": "google", "ocr_provider": "none"})
+            runtime = SimpleNamespace(as_dict=lambda: {"opencode_version": "1.3.9", "python_version": PINNED_PRODUCTION_PYTHON_VERSION, "provider": "google", "ocr_provider": "none"})
             with patch("evals.model_eval.generate_artifacts"), patch("evals.model_eval.OpenCodeEvalRunner", return_value=FakeOpenCode()), patch("evals.model_eval.discover_runtime", return_value=runtime), patch("evals.model_eval._latest_run", return_value=None), patch("evals.model_eval.collect_run_artifacts", return_value=[{"work_unit_id": "u1", "evidence": {}, "patch": {}, "slide_ir": None}]), patch("evals.model_eval._engine_gate", return_value=("PASS", [])), patch("evals.model_eval._work_unit_contract", return_value=(True, [])), patch("evals.model_eval.score_translation_patch", return_value=scored), patch("evals.model_eval.score_deck_consistency", return_value=consistency):
                 output = root / "high-risk"
                 result = ModelEvaluationRunner(model=target, output=output, split="validation", repeats=5, mode="quality", candidate_profile=candidate_path, high_risk=True).run()
@@ -1996,9 +2109,9 @@ class CertificationClosureTests(unittest.TestCase):
             self.assertEqual(json.loads((engine_output / "summary.json").read_text(encoding="utf-8"))["deployment_fingerprint"], expected)
             security_folder = root / "security"
             security_folder.mkdir()
-            security_sources = _security_sources(security_folder, constraints_hash=str(loaded["constraints_sha256"]))
+            security_sources = _security_sources(security_folder, constraints_hash=str(loaded["constraints_sha256"]), subject=subject, deployment=expected, candidate_spec=loaded)
             security_path = security_folder / "evidence.json"
-            build_machine_evidence(security_path, evidence_type="security", subject_git_sha=subject, deployment_fingerprint=expected, sources=security_sources, root=Path.cwd(), candidate_spec=loaded)
+            build_machine_evidence(security_path, evidence_type="security", subject_git_sha=subject, deployment_fingerprint=expected, sources=security_sources, candidate_spec=loaded)
             self.assertEqual(json.loads(security_path.read_text(encoding="utf-8"))["deployment_fingerprint"], expected)
             release = build_release_manifest(Path.cwd(), requested_state="DEVELOPMENT", subject_sha=subject, candidate_profile=candidate_path)
             self.assertEqual(release["deployment_fingerprint"], expected)
@@ -2104,7 +2217,7 @@ class CertificationClosureTests(unittest.TestCase):
                 folder = root / evidence_type
                 folder.mkdir()
                 path = folder / "evidence.json"
-                source_values = factory(folder, constraints_hash=str(candidate["constraints_sha256"])) if evidence_type == "security" else factory(folder)
+                source_values = factory(folder, constraints_hash=str(candidate["constraints_sha256"]), subject=subject, deployment=deployment, candidate_spec=candidate) if evidence_type == "security" else factory(folder)
                 build_machine_evidence(path, evidence_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, sources=source_values, root=root, candidate_spec=candidate)
                 records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate, require_candidate_spec=True)
             governance_folder = root / "governance"
@@ -2173,7 +2286,7 @@ class CertificationClosureTests(unittest.TestCase):
             inventory_patch = patch("k_slide.production.installed_dependency_inventory", return_value=production_inventory)
             inventory_patch.start()
             self.addCleanup(inventory_patch.stop)
-            with patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"AccessKey": "synthetic-doctor-key", "KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1", **bootstrap_environment}):
+            with patch("k_slide.runtime.platform.python_version", return_value=PINNED_PRODUCTION_PYTHON_VERSION), patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"AccessKey": "synthetic-doctor-key", "KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1", **bootstrap_environment}):
                 runtime = discover_runtime(root)
                 doctor_result = diagnose(root, production=True)
             self.assertEqual(doctor_result["overall"], "WARN", msg=json.dumps([item for item in doctor_result["checks"] if item["status"] != "PASS"], indent=2))
@@ -2182,7 +2295,7 @@ class CertificationClosureTests(unittest.TestCase):
                 ["Live deployment network enforcement"],
             )
             alternate_config = asset_dir / "alternate.yaml"
-            with patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1", "KSLIDE_PADDLEX_CONFIG": str(alternate_config)}):
+            with patch("k_slide.runtime.platform.python_version", return_value=PINNED_PRODUCTION_PYTHON_VERSION), patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1", "KSLIDE_PADDLEX_CONFIG": str(alternate_config)}):
                 mismatched_config_doctor = diagnose(root, production=True)
             self.assertEqual(mismatched_config_doctor["overall"], "FAIL")
             self.assertEqual(next(item for item in mismatched_config_doctor["checks"] if item["label"] == "OCR selected configuration")["status"], "FAIL")
