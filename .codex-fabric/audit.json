@@ -1,260 +1,492 @@
 {
-  "artifact_bridge": {
-    "published": false,
-    "reason": "No Project OS Artifact Bridge tool is exposed in this session; deterministic FIX01 evidence is committed locally for independent audit.",
-    "requested_bridge": "Project OS Artifact Bridge",
-    "tool_available_in_active_session": false
+  "accepted_at": "2026-09-25T20:17:54Z",
+  "changed_files": [
+    {
+      "additions": 177,
+      "deletions": 228,
+      "path": ".codex-fabric/audit.json",
+      "status": "M"
+    },
+    {
+      "additions": 47,
+      "deletions": 1,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 0,
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "additions": 12,
+      "deletions": 0,
+      "path": "deploy/README.md",
+      "status": "M"
+    },
+    {
+      "additions": 50,
+      "deletions": 0,
+      "path": "docs/adr/0045-candidate-bound-rollout-controls.md",
+      "status": "A"
+    },
+    {
+      "additions": 97,
+      "deletions": 0,
+      "path": "docs/ksa34-rollout-controls.md",
+      "status": "A"
+    },
+    {
+      "additions": 146,
+      "deletions": 0,
+      "path": "schemas/rollout-control.schema.json",
+      "status": "A"
+    },
+    {
+      "additions": 56,
+      "deletions": 0,
+      "path": "src/k_slide/ingest.py",
+      "status": "M"
+    },
+    {
+      "additions": 647,
+      "deletions": 0,
+      "path": "src/k_slide/rollout.py",
+      "status": "A"
+    },
+    {
+      "additions": 21,
+      "deletions": 0,
+      "path": "tests/rollout_fixtures.py",
+      "status": "A"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "tests/test_chg16_environment_binding.py",
+      "status": "M"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "tests/test_ksa19_employee_path.py",
+      "status": "M"
+    },
+    {
+      "additions": 387,
+      "deletions": 0,
+      "path": "tests/test_ksa34_rollout.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc 'rtk git status --porcelain=v2 --branch && rtk git remote -v'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --stat 0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a..697e6af6d48db777a6b735e6a666a46dda0d329c && rtk git log --oneline --decorate --ancestry-path 0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a..697e6af6d48db777a6b735e6a666a46dda0d329c'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git cat-file -t 0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a && rtk git cat-file -t 697e6af6d48db777a6b735e6a666a46dda0d329c && rtk git branch -a --contains 697e6af6d48db777a6b735e6a666a46dda0d329c && rtk git merge-base 0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a 697e6af6d48db777a6b735e6a666a46dda0d329c'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk cat AGENTS.md'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg --files .codex-fabric scripts .github tests | head -240'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff 0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a 697e6af6d48db777a6b735e6a666a46dda0d329c -- .codex-fabric/audit.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git log --graph --oneline --decorate --boundary -12 697e6af6d48db777a6b735e6a666a46dda0d329c && rtk git show -s --format=fuller 697e6af6d48db777a6b735e6a666a46dda0d329c'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk cat .codex-fabric/audit.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg --files --hidden -uu .codex-fabric'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n --hidden --glob '\"'!*.pyc'\"' 'chg16-ksa34-rollout-controls-01|chg16-rollout-controls-01|candidate_identity_sha256|predecessor_evidence'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n --hidden 'Project OS|Fabric evidence|audit.json|source_content_manifest|identity_sha256'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git reset --hard 697e6af6d48db777a6b735e6a666a46dda0d329c && rtk git status --short --branch && rtk git rev-parse HEAD && rtk cat .codex-fabric/audit.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk cat pyproject.toml'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git log --oneline --all -- .codex-fabric/audit.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show 9ef7670:.codex-fabric/audit.json | rtk jq '{project_id, request, operation, job_id, fabric_job_id, issue_id, work_item, base_commit_sha, base_tree_oid, candidate, fix_request, operation_identity, operation_identity_sha256, predecessor_audit_sha256, fabric_evidence_identity_sha256, keys: keys}'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show 9ef7670:.codex-fabric/audit.json | rtk jq '{candidate: {base_commit_sha: .candidate.base_commit_sha, base_tree_oid: .candidate.base_tree_oid, branch: .candidate.branch, candidate_commit_sha: .candidate.candidate_commit_sha, candidate_identity_sha256: .candidate.candidate_identity_sha256, candidate_tree_oid: .candidate.candidate_tree_oid, candidate_tree_sha256: .candidate.candidate_tree_sha256, candidate_source_content_manifest_sha256: .candidate.candidate_source_content_manifest_sha256}, fix_requests: {request:.request, job_id:.job_id, fabric_job_id:.fabric_job_id, operation:.operation}, portability_repair: {keys:(.portability_repair|keys), .portability_repair}}\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show -s --format=fuller 4f98ec9 && rtk git show 4f98ec9:.codex-fabric/audit.json | rtk jq '{request, job_id, fabric_job_id, operation, candidate: {branch:.candidate.branch,candidate_commit_sha:.candidate.candidate_commit_sha}, keys:keys}'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rev-parse 01a2c87''^{tree} && rtk git rev-parse 01a2c87 && rtk git show -s --format='\"'%P' 01a2c87 && rtk git show -s --format='%P' 697e6af && rtk git show 697e6af:.codex-fabric/audit.json | rtk sha256sum\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show 4f98ec9:.codex-fabric/audit.json | rtk jq '{project_id, request, operation, job_id, status, started_at, finished_at, commits, git, locator, evidence_manifest, changed_files}'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show 9ef7670:.codex-fabric/audit.json | rtk jq '{keys:keys, repair_keys:(.portability_repair|keys), candidate:.candidate, request:.request, job_id:.job_id}'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git branch -a --contains 4f98ec9 && rtk git show -s --format='%H%n%P%n%s' 4f98ec9 && rtk git show --stat --oneline 4f98ec9\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show 4f98ec9:.codex-fabric/audit.json | rtk jq '{keys:keys, accepted_at, job_id, request, operation, project_id, status, git, commits, diff, codex, instructions, policy, evidence_publisher_release, fabric_capture, fabric_release}'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show 4f98ec9:.codex-fabric/audit.json | rtk jq '.evidence_manifest | {count, items: [.items[] | {path, sha256}]}'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show 4f98ec9:.codex-fabric/audit.json | rtk sha256sum && rtk git show 4f98ec9:.codex-fabric/audit.json | rtk jq '{identity_keys: [. | keys[] | select(test(\\\"identity|sha256\\\";\\\"i\\\"))], evidence_identity: .evidence_identity, evidence_identity_sha256, artifact_identity_sha256, evidence_manifest_sha256, audit_sha256, evidence}'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show -s --format='%H%n%T%n%P%n%s' 0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a && rtk git show -s --format='%H%n%T%n%P%n%s' 01a2c87caa92bb392fa0762abcdf521e04538df5 && rtk git show -s --format='%H%n%T%n%P%n%s' 697e6af6d48db777a6b735e6a666a46dda0d329c\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk test -x /tmp/k-slide-ksa34-py312/bin/python && rtk proxy /tmp/k-slide-ksa34-py312/bin/python --version && rtk proxy /tmp/k-slide-ksa34-py312/bin/python -c 'import jsonschema, yaml; print(\\\"jsonschema\\\", jsonschema.__version__, \\\"pyyaml\\\", yaml.__version__)'\"",
+      "exit_code": 2,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg --files schemas -g '*.json' | rtk wc -l && rtk rg --files .github/workflows -g '*.yml' -g '*.yaml' | rtk wc -l\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git merge-base --is-ancestor 0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a 697e6af6d48db777a6b735e6a666a46dda0d329c && rtk git merge-base --is-ancestor 697e6af6d48db777a6b735e6a666a46dda0d329c 01a2c87caa92bb392fa0762abcdf521e04538df5'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3.11 --version && rtk proxy python3.11 -c 'import jsonschema, yaml; print(\\\"jsonschema\\\", jsonschema.__version__, \\\"pyyaml\\\", yaml.__version__)'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python --version'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3.11 -m unittest tests.test_ksa34_rollout -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m unittest tests.test_ksa34_rollout -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3.11 -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nimport hashlib, json, subprocess\ndef show(spec):\n    return subprocess.check_output([\\\"git\\\", \\\"show\\\", spec])\ndef tree(sha):\n    return subprocess.check_output([\\\"git\\\", \\\"rev-parse\\\", f\\\"{sha}\"'^{{tree}}\"], text=True).strip()\ndef canonical(value):\n    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(\",\", \":\")).encode()\nbase = \"0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a\"\nproduct = \"01a2c87caa92bb392fa0762abcdf521e04538df5\"\npred = \"697e6af6d48db777a6b735e6a666a46dda0d329c\"\nfabric = \"4f98ec924309337db2de985d7e913a9c28f8cf1f\"\naudit = json.loads(show(f\"{pred}:.codex-fabric/audit.json\"))\nfiles = subprocess.check_output([\"git\", \"diff\", \"--name-only\", base, product], text=True).splitlines()\nmanifest = [{\"path\": path, \"sha256\": hashlib.sha256(show(f\"{product}:{path}\")).hexdigest()} for path in files if path != \".codex-fabric/audit.json\"]\nfabric_record = json.loads(show(f\"{fabric}:.codex-fabric/audit.json\"))\nidentity = dict(audit)\nidentity.pop(\"fabric_evidence_identity_sha256\", None)\nprint(json.dumps({\n    \"base_tree_oid\": tree(base),\n    \"product_tree_oid\": tree(product),\n    \"manifest_count\": len(manifest),\n    \"manifest_sha256\": hashlib.sha256(canonical(manifest)).hexdigest(),\n    \"existing_manifest_matches\": manifest == audit[\"candidate\"][\"candidate_source_content_manifest\"],\n    \"predecessor_audit_sha256\": hashlib.sha256(show(f\"{pred}:.codex-fabric/audit.json\")).hexdigest(),\n    \"predecessor_identity_sha256_rederived\": hashlib.sha256(canonical(identity)).hexdigest(),\n    \"predecessor_identity_sha256_recorded\": audit[\"fabric_evidence_identity_sha256\"],\n    \"fabric_audit_sha256\": hashlib.sha256(show(f\"{fabric}:.codex-fabric/audit.json\")).hexdigest(),\n    \"fabric_job_id\": fabric_record[\"job_id\"],\n    \"fabric_request\": fabric_record[\"request\"],\n    \"fabric_operation\": fabric_record[\"operation\"],\n    \"fabric_head\": fabric_record[\"git\"][\"head_sha\"]\n}, indent=2))\nPY'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3.11 -c \\\"import pathlib, subprocess, sys, tempfile, yaml, jsonschema\\\\nroot = pathlib.Path(\\\\\\\".\\\\\\\")\\\\nschema_files = sorted((root / \\\\\\\"schemas\\\\\\\").glob(\\\\\\\"*.json\\\\\\\"))\\\\nfor path in schema_files:\\\\n    jsonschema.Draft202012Validator.check_schema(__import__(\\\\\\\"json\\\\\\\").loads(path.read_text(encoding=\\\\\\\"utf-8\\\\\\\")))\\\\nworkflow_files = sorted(list((root / \\\\\\\".github/workflows\\\\\\\").glob(\\\\\\\"*.yml\\\\\\\")) + list((root / \\\\\\\".github/workflows\\\\\\\").glob(\\\\\\\"*.yaml\\\\\\\")))\\\\nshell_steps = 0\\\\nwith tempfile.TemporaryDirectory(prefix=\\\\\\\"ksa34-workflow-\\\\\\\") as tmp:\\\\n    tmp_path = pathlib.Path(tmp)\\\\n    for i, workflow in enumerate(workflow_files):\\\\n        parsed = yaml.safe_load(workflow.read_text(encoding=\\\\\\\"utf-8\\\\\\\"))\\\\n        if not isinstance(parsed, dict):\\\\n            raise SystemExit(f\\\\\\\"not a mapping: {workflow}\\\\\\\")\\\\n        for job in parsed.get(\\\\\\\"jobs\\\\\\\", {}).values():\\\\n            for step in job.get(\\\\\\\"steps\\\\\\\", []):\\\\n                script = step.get(\\\\\\\"run\\\\\\\") if isinstance(step, dict) else None\\\\n                if script:\\\\n                    path = tmp_path / f\\\\\\\"step-{i}-{shell_steps}.sh\\\\\\\"\\\\n                    path.write_text(script, encoding=\\\\\\\"utf-8\\\\\\\")\\\\n                    subprocess.run([\\\\\\\"rtk\\\\\\\", \\\\\\\"proxy\\\\\\\", \\\\\\\"bash\\\\\\\", \\\\\\\"-n\\\\\\\", str(path)], check=True, stdout=subprocess.DEVNULL)\\\\n                    shell_steps += 1\\\\nprint(f\\\\\\\"schemas={len(schema_files)} workflows={len(workflow_files)} embedded_shell_steps={shell_steps}\\\\\\\")\\\\n\\\" && rtk proxy env PYTHONPATH=src:. python3.11 -m compileall -q src tests\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy /tmp/k-slide-ksa34-py312/bin/python -c \\\"import pathlib, subprocess, sys, tempfile, yaml, jsonschema\\\\nroot = pathlib.Path(\\\\\\\".\\\\\\\")\\\\nschema_files = sorted((root / \\\\\\\"schemas\\\\\\\").glob(\\\\\\\"*.json\\\\\\\"))\\\\nfor path in schema_files:\\\\n    jsonschema.Draft202012Validator.check_schema(__import__(\\\\\\\"json\\\\\\\").loads(path.read_text(encoding=\\\\\\\"utf-8\\\\\\\")))\\\\nworkflow_files = sorted(list((root / \\\\\\\".github/workflows\\\\\\\").glob(\\\\\\\"*.yml\\\\\\\")) + list((root / \\\\\\\".github/workflows\\\\\\\").glob(\\\\\\\"*.yaml\\\\\\\")))\\\\nshell_steps = 0\\\\nwith tempfile.TemporaryDirectory(prefix=\\\\\\\"ksa34-workflow-\\\\\\\") as tmp:\\\\n    tmp_path = pathlib.Path(tmp)\\\\n    for i, workflow in enumerate(workflow_files):\\\\n        parsed = yaml.safe_load(workflow.read_text(encoding=\\\\\\\"utf-8\\\\\\\"))\\\\n        if not isinstance(parsed, dict):\\\\n            raise SystemExit(f\\\\\\\"not a mapping: {workflow}\\\\\\\")\\\\n        for job in parsed.get(\\\\\\\"jobs\\\\\\\", {}).values():\\\\n            for step in job.get(\\\\\\\"steps\\\\\\\", []):\\\\n                script = step.get(\\\\\\\"run\\\\\\\") if isinstance(step, dict) else None\\\\n                if script:\\\\n                    path = tmp_path / f\\\\\\\"step-{i}-{shell_steps}.sh\\\\\\\"\\\\n                    path.write_text(script, encoding=\\\\\\\"utf-8\\\\\\\")\\\\n                    subprocess.run([\\\\\\\"rtk\\\\\\\", \\\\\\\"proxy\\\\\\\", \\\\\\\"bash\\\\\\\", \\\\\\\"-n\\\\\\\", str(path)], check=True, stdout=subprocess.DEVNULL)\\\\n                    shell_steps += 1\\\\nprint(f\\\\\\\"schemas={len(schema_files)} workflows={len(workflow_files)} embedded_shell_steps={shell_steps}\\\\\\\")\\\\n\\\" && rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m compileall -q src tests\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy /tmp/k-slide-ksa34-py312/bin/python -c 'import json,jsonschema,pathlib,subprocess,yaml; schemas=sorted(pathlib.Path(\\\"schemas\\\").glob(\\\"*.json\\\")); [jsonschema.Draft202012Validator.check_schema(json.loads(p.read_text(encoding=\\\"utf-8\\\"))) for p in schemas]; workflows=sorted(list(pathlib.Path(\\\".github/workflows\\\").glob(\\\"*.yml\\\"))+list(pathlib.Path(\\\".github/workflows\\\").glob(\\\"*.yaml\\\"))); parsed=[yaml.safe_load(p.read_text(encoding=\\\"utf-8\\\")) for p in workflows]; steps=[step[\\\"run\\\"] for doc in parsed for job in doc.get(\\\"jobs\\\",{}).values() for step in job.get(\\\"steps\\\",[]) if isinstance(step,dict) and step.get(\\\"run\\\")]; [subprocess.run([\\\"rtk\\\",\\\"proxy\\\",\\\"bash\\\",\\\"-n\\\"],input=step,text=True,check=True,stdout=subprocess.DEVNULL) for step in steps]; print(\\\"schemas=%d workflows=%d embedded_shell_steps=%d\\\"%(len(schemas),len(workflows),len(steps)))' && rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m compileall -q src tests\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3.11 -c 'import json,jsonschema,pathlib,subprocess,yaml; schemas=sorted(pathlib.Path(\\\"schemas\\\").glob(\\\"*.json\\\")); [jsonschema.Draft202012Validator.check_schema(json.loads(p.read_text(encoding=\\\"utf-8\\\"))) for p in schemas]; workflows=sorted(list(pathlib.Path(\\\".github/workflows\\\").glob(\\\"*.yml\\\"))+list(pathlib.Path(\\\".github/workflows\\\").glob(\\\"*.yaml\\\"))); parsed=[yaml.safe_load(p.read_text(encoding=\\\"utf-8\\\")) for p in workflows]; steps=[step[\\\"run\\\"] for doc in parsed for job in doc.get(\\\"jobs\\\",{}).values() for step in job.get(\\\"steps\\\",[]) if isinstance(step,dict) and step.get(\\\"run\\\")]; [subprocess.run([\\\"rtk\\\",\\\"proxy\\\",\\\"bash\\\",\\\"-n\\\"],input=step,text=True,check=True,stdout=subprocess.DEVNULL) for step in steps]; print(\\\"schemas=%d workflows=%d embedded_shell_steps=%d\\\"%(len(schemas),len(workflows),len(steps)))' && rtk proxy env PYTHONPATH=src:. python3.11 -m compileall -q src tests\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy /tmp/k-slide-ksa34-py312/bin/python -c 'import json,jsonschema,pathlib; files=sorted(pathlib.Path(\\\"schemas\\\").glob(\\\"*.json\\\")); [jsonschema.Draft202012Validator.check_schema(json.loads(p.read_text(encoding=\\\"utf-8\\\"))) for p in files]; print(\\\"schemas=%d\\\"%len(files))' && rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m compileall -q src tests\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nimport hashlib\nimport json\nimport subprocess\nfrom pathlib import Path\n\nBASE = \\\"0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a\\\"\nPRODUCT = \\\"01a2c87caa92bb392fa0762abcdf521e04538df5\\\"\nPREDECESSOR = \\\"697e6af6d48db777a6b735e6a666a46dda0d329c\\\"\nBUILD_EVIDENCE_COMMIT = \\\"4f98ec924309337db2de985d7e913a9c28f8cf1f\\\"\nWORK_BRANCH = \\\"codex/k-slide-chg16-rollout-controls-01-fix01\\\"\nLOGICAL_REQUEST = \\\"chg16-rollout-controls-01\\\"\nFIX_REQUEST = \\\"chg16-rollout-controls-01-fix01\\\"\nBUILD_JOB_ID = \\\"CF-972811ab7d024a50b1eb98d0\\\"\nAUDIT_PATH = \\\".codex-fabric/audit.json\\\"\n\ndef git_bytes(*args):\n    return subprocess.check_output([\\\"git\\\", *args])\n\ndef tree_oid(commit):\n    return git_bytes(\\\"rev-parse\\\", f\\\"{commit}\"'^{{tree}}\").decode().strip()\n\ndef canonical(value):\n    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(\",\", \":\")).encode(\"utf-8\")\n\ndef sha(value):\n    return hashlib.sha256(value).hexdigest()\n\nbase_tree = tree_oid(BASE)\nproduct_tree = tree_oid(PRODUCT)\nprevious = json.loads(git_bytes(\"show\", f\"{PREDECESSOR}:{AUDIT_PATH}\"))\nbuild = json.loads(git_bytes(\"show\", f\"{BUILD_EVIDENCE_COMMIT}:{AUDIT_PATH}\"))\nprevious_raw = git_bytes(\"show\", f\"{PREDECESSOR}:{AUDIT_PATH}\")\nbuild_raw = git_bytes(\"show\", f\"{BUILD_EVIDENCE_COMMIT}:{AUDIT_PATH}\")\n\nsource_paths = git_bytes(\"diff\", \"--name-only\", BASE, PRODUCT).decode().splitlines()\nmanifest = [\n    {\"path\": path, \"sha256\": sha(git_bytes(\"show\", f\"{PRODUCT}:{path}\"))}\n    for path in source_paths\n    if path != AUDIT_PATH\n]\nmanifest_sha = sha(canonical(manifest))\nprevious_identity = dict(previous)\nprevious_identity.pop(\"fabric_evidence_identity_sha256\", None)\nprevious_identity_sha = sha(canonical(previous_identity))\nassert previous_identity_sha == previous[\"fabric_evidence_identity_sha256\"]\nassert build[\"project_id\"] == \"k-slide\"\nassert build[\"request\"] == LOGICAL_REQUEST\nassert build[\"operation\"] == \"BUILD\"\nassert build[\"job_id\"] == BUILD_JOB_ID\nassert build[\"git\"][\"head_sha\"] == PREDECESSOR\nassert build[\"git\"][\"base_sha\"] == BASE\nassert build[\"git\"][\"work_branch\"] == \"codex/k-slide-chg16-rollout-controls-01\"\nassert build[\"evidence_manifest\"][\"items\"][0][\"sha256\"] == sha(previous_raw)\n\naudit = previous\naudit[\"artifact_bridge\"][\"reason\"] = (\n    \"No Project OS Artifact Bridge tool is exposed in this session; deterministic FIX01 \"\n    \"evidence is committed locally for independent audit.\"\n)\naudit[\"base_commit_sha\"] = BASE\naudit[\"base_tree_oid\"] = base_tree\naudit[\"project_id\"] = \"k-slide\"\naudit[\"request\"] = LOGICAL_REQUEST\naudit[\"operation\"] = \"BUILD\"\naudit[\"job_id\"] = BUILD_JOB_ID\naudit[\"fabric_job_id\"] = BUILD_JOB_ID\naudit[\"fix_request\"] = FIX_REQUEST\naudit[\"work_branch\"] = WORK_BRANCH\naudit[\"predecessor_audit_sha256\"] = sha(previous_raw)\naudit[\"upstream_predecessor_audit_sha256\"] = previous[\"predecessor_audit_sha256\"]\naudit[\"predecessor_work_head_sha\"] = PREDECESSOR\naudit[\"predecessor_evidence_identity_sha256\"] = previous[\"fabric_evidence_identity_sha256\"]\naudit[\"predecessor_evidence\"] = {\n    \"commit_sha\": PREDECESSOR,\n    \"audit_path\": AUDIT_PATH,\n    \"audit_sha256\": sha(previous_raw),\n    \"fabric_evidence_identity_sha256\": previous[\"fabric_evidence_identity_sha256\"],\n    \"identity_scheme\": previous[\"fabric_evidence_identity_scheme\"],\n}\naudit[\"historical_build_evidence\"] = {\n    \"project_id\": build[\"project_id\"],\n    \"request\": build[\"request\"],\n    \"operation\": build[\"operation\"],\n    \"job_id\": build[\"job_id\"],\n    \"evidence_commit_sha\": BUILD_EVIDENCE_COMMIT,\n    \"evidence_audit_sha256\": sha(build_raw),\n    \"original_work_branch\": build[\"git\"][\"work_branch\"],\n    \"candidate_head_sha\": build[\"git\"][\"head_sha\"],\n    \"candidate_commit_sha\": PRODUCT,\n    \"candidate_audit_sha256\": sha(previous_raw),\n    \"evidence_manifest_candidate_audit_sha256\": build[\"evidence_manifest\"][\"items\"][0][\"sha256\"],\n    \"locator_ref\": build[\"locator\"][\"ref\"],\n}\naudit[\"operation_identity\"] = {\n    \"project_id\": \"k-slide\",\n    \"logical_request\": LOGICAL_REQUEST,\n    \"operation\": \"BUILD\",\n    \"build_job_id\": BUILD_JOB_ID,\n    \"fix_request\": FIX_REQUEST,\n    \"work_item\": \"KSA-34 F34-01\",\n    \"base_commit_sha\": BASE,\n    \"work_branch\": WORK_BRANCH,\n    \"candidate_commit_sha\": PRODUCT,\n    \"product_commit_sha\": PRODUCT,\n    \"predecessor_work_head_sha\": PREDECESSOR,\n    \"predecessor_evidence_identity_sha256\": previous[\"fabric_evidence_identity_sha256\"],\n}\naudit[\"operation_identity_scheme\"] = (\n    \"SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.\"\n)\naudit[\"operation_identity_sha256\"] = sha(canonical(audit[\"operation_identity\"]))\naudit[\"fix01\"] = {\n    \"request\": FIX_REQUEST,\n    \"work_item\": \"KSA-34 F34-01\",\n    \"work_branch\": WORK_BRANCH,\n    \"base_commit_sha\": BASE,\n    \"base_tree_oid\": base_tree,\n    \"predecessor_work_head_sha\": PREDECESSOR,\n    \"predecessor_evidence_identity_sha256\": previous[\"fabric_evidence_identity_sha256\"],\n    \"scope\": \"Candidate-side audit/evidence provenance correction only.\",\n    \"changed_paths\": [AUDIT_PATH],\n    \"rollout_source_tree_changed\": False,\n    \"live_company_approval_or_release_claimed\": False,\n    \"status\": \"EXECUTED_CHANGE\",\n}\ncandidate = audit[\"candidate\"]\ncandidate[\"base_commit_sha\"] = BASE\ncandidate[\"base_tree_oid\"] = base_tree\ncandidate[\"branch\"] = WORK_BRANCH\ncandidate[\"work_branch\"] = WORK_BRANCH\ncandidate[\"candidate_changes_committed\"] = True\ncandidate[\"candidate_commit_sha\"] = PRODUCT\ncandidate[\"product_commit_sha\"] = PRODUCT\ncandidate[\"candidate_tree_oid\"] = product_tree\ncandidate[\"product_tree_oid\"] = product_tree\ncandidate[\"candidate_source_content_manifest\"] = manifest\ncandidate[\"candidate_source_content_manifest_sha256\"] = manifest_sha\ncandidate[\"working_tree_clean_before_audit_write\"] = True\ncandidate_identity = {\n    \"project_id\": \"k-slide\",\n    \"logical_request\": LOGICAL_REQUEST,\n    \"work_branch\": WORK_BRANCH,\n    \"base_commit_sha\": BASE,\n    \"base_tree_oid\": base_tree,\n    \"candidate_commit_sha\": PRODUCT,\n    \"candidate_tree_oid\": product_tree,\n    \"product_commit_sha\": PRODUCT,\n    \"product_tree_oid\": product_tree,\n    \"candidate_source_content_manifest_sha256\": manifest_sha,\n}\ncandidate[\"candidate_identity\"] = candidate_identity\ncandidate[\"candidate_identity_scheme\"] = (\n    \"SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.\"\n)\ncandidate[\"candidate_identity_sha256\"] = sha(canonical(candidate_identity))\naudit[\"checks\"] = [\n    {\n        \"command\": \"rtk proxy env PYTHONPATH=src:. python3.11 -m unittest tests.test_ksa34_rollout -q\",\n        \"exit_code\": 0,\n        \"name\": \"Focused KSA-34 rollout state-machine and host integration, Python 3.11\",\n        \"result\": \"17 tests passed\",\n    },\n    {\n        \"command\": \"rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m unittest tests.test_ksa34_rollout -q\",\n        \"exit_code\": 0,\n        \"name\": \"Focused KSA-34 rollout state-machine and host integration, Python 3.12\",\n        \"result\": \"17 tests passed\",\n    },\n    {\n        \"command\": \"rtk proxy env PYTHONPATH=src:. python3.11 -m unittest discover -s tests -q\",\n        \"exit_code\": 0,\n        \"name\": \"Full repository unittest suite, Python 3.11\",\n        \"result\": \"687 tests passed; 4 optional skips\",\n    },\n    {\n        \"command\": \"rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m unittest discover -s tests -q\",\n        \"exit_code\": 0,\n        \"name\": \"Full repository unittest suite, Python 3.12\",\n        \"result\": \"687 tests passed\",\n    },\n    {\n        \"exit_code\": 0,\n        \"name\": \"Repository JSON schemas, Python 3.11 and 3.12\",\n        \"result\": \"All 7 schemas passed Draft 2020-12 schema validation on each version\",\n    },\n    {\n        \"exit_code\": 0,\n        \"name\": \"Workflow YAML and embedded shell syntax\",\n        \"result\": \"All 6 workflow YAML files parsed; all 49 embedded shell steps passed bash -n\",\n    },\n    {\n        \"exit_code\": 0,\n        \"name\": \"Compileall, Python 3.11 and 3.12\",\n        \"result\": \"Passed on both versions\",\n    },\n    {\n        \"exit_code\": 0,\n        \"name\": \"Candidate, operation, predecessor, manifest, and Fabric evidence identities\",\n        \"result\": \"All provenance identities independently rederived from Git objects and canonical JSON\",\n    },\n    {\n        \"command\": \"rtk git diff --check\",\n        \"exit_code\": 0,\n        \"name\": \"Whitespace and patch validation\",\n        \"result\": \"Passed\",\n    },\n]\naudit[\"fabric_evidence_identity_scheme\"] = (\n    \"SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators, \"\n    \"excluding fabric_evidence_identity_sha256 itself\"\n)\naudit.pop(\"fabric_evidence_identity_sha256\", None)\naudit[\"fabric_evidence_identity_sha256\"] = sha(canonical(audit))\nPath(AUDIT_PATH).write_text(json.dumps(audit, ensure_ascii=False, indent=2) + \"'\"\\\\n\\\", encoding=\\\"utf-8\\\")\nprint(json.dumps({\n    \\\"candidate_identity_sha256\\\": candidate[\\\"candidate_identity_sha256\\\"],\n    \\\"operation_identity_sha256\\\": audit[\\\"operation_identity_sha256\\\"],\n    \\\"source_manifest_sha256\\\": manifest_sha,\n    \\\"predecessor_audit_sha256\\\": audit[\\\"predecessor_audit_sha256\\\"],\n    \\\"predecessor_evidence_identity_sha256\\\": audit[\\\"predecessor_evidence_identity_sha256\\\"],\n    \\\"fabric_evidence_identity_sha256\\\": audit[\\\"fabric_evidence_identity_sha256\\\"],\n    \\\"manifest_entries\\\": len(manifest),\n}, indent=2))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk cat .codex-fabric/audit.json | rtk jq '{project_id, request, operation, job_id, fabric_job_id, fix_request, work_branch, base_commit_sha, predecessor_work_head_sha, predecessor_audit_sha256, predecessor_evidence_identity_sha256, candidate: {branch:.candidate.branch,candidate_commit_sha:.candidate.candidate_commit_sha,product_commit_sha:.candidate.product_commit_sha,candidate_tree_oid:.candidate.candidate_tree_oid,product_tree_oid:.candidate.product_tree_oid,candidate_source_content_manifest_sha256:.candidate.candidate_source_content_manifest_sha256,candidate_identity_sha256:.candidate.candidate_identity_sha256}, operation_identity_sha256, historical_build_evidence, fabric_evidence_identity_sha256}'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nimport hashlib,json,pathlib,subprocess\nP=pathlib.Path(\\\".codex-fabric/audit.json\\\")\na=json.loads(P.read_text(encoding=\\\"utf-8\\\"))\ncanon=lambda v: json.dumps(v,ensure_ascii=False,sort_keys=True,separators=(\\\",\\\",\\\":\\\")).encode()\nsha=lambda b: hashlib.sha256(b).hexdigest()\ngit=lambda *args: subprocess.check_output([\\\"git\\\",*args])\nbase=\\\"0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a\\\"\nproduct=\\\"01a2c87caa92bb392fa0762abcdf521e04538df5\\\"\npred=\\\"697e6af6d48db777a6b735e6a666a46dda0d329c\\\"\nfabric=\\\"4f98ec924309337db2de985d7e913a9c28f8cf1f\\\"\nassert a[\\\"project_id\\\"]==\\\"k-slide\\\"\nassert a[\\\"request\\\"]==\\\"chg16-rollout-controls-01\\\" and a[\\\"operation\\\"]==\\\"BUILD\\\"\nassert a[\\\"fix_request\\\"]==\\\"chg16-rollout-controls-01-fix01\\\"\nassert a[\\\"fix01\\\"][\\\"request\\\"]==a[\\\"fix_request\\\"]\nassert a[\\\"work_branch\\\"]==\\\"codex/k-slide-chg16-rollout-controls-01-fix01\\\"\nassert subprocess.check_output([\\\"git\\\",\\\"branch\\\",\\\"--show-current\\\"],text=True).strip()==a[\\\"work_branch\\\"]\nassert a[\\\"base_commit_sha\\\"]==base\nassert git(\\\"rev-parse\\\",f\\\"{base}\"'^{{tree}}\").decode().strip()==a[\"base_tree_oid\"]\nassert git(\"rev-parse\",f\"{product}''^{{tree}}\").decode().strip()==a[\"candidate\"][\"product_tree_oid\"]\nassert git(\"show\",\"-s\",\"--format=%P\",product).decode().strip()==base\nassert a[\"candidate\"][\"candidate_commit_sha\"]==a[\"candidate\"][\"product_commit_sha\"]==product\nassert a[\"candidate\"][\"branch\"]==a[\"candidate\"][\"work_branch\"]==a[\"work_branch\"]\nmanifest=a[\"candidate\"][\"candidate_source_content_manifest\"]\nexpected_paths=[x for x in git(\"diff\",\"--name-only\",base,product).decode().splitlines() if x!=\".codex-fabric/audit.json\"]\nassert [x[\"path\"] for x in manifest]==expected_paths\nfor item in manifest:\n    assert sha(git(\"show\",f'\"'{product}:{item[\\\"path\\\"]}'))==item[\\\"sha256\\\"],item[\\\"path\\\"]\nmanifest_hash=sha(canon(manifest))\nassert manifest_hash==a[\\\"candidate\\\"][\\\"candidate_source_content_manifest_sha256\\\"]\nci=a[\\\"candidate\\\"][\\\"candidate_identity\\\"]\nassert ci[\\\"candidate_source_content_manifest_sha256\\\"]==manifest_hash\nassert sha(canon(ci))==a[\\\"candidate\\\"][\\\"candidate_identity_sha256\\\"]\noi=a[\\\"operation_identity\\\"]\nassert oi[\\\"project_id\\\"]==a[\\\"project_id\\\"] and oi[\\\"logical_request\\\"]==a[\\\"request\\\"] and oi[\\\"operation\\\"]==a[\\\"operation\\\"]\nassert sha(canon(oi))==a[\\\"operation_identity_sha256\\\"]\nprev=json.loads(git(\\\"show\\\",f'{pred}:.codex-fabric/audit.json'))\nprev_raw=git(\\\"show\\\",f'{pred}:.codex-fabric/audit.json')\npi=dict(prev); pi.pop(\\\"fabric_evidence_identity_sha256\\\")\nassert sha(prev_raw)==a[\\\"predecessor_audit_sha256\\\"]\nassert sha(canon(pi))==a[\\\"predecessor_evidence_identity_sha256\\\"]==prev[\\\"fabric_evidence_identity_sha256\\\"]\nassert a[\\\"predecessor_work_head_sha\\\"]==a[\\\"fix01\\\"][\\\"predecessor_work_head_sha\\\"]==pred\nactual=json.loads(git(\\\"show\\\",f'{fabric}:.codex-fabric/audit.json'))\nactual_raw=git(\\\"show\\\",f'{fabric}:.codex-fabric/audit.json')\nassert actual[\\\"project_id\\\"]==a[\\\"project_id\\\"] and actual[\\\"request\\\"]==a[\\\"request\\\"] and actual[\\\"operation\\\"]==a[\\\"operation\\\"]\nassert actual[\\\"job_id\\\"]==a[\\\"job_id\\\"]==a[\\\"fabric_job_id\\\"]\nassert sha(actual_raw)==a[\\\"historical_build_evidence\\\"][\\\"evidence_audit_sha256\\\"]\nassert actual[\\\"evidence_manifest\\\"][\\\"items\\\"][0][\\\"sha256\\\"]==a[\\\"predecessor_audit_sha256\\\"]\nassert a[\\\"historical_build_evidence\\\"][\\\"evidence_commit_sha\\\"]==fabric\ne=dict(a); recorded=e.pop(\\\"fabric_evidence_identity_sha256\\\")\nassert sha(canon(e))==recorded\nassert \\\"chg16-ksa34-rollout-controls-01\\\" not in P.read_text(encoding=\\\"utf-8\\\")\nchanged=git(\\\"diff\\\",\\\"--name-only\\\").decode().splitlines()\nassert changed==[\\\".codex-fabric/audit.json\\\"],changed\nassert subprocess.check_output([\\\"git\\\",\\\"status\\\",\\\"--porcelain\\\"],text=True).splitlines()==[\\\" M .codex-fabric/audit.json\\\"]\nprint(f\\\"identity validation passed; manifest entries={len(manifest)}; evidence_identity={recorded}\\\")\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy /tmp/k-slide-ksa34-py312/bin/python - <<'PY'\nimport hashlib,json,pathlib,subprocess\nP=pathlib.Path(\\\".codex-fabric/audit.json\\\")\na=json.loads(P.read_text(encoding=\\\"utf-8\\\"))\ncanon=lambda v: json.dumps(v,ensure_ascii=False,sort_keys=True,separators=(\\\",\\\",\\\":\\\")).encode()\nsha=lambda b: hashlib.sha256(b).hexdigest()\ngit=lambda *args: subprocess.check_output([\\\"git\\\",*args])\nbase=\\\"0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a\\\"\nproduct=\\\"01a2c87caa92bb392fa0762abcdf521e04538df5\\\"\npred=\\\"697e6af6d48db777a6b735e6a666a46dda0d329c\\\"\nfabric=\\\"4f98ec924309337db2de985d7e913a9c28f8cf1f\\\"\nassert a[\\\"project_id\\\"]==\\\"k-slide\\\"\nassert a[\\\"request\\\"]==\\\"chg16-rollout-controls-01\\\" and a[\\\"operation\\\"]==\\\"BUILD\\\"\nassert a[\\\"fix_request\\\"]==\\\"chg16-rollout-controls-01-fix01\\\"\nassert a[\\\"fix01\\\"][\\\"request\\\"]==a[\\\"fix_request\\\"]\nassert a[\\\"work_branch\\\"]==\\\"codex/k-slide-chg16-rollout-controls-01-fix01\\\"\nassert subprocess.check_output([\\\"git\\\",\\\"branch\\\",\\\"--show-current\\\"],text=True).strip()==a[\\\"work_branch\\\"]\nassert a[\\\"base_commit_sha\\\"]==base\nassert git(\\\"rev-parse\\\",f\\\"{base}\"'^{{tree}}\").decode().strip()==a[\"base_tree_oid\"]\nassert git(\"rev-parse\",f\"{product}''^{{tree}}\").decode().strip()==a[\"candidate\"][\"product_tree_oid\"]\nassert git(\"show\",\"-s\",\"--format=%P\",product).decode().strip()==base\nassert a[\"candidate\"][\"candidate_commit_sha\"]==a[\"candidate\"][\"product_commit_sha\"]==product\nassert a[\"candidate\"][\"branch\"]==a[\"candidate\"][\"work_branch\"]==a[\"work_branch\"]\nmanifest=a[\"candidate\"][\"candidate_source_content_manifest\"]\nexpected_paths=[x for x in git(\"diff\",\"--name-only\",base,product).decode().splitlines() if x!=\".codex-fabric/audit.json\"]\nassert [x[\"path\"] for x in manifest]==expected_paths\nfor item in manifest:\n    assert sha(git(\"show\",f'\"'{product}:{item[\\\"path\\\"]}'))==item[\\\"sha256\\\"],item[\\\"path\\\"]\nmanifest_hash=sha(canon(manifest))\nassert manifest_hash==a[\\\"candidate\\\"][\\\"candidate_source_content_manifest_sha256\\\"]\nci=a[\\\"candidate\\\"][\\\"candidate_identity\\\"]\nassert ci[\\\"candidate_source_content_manifest_sha256\\\"]==manifest_hash\nassert sha(canon(ci))==a[\\\"candidate\\\"][\\\"candidate_identity_sha256\\\"]\noi=a[\\\"operation_identity\\\"]\nassert oi[\\\"project_id\\\"]==a[\\\"project_id\\\"] and oi[\\\"logical_request\\\"]==a[\\\"request\\\"] and oi[\\\"operation\\\"]==a[\\\"operation\\\"]\nassert sha(canon(oi))==a[\\\"operation_identity_sha256\\\"]\nprev=json.loads(git(\\\"show\\\",f'{pred}:.codex-fabric/audit.json'))\nprev_raw=git(\\\"show\\\",f'{pred}:.codex-fabric/audit.json')\npi=dict(prev); pi.pop(\\\"fabric_evidence_identity_sha256\\\")\nassert sha(prev_raw)==a[\\\"predecessor_audit_sha256\\\"]\nassert sha(canon(pi))==a[\\\"predecessor_evidence_identity_sha256\\\"]==prev[\\\"fabric_evidence_identity_sha256\\\"]\nassert a[\\\"predecessor_work_head_sha\\\"]==a[\\\"fix01\\\"][\\\"predecessor_work_head_sha\\\"]==pred\nactual=json.loads(git(\\\"show\\\",f'{fabric}:.codex-fabric/audit.json'))\nactual_raw=git(\\\"show\\\",f'{fabric}:.codex-fabric/audit.json')\nassert actual[\\\"project_id\\\"]==a[\\\"project_id\\\"] and actual[\\\"request\\\"]==a[\\\"request\\\"] and actual[\\\"operation\\\"]==a[\\\"operation\\\"]\nassert actual[\\\"job_id\\\"]==a[\\\"job_id\\\"]==a[\\\"fabric_job_id\\\"]\nassert sha(actual_raw)==a[\\\"historical_build_evidence\\\"][\\\"evidence_audit_sha256\\\"]\nassert actual[\\\"evidence_manifest\\\"][\\\"items\\\"][0][\\\"sha256\\\"]==a[\\\"predecessor_audit_sha256\\\"]\nassert a[\\\"historical_build_evidence\\\"][\\\"evidence_commit_sha\\\"]==fabric\ne=dict(a); recorded=e.pop(\\\"fabric_evidence_identity_sha256\\\")\nassert sha(canon(e))==recorded\nassert \\\"chg16-ksa34-rollout-controls-01\\\" not in P.read_text(encoding=\\\"utf-8\\\")\nchanged=git(\\\"diff\\\",\\\"--name-only\\\").decode().splitlines()\nassert changed==[\\\".codex-fabric/audit.json\\\"],changed\nassert subprocess.check_output([\\\"git\\\",\\\"status\\\",\\\"--porcelain\\\"],text=True).splitlines()==[\\\" M .codex-fabric/audit.json\\\"]\nprint(f\\\"identity validation passed; manifest entries={len(manifest)}; evidence_identity={recorded}\\\")\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add .codex-fabric/audit.json && rtk git diff --cached --check && rtk git diff --cached --stat && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git commit -m \"fix(fabric): correct KSA-34 provenance evidence\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short --branch && rtk git rev-parse HEAD && rtk git show -s --format='%H%n%P%n%s' HEAD && rtk git diff 697e6af6d48db777a6b735e6a666a46dda0d329c HEAD --stat && rtk git diff --check\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nimport hashlib,json,pathlib,subprocess\nP=pathlib.Path(\\\".codex-fabric/audit.json\\\")\na=json.loads(P.read_text(encoding=\\\"utf-8\\\"))\ncanon=lambda v: json.dumps(v,ensure_ascii=False,sort_keys=True,separators=(\\\",\\\",\\\":\\\")).encode()\nsha=lambda b: hashlib.sha256(b).hexdigest()\ngit=lambda *args: subprocess.check_output([\\\"git\\\",*args])\nbase=\\\"0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a\\\"\nproduct=\\\"01a2c87caa92bb392fa0762abcdf521e04538df5\\\"\npred=\\\"697e6af6d48db777a6b735e6a666a46dda0d329c\\\"\nfabric=\\\"4f98ec924309337db2de985d7e913a9c28f8cf1f\\\"\nhead=git(\\\"rev-parse\\\",\\\"HEAD\\\").decode().strip()\nassert git(\\\"show\\\",\\\"-s\\\",\\\"--format=%P\\\",head).decode().strip()==pred\nassert not git(\\\"status\\\",\\\"--porcelain\\\").decode().strip()\nassert git(\\\"diff\\\",\\\"--name-only\\\",pred,head).decode().splitlines()==[\\\".codex-fabric/audit.json\\\"]\nassert subprocess.check_output([\\\"git\\\",\\\"branch\\\",\\\"--show-current\\\"],text=True).strip()==a[\\\"work_branch\\\"]\nassert a[\\\"project_id\\\"]==\\\"k-slide\\\" and a[\\\"request\\\"]==\\\"chg16-rollout-controls-01\\\" and a[\\\"operation\\\"]==\\\"BUILD\\\"\nassert a[\\\"fix_request\\\"]==a[\\\"fix01\\\"][\\\"request\\\"]==\\\"chg16-rollout-controls-01-fix01\\\"\nassert a[\\\"base_commit_sha\\\"]==a[\\\"fix01\\\"][\\\"base_commit_sha\\\"]==base\nassert git(\\\"merge-base\\\",\\\"--is-ancestor\\\",base,head)==b\\\"\\\"\nassert a[\\\"candidate\\\"][\\\"candidate_commit_sha\\\"]==a[\\\"candidate\\\"][\\\"product_commit_sha\\\"]==product\nassert git(\\\"rev-parse\\\",f\\\"{product}\"'^{{tree}}\").decode().strip()==a[\"candidate\"][\"product_tree_oid\"]\nmanifest=a[\"candidate\"][\"candidate_source_content_manifest\"]\nassert sha(canon(manifest))==a[\"candidate\"][\"candidate_source_content_manifest_sha256\"]\nfor x in manifest:\n assert sha(git(\"show\",f'\"'{product}:{x[\\\"path\\\"]}'))==x[\\\"sha256\\\"]\nassert sha(canon(a[\\\"candidate\\\"][\\\"candidate_identity\\\"]))==a[\\\"candidate\\\"][\\\"candidate_identity_sha256\\\"]\nassert sha(canon(a[\\\"operation_identity\\\"]))==a[\\\"operation_identity_sha256\\\"]\nprev=json.loads(git(\\\"show\\\",f\\\"{pred}:.codex-fabric/audit.json\\\"))\nprev_raw=git(\\\"show\\\",f\\\"{pred}:.codex-fabric/audit.json\\\")\npi=dict(prev); pi.pop(\\\"fabric_evidence_identity_sha256\\\")\nassert sha(prev_raw)==a[\\\"predecessor_audit_sha256\\\"]\nassert sha(canon(pi))==a[\\\"predecessor_evidence_identity_sha256\\\"]\nactual=json.loads(git(\\\"show\\\",f\\\"{fabric}:.codex-fabric/audit.json\\\"))\nactual_raw=git(\\\"show\\\",f\\\"{fabric}:.codex-fabric/audit.json\\\")\nassert (actual[\\\"project_id\\\"],actual[\\\"request\\\"],actual[\\\"operation\\\"],actual[\\\"job_id\\\"])==(a[\\\"project_id\\\"],a[\\\"request\\\"],a[\\\"operation\\\"],a[\\\"job_id\\\"])\nassert sha(actual_raw)==a[\\\"historical_build_evidence\\\"][\\\"evidence_audit_sha256\\\"]\nev=dict(a); recorded=ev.pop(\\\"fabric_evidence_identity_sha256\\\")\nassert sha(canon(ev))==recorded\nprint(f\\\"committed evidence validation passed; HEAD={head}; evidence_identity={recorded}\\\")\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy /tmp/k-slide-ksa34-py312/bin/python - <<'PY'\nimport hashlib,json,pathlib,subprocess\nP=pathlib.Path(\\\".codex-fabric/audit.json\\\")\na=json.loads(P.read_text(encoding=\\\"utf-8\\\"))\ncanon=lambda v: json.dumps(v,ensure_ascii=False,sort_keys=True,separators=(\\\",\\\",\\\":\\\")).encode()\nsha=lambda b: hashlib.sha256(b).hexdigest()\ngit=lambda *args: subprocess.check_output([\\\"git\\\",*args])\nbase=\\\"0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a\\\"\nproduct=\\\"01a2c87caa92bb392fa0762abcdf521e04538df5\\\"\npred=\\\"697e6af6d48db777a6b735e6a666a46dda0d329c\\\"\nfabric=\\\"4f98ec924309337db2de985d7e913a9c28f8cf1f\\\"\nhead=git(\\\"rev-parse\\\",\\\"HEAD\\\").decode().strip()\nassert git(\\\"show\\\",\\\"-s\\\",\\\"--format=%P\\\",head).decode().strip()==pred\nassert not git(\\\"status\\\",\\\"--porcelain\\\").decode().strip()\nassert git(\\\"diff\\\",\\\"--name-only\\\",pred,head).decode().splitlines()==[\\\".codex-fabric/audit.json\\\"]\nassert subprocess.check_output([\\\"git\\\",\\\"branch\\\",\\\"--show-current\\\"],text=True).strip()==a[\\\"work_branch\\\"]\nassert a[\\\"project_id\\\"]==\\\"k-slide\\\" and a[\\\"request\\\"]==\\\"chg16-rollout-controls-01\\\" and a[\\\"operation\\\"]==\\\"BUILD\\\"\nassert a[\\\"fix_request\\\"]==a[\\\"fix01\\\"][\\\"request\\\"]==\\\"chg16-rollout-controls-01-fix01\\\"\nassert a[\\\"base_commit_sha\\\"]==a[\\\"fix01\\\"][\\\"base_commit_sha\\\"]==base\nassert git(\\\"merge-base\\\",\\\"--is-ancestor\\\",base,head)==b\\\"\\\"\nassert a[\\\"candidate\\\"][\\\"candidate_commit_sha\\\"]==a[\\\"candidate\\\"][\\\"product_commit_sha\\\"]==product\nassert git(\\\"rev-parse\\\",f\\\"{product}\"'^{{tree}}\").decode().strip()==a[\"candidate\"][\"product_tree_oid\"]\nmanifest=a[\"candidate\"][\"candidate_source_content_manifest\"]\nassert sha(canon(manifest))==a[\"candidate\"][\"candidate_source_content_manifest_sha256\"]\nfor x in manifest:\n assert sha(git(\"show\",f'\"'{product}:{x[\\\"path\\\"]}'))==x[\\\"sha256\\\"]\nassert sha(canon(a[\\\"candidate\\\"][\\\"candidate_identity\\\"]))==a[\\\"candidate\\\"][\\\"candidate_identity_sha256\\\"]\nassert sha(canon(a[\\\"operation_identity\\\"]))==a[\\\"operation_identity_sha256\\\"]\nprev=json.loads(git(\\\"show\\\",f\\\"{pred}:.codex-fabric/audit.json\\\"))\nprev_raw=git(\\\"show\\\",f\\\"{pred}:.codex-fabric/audit.json\\\")\npi=dict(prev); pi.pop(\\\"fabric_evidence_identity_sha256\\\")\nassert sha(prev_raw)==a[\\\"predecessor_audit_sha256\\\"]\nassert sha(canon(pi))==a[\\\"predecessor_evidence_identity_sha256\\\"]\nactual=json.loads(git(\\\"show\\\",f\\\"{fabric}:.codex-fabric/audit.json\\\"))\nactual_raw=git(\\\"show\\\",f\\\"{fabric}:.codex-fabric/audit.json\\\")\nassert (actual[\\\"project_id\\\"],actual[\\\"request\\\"],actual[\\\"operation\\\"],actual[\\\"job_id\\\"])==(a[\\\"project_id\\\"],a[\\\"request\\\"],a[\\\"operation\\\"],a[\\\"job_id\\\"])\nassert sha(actual_raw)==a[\\\"historical_build_evidence\\\"][\\\"evidence_audit_sha256\\\"]\nev=dict(a); recorded=ev.pop(\\\"fabric_evidence_identity_sha256\\\")\nassert sha(canon(ev))==recorded\nprint(f\\\"committed evidence validation passed; HEAD={head}; evidence_identity={recorded}\\\")\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.156.1",
+    "configured_model": "gpt-6-luna",
+    "event_count": 114,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 92.93,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 1259264,
+      "fresh_input_tokens": 95795,
+      "input_tokens": 1355059,
+      "non_reasoning_output_tokens": 11825,
+      "output_tokens": 38110,
+      "reasoning_output_tokens": 26285,
+      "total_processed_tokens": 1393169
+    },
+    "warnings": []
   },
-  "artifact_path": ".codex-fabric/audit.json",
-  "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
-  "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
-  "candidate": {
-    "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
-    "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
-    "branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
-    "candidate_changes_committed": true,
-    "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
-    "candidate_source_content_manifest": [
+  "commits": [
+    {
+      "sha": "38be58df78bf73f554052be3c6e709cef53a9100",
+      "subject": "fix(fabric): correct KSA-34 provenance evidence"
+    },
+    {
+      "sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
+      "subject": "Record KSA-34 Fabric audit evidence"
+    },
+    {
+      "sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
+      "subject": "Implement KSA-34 candidate-bound rollout controls"
+    }
+  ],
+  "diff": {
+    "additions": 1646,
+    "changed_files": 13,
+    "commit_count": 3,
+    "deletions": 231
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 7,
+    "items": [
       {
+        "bytes": 12142,
+        "path": ".codex-fabric/audit.json",
+        "sha256": "b1466cfb280d4c6bf3731ee8bba9b14c9b864847ccc4293512bcbecac1eac09f"
+      },
+      {
+        "bytes": 89232,
         "path": "IMPLEMENTATION_STATUS.md",
         "sha256": "e7f4a02f65a17fa61189a82a211b87e888ef4f16309868c99a4cf52c69d9f41a"
       },
       {
+        "bytes": 14419,
         "path": "README.md",
         "sha256": "325faadde2da37ec9d2df7707e4d5d90b1c03e4cd2258c5f00b31cee05bbe748"
       },
       {
+        "bytes": 6456,
         "path": "deploy/README.md",
         "sha256": "9d7d795580a75b745ebbdd38014d1096e01f64a3edc20df76105277434343c3a"
       },
       {
+        "bytes": 2604,
         "path": "docs/adr/0045-candidate-bound-rollout-controls.md",
         "sha256": "1fb275ece0ef96c05aca16277cc09daee22d21e69b96f1e56319edc2c1702d5f"
       },
       {
+        "bytes": 5414,
         "path": "docs/ksa34-rollout-controls.md",
         "sha256": "80fc0e40784b5543f0ef03b705ed42f25a97178cc65483032081a0d762e0dd43"
       },
       {
+        "bytes": 6769,
         "path": "schemas/rollout-control.schema.json",
         "sha256": "26b9114fc256f64b3a7c88c1d0af00739ee5e38df14369f30171a05824ac258e"
-      },
-      {
-        "path": "src/k_slide/ingest.py",
-        "sha256": "5e91ffe1ecdab5802fed52e37d45a3f952ff5dc1e5bb841ee4864fb2ee033e60"
-      },
-      {
-        "path": "src/k_slide/rollout.py",
-        "sha256": "a33a603652764b56dd1b5df667f6317eddac492e4b7e183d5be75b41da09dec5"
-      },
-      {
-        "path": "tests/rollout_fixtures.py",
-        "sha256": "06f86cbd5b44154cc796586c7abd7e16fa1457d543d0d05481aeece4e8bb9bd2"
-      },
-      {
-        "path": "tests/test_chg16_environment_binding.py",
-        "sha256": "68c4011c5be52749f63d32c84aebdc298d2d07ec7d41e116f3d7b6cf599252cf"
-      },
-      {
-        "path": "tests/test_ksa19_employee_path.py",
-        "sha256": "b5339256211fc0e0e6d3f01839f5a1a3f68d350e8f12e582d252f44ba054dbae"
-      },
-      {
-        "path": "tests/test_ksa34_rollout.py",
-        "sha256": "50f4fcaef3e5eff4955fecab0b0df664c61a8dfd5799b3bbc730ab2a21bc9cc1"
       }
     ],
-    "candidate_source_content_manifest_sha256": "9da57ab7186bbf84ba3fbff1dfb40f35318d2807bd243f16852ff14b58089594",
-    "candidate_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
-    "working_tree_clean_before_audit_write": true,
-    "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
-    "product_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
-    "product_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
-    "candidate_identity": {
-      "project_id": "k-slide",
-      "logical_request": "chg16-rollout-controls-01",
-      "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
-      "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
-      "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
-      "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
-      "candidate_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
-      "product_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
-      "product_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
-      "candidate_source_content_manifest_sha256": "9da57ab7186bbf84ba3fbff1dfb40f35318d2807bd243f16852ff14b58089594"
-    },
-    "candidate_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
-    "candidate_identity_sha256": "223a07c3dde460d4e6423470b75a16e848c65f4a83c00b75976b8362e330915c"
+    "version": 1
   },
-  "checks": [
-    {
-      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m unittest tests.test_ksa34_rollout -q",
-      "exit_code": 0,
-      "name": "Focused KSA-34 rollout state-machine and host integration, Python 3.11",
-      "result": "17 tests passed"
-    },
-    {
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m unittest tests.test_ksa34_rollout -q",
-      "exit_code": 0,
-      "name": "Focused KSA-34 rollout state-machine and host integration, Python 3.12",
-      "result": "17 tests passed"
-    },
-    {
-      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m unittest discover -s tests -q",
-      "exit_code": 0,
-      "name": "Full repository unittest suite, Python 3.11",
-      "result": "687 tests passed; 4 optional skips"
-    },
-    {
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m unittest discover -s tests -q",
-      "exit_code": 0,
-      "name": "Full repository unittest suite, Python 3.12",
-      "result": "687 tests passed"
-    },
-    {
-      "exit_code": 0,
-      "name": "Repository JSON schemas, Python 3.11 and 3.12",
-      "result": "All 7 schemas passed Draft 2020-12 schema validation on each version"
-    },
-    {
-      "exit_code": 0,
-      "name": "Workflow YAML and embedded shell syntax",
-      "result": "All 6 workflow YAML files parsed; all 49 embedded shell steps passed bash -n"
-    },
-    {
-      "exit_code": 0,
-      "name": "Compileall, Python 3.11 and 3.12",
-      "result": "Passed on both versions"
-    },
-    {
-      "exit_code": 0,
-      "name": "Candidate, operation, predecessor, manifest, and Fabric evidence identities",
-      "result": "All provenance identities independently rederived from Git objects and canonical JSON"
-    },
-    {
-      "command": "rtk git diff --check",
-      "exit_code": 0,
-      "name": "Whitespace and patch validation",
-      "result": "Passed"
+  "evidence_publisher_release": "1.2.5-dashboard-controls-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
     }
-  ],
-  "company_environment": {
-    "authenticated_cohort_resolution": "UNQUALIFIED",
-    "deployed_runtime_identity": "UNQUALIFIED",
-    "live_company_approval": "NOT_CLAIMED",
-    "live_paas_or_feature_flags": "NOT_MUTATED",
-    "rollout_control_plane_persistence": "UNQUALIFIED"
   },
-  "fabric_evidence_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators, excluding fabric_evidence_identity_sha256 itself",
-  "fabric_job_id": "CF-972811ab7d024a50b1eb98d0",
-  "generated_at": "2026-09-25",
-  "issue_id": "CHG-16",
-  "job_id": "CF-972811ab7d024a50b1eb98d0",
+  "fabric_release": "1.2.5-dashboard-controls-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-25T20:33:07Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
+    "branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
+    "detached_verify": false,
+    "head_sha": "38be58df78bf73f554052be3c6e709cef53a9100",
+    "remote_exact_head": true,
+    "remote_head_sha": "38be58df78bf73f554052be3c6e709cef53a9100",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
+    "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-12b76be2bf5da754d609366c",
   "kind": "codex-fabric-audit-evidence",
-  "operation": "BUILD",
-  "predecessor_audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-rollout-controls-01-fix01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-rollout-controls-01-fix01"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.5-dashboard-controls-candidate",
+    "policy_sha256": "123615bf2f6e57dcac197e49ca98ceac59ada86a55e2c84445ea5d00812c0833",
+    "registry_sha256": "af81b8552f9d6a33847310e3c6bcd2d48401782b963a58efd2993e93570cb4aa"
+  },
   "project_id": "k-slide",
-  "qualification_status": "NOT_QUALIFIED",
-  "release_or_production_claim": false,
-  "request": "chg16-rollout-controls-01",
-  "rollout_evidence": {
-    "durable_admission_and_transition_evidence_source_free": true,
-    "durable_source_document_content": false,
-    "employee_pilot_or_canary_run": "NOT_RUN",
-    "live_cohort_or_rollout_state": "NOT_CREATED",
-    "reference_file_adapter": "TEST_AND_LOCAL_QUALIFICATION_ONLY",
-    "rollout_controls_change_release_or_certification_state": false,
-    "scenario_coverage": [
-      "named cohort inclusion and exclusion",
-      "explicit staged expansion and contraction",
-      "immediate disable and re-enable",
-      "authorized rollback and restoration",
-      "restart and reload",
-      "stale and malformed policy",
-      "unauthorized policy/state/history mutation",
-      "exact candidate mismatch and policy drift",
-      "replay and monotonic history",
-      "rollback target mismatch",
-      "in-flight run identity preservation",
-      "shared CLI and OpenCode host boundary"
-    ],
-    "versioned_inflight_rule": "BOUND_RUNS_COMPLETE_OR_STOP_ON_IDENTITY_MISMATCH_V1"
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
   },
+  "request": "chg16-rollout-controls-01-fix01",
   "schema_version": 1,
-  "scope": {
-    "excluded": [
-      "KSA-35 and later",
-      "Live company PaaS or feature-flag mutation",
-      "Real employee pilot or canary",
-      "Moving or merging main",
-      "Release, BUILD COMPLETE, champion promotion, or production certification"
-    ],
-    "implemented": [
-      "KSA-34 repository-owned candidate-bound rollout admission controls only"
-    ],
-    "preserved": [
-      "Accepted KSA-01 through KSA-33 behavior",
-      "Existing evidence-derived release/certification machinery",
-      "KSA-31 champion/change-impact, KSA-32 governance, and KSA-33 candidate/security authority"
-    ]
-  },
+  "started_at": "2026-09-25T20:17:54Z",
   "status": "EXECUTED_CHANGE",
-  "fix_request": "chg16-rollout-controls-01-fix01",
-  "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
-  "upstream_predecessor_audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
-  "predecessor_work_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
-  "predecessor_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5",
-  "predecessor_evidence": {
-    "commit_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
-    "audit_path": ".codex-fabric/audit.json",
-    "audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
-    "fabric_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5",
-    "identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators, excluding fabric_evidence_identity_sha256 itself"
+  "timing": {
+    "execution_seconds": 913,
+    "queue_seconds": 0,
+    "total_seconds": 913
   },
-  "historical_build_evidence": {
-    "project_id": "k-slide",
-    "request": "chg16-rollout-controls-01",
-    "operation": "BUILD",
-    "job_id": "CF-972811ab7d024a50b1eb98d0",
-    "evidence_commit_sha": "4f98ec924309337db2de985d7e913a9c28f8cf1f",
-    "evidence_audit_sha256": "8829b9fa93cd58afd236c20ccc97d4d4bbef6f588b43d73c92f5b0abd2f8ca02",
-    "original_work_branch": "codex/k-slide-chg16-rollout-controls-01",
-    "candidate_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
-    "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
-    "candidate_audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
-    "evidence_manifest_candidate_audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
-    "locator_ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-rollout-controls-01"
-  },
-  "operation_identity": {
-    "project_id": "k-slide",
-    "logical_request": "chg16-rollout-controls-01",
-    "operation": "BUILD",
-    "build_job_id": "CF-972811ab7d024a50b1eb98d0",
-    "fix_request": "chg16-rollout-controls-01-fix01",
-    "work_item": "KSA-34 F34-01",
-    "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
-    "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
-    "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
-    "product_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
-    "predecessor_work_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
-    "predecessor_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5"
-  },
-  "operation_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
-  "operation_identity_sha256": "36a262c507dbe7bd33f666d961619877f16e5d9aaff6b3dcde2072200497e411",
-  "fix01": {
-    "request": "chg16-rollout-controls-01-fix01",
-    "work_item": "KSA-34 F34-01",
-    "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
-    "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
-    "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
-    "predecessor_work_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
-    "predecessor_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5",
-    "scope": "Candidate-side audit/evidence provenance correction only.",
-    "changed_paths": [
-      ".codex-fabric/audit.json"
-    ],
-    "rollout_source_tree_changed": false,
-    "live_company_approval_or_release_claimed": false,
-    "status": "EXECUTED_CHANGE"
-  },
-  "fabric_evidence_identity_sha256": "e845136108d88710fa241e2d347eb3e0a089b3151ebd0cd0693ed513047570cb"
+  "transport": {
+    "bytes": 2306,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 1983,
+    "prompt_sha256": "ce3302df282eb3443ea286a6c7aac2ef97474015a3bd6f7f26f90ff2fef4287b",
+    "sha256": "12b76be2bf5da754d609366c89363c855d97cd67ab4cc46e6037817ce246321b"
+  }
 }
