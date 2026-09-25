@@ -1,7 +1,7 @@
 {
   "ancestry": {
-    "branch_at_final_identity_check": "codex/k-slide-chg16-protected-release-governance-01",
-    "head_at_final_identity_check": "81c89b9a0859282a2069be2b4aeab45ec61e518a",
+    "branch_at_final_identity_check": "codex/k-slide-chg16-protected-release-governance-01-fix01",
+    "head_at_final_identity_check": "22431e4663b57b8f8ac98e58012f8a6fc7d8a66e",
     "live_github_admin_mutations_performed": false,
     "main_moved": false,
     "merge_to_main_performed": false,
@@ -10,7 +10,7 @@
   },
   "candidate": {
     "base_integrated_main": "81c89b9a0859282a2069be2b4aeab45ec61e518a",
-    "branch": "codex/k-slide-chg16-protected-release-governance-01",
+    "branch": "codex/k-slide-chg16-protected-release-governance-01-fix01",
     "candidate_commit": null,
     "candidate_source_content_manifest": [
       {
@@ -19,23 +19,23 @@
       },
       {
         "path": ".github/workflows/k-slide-governance.yml",
-        "sha256": "51abd831f664cfa92aa479d99589b57363d60f1f92232470fb184698dce8734f"
+        "sha256": "eae51ce285a89d85e8c3c7e56f34ea6cbafce8f9c3feebeec7a8d23a51a67379"
       },
       {
         "path": "IMPLEMENTATION_STATUS.md",
-        "sha256": "ba9d1861d0eb26fa50970b1134933f1810b7c41f88348a767ee7cb6ec7d05142"
+        "sha256": "06670cee733ea55df8349b187d914404da8ab637b7f524b452cd439fc619b524"
       },
       {
         "path": "docs/ksa32-release-governance.md",
-        "sha256": "7d62b100b35f4c7f32b84e7f4c6e80ed062c2d04d5cb4bd6a6fddc79d585ba6c"
+        "sha256": "a7ef78046226d9178f9477ab0d77b70e69cf7436b09957dbf60fc41485e95f75"
       },
       {
         "path": "evals/capture_governance.py",
-        "sha256": "da83bb17991730aeefb1fe0b3a695bc99cef73e81a9bc5e826407e3cf79f331d"
+        "sha256": "12ef666713f05f04274e2fd0f3c3d041d416752644b0b6c682224f7245bd4eb0"
       },
       {
         "path": "security/release-governance-policy.json",
-        "sha256": "4e3216e0beb2bf0b91cf14a9d6d8d19cf19c46006d2fb4260b3d224a9f24c79c"
+        "sha256": "b73bc0396ad31f758bbaeb282bf48a5ec703fd1b20593fbd158fed6213e82588"
       },
       {
         "path": "src/k_slide/certification.py",
@@ -43,7 +43,7 @@
       },
       {
         "path": "src/k_slide/evidence_adapters.py",
-        "sha256": "65aa0d119bb90fd696978f3f81cc14b0b98b3cc6736e5916b7621e83dd74b64a"
+        "sha256": "1d19565f41fead602b9bb188c3ba0f5a2408ec8ae4846fa6bb71058dee2cab14"
       },
       {
         "path": "src/k_slide/recertification.py",
@@ -51,11 +51,11 @@
       },
       {
         "path": "src/k_slide/release_governance.py",
-        "sha256": "d323cfce7b59dfc6f1c2d800dcf4a10041448d3f88a7eb6b0640a74f2d1f47d4"
+        "sha256": "9a65683eeb477a2f48c3dffdfb38db51165807fd718a82e1c018393ecad930cc"
       },
       {
         "path": "tests/ksa32_governance_fixtures.py",
-        "sha256": "9d9e8fad6d685cae087f0ce727665acbea2d5c8190a3db5c2af01cec1cc6595e"
+        "sha256": "e12aa854abddbf89442efc4e3c6002ad1b404199aca01a82f99b3df4dcdbd958"
       },
       {
         "path": "tests/test_certification_closure.py",
@@ -67,11 +67,11 @@
       },
       {
         "path": "tests/test_ksa32_release_governance.py",
-        "sha256": "af221acc106c16ae5fc2789df3f699ce0683678916e243a86ae38c07fe37d07f"
+        "sha256": "ff042801d86fc781b6987879c51c5c6876d14ccc2d69fdabbcfe8eca3a1d5de2"
       }
     ],
-    "candidate_source_content_sha256": "b8bb919165fb8a3bbcfd4b7492bf0065f532d97b112175cae40c49531cdb67cc",
-    "candidate_source_hash_scope": "SHA-256 over UTF-8 canonical JSON (sorted keys, compact separators, non-ASCII preserved) of sorted path/SHA-256 pairs for changed source, test, documentation, and status files; .codex-fabric/audit.json excluded to avoid self-reference.",
+    "candidate_source_content_sha256": "c5be6fae78f5ad47cde6973c3f01621575122df5f9c589f34bbfbe3fb5d4584a",
+    "candidate_source_hash_scope": "SHA-256 over UTF-8 canonical JSON (sorted keys, compact separators, non-ASCII preserved) of sorted candidate source/test/documentation/status path and file SHA-256 pairs; .codex-fabric/audit.json excluded to avoid self-reference.",
     "candidate_subject_git_sha": "81c89b9a0859282a2069be2b4aeab45ec61e518a",
     "changes_committed": false,
     "deployment_candidate_identity": {
@@ -87,9 +87,9 @@
       ]
     },
     "fabric_candidate_identity_scheme": "SHA-256 over UTF-8 canonical JSON (sorted keys, compact separators, non-ASCII preserved) of base_integrated_main, branch, candidate_commit, candidate_source_content_sha256, and candidate_subject_git_sha.",
-    "fabric_candidate_identity_sha256": "8f7b082f55ef7956dcec70c236ae529f4a71a3baf3d4ab134ffde44f55a8d119",
-    "final_work_head": "81c89b9a0859282a2069be2b4aeab45ec61e518a",
-    "predecessor_build_candidate": null,
+    "fabric_candidate_identity_sha256": "12fa6ac7028c81f9e78ac7ae2ad94339a1af9e8f7e05034d7d8a48456a0923c4",
+    "final_work_head": "22431e4663b57b8f8ac98e58012f8a6fc7d8a66e",
+    "predecessor_build_candidate": "22431e4663b57b8f8ac98e58012f8a6fc7d8a66e",
     "working_tree_changes_present": true
   },
   "changed_files": [
@@ -113,17 +113,17 @@
     {
       "command": "rtk env PYTHONPATH=src:. python3.11 -m unittest -q tests.test_ksa32_release_governance",
       "exit_code": 0,
-      "result": "29 focused KSA-32 governance acceptance tests passed, including rulesets, legacy protection, review/check failures, replay/tamper rejection, and manual-workflow policy."
+      "result": "36 focused KSA-32 FIX01 acceptance tests passed, including PR-event workflow provenance, rerun semantics, raw capture completeness, payload closure, and preserved protection/review rules."
     },
     {
       "command": "rtk env PYTHONPATH=src:. python3.11 -m unittest -q tests.test_ksa32_release_governance tests.test_ksa31_promotion_recertification tests.test_ksa30_zero_korean_study tests.test_ksa29_bilingual_adjudication tests.test_ksa28_stability_calibration tests.test_ksa27_quality_policy tests.test_ksa26_corpus_governance tests.test_ksa26_governed_runner tests.test_certification_closure tests.test_phase35 tests.test_phase32",
       "exit_code": 0,
-      "result": "260 KSA-26–32 governance/recertification/certification/release/phase tests passed after the final governance hardening."
+      "result": "267 KSA-26–32 governance/recertification/certification/release/phase regressions passed, including production freshness and existing synthetic release-state validation."
     },
     {
       "command": "rtk env PYTHONPATH=src:. python3.11 -m unittest -q tests.test_ksa21_adversarial_security tests.test_ksa22_provenance tests.test_ksa23_conflicts tests.test_ksa24_f24_real_path tests.test_ksa24_f24_repairs tests.test_ksa24_modality_conformance tests.test_ksa25_recovery_law tests.test_chg16_accesskey_nonleakage tests.test_chg16_authentication_transport tests.test_chg16_classification_admission tests.test_chg16_deletion tests.test_chg16_durable_execution tests.test_chg16_environment_binding tests.test_chg16_foundation tests.test_chg16_host_integration tests.test_chg16_paas_worker tests.test_chg16_retention_policy tests.test_chg16_scoped_admission tests.test_chg16_storage_planes tests.test_chg17_run_scope_authorization tests.test_chg18_accesskey_handoff tests.test_chg18_default_deny_egress tests.test_chg18_opencode_bootstrap tests.test_ksa19_employee_path tests.test_ksa19_governed_termbase tests.test_ksa20_controlled_content_support tests.test_phase34 tests.test_runtime_artifact",
       "exit_code": 0,
-      "result": "325 KSA-21–25 and KSA-15–20 security/compatibility/recovery/host/runtime tests passed; 2 skipped."
+      "result": "325 KSA-21–25 and KSA-15–20 compatibility/security/recovery/host/runtime tests passed; 2 skipped."
     },
     {
       "command": "rtk proxy npx --yes tsx tests/test_chg16_opencode_plugin.ts",
@@ -131,26 +131,26 @@
       "result": "OpenCode TypeScript host attachment regression passed."
     },
     {
-      "command": "rtk env PYTHONPATH=src:. python3.11 -m unittest -q tests.test_ksa22_provenance tests.test_phase34 tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript",
-      "exit_code": 0,
-      "result": "23 TranslationPatch Python/schema/TypeScript and provenance tests passed."
-    },
-    {
-      "command": "rtk env PYTHONPATH=src:. python3.11 - schema-validation (Draft202012Validator.check_schema for schemas/*.schema.json)",
+      "command": "rtk env PYTHONPATH=src:. python3.11 -c 'Draft202012Validator.check_schema on each schemas/*.schema.json'",
       "exit_code": 0,
       "result": "All 4 repository JSON schemas passed Draft 2020-12 validation."
+    },
+    {
+      "command": "rtk env PYTHONPATH=src:. python3.11 -m unittest -q tests.test_ksa22_provenance tests.test_phase34 tests.test_phase35.Phase35Tests.test_full_translation_contract_matches_schema_and_typescript",
+      "exit_code": 0,
+      "result": "23 TranslationPatch Python/schema/TypeScript and provenance regression tests passed."
     },
     {
       "command": "rtk env PYTHONPATH=src:. python3.11 -m unittest discover -s tests -q",
       "exit_code": 0,
       "python_version": "3.11.7",
-      "result": "Full Python 3.11.7 discovery: 642 tests passed; 4 optional skips."
+      "result": "Full Python 3.11.7 discovery: 649 tests passed; 4 optional skips."
     },
     {
       "command": "rtk env PYTHONPATH=src:. /tmp/k-slide-chg16-python312/bin/python -m unittest discover -s tests -p 'test_*.py' -q",
       "exit_code": 0,
       "python_version": "3.12.9",
-      "result": "Full isolated Python 3.12.9 discovery: 642 tests passed; no skips."
+      "result": "Full isolated Python 3.12.9 discovery: 649 tests passed; no skips."
     },
     {
       "command": "rtk env PYTHONPATH=src:. python3.11 -m compileall -q src tests evals; rtk env PYTHONPATH=src:. /tmp/k-slide-chg16-python312/bin/python -m compileall -q src tests evals",
@@ -162,17 +162,23 @@
       "result": "Compileall passed on Python 3.11.7 and isolated Python 3.12.9."
     },
     {
-      "command": "rtk env -u KSLIDE_GOVERNANCE_READ_TOKEN PYTHONPATH=src:. python3.11 -m evals.capture_governance --repository kimhw8084/k-slide --pull-request 31 --subject-sha 81c89b9a0859282a2069be2b4aeab45ec61e518a --output /tmp/k-slide-ksa32-missing-credential --root .",
+      "command": "rtk env -u KSLIDE_GOVERNANCE_READ_TOKEN PYTHONPATH=src:. python3.11 -m evals.capture_governance --repository kimhw8084/k-slide --pull-request 31 --subject-sha 81c89b9a0859282a2069be2b4aeab45ec61e518a --output /tmp/k-slide-ksa32-fix01-no-token --root .",
       "exit_code": 2,
-      "result": "Expected immediate BLOCKED result GOVERNANCE_READ_CREDENTIAL_MISSING; no capture output was created."
+      "result": "Expected BLOCKED result GOVERNANCE_READ_CREDENTIAL_MISSING; no GitHub API capture was attempted."
     },
     {
       "command": "rtk git diff --check",
       "exit_code": 0,
-      "result": "Passed, including the final worktree after Fabric audit generation."
+      "result": "Passed on the completed candidate worktree."
     }
   ],
-  "diagnostic_checks": [],
+  "diagnostic_checks": [
+    {
+      "command": "Initial KSA-26–32 grouped regression run before the fixture-subject correction.",
+      "exit_code": 1,
+      "result": "Found one test-fixture issue: workflow provenance retained the default subject instead of the supplied synthetic candidate subject. The fixture was corrected and the full group passed on rerun."
+    }
+  ],
   "environment": {
     "live_github_admin_mutation": false,
     "production_qualification": false,
@@ -181,12 +187,19 @@
     "raw_github_api_capture": false
   },
   "fabric_evidence_identity_scheme": "SHA-256 over UTF-8 canonical JSON (sorted keys, compact separators, non-ASCII preserved) of this evidence object with fabric_evidence_identity_sha256 omitted.",
-  "fabric_evidence_identity_sha256": "80b8aa939a3771e1a2473cd30eeebb86ec78eb475b714fd0b57903021924e025",
+  "fabric_evidence_identity_sha256": "76ff0727a030ba6030eba904ec5e4fc6de58d9b9a1c28c8e94c70889ccb7e9af",
   "generated_at": "2026-09-24",
   "governance_evidence_design": {
     "credential_name": "KSLIDE_GOVERNANCE_READ_TOKEN",
-    "durable_payload": "Closed, source-free, candidate-bound normalized facts, hashes, counts, and outcome codes; free-form review text/comments/secrets excluded.",
-    "live_observation_basis": "Current live GitHub observations were supplied in the task; Fabric did not independently fetch the live repository.",
+    "contract_version": "1.1",
+    "contract_identity": "03275dddc3d1bd7288325dd0164c4a9eef50628aa1976e8d1ea9f51629ec0d66",
+    "policy_id": "kimhw8084-k-slide-production-release",
+    "policy_version": "1.1",
+    "policy_identity": "0ae6a44c74c491f896f2515ea68e2203b3c56d77ebc82437aef14d569eb35b78",
+    "policy_file_sha256": "b73bc0396ad31f758bbaeb282bf48a5ec703fd1b20593fbd158fed6213e82588",
+    "capture_api_provenance": "GitHub Actions workflows, workflow-runs, attempt-specific jobs, and commit check-runs REST APIs; normalized repository-owned workflow IDs/paths and PR associations.",
+    "latest_attempt_semantics": "Capture requests /actions/runs/{run_id}/attempts/{run_attempt}/jobs using the run API's current run_attempt; superseded jobs are excluded during derivation.",
+    "durable_payload": "Closed source-free candidate-bound identities, normalized workflow/check IDs and paths, hashes, counts, and outcome codes; no free-form URLs, logs, review text, comments, or credentials.",
     "manual_capture_command_module": "evals.capture_governance",
     "manual_capture_workflow": ".github/workflows/k-slide-governance.yml",
     "raw_snapshot_capture_performed": false,
@@ -202,7 +215,8 @@
       "repository_metadata",
       "ruleset_collection",
       "ruleset_details",
-      "target_branch"
+      "target_branch",
+      "workflow_run_provenance"
     ],
     "token_persisted": false
   },
@@ -1197,14 +1211,24 @@
       "prior_audit_file_sha256": "6267fc97670de39185bc4807a66c5080cb00f3131f28c3a800274bf9cb00442a",
       "status": "EXECUTED_CHANGE",
       "superseded_by": "CHG-16-KSA-32-PROTECTED-RELEASE-GOVERNANCE-01"
+    },
+    {
+      "job_id": "CHG-16-KSA-32-PROTECTED-RELEASE-GOVERNANCE-01",
+      "candidate_identity_sha256": "8f7b082f55ef7956dcec70c236ae529f4a71a3baf3d4ab134ffde44f55a8d119",
+      "candidate_source_content_sha256": "b8bb919165fb8a3bbcfd4b7492bf0065f532d97b112175cae40c49531cdb67cc",
+      "fabric_evidence_identity_sha256": "80b8aa939a3771e1a2473cd30eeebb86ec78eb475b714fd0b57903021924e025",
+      "generated_at": "2026-09-24",
+      "status": "EXECUTED_CHANGE",
+      "preserved_as_exact_parent": "22431e4663b57b8f8ac98e58012f8a6fc7d8a66e",
+      "superseded_by": "CHG-16-KSA-32-PROTECTED-RELEASE-GOVERNANCE-FIX01"
     }
   ],
-  "job_id": "CHG-16-KSA-32-PROTECTED-RELEASE-GOVERNANCE-01",
+  "job_id": "CHG-16-KSA-32-PROTECTED-RELEASE-GOVERNANCE-FIX01",
   "kind": "codex-fabric-audit-evidence",
   "live_repository_observations": {
     "branch_protected": false,
-    "evidence_source": "User-supplied task facts; not independently fetched during this BUILD.",
-    "heavy_on_normal_pr": "skipped; correctly excluded from normal required context policy.",
+    "evidence_source": "User-supplied task facts; not independently fetched during FIX01.",
+    "heavy_on_normal_pr": "dispatch-only; excluded from normal required contexts.",
     "legacy_protection_detail_error": "Resource not accessible by integration",
     "legacy_protection_detail_http_status": 403,
     "observed_successful_pr_check_contexts": [
@@ -1214,8 +1238,34 @@
       "fast (3.11)",
       "fast (3.12)"
     ],
+    "pr31_head_sha": "36f7c935b58385cc06ba65d2d1bb18a44db52027",
+    "pr31_event_distinct_topology": {
+      "test (3.11)": {
+        "push_successful_app_15368_runs": 1,
+        "pull_request_successful_app_15368_runs": 1
+      },
+      "test (3.12)": {
+        "push_successful_app_15368_runs": 1,
+        "pull_request_successful_app_15368_runs": 1
+      },
+      "fast (3.11)": {
+        "push_successful_app_15368_runs": 1,
+        "pull_request_successful_app_15368_runs": 1
+      },
+      "fast (3.12)": {
+        "push_successful_app_15368_runs": 1,
+        "pull_request_successful_app_15368_runs": 1
+      },
+      "security": {
+        "pull_request_successful_app_15368_runs": 1
+      }
+    },
     "pull_request_number": 31,
     "pull_request_review_count": 0,
+    "codeowners": [
+      "kimhw8084"
+    ],
+    "governance_read_token_configured": false,
     "qualification": "NOT_QUALIFIED",
     "release_branch": "main",
     "repository": "kimhw8084/k-slide",
@@ -1223,30 +1273,27 @@
   },
   "locator": {
     "base_integrated_main": "81c89b9a0859282a2069be2b4aeab45ec61e518a",
-    "branch": "codex/k-slide-chg16-protected-release-governance-01",
-    "candidate_source_content_sha256": "b8bb919165fb8a3bbcfd4b7492bf0065f532d97b112175cae40c49531cdb67cc",
-    "fabric_candidate_identity_sha256": "8f7b082f55ef7956dcec70c236ae529f4a71a3baf3d4ab134ffde44f55a8d119",
+    "branch": "codex/k-slide-chg16-protected-release-governance-01-fix01",
+    "candidate_source_content_sha256": "c5be6fae78f5ad47cde6973c3f01621575122df5f9c589f34bbfbe3fb5d4584a",
+    "fabric_candidate_identity_sha256": "12fa6ac7028c81f9e78ac7ae2ad94339a1af9e8f7e05034d7d8a48456a0923c4",
     "path": ".codex-fabric/audit.json",
-    "previous_audit_file_sha256": "6267fc97670de39185bc4807a66c5080cb00f3131f28c3a800274bf9cb00442a"
+    "previous_audit_file_sha256": "02847e49b65941cba0d879b8f5056d6c7ea1dc0410fc2af16562bad43d495faf"
   },
   "notes": [
+    "F32-01 is the only closed work item. The exact KSA-32 predecessor BUILD candidate 22431e4663b57b8f8ac98e58012f8a6fc7d8a66e is preserved as the FIX01 parent; prior valid KSA-32 work remains.",
     "No live GitHub repository administration, branch protections, rulesets, collaborators, teams, reviewer assignments, merges, or releases were changed.",
-    "Raw GitHub API snapshots were not captured; provided live observations document the qualification gap only.",
-    "Both active-ruleset and legacy-protection synthetic tests pass, but synthetic facts are not evidence of live production governance.",
-    "The current candidate subject is the exact requested base and the candidate profile identity is incomplete; neither is a live release qualification.",
-    "No production release state, production certification, or BUILD COMPLETE claim is made. KSA-33+ remains outside this BUILD."
+    "Raw GitHub API snapshots were not captured; user-supplied live observations document the current NOT_QUALIFIED state.",
+    "Actual-like PR-event versus push-event topology and all valid protection/review facts are synthetic regression fixtures only.",
+    "The deployment candidate profile remains incomplete and no actual governance qualification, release, BUILD COMPLETE, or production certification is claimed. KSA-33+ remains outside this FIX01."
   ],
-  "operation": "BUILD",
+  "operation": "FIX",
   "policy_and_schema_preservation": {
-    "change_impact_policy_version": "1.2; governance depends on all deployment-candidate inputs and cannot carry across candidate or subject changes.",
-    "governance_contract_identity": "842f48180e76bb238de739053dad8ec002df4b2a204d56d0a51fcf18d9066cff",
-    "governance_contract_version": "1.0",
-    "governance_policy_file_sha256": "4e3216e0beb2bf0b91cf14a9d6d8d19cf19c46006d2fb4260b3d224a9f24c79c",
-    "governance_policy_identity": "2acff5c93ef57400d7f74bf21db72fc5d32139868e2b08daf9b376614af157c0",
-    "governance_policy_version": "1.0",
-    "heavy_check": "Manual/dispatch-only; not a normal PR requirement.",
-    "machine_adapter_version": "2.8 retained.",
-    "release_state_authority": "Existing governance evidence remains required for PILOT_APPROVED and PRODUCTION_CERTIFIED; no parallel certification state was added.",
+    "change_impact_policy_version": "1.2 retained; governance is invalidated across candidate or subject changes.",
+    "governance_contract_version": "1.1",
+    "governance_contract_identity": "03275dddc3d1bd7288325dd0164c4a9eef50628aa1976e8d1ea9f51629ec0d66",
+    "governance_policy_version": "1.1",
+    "governance_policy_identity": "0ae6a44c74c491f896f2515ea68e2203b3c56d77ebc82437aef14d569eb35b78",
+    "governance_policy_file_sha256": "b73bc0396ad31f758bbaeb282bf48a5ec703fd1b20593fbd158fed6213e82588",
     "required_normal_pr_check_contexts": [
       "test (3.11)",
       "test (3.12)",
@@ -1254,21 +1301,57 @@
       "fast (3.11)",
       "fast (3.12)"
     ],
-    "shared_evidence_schema_version": "2.6 retained; closed governance payload is incompatible with legacy aggregate-only facts.",
+    "required_check_workflow_bindings": [
+      {
+        "context": "test (3.11)",
+        "workflow_path": ".github/workflows/k-slide.yml",
+        "workflow_name": "K-Slide",
+        "job_name": "test (3.11)"
+      },
+      {
+        "context": "test (3.12)",
+        "workflow_path": ".github/workflows/k-slide.yml",
+        "workflow_name": "K-Slide",
+        "job_name": "test (3.12)"
+      },
+      {
+        "context": "security",
+        "workflow_path": ".github/workflows/k-slide-security.yml",
+        "workflow_name": "K-Slide security evidence",
+        "job_name": "security"
+      },
+      {
+        "context": "fast (3.11)",
+        "workflow_path": ".github/workflows/k-slide-phase32.yml",
+        "workflow_name": "K-Slide Phase 3.5 execution isolation and heavy runtime",
+        "job_name": "fast (3.11)"
+      },
+      {
+        "context": "fast (3.12)",
+        "workflow_path": ".github/workflows/k-slide-phase32.yml",
+        "workflow_name": "K-Slide Phase 3.5 execution isolation and heavy runtime",
+        "job_name": "fast (3.12)"
+      }
+    ],
+    "heavy_check": "Manual/dispatch-only; not a normal PR requirement.",
+    "machine_adapter_version": "2.8 retained.",
+    "release_state_authority": "Existing governance evidence remains required for PILOT_APPROVED and PRODUCTION_CERTIFIED; no parallel certification state was added.",
+    "shared_evidence_schema_version": "2.6 retained; contract 1.1 payload invalidates old aggregate-only governance evidence.",
     "supported_protection_mechanisms": [
       "active applicable repository rulesets",
       "authoritative legacy branch-protection detail"
-    ]
+    ],
+    "KSA_31_30_29_28_27_26_and_KSA_01_25": "Preserved; focused and full compatibility/security/runtime regressions passed."
   },
   "project_id": "CHG-16",
   "qualification_status": "NOT_QUALIFIED",
   "remaining_blockers": [
-    "Live main is unprotected, the repository ruleset collection is empty, and the connected App cannot read legacy protection detail; no qualifying protection facts exist.",
-    "PR #31 has zero reviews. An independent current-head code-owner approval must actually be recorded; the existing single principal remains @kimhw8084.",
-    "The read-only KSLIDE_GOVERNANCE_READ_TOKEN and required read permissions have not been configured for the dispatch-only capture workflow.",
-    "The resolved candidate profile still lacks behavior_configuration, corpus_identity.governed_sets, opencode_version, and provider; actual target-model and production qualification evidence remain absent."
+    "Live main remains unprotected, repository rulesets are empty, and legacy branch-protection detail returns 403; no qualifying protection facts exist.",
+    "PR #31 has zero reviews; a real independent current-head code-owner review must be recorded. The only existing CODEOWNERS principal remains @kimhw8084.",
+    "KSLIDE_GOVERNANCE_READ_TOKEN is not configured, so no live API capture or qualification was performed.",
+    "The candidate profile still lacks behavior_configuration, corpus_identity.governed_sets, opencode_version, and provider; production evidence remains absent."
   ],
-  "request": "chg16-ksa32-protected-release-governance-build",
+  "request": "chg16-ksa32-f32-01-pr-event-check-provenance-fix01",
   "required_raw_github_source_roles": [
     "candidate_codeowners",
     "candidate_governance_policy",
@@ -1281,12 +1364,13 @@
     "repository_metadata",
     "ruleset_collection",
     "ruleset_details",
-    "target_branch"
+    "target_branch",
+    "workflow_run_provenance"
   ],
   "schema_version": 1,
   "scope": {
     "closed_work_items": [
-      "KSA-32"
+      "F32-01"
     ],
     "excluded": [
       "KSA-33 and later work.",
@@ -1295,15 +1379,16 @@
       "Real production qualification, release, BUILD COMPLETE, or production certification."
     ],
     "included": [
-      "Replace aggregate governance booleans with rederived candidate-bound GitHub governance facts.",
-      "Support strict active repository rulesets and authoritative legacy branch-protection detail.",
-      "Preserve current release-state authority while invalidating governance evidence across candidate changes.",
-      "Add candidate-owned policy/CODEOWNERS coverage and dispatch-only authorized capture."
+      "Fix required-check selection by binding each required context to exact pull_request-associated workflow runs, current attempts, authorized repository workflow path/name/job, exact PR head, and GitHub Actions app.",
+      "Capture complete normalized workflow catalog/run/job provenance separately from the source-free governance payload.",
+      "Preserve predecessor KSA-32 governance work, protection/review gates, candidate invalidation, release-state authority, evidence schema 2.6, and KSA-01–31 behavior.",
+      "Add actual-like PR #31 event-distinct, rerun, stale-attempt, wrong-provenance, duplicate, capture, and payload regression coverage."
     ]
   },
   "status": "EXECUTED_CHANGE",
   "task_closure": {
-    "KSA-32": "CLOSED: protected release-governance evidence BUILD candidate recorded; live governance remains NOT_QUALIFIED.",
+    "F32-01": "CLOSED: required checks now qualify from exact current PR-associated workflow attempts; current live governance remains NOT_QUALIFIED.",
+    "KSA-32": "Predecessor BUILD candidate retained; other valid KSA-32 work unchanged.",
     "other_work_items": "UNCHANGED"
   }
 }

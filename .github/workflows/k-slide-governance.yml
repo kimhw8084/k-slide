@@ -67,6 +67,7 @@ jobs:
             ${{ runner.temp }}/k-slide-governance/pull_request.json
             ${{ runner.temp }}/k-slide-governance/pull_request_reviews.json
             ${{ runner.temp }}/k-slide-governance/pull_request_check_runs.json
+            ${{ runner.temp }}/k-slide-governance/workflow_run_provenance.json
             ${{ runner.temp }}/k-slide-governance/pull_request_files.json
             ${{ runner.temp }}/k-slide-governance/merge_commit.json
             ${{ runner.temp }}/k-slide-governance/candidate_codeowners.json

@@ -15,8 +15,9 @@ from k_slide.release_governance import (
 
 
 SUBJECT = "a" * 40
-HEAD_SHA = "b" * 40
+HEAD_SHA = "36f7c935b58385cc06ba65d2d1bb18a44db52027"
 BASE_SHA = "c" * 40
+PULL_NUMBER = 31
 REPOSITORY_ID = 81234567
 OWNER_ID = 27182818
 AUTHOR_ID = 31415926
@@ -37,19 +38,83 @@ def _file_snapshot(path: str, ref: str, content: bytes) -> dict[str, Any]:
     }
 
 
-def _checks() -> list[dict[str, Any]]:
-    return [
-        {
-            "id": index + 100,
-            "name": context,
-            "head_sha": HEAD_SHA,
-            "status": "completed",
-            "conclusion": "success",
-            "app_id": 15368,
-            "app_slug": "github-actions",
-        }
-        for index, context in enumerate(GOVERNANCE_POLICY["status_checks"]["required_contexts"])
-    ]
+def _checks_and_workflow_provenance(*, subject: str = SUBJECT) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    authorized = GOVERNANCE_POLICY["status_checks"]["authorized_workflows"]
+    by_path: dict[str, list[dict[str, str]]] = {}
+    workflow_names: dict[str, str] = {}
+    for item in authorized:
+        by_path.setdefault(item["workflow_path"], []).append(item)
+        workflow_names[item["workflow_path"]] = item["workflow_name"]
+    catalog = []
+    workflow_ids = {}
+    for index, path in enumerate(sorted(by_path), start=701):
+        workflow_id = 8000 + index
+        workflow_ids[path] = workflow_id
+        catalog.append({"id": workflow_id, "name": workflow_names[path], "path": path, "state": "active"})
+
+    checks: list[dict[str, Any]] = []
+    run_items: list[dict[str, Any]] = []
+    check_id = 1000
+    run_id = 2000
+    for path in sorted(by_path):
+        contexts = by_path[path]
+        events = ["push", "pull_request"] if path != ".github/workflows/k-slide-security.yml" else ["pull_request"]
+        for event in events:
+            run_id += 1
+            jobs = []
+            for item in contexts:
+                check_id += 1
+                context = item["context"]
+                check = {
+                    "id": check_id,
+                    "name": context,
+                    "head_sha": HEAD_SHA,
+                    "status": "completed",
+                    "conclusion": "success",
+                    "app_id": 15368,
+                    "app_slug": "github-actions",
+                }
+                checks.append(check)
+                jobs.append({
+                    "workflow_run_id": run_id,
+                    "job_id": check_id,
+                    "check_run_id": check_id,
+                    "run_attempt": 1,
+                    "name": item["job_name"],
+                    "check_name": check["name"],
+                    "head_sha": HEAD_SHA,
+                    "status": "completed",
+                    "conclusion": "success",
+                    "app_id": check["app_id"],
+                    "app_slug": check["app_slug"],
+                })
+            run_items.append({
+                "repository_id": REPOSITORY_ID,
+                "repository_full_name": REPOSITORY_FULL_NAME,
+                "run_id": run_id,
+                "workflow_id": workflow_ids[path],
+                "workflow_path": path,
+                "workflow_name": workflow_names[path],
+                "event": event,
+                "head_sha": HEAD_SHA,
+                "pull_requests": [{"number": PULL_NUMBER, "head_sha": HEAD_SHA}] if event == "pull_request" else [],
+                "run_attempt": 1,
+                "status": "completed",
+                "conclusion": "success",
+                "jobs_complete": True,
+                "jobs": jobs,
+            })
+    provenance = {
+        "complete": True,
+        "repository_id": REPOSITORY_ID,
+        "repository_full_name": REPOSITORY_FULL_NAME,
+        "subject_sha": subject,
+        "pull_request_number": PULL_NUMBER,
+        "pull_request_head_sha": HEAD_SHA,
+        "workflow_catalog": {"complete": True, "items": catalog},
+        "items": run_items,
+    }
+    return checks, provenance
 
 
 def _ruleset_rules() -> list[dict[str, Any]]:
@@ -131,6 +196,7 @@ def github_governance_snapshot(
         return snap
     else:
         raise ValueError(protection)
+    check_runs, workflow_provenance = _checks_and_workflow_provenance(subject=subject)
     return {
         "repository_metadata": {"id": REPOSITORY_ID, "full_name": REPOSITORY_FULL_NAME, "default_branch": "main"},
         "target_branch": {"name": "main", "protected": True, "commit_sha": subject},
@@ -139,8 +205,8 @@ def github_governance_snapshot(
         "legacy_branch_protection": legacy,
         "pull_request": {
             "id": 9901,
-            "number": 32,
-            "requested_number": 32,
+            "number": PULL_NUMBER,
+            "requested_number": PULL_NUMBER,
             "state": "closed",
             "merged": True,
             "merged_at": NOW,
@@ -162,7 +228,8 @@ def github_governance_snapshot(
             "commit_id": HEAD_SHA,
             "submitted_at": NOW,
         }],
-        "pull_request_check_runs": {"complete": True, "items": _checks()},
+        "pull_request_check_runs": {"complete": True, "items": check_runs},
+        "workflow_run_provenance": workflow_provenance,
         "pull_request_files": {"complete": True, "items": [{"filename": path} for path in (["src/k_slide/release_governance.py"] if changed_paths is None else changed_paths)]},
         "merge_commit": {"sha": subject, "parent_shas": [BASE_SHA, HEAD_SHA]},
         "candidate_codeowners": _file_snapshot(CODEOWNERS_PATH, subject, codeowners),

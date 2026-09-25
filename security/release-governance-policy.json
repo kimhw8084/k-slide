@@ -2,11 +2,11 @@
   "schema_version": "1.0",
   "contract": {
     "id": "k-slide.protected-release-governance",
-    "version": "1.0"
+    "version": "1.1"
   },
   "policy": {
     "id": "kimhw8084-k-slide-production-release",
-    "version": "1.0"
+    "version": "1.1"
   },
   "repository": {
     "full_name": "kimhw8084/k-slide"
@@ -54,6 +54,38 @@
       "security",
       "fast (3.11)",
       "fast (3.12)"
+    ],
+    "authorized_workflows": [
+      {
+        "context": "test (3.11)",
+        "workflow_path": ".github/workflows/k-slide.yml",
+        "workflow_name": "K-Slide",
+        "job_name": "test (3.11)"
+      },
+      {
+        "context": "test (3.12)",
+        "workflow_path": ".github/workflows/k-slide.yml",
+        "workflow_name": "K-Slide",
+        "job_name": "test (3.12)"
+      },
+      {
+        "context": "security",
+        "workflow_path": ".github/workflows/k-slide-security.yml",
+        "workflow_name": "K-Slide security evidence",
+        "job_name": "security"
+      },
+      {
+        "context": "fast (3.11)",
+        "workflow_path": ".github/workflows/k-slide-phase32.yml",
+        "workflow_name": "K-Slide Phase 3.5 execution isolation and heavy runtime",
+        "job_name": "fast (3.11)"
+      },
+      {
+        "context": "fast (3.12)",
+        "workflow_path": ".github/workflows/k-slide-phase32.yml",
+        "workflow_name": "K-Slide Phase 3.5 execution isolation and heavy runtime",
+        "job_name": "fast (3.12)"
+      }
     ],
     "integration": {
       "app_id": 15368,

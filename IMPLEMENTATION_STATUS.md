@@ -561,7 +561,7 @@ Compileall on Python 3.11 and 3.12, and git diff --check: passed.
 
 All recertification scenarios use deterministic synthetic evidence in temporary roots. The repository champion remains `UNSET`. No live target-Gemma evaluation or promotion, release, BUILD COMPLETE, or production certification was performed or claimed.
 
-## CHG-16 / KSA-32 protected release-governance BUILD candidate — NOT QUALIFIED
+## CHG-16 / KSA-32 protected release-governance BUILD candidate — NOT QUALIFIED (predecessor; FIX01 follows)
 
 This scoped candidate starts from exact integrated base `81c89b9a0859282a2069be2b4aeab45ec61e518a` on branch `codex/k-slide-chg16-protected-release-governance-01`. Changes remain uncommitted on that base; main was not moved or merged. KSA-32 is the only work item in scope. This is not a BUILD COMPLETE or production-governance claim.
 
@@ -610,6 +610,48 @@ git diff --check: passed.
 ```
 
 Synthetic active-ruleset and legacy-protection fixtures exercise existing PILOT_APPROVED/PRODUCTION_CERTIFIED validation, but no live release state was advanced. The repository remains NOT QUALIFIED until an authorized operator configures effective protection and an independent current-head code-owner review, then captures complete candidate-bound GitHub facts. The candidate profile and actual production evidence also remain incomplete. No release, production certification, or BUILD COMPLETE claim is made.
+
+## CHG-16 / KSA-32 FIX01 — F32-01 closed; NOT QUALIFIED
+
+FIX01 starts from integrated base `81c89b9a0859282a2069be2b4aeab45ec61e518a` on branch `codex/k-slide-chg16-protected-release-governance-01-fix01`, then fast-forwards to predecessor BUILD candidate `22431e4663b57b8f8ac98e58012f8a6fc7d8a66e`, whose parent is the exact base. FIX01 changes remain uncommitted on that predecessor. Main was not moved or merged. F32-01 is the only item closed; valid KSA-32 work and KSA-01–31 behavior remain.
+
+Governance contract and policy are narrowly extended from `1.0` to `1.1`. The required contexts remain exactly `test (3.11)`, `test (3.12)`, `security`, `fast (3.11)`, and `fast (3.12)`; each is now bound to its authorized workflow path/name and job name as well as GitHub Actions app `15368`. `heavy` remains outside normal PR governance. The branch/ruleset/legacy-protection, review, code-owner, bypass, candidate, merge-subject, and release-state rules are unchanged. Shared evidence schema `2.6`, adapter `2.8`, and change-impact policy `1.2` remain. Aggregate-only governance evidence remains invalid, and governance stays required for `PILOT_APPROVED` and `PRODUCTION_CERTIFIED`.
+
+Raw capture adds the separate `workflow_run_provenance` role. It obtains the repository-owned workflow catalog and exact-head workflow runs through GitHub Actions APIs, then requests jobs for the run's authoritative latest attempt. The normalized snapshot binds repository, candidate subject, PR number, exact PR head, workflow ID/path/name, event, PR association, attempt, run/job status and conclusion, job/check IDs, and GitHub Actions app identity. Jobs are joined to the complete check-run snapshot by their API IDs. Qualification consumes only a successful `pull_request` job associated with that exact PR and head from the authorized workflow. Same-head push runs are retained only in raw snapshots and are ineligible. Older attempts are ignored; multiple current eligible runs fail closed without timestamp-based selection. Durable evidence contains only normalized run/workflow/job/check IDs, authorized workflow paths, and identity hashes; it contains no URLs or logs.
+
+The actual-like PR #31 regression includes two successful app-15368 runs for each `test (3.11)`, `test (3.12)`, `fast (3.11)`, and `fast (3.12)` context (one push and one pull request), plus one PR `security` run. The exact PR-associated set qualifies under synthetic valid protection and review facts. Regressions cover push-only jobs, wrong PR association, wrong workflow path/ID, wrong head/app, failed and pending jobs, stale attempts, push duplicates, duplicate current PR runs, complete candidate/PR/head capture binding, source-free evidence, candidate invalidation, and legacy aggregate rejection.
+
+The candidate profile still resolves to deployment identity `690c5d48ae6b518376ddc368ae1ba5d1ba4f2657bf918e3238ba722e570c3448` at base subject `81c89b9a0859282a2069be2b4aeab45ec61e518a`; it remains incomplete on `provider`, `behavior_configuration`, `corpus_identity.governed_sets`, and `opencode_version`. Supplied live observations remain **NOT QUALIFIED**: `main` is unprotected, rulesets are empty, PR #31 has zero reviews, only `@kimhw8084` is configured, and no `KSLIDE_GOVERNANCE_READ_TOKEN` is configured. No live GitHub settings, review assignments, or governance capture were changed or fabricated.
+
+Changed files in FIX01:
+
+- `.codex-fabric/audit.json`
+- `.github/workflows/k-slide-governance.yml`
+- `IMPLEMENTATION_STATUS.md`
+- `docs/ksa32-release-governance.md`
+- `evals/capture_governance.py`
+- `security/release-governance-policy.json`
+- `src/k_slide/evidence_adapters.py`
+- `src/k_slide/release_governance.py`
+- `tests/ksa32_governance_fixtures.py`
+- `tests/test_ksa32_release_governance.py`
+
+Validation performed:
+
+```text
+Focused KSA-32 FIX01 acceptance: 36 tests passed.
+KSA-26–32 governance, KSA-31–27, certification/release, and phase regressions: 267 tests passed.
+KSA-21–25 and KSA-15–20 compatibility/security/recovery/host/runtime group: 325 passed; 2 skipped.
+OpenCode TypeScript host attachment regression: passed.
+All 4 repository JSON schemas passed Draft 2020-12 validation.
+TranslationPatch Python/schema/TypeScript and provenance regression: 23 tests passed.
+Full Python 3.11.7 discovery: 649 passed; 4 optional skips.
+Full isolated Python 3.12.9 discovery: 649 passed; no skips.
+Compileall on Python 3.11.7 and isolated Python 3.12.9: passed.
+git diff --check: passed.
+```
+
+The release-state assertions use synthetic temporary evidence only. No real governance qualification, release, BUILD COMPLETE, or production certification is claimed. KSA-33 and later work remains out of scope.
 
 ## Next phase
 

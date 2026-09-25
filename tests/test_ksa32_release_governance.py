@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from evals.capture_governance import CaptureError, capture_workflow_run_provenance
 from evals.release import _load_records, derive_release_state
 from k_slide.certification import (
     EVIDENCE_SCHEMA_VERSION,
@@ -29,6 +30,7 @@ from tests.ksa32_governance_fixtures import (
     BASE_SHA,
     HEAD_SHA,
     OWNER_ID,
+    PULL_NUMBER,
     REPOSITORY_FULL_NAME,
     SUBJECT,
     github_governance_snapshot,
@@ -81,6 +83,29 @@ class KSA32ReleaseGovernanceTests(unittest.TestCase):
         if code:
             self.assertIn(code, str(caught.exception))
 
+    def _pr_job(self, snapshot: dict, context: str) -> tuple[dict, dict, dict]:
+        authorized = next(item for item in GOVERNANCE_POLICY["status_checks"]["authorized_workflows"] if item["context"] == context)
+        for run in snapshot["workflow_run_provenance"]["items"]:
+            if run["event"] != "pull_request" or run["workflow_path"] != authorized["workflow_path"]:
+                continue
+            for job in run["jobs"]:
+                if job["name"] == context:
+                    check = next(item for item in snapshot["pull_request_check_runs"]["items"] if item["id"] == job["check_run_id"])
+                    return run, job, check
+        raise AssertionError(f"no PR job for required context {context}")
+
+    def _update_pr_check(self, snapshot: dict, context: str, **changes) -> tuple[dict, dict, dict]:
+        run, job, check = self._pr_job(snapshot, context)
+        for key, value in changes.items():
+            if key == "name":
+                job["name"] = value
+                job["check_name"] = value
+                check["name"] = value
+            else:
+                job[key] = value
+                check[key] = value
+        return run, job, check
+
     def _load(self, path: Path, *, candidate: dict | None = None, subject: str | None = None, deployment: str | None = None):
         chosen = candidate or self.candidate
         return load_evidence(
@@ -99,13 +124,25 @@ class KSA32ReleaseGovernanceTests(unittest.TestCase):
         payload = loaded["payload"]
         self.assertEqual(payload["governance_policy_identity"], GOVERNANCE_POLICY_IDENTITY)
         self.assertEqual(payload["governance_contract_identity"], GOVERNANCE_CONTRACT_IDENTITY)
+        self.assertEqual(payload["governance_contract_version"], "1.1")
+        self.assertEqual(payload["governance_policy_version"], "1.1")
+        self.assertEqual(EVIDENCE_SCHEMA_VERSION, "2.6")
         self.assertEqual(payload["protection_mechanism"], "repository_rulesets")
         self.assertEqual(payload["status_check_contexts"], GOVERNANCE_POLICY["status_checks"]["required_contexts"])
         self.assertEqual(payload["active_ruleset_ids"], [441])
         self.assertEqual(payload["review_count"], 1)
         self.assertNotIn("user_login", payload)
         self.assertNotIn("comment", json.dumps(payload).casefold())
-        self.assertEqual(len(loaded["sources"]), 12)
+        self.assertEqual(len(loaded["sources"]), 13)
+        self.assertEqual(payload["required_check_workflow_paths"], [
+            item["workflow_path"] for item in GOVERNANCE_POLICY["status_checks"]["authorized_workflows"]
+        ])
+        self.assertEqual(payload["required_check_workflow_run_ids"][0], payload["required_check_workflow_run_ids"][1])
+        self.assertEqual(payload["required_check_workflow_run_ids"][3], payload["required_check_workflow_run_ids"][4])
+        serialized = json.dumps(payload).casefold()
+        self.assertNotIn("https://", serialized)
+        self.assertNotIn("logs", serialized)
+        self.assertNotIn('"event"', serialized)
 
     def test_valid_legacy_branch_protection_equivalent_succeeds(self):
         path = self._build(self._sources(protection="legacy"))
@@ -242,22 +279,120 @@ class KSA32ReleaseGovernanceTests(unittest.TestCase):
         self._reject_snapshot(snapshot, "STATUS_CHECK_CONTEXT_DUPLICATE")
 
     def test_missing_failed_pending_and_wrong_sha_required_checks_fail(self):
-        mutations = (
-            lambda runs: runs["items"].pop(),
-            lambda runs: runs["items"][0].update(conclusion="failure"),
-            lambda runs: runs["items"][0].update(status="in_progress", conclusion=None),
-            lambda runs: runs["items"][0].update(head_sha="d" * 40),
-        )
-        for mutate in mutations:
+        snapshot = github_governance_snapshot()
+        run, job, check = self._pr_job(snapshot, "test (3.11)")
+        run["jobs"].remove(job)
+        snapshot["pull_request_check_runs"]["items"].remove(check)
+        self._reject_snapshot(snapshot, "CHECK_RUN_MISSING_OR_AMBIGUOUS")
+        for changes in (
+            {"conclusion": "failure"},
+            {"status": "in_progress", "conclusion": None},
+            {"head_sha": "d" * 40},
+        ):
             snapshot = github_governance_snapshot()
-            mutate(snapshot["pull_request_check_runs"])
+            self._update_pr_check(snapshot, "test (3.11)", **changes)
             self._reject_snapshot(snapshot)
 
     def test_same_named_required_check_from_wrong_app_fails(self):
         snapshot = github_governance_snapshot()
-        snapshot["pull_request_check_runs"]["items"][0]["app_id"] = 123
-        snapshot["pull_request_check_runs"]["items"][0]["app_slug"] = "untrusted-app"
+        self._update_pr_check(snapshot, "test (3.11)", app_id=123, app_slug="untrusted-app")
         self._reject_snapshot(snapshot, "CHECK_RUN_INTEGRATION_MISMATCH")
+
+    def test_pr31_event_checks_are_selected_while_same_head_push_duplicates_are_ignored(self):
+        snapshot = github_governance_snapshot()
+        payload = self._load(self._build(self._sources(snapshot=snapshot)))["payload"]
+        for index, context in enumerate(GOVERNANCE_POLICY["status_checks"]["required_contexts"]):
+            run, job, check = self._pr_job(snapshot, context)
+            self.assertEqual(payload["required_check_workflow_run_ids"][index], run["run_id"])
+            self.assertEqual(payload["required_check_run_ids"][index], check["id"])
+            self.assertEqual(job["run_attempt"], payload["required_check_run_attempts"][index])
+        push_runs = [item for item in snapshot["workflow_run_provenance"]["items"] if item["event"] == "push"]
+        self.assertEqual(len(push_runs), 2)
+        self.assertTrue(all(item["head_sha"] == HEAD_SHA for item in push_runs))
+
+    def test_push_only_required_jobs_do_not_qualify(self):
+        snapshot = github_governance_snapshot()
+        for run in snapshot["workflow_run_provenance"]["items"]:
+            if run["event"] == "pull_request":
+                run["event"] = "push"
+                run["pull_requests"] = []
+        self._reject_snapshot(snapshot, "CHECK_RUN_MISSING_OR_AMBIGUOUS")
+
+    def test_wrong_pr_association_and_workflow_identity_fail(self):
+        snapshot = github_governance_snapshot()
+        for run in snapshot["workflow_run_provenance"]["items"]:
+            if run["event"] == "pull_request":
+                run["pull_requests"][0]["number"] = 99
+        self._reject_snapshot(snapshot, "CHECK_RUN_MISSING_OR_AMBIGUOUS")
+
+        snapshot = github_governance_snapshot()
+        run, _job, _check = self._pr_job(snapshot, "test (3.11)")
+        run["workflow_path"] = ".github/workflows/k-slide-security.yml"
+        self._reject_snapshot(snapshot, "WORKFLOW_RUN_WORKFLOW_IDENTITY_MISMATCH")
+
+        snapshot = github_governance_snapshot()
+        run, _job, _check = self._pr_job(snapshot, "test (3.11)")
+        run["workflow_id"] = next(
+            item["id"] for item in snapshot["workflow_run_provenance"]["workflow_catalog"]["items"]
+            if item["path"] == ".github/workflows/k-slide-security.yml"
+        )
+        self._reject_snapshot(snapshot, "WORKFLOW_RUN_WORKFLOW_IDENTITY_MISMATCH")
+
+        snapshot = github_governance_snapshot()
+        run, _job, _check = self._pr_job(snapshot, "test (3.11)")
+        phase_workflow = next(
+            item for item in snapshot["workflow_run_provenance"]["workflow_catalog"]["items"]
+            if item["path"] == ".github/workflows/k-slide-phase32.yml"
+        )
+        run["workflow_id"] = phase_workflow["id"]
+        run["workflow_path"] = phase_workflow["path"]
+        run["workflow_name"] = phase_workflow["name"]
+        self._reject_snapshot(snapshot, "CHECK_RUN_MISSING_OR_AMBIGUOUS")
+
+    def test_workflow_provenance_is_bound_to_candidate_subject_pr_and_head(self):
+        for field, value in (
+            ("subject_sha", "d" * 40),
+            ("pull_request_number", 99),
+            ("pull_request_head_sha", "d" * 40),
+        ):
+            snapshot = github_governance_snapshot()
+            snapshot["workflow_run_provenance"][field] = value
+            self._reject_snapshot(snapshot, "WORKFLOW_RUN_CANDIDATE_BINDING_MISMATCH")
+
+    def test_latest_attempt_qualifies_older_superseded_attempt_does_not(self):
+        snapshot = github_governance_snapshot()
+        run, current, check = self._pr_job(snapshot, "test (3.11)")
+        run["run_attempt"] = 2
+        for job in run["jobs"]:
+            job["run_attempt"] = 2
+        stale = copy.deepcopy(current)
+        stale.update({"job_id": 9999, "check_run_id": 9999, "run_attempt": 1})
+        stale_check = copy.deepcopy(check)
+        stale_check["id"] = 9999
+        run["jobs"].append(stale)
+        snapshot["pull_request_check_runs"]["items"].append(stale_check)
+        payload = self._load(self._build(self._sources(snapshot=snapshot)))["payload"]
+        index = GOVERNANCE_POLICY["status_checks"]["required_contexts"].index("test (3.11)")
+        self.assertEqual(payload["required_check_run_attempts"][index], 2)
+        self.assertNotEqual(payload["required_check_run_ids"][index], 9999)
+
+        run["jobs"].remove(current)
+        snapshot["pull_request_check_runs"]["items"].remove(check)
+        self._reject_snapshot(snapshot, "CHECK_RUN_MISSING_OR_AMBIGUOUS")
+
+    def test_two_current_eligible_pr_jobs_for_one_context_fail_closed(self):
+        snapshot = github_governance_snapshot()
+        source_run, source_job, source_check = self._pr_job(snapshot, "test (3.11)")
+        duplicate = copy.deepcopy(source_run)
+        duplicate["run_id"] = 99001
+        duplicate["jobs"] = [copy.deepcopy(source_job)]
+        duplicate["jobs"][0].update({"workflow_run_id": 99001, "job_id": 99002, "check_run_id": 99002})
+        duplicate["jobs"][0]["run_attempt"] = 1
+        duplicate_check = copy.deepcopy(source_check)
+        duplicate_check["id"] = 99002
+        snapshot["workflow_run_provenance"]["items"].append(duplicate)
+        snapshot["pull_request_check_runs"]["items"].append(duplicate_check)
+        self._reject_snapshot(snapshot, "CHECK_RUN_MISSING_OR_AMBIGUOUS")
 
     def test_legacy_non_strict_checks_and_missing_stale_or_last_push_rule_fail(self):
         snapshot = github_governance_snapshot(protection="legacy")
@@ -408,6 +543,95 @@ class KSA32ReleaseGovernanceTests(unittest.TestCase):
         self.assertEqual(json.loads(policy_path.read_text(encoding="utf-8")), GOVERNANCE_POLICY)
         with self.assertRaises(Exception):
             validate_governance_payload({"source_kind": "github_api", "codeowners_pass": True})
+
+    def test_capture_workflow_run_snapshot_is_complete_and_candidate_pr_head_bound(self):
+        source = github_governance_snapshot()
+        provenance = source["workflow_run_provenance"]
+        latest_run = next(
+            item for item in provenance["items"]
+            if item["event"] == "pull_request" and item["workflow_path"] == ".github/workflows/k-slide.yml"
+        )
+        latest_run["run_attempt"] = 2
+        for job in latest_run["jobs"]:
+            job["run_attempt"] = 2
+        routes: list[str] = []
+
+        class FakeApi:
+            def __init__(self, *, incomplete: bool = False):
+                self.incomplete = incomplete
+
+            def get(self, route: str, **_kwargs):
+                routes.append(route)
+                endpoint = route.split("?", 1)[0]
+                if endpoint == f"repos/{REPOSITORY_FULL_NAME}/actions/workflows":
+                    items = provenance["workflow_catalog"]["items"]
+                    return {"total_count": len(items) + int(self.incomplete), "workflows": [
+                        {"id": item["id"], "name": item["name"], "path": item["path"], "state": item["state"]}
+                        for item in items
+                    ]}, 200
+                if endpoint == f"repos/{REPOSITORY_FULL_NAME}/actions/runs":
+                    runs = provenance["items"]
+                    return {"total_count": len(runs), "workflow_runs": [
+                        {
+                            "id": item["run_id"], "workflow_id": item["workflow_id"],
+                            "head_sha": item["head_sha"], "event": item["event"],
+                            "run_attempt": item["run_attempt"], "status": item["status"],
+                            "conclusion": item["conclusion"],
+                            "repository": {"id": item["repository_id"], "full_name": item["repository_full_name"]},
+                            "pull_requests": [
+                                {"number": assoc["number"], "head": {"sha": assoc["head_sha"]}}
+                                for assoc in item["pull_requests"]
+                            ],
+                        }
+                        for item in runs
+                    ]}, 200
+                if "/attempts/" in endpoint and endpoint.endswith("/jobs"):
+                    pieces = endpoint.split("/")
+                    run_id = int(pieces[-4])
+                    attempt = int(pieces[-2])
+                    run = next(item for item in provenance["items"] if item["run_id"] == run_id)
+                    if attempt != run["run_attempt"]:
+                        raise AssertionError("capture did not request the authoritative latest attempt")
+                    jobs = run["jobs"]
+                    return {"total_count": len(jobs), "jobs": [
+                        {
+                            "id": item["job_id"], "run_id": item["workflow_run_id"],
+                            "head_sha": item["head_sha"], "name": item["name"],
+                            "status": item["status"], "conclusion": item["conclusion"],
+                        }
+                        for item in jobs
+                    ]}, 200
+                raise AssertionError(f"unexpected route {route}")
+
+        captured = capture_workflow_run_provenance(
+            FakeApi(),
+            repository=REPOSITORY_FULL_NAME,
+            repository_id=81234567,
+            pull_number=PULL_NUMBER,
+            subject_sha=SUBJECT,
+            head_sha=HEAD_SHA,
+            check_runs=source["pull_request_check_runs"]["items"],
+        )
+        self.assertTrue(captured["complete"])
+        self.assertTrue(captured["workflow_catalog"]["complete"])
+        self.assertEqual(captured["repository_id"], 81234567)
+        self.assertEqual(captured["subject_sha"], SUBJECT)
+        self.assertEqual(captured["pull_request_number"], PULL_NUMBER)
+        self.assertEqual(captured["pull_request_head_sha"], HEAD_SHA)
+        self.assertEqual(len(captured["items"]), 5)
+        self.assertEqual(sum(len(run["jobs"]) for run in captured["items"]), 9)
+        self.assertEqual(next(item for item in captured["items"] if item["run_id"] == latest_run["run_id"])["run_attempt"], 2)
+        self.assertTrue(any(f"/attempts/2/jobs?" in route for route in routes))
+        self.assertTrue(all("/attempts/" in route for route in routes if route.endswith("/jobs?per_page=100&page=1")))
+        serialized = json.dumps(captured).casefold()
+        self.assertNotIn("https://", serialized)
+        self.assertNotIn("logs", serialized)
+        with self.assertRaises(CaptureError):
+            capture_workflow_run_provenance(
+                FakeApi(incomplete=True), repository=REPOSITORY_FULL_NAME,
+                repository_id=81234567, pull_number=PULL_NUMBER, subject_sha=SUBJECT,
+                head_sha=HEAD_SHA, check_runs=source["pull_request_check_runs"]["items"],
+            )
 
     def test_capture_workflow_is_manual_and_keeps_raw_snapshots_separate(self):
         root = Path(__file__).resolve().parents[1]

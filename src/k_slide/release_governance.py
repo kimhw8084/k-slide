@@ -17,11 +17,11 @@ from pathlib import Path
 from typing import Any
 
 
-GOVERNANCE_CONTRACT_VERSION = "1.0"
+GOVERNANCE_CONTRACT_VERSION = "1.1"
 GOVERNANCE_POLICY = {
     "schema_version": "1.0",
-    "contract": {"id": "k-slide.protected-release-governance", "version": "1.0"},
-    "policy": {"id": "kimhw8084-k-slide-production-release", "version": "1.0"},
+    "contract": {"id": "k-slide.protected-release-governance", "version": "1.1"},
+    "policy": {"id": "kimhw8084-k-slide-production-release", "version": "1.1"},
     "repository": {"full_name": "kimhw8084/k-slide"},
     "target": {"default_branch": "main", "release_branch": "main"},
     "production_sensitive_paths": [
@@ -46,6 +46,13 @@ GOVERNANCE_POLICY = {
         "required_contexts": [
             "test (3.11)", "test (3.12)", "security", "fast (3.11)", "fast (3.12)",
         ],
+        "authorized_workflows": [
+            {"context": "test (3.11)", "workflow_path": ".github/workflows/k-slide.yml", "workflow_name": "K-Slide", "job_name": "test (3.11)"},
+            {"context": "test (3.12)", "workflow_path": ".github/workflows/k-slide.yml", "workflow_name": "K-Slide", "job_name": "test (3.12)"},
+            {"context": "security", "workflow_path": ".github/workflows/k-slide-security.yml", "workflow_name": "K-Slide security evidence", "job_name": "security"},
+            {"context": "fast (3.11)", "workflow_path": ".github/workflows/k-slide-phase32.yml", "workflow_name": "K-Slide Phase 3.5 execution isolation and heavy runtime", "job_name": "fast (3.11)"},
+            {"context": "fast (3.12)", "workflow_path": ".github/workflows/k-slide-phase32.yml", "workflow_name": "K-Slide Phase 3.5 execution isolation and heavy runtime", "job_name": "fast (3.12)"},
+        ],
         "integration": {"app_id": 15368, "slug": "github-actions"},
     },
     "protection": {
@@ -68,7 +75,7 @@ CODEOWNERS_PATH = ".github/CODEOWNERS"
 _ROLES = frozenset({
     "repository_metadata", "target_branch", "ruleset_collection", "ruleset_details",
     "legacy_branch_protection", "pull_request", "pull_request_reviews",
-    "pull_request_check_runs", "pull_request_files", "merge_commit",
+    "pull_request_check_runs", "workflow_run_provenance", "pull_request_files", "merge_commit",
     "candidate_codeowners", "candidate_governance_policy",
 })
 _PASS_CODES = [
@@ -92,7 +99,9 @@ _PAYLOAD_KEYS = frozenset({
     "changed_file_count", "production_sensitive_change_count", "changed_file_set_sha256",
     "codeowner_group_count", "codeowner_approval_group_count", "codeowners_pass",
     "status_check_contexts", "required_check_run_ids", "required_check_identities",
-    "required_check_app_ids", "required_check_pass", "required_status_checks_strict",
+    "required_check_app_ids", "required_check_workflow_run_ids", "required_check_workflow_ids",
+    "required_check_workflow_paths", "required_check_run_attempts", "required_check_job_ids",
+    "required_check_pass", "required_status_checks_strict",
     "stale_review_dismissal_required", "last_push_approval_required",
     "code_owner_enforcement_required", "conversation_resolution_required",
     "force_push_prevention_required", "branch_deletion_prevention_required",
@@ -589,45 +598,228 @@ def _safe_pr_projection(value: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _evaluate_check_runs(value: Any, *, head_sha: str, effective_checks: dict[str, int]) -> tuple[list[int], list[str], list[int]]:
+def _evaluate_check_runs(
+    value: Any,
+    workflow_value: Any,
+    *,
+    repository_id: int,
+    subject_sha: str,
+    pull_number: int,
+    head_sha: str,
+    effective_checks: dict[str, int],
+) -> tuple[list[int], list[int], list[str], list[int], list[int], list[int], list[str], list[int]]:
+    """Select required checks from the current exact-PR Actions run attempts."""
+
     wrapper = _expect_keys(value, {"complete", "items"}, "CHECK_RUN_SNAPSHOT_INVALID")
     if wrapper["complete"] is not True or not isinstance(wrapper["items"], list):
         raise ReleaseGovernanceError("CHECK_RUN_SNAPSHOT_INCOMPLETE")
-    runs_by_name: dict[str, list[dict[str, Any]]] = {}
-    all_ids: set[int] = set()
+    checks_by_id: dict[int, dict[str, Any]] = {}
     for raw in wrapper["items"]:
-        run = _expect_keys(raw, {"id", "name", "head_sha", "status", "conclusion", "app_id", "app_slug"}, "CHECK_RUN_SNAPSHOT_INVALID")
-        run_id = _int(run["id"], "CHECK_RUN_SNAPSHOT_INVALID")
-        if run_id in all_ids:
+        check = _expect_keys(raw, {"id", "name", "head_sha", "status", "conclusion", "app_id", "app_slug"}, "CHECK_RUN_SNAPSHOT_INVALID")
+        check_id = _int(check["id"], "CHECK_RUN_SNAPSHOT_INVALID")
+        if check_id in checks_by_id:
             raise ReleaseGovernanceError("CHECK_RUN_ID_DUPLICATE")
-        all_ids.add(run_id)
-        current_sha = _sha(run["head_sha"], "CHECK_RUN_HEAD_INVALID")
-        if current_sha != head_sha:
+        if _sha(check["head_sha"], "CHECK_RUN_HEAD_INVALID") != head_sha:
             raise ReleaseGovernanceError("CHECK_RUN_WRONG_HEAD_SHA")
-        name = _string(run["name"], "CHECK_RUN_SNAPSHOT_INVALID")
-        runs_by_name.setdefault(name, []).append(run)
-    run_ids: list[int] = []
-    identities: list[str] = []
-    app_ids: list[int] = []
-    authorized = GOVERNANCE_POLICY["status_checks"]["integration"]
+        _string(check["name"], "CHECK_RUN_SNAPSHOT_INVALID")
+        _string(check["status"], "CHECK_RUN_SNAPSHOT_INVALID")
+        if check["conclusion"] is not None and not isinstance(check["conclusion"], str):
+            raise ReleaseGovernanceError("CHECK_RUN_SNAPSHOT_INVALID")
+        if check["app_id"] is not None and (not isinstance(check["app_id"], int) or isinstance(check["app_id"], bool)):
+            raise ReleaseGovernanceError("CHECK_RUN_SNAPSHOT_INVALID")
+        if check["app_slug"] is not None and not isinstance(check["app_slug"], str):
+            raise ReleaseGovernanceError("CHECK_RUN_SNAPSHOT_INVALID")
+        checks_by_id[check_id] = check
+
+    provenance = _expect_keys(workflow_value, {
+        "complete", "repository_id", "repository_full_name", "subject_sha",
+        "pull_request_number", "pull_request_head_sha", "workflow_catalog", "items",
+    }, "WORKFLOW_RUN_SNAPSHOT_INVALID")
+    if provenance["complete"] is not True or not isinstance(provenance["items"], list):
+        raise ReleaseGovernanceError("WORKFLOW_RUN_SNAPSHOT_INCOMPLETE")
+    if (
+        _int(provenance["repository_id"], "WORKFLOW_RUN_REPOSITORY_INVALID") != repository_id
+        or _string(provenance["repository_full_name"], "WORKFLOW_RUN_REPOSITORY_INVALID").casefold() != REPOSITORY_FULL_NAME.casefold()
+        or _sha(provenance["subject_sha"], "WORKFLOW_RUN_SUBJECT_INVALID") != subject_sha
+        or _int(provenance["pull_request_number"], "WORKFLOW_RUN_PR_INVALID") != pull_number
+        or _sha(provenance["pull_request_head_sha"], "WORKFLOW_RUN_HEAD_INVALID") != head_sha
+    ):
+        raise ReleaseGovernanceError("WORKFLOW_RUN_CANDIDATE_BINDING_MISMATCH")
+
+    catalog = _expect_keys(provenance["workflow_catalog"], {"complete", "items"}, "WORKFLOW_CATALOG_INVALID")
+    if catalog["complete"] is not True or not isinstance(catalog["items"], list):
+        raise ReleaseGovernanceError("WORKFLOW_CATALOG_INCOMPLETE")
+    workflows_by_id: dict[int, dict[str, str]] = {}
+    catalog_paths: set[str] = set()
+    for raw in catalog["items"]:
+        item = _expect_keys(raw, {"id", "name", "path", "state"}, "WORKFLOW_CATALOG_INVALID")
+        workflow_id = _int(item["id"], "WORKFLOW_CATALOG_INVALID")
+        name = _string(item["name"], "WORKFLOW_CATALOG_INVALID")
+        path = _string(item["path"], "WORKFLOW_CATALOG_INVALID")
+        _string(item["state"], "WORKFLOW_CATALOG_INVALID")
+        if workflow_id in workflows_by_id or path in catalog_paths:
+            raise ReleaseGovernanceError("WORKFLOW_CATALOG_AMBIGUOUS")
+        workflows_by_id[workflow_id] = {"name": name, "path": path}
+        catalog_paths.add(path)
+
+    runs_by_context: dict[str, list[dict[str, Any]]] = {
+        context: [] for context in GOVERNANCE_POLICY["status_checks"]["required_contexts"]
+    }
+    authorized_workflows = {
+        item["context"]: item
+        for item in GOVERNANCE_POLICY["status_checks"]["authorized_workflows"]
+    }
+    seen_run_ids: set[int] = set()
+    seen_job_ids: set[tuple[int, int, int]] = set()
+    for raw in provenance["items"]:
+        run = _expect_keys(raw, {
+            "repository_id", "repository_full_name", "run_id", "workflow_id", "workflow_path",
+            "workflow_name", "event", "head_sha", "pull_requests", "run_attempt", "status",
+            "conclusion", "jobs_complete", "jobs",
+        }, "WORKFLOW_RUN_SNAPSHOT_INVALID")
+        run_id = _int(run["run_id"], "WORKFLOW_RUN_SNAPSHOT_INVALID")
+        workflow_id = _int(run["workflow_id"], "WORKFLOW_RUN_SNAPSHOT_INVALID")
+        attempt = _int(run["run_attempt"], "WORKFLOW_RUN_SNAPSHOT_INVALID")
+        if run_id in seen_run_ids:
+            raise ReleaseGovernanceError("WORKFLOW_RUN_ID_DUPLICATE")
+        seen_run_ids.add(run_id)
+        if (
+            _int(run["repository_id"], "WORKFLOW_RUN_REPOSITORY_INVALID") != repository_id
+            or _string(run["repository_full_name"], "WORKFLOW_RUN_REPOSITORY_INVALID").casefold() != REPOSITORY_FULL_NAME.casefold()
+        ):
+            raise ReleaseGovernanceError("WORKFLOW_RUN_REPOSITORY_MISMATCH")
+        workflow_path = _string(run["workflow_path"], "WORKFLOW_RUN_WORKFLOW_INVALID")
+        workflow_name = _string(run["workflow_name"], "WORKFLOW_RUN_WORKFLOW_INVALID")
+        if workflows_by_id.get(workflow_id) != {"name": workflow_name, "path": workflow_path}:
+            raise ReleaseGovernanceError("WORKFLOW_RUN_WORKFLOW_IDENTITY_MISMATCH")
+        if _sha(run["head_sha"], "WORKFLOW_RUN_HEAD_INVALID") != head_sha:
+            raise ReleaseGovernanceError("WORKFLOW_RUN_WRONG_HEAD_SHA")
+        event = _string(run["event"], "WORKFLOW_RUN_EVENT_INVALID")
+        _string(run["status"], "WORKFLOW_RUN_SNAPSHOT_INVALID")
+        if run["conclusion"] is not None and not isinstance(run["conclusion"], str):
+            raise ReleaseGovernanceError("WORKFLOW_RUN_SNAPSHOT_INVALID")
+        associations = run["pull_requests"]
+        if not isinstance(associations, list):
+            raise ReleaseGovernanceError("WORKFLOW_RUN_PR_ASSOCIATION_INVALID")
+        associated_target = False
+        seen_associations: set[tuple[int, str]] = set()
+        for association_value in associations:
+            association = _expect_keys(association_value, {"number", "head_sha"}, "WORKFLOW_RUN_PR_ASSOCIATION_INVALID")
+            number = _int(association["number"], "WORKFLOW_RUN_PR_ASSOCIATION_INVALID")
+            associated_head = _sha(association["head_sha"], "WORKFLOW_RUN_PR_ASSOCIATION_INVALID")
+            if (number, associated_head) in seen_associations:
+                raise ReleaseGovernanceError("WORKFLOW_RUN_PR_ASSOCIATION_DUPLICATE")
+            seen_associations.add((number, associated_head))
+            if number == pull_number:
+                if associated_head != head_sha:
+                    raise ReleaseGovernanceError("WORKFLOW_RUN_PR_HEAD_MISMATCH")
+                associated_target = True
+        if run["jobs_complete"] is not True or not isinstance(run["jobs"], list):
+            raise ReleaseGovernanceError("WORKFLOW_JOB_SNAPSHOT_INCOMPLETE")
+        for raw_job in run["jobs"]:
+            job = _expect_keys(raw_job, {
+                "workflow_run_id", "job_id", "check_run_id", "run_attempt", "name", "check_name",
+                "head_sha", "status", "conclusion", "app_id", "app_slug",
+            }, "WORKFLOW_JOB_SNAPSHOT_INVALID")
+            job_run_id = _int(job["workflow_run_id"], "WORKFLOW_JOB_SNAPSHOT_INVALID")
+            job_id = _int(job["job_id"], "WORKFLOW_JOB_SNAPSHOT_INVALID")
+            check_id = _int(job["check_run_id"], "WORKFLOW_JOB_SNAPSHOT_INVALID")
+            job_attempt = _int(job["run_attempt"], "WORKFLOW_JOB_SNAPSHOT_INVALID")
+            key = (run_id, job_attempt, job_id)
+            if key in seen_job_ids:
+                raise ReleaseGovernanceError("WORKFLOW_JOB_ID_DUPLICATE")
+            seen_job_ids.add(key)
+            if job_run_id != run_id or job_id != check_id or job_attempt > attempt:
+                raise ReleaseGovernanceError("WORKFLOW_JOB_ATTEMPT_BINDING_INVALID")
+            if _sha(job["head_sha"], "WORKFLOW_JOB_HEAD_INVALID") != head_sha:
+                raise ReleaseGovernanceError("WORKFLOW_JOB_WRONG_HEAD_SHA")
+            job_name = _string(job["name"], "WORKFLOW_JOB_SNAPSHOT_INVALID")
+            check_name = _string(job["check_name"], "WORKFLOW_JOB_SNAPSHOT_INVALID")
+            _string(job["status"], "WORKFLOW_JOB_SNAPSHOT_INVALID")
+            if job["conclusion"] is not None and not isinstance(job["conclusion"], str):
+                raise ReleaseGovernanceError("WORKFLOW_JOB_SNAPSHOT_INVALID")
+            if job["app_id"] is not None and (not isinstance(job["app_id"], int) or isinstance(job["app_id"], bool)):
+                raise ReleaseGovernanceError("WORKFLOW_JOB_SNAPSHOT_INVALID")
+            if job["app_slug"] is not None and not isinstance(job["app_slug"], str):
+                raise ReleaseGovernanceError("WORKFLOW_JOB_SNAPSHOT_INVALID")
+            check = checks_by_id.get(check_id)
+            if check is None:
+                raise ReleaseGovernanceError("WORKFLOW_JOB_CHECK_RUN_MISSING")
+            if (
+                check["name"] != check_name or check["head_sha"] != job["head_sha"]
+                or check["status"] != job["status"] or check["conclusion"] != job["conclusion"]
+                or check["app_id"] != job["app_id"] or check["app_slug"] != job["app_slug"]
+            ):
+                raise ReleaseGovernanceError("WORKFLOW_JOB_CHECK_RUN_MISMATCH")
+            # The workflow-run API reports run_attempt as the authoritative latest
+            # attempt. Historical job snapshots are ignored for qualification.
+            if job_attempt != attempt or event != "pull_request" or not associated_target:
+                continue
+            if job_name != check_name:
+                raise ReleaseGovernanceError("WORKFLOW_JOB_CHECK_NAME_MISMATCH")
+            for context, authorization in authorized_workflows.items():
+                if job_name == context and workflow_path == authorization["workflow_path"] and workflow_name == authorization["workflow_name"]:
+                    runs_by_context[context].append({
+                        "run": run, "job": job, "check": check, "authorization": authorization,
+                    })
+
+    selected: list[dict[str, Any]] = []
     for context in GOVERNANCE_POLICY["status_checks"]["required_contexts"]:
-        matches = runs_by_name.get(context, [])
+        matches = runs_by_context[context]
         if len(matches) != 1:
             raise ReleaseGovernanceError("CHECK_RUN_MISSING_OR_AMBIGUOUS")
-        run = matches[0]
-        app_id = _int(run["app_id"], "CHECK_RUN_APP_MISSING")
-        if app_id != authorized["app_id"] or run["app_slug"] != authorized["slug"] or effective_checks.get(context) != app_id:
+        selected.append(matches[0])
+
+    authorized = GOVERNANCE_POLICY["status_checks"]["integration"]
+    workflow_run_ids: list[int] = []
+    workflow_ids: list[int] = []
+    workflow_paths: list[str] = []
+    attempts: list[int] = []
+    job_ids: list[int] = []
+    check_ids: list[int] = []
+    identities: list[str] = []
+    app_ids: list[int] = []
+    for context, item in zip(GOVERNANCE_POLICY["status_checks"]["required_contexts"], selected, strict=True):
+        run, job, check, authorization = item["run"], item["job"], item["check"], item["authorization"]
+        app_id = _int(job["app_id"], "CHECK_RUN_APP_MISSING")
+        if app_id != authorized["app_id"] or job["app_slug"] != authorized["slug"] or effective_checks.get(context) != app_id:
             raise ReleaseGovernanceError("CHECK_RUN_INTEGRATION_MISMATCH")
         if run["status"] != "completed" or run["conclusion"] != "success":
+            raise ReleaseGovernanceError("WORKFLOW_RUN_NOT_SUCCESSFUL")
+        if job["status"] != "completed" or job["conclusion"] != "success" or check["status"] != "completed" or check["conclusion"] != "success":
             raise ReleaseGovernanceError("CHECK_RUN_NOT_SUCCESSFUL")
-        run_ids.append(run["id"])
+        workflow_run_id = _int(run["run_id"], "WORKFLOW_RUN_SNAPSHOT_INVALID")
+        workflow_id = _int(run["workflow_id"], "WORKFLOW_RUN_SNAPSHOT_INVALID")
+        run_attempt = _int(run["run_attempt"], "WORKFLOW_RUN_SNAPSHOT_INVALID")
+        job_id = _int(job["job_id"], "WORKFLOW_JOB_SNAPSHOT_INVALID")
+        check_id = _int(job["check_run_id"], "WORKFLOW_JOB_SNAPSHOT_INVALID")
+        workflow_run_ids.append(workflow_run_id)
+        workflow_ids.append(workflow_id)
+        workflow_paths.append(authorization["workflow_path"])
+        attempts.append(run_attempt)
+        job_ids.append(job_id)
+        check_ids.append(check_id)
         app_ids.append(app_id)
         identities.append(_identity({
-            "id": run["id"], "name": context, "head_sha": head_sha,
-            "status": run["status"], "conclusion": run["conclusion"],
-            "app_id": app_id, "app_slug": run["app_slug"],
+            "repository_id": repository_id,
+            "workflow_run_id": workflow_run_id,
+            "workflow_id": workflow_id,
+            "workflow_path": authorization["workflow_path"],
+            "workflow_name": authorization["workflow_name"],
+            "event": "pull_request",
+            "pull_request_number": pull_number,
+            "head_sha": head_sha,
+            "run_attempt": run_attempt,
+            "job_id": job_id,
+            "job_name": context,
+            "check_run_id": check_id,
+            "check_name": context,
+            "status": "completed",
+            "conclusion": "success",
+            "app_id": app_id,
+            "app_slug": authorized["slug"],
         }))
-    return run_ids, identities, app_ids
+    return workflow_run_ids, workflow_ids, workflow_paths, attempts, job_ids, check_ids, identities, app_ids
 
 
 def _verify_policy_file(value: Any, *, subject_sha: str) -> tuple[str, str]:
@@ -796,9 +988,13 @@ def derive_governance_payload(
     if sensitive_paths and codeowner_approval_count != group_count:
         raise ReleaseGovernanceError("CODEOWNER_APPROVAL_MISSING")
 
-    run_ids, check_identities, app_ids = _evaluate_check_runs(
-        snapshot["pull_request_check_runs"], head_sha=head_sha,
-        effective_checks=requirements["status_checks"],
+    (
+        workflow_run_ids, workflow_ids, workflow_paths, run_attempts,
+        job_ids, check_run_ids, check_identities, app_ids,
+    ) = _evaluate_check_runs(
+        snapshot["pull_request_check_runs"], snapshot["workflow_run_provenance"],
+        repository_id=repository_id, subject_sha=subject, pull_number=pr_number,
+        head_sha=head_sha, effective_checks=requirements["status_checks"],
     )
     repo_identity = _identity({"id": repository_id, "full_name": full_name.casefold()})
     review_identities = sorted({_review_digest(row) for row in approvals})
@@ -866,9 +1062,14 @@ def derive_governance_payload(
         "codeowner_approval_group_count": codeowner_approval_count,
         "codeowners_pass": True,
         "status_check_contexts": list(GOVERNANCE_POLICY["status_checks"]["required_contexts"]),
-        "required_check_run_ids": run_ids,
+        "required_check_run_ids": check_run_ids,
         "required_check_identities": check_identities,
         "required_check_app_ids": app_ids,
+        "required_check_workflow_run_ids": workflow_run_ids,
+        "required_check_workflow_ids": workflow_ids,
+        "required_check_workflow_paths": workflow_paths,
+        "required_check_run_attempts": run_attempts,
+        "required_check_job_ids": job_ids,
         "required_check_pass": True,
         "required_status_checks_strict": True,
         "stale_review_dismissal_required": True,
@@ -934,12 +1135,26 @@ def validate_governance_payload(payload: dict[str, Any]) -> None:
     if payload["legacy_protection_sha256"] is not None:
         _sha(payload["legacy_protection_sha256"], "GOVERNANCE_PROTECTION_IDENTITY_INVALID", length=64)
     checks = GOVERNANCE_POLICY["status_checks"]["required_contexts"]
-    if len(payload["required_check_run_ids"]) != len(checks) or len(payload["required_check_identities"]) != len(checks) or len(payload["required_check_app_ids"]) != len(checks):
+    identity_fields = (
+        "required_check_run_ids", "required_check_identities", "required_check_app_ids",
+        "required_check_workflow_run_ids", "required_check_workflow_ids",
+        "required_check_workflow_paths", "required_check_run_attempts", "required_check_job_ids",
+    )
+    if any(not isinstance(payload[field], list) or len(payload[field]) != len(checks) for field in identity_fields):
         raise ReleaseGovernanceError("GOVERNANCE_CHECK_IDENTITY_INVALID")
-    for run_id in payload["required_check_run_ids"]:
-        _int(run_id, "GOVERNANCE_CHECK_IDENTITY_INVALID")
+    for field in ("required_check_run_ids", "required_check_workflow_run_ids", "required_check_workflow_ids", "required_check_run_attempts", "required_check_job_ids"):
+        for run_id in payload[field]:
+            _int(run_id, "GOVERNANCE_CHECK_IDENTITY_INVALID")
     for identity in payload["required_check_identities"]:
         _sha(identity, "GOVERNANCE_CHECK_IDENTITY_INVALID", length=64)
+    expected_paths = [
+        next(item["workflow_path"] for item in GOVERNANCE_POLICY["status_checks"]["authorized_workflows"] if item["context"] == context)
+        for context in checks
+    ]
+    if payload["required_check_workflow_paths"] != expected_paths:
+        raise ReleaseGovernanceError("GOVERNANCE_CHECK_WORKFLOW_MISMATCH")
+    if len(set(payload["required_check_job_ids"])) != len(checks) or len(set(payload["required_check_run_ids"])) != len(checks):
+        raise ReleaseGovernanceError("GOVERNANCE_CHECK_IDENTITY_INVALID")
     if payload["required_check_app_ids"] != [GOVERNANCE_POLICY["status_checks"]["integration"]["app_id"]] * len(checks):
         raise ReleaseGovernanceError("GOVERNANCE_CHECK_INTEGRATION_MISMATCH")
     for field in ("repository_id", "pull_request_number", "required_approving_reviews", "review_count", "independent_approval_count", "changed_file_count", "production_sensitive_change_count", "codeowner_group_count", "codeowner_approval_group_count"):

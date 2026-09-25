@@ -1,18 +1,29 @@
 # KSA-32 release-governance evidence
 
 KSA-32 keeps `governance` as the existing machine evidence type and does not
-add a release state. The closed contract is version `1.0`; its policy identity
-is pinned in `src/k_slide/release_governance.py` and the matching candidate
-policy is `security/release-governance-policy.json`. Evidence loading replays
+add a release state. The closed contract and policy are version `1.1`; their
+identities are pinned in `src/k_slide/release_governance.py` and the matching
+candidate policy is `security/release-governance-policy.json`. Evidence loading replays
 the derivation from the raw snapshot roles and requires the exact candidate
 specification, deployment fingerprint, current `main` head, and merged PR
 subject.
 
 The normal PR check policy is exactly `test (3.11)`, `test (3.12)`, `security`,
-`fast (3.11)`, and `fast (3.12)`. Each check must be a successful completed
-GitHub Actions check run for the PR head and app ID `15368` (`github-actions`),
-and the branch rule must bind the same app integration. `heavy` remains a
+`fast (3.11)`, and `fast (3.12)`. Each is bound to its repository workflow path,
+workflow name, job name, and GitHub Actions app ID `15368` (`github-actions`).
+The selected job must be successful in the latest attempt of an exact
+`pull_request` run associated with the governed PR number and exact current PR
+head SHA. Push-triggered runs for the same SHA remain visible in the raw
+snapshot but cannot satisfy the PR gate or make its result ambiguous. Two
+eligible current PR runs for one context fail closed. `heavy` remains a
 manual/dispatch-only job and is not a normal PR requirement.
+
+The raw `workflow_run_provenance.json` snapshot records the complete workflow
+catalog, repository-owned workflow IDs and paths, every workflow run returned
+for the exact head SHA, its event and PR associations, its latest run attempt,
+and normalized jobs joined to their check-run IDs and app identities. The
+source-free governance payload retains only normalized IDs, authorized paths,
+and identity hashes; it contains no API URLs, job logs, or review text.
 
 The effective protection may be a set of active repository rulesets or
 authoritative legacy branch-protection detail. Rulesets must apply exactly to
@@ -39,8 +50,8 @@ The dispatch-only workflow is
 requests. Configure the repository Actions secret
 `KSLIDE_GOVERNANCE_READ_TOKEN` with a read-only credential that can read
 repository metadata, contents, pull requests/reviews/files, check runs,
-repository rulesets, and legacy branch-protection detail (`Administration:
-read` for the latter endpoints). The workflow exits before capture if the
+workflow runs/jobs/workflows, repository rulesets, and legacy branch-protection
+detail (`Administration: read` for the latter endpoints). The workflow exits before capture if the
 secret is absent. The token stays in the process environment and is never
 written to an artifact.
 

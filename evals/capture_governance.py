@@ -76,6 +76,32 @@ def _array_pages(api: GitHubReader, route: str) -> list[dict[str, Any]]:
         page += 1
 
 
+def _object_pages(api: GitHubReader, route: str, collection_key: str) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    page = 1
+    total_count: int | None = None
+    while True:
+        value, _status = api.get(f"{route}{'&' if '?' in route else '?'}per_page=100&page={page}")
+        if not isinstance(value, dict) or not isinstance(value.get(collection_key), list):
+            raise CaptureError("GITHUB_PAGED_RESPONSE_INVALID")
+        items = value[collection_key]
+        if any(not isinstance(item, dict) for item in items):
+            raise CaptureError("GITHUB_PAGED_RESPONSE_INVALID")
+        count = value.get("total_count")
+        if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+            raise CaptureError("GITHUB_PAGED_RESPONSE_INVALID")
+        if total_count is None:
+            total_count = count
+        elif count != total_count:
+            raise CaptureError("GITHUB_PAGED_RESPONSE_INCONSISTENT")
+        result.extend(items)
+        if len(items) < 100:
+            if len(result) != total_count:
+                raise CaptureError("GITHUB_PAGED_RESPONSE_INCOMPLETE")
+            return result
+        page += 1
+
+
 def _ruleset_projection(item: dict[str, Any]) -> dict[str, Any]:
     conditions = item.get("conditions")
     if not isinstance(conditions, dict):
@@ -189,6 +215,147 @@ def _pull_projection(value: dict[str, Any], repository_id: int, requested_number
     }
 
 
+def capture_workflow_run_provenance(
+    api: GitHubReader,
+    *,
+    repository: str,
+    repository_id: int,
+    pull_number: int,
+    subject_sha: str,
+    head_sha: str,
+    check_runs: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Capture normalized Actions run, workflow, attempt, and job provenance."""
+
+    workflows = _object_pages(api, f"repos/{repository}/actions/workflows", "workflows")
+    catalog_items = []
+    workflows_by_id: dict[int, dict[str, str]] = {}
+    for item in workflows:
+        workflow_id = item.get("id")
+        name = item.get("name")
+        path = item.get("path")
+        state = item.get("state")
+        if (
+            not isinstance(workflow_id, int) or isinstance(workflow_id, bool) or workflow_id < 1
+            or not isinstance(name, str) or not name.strip()
+            or not isinstance(path, str) or not path.strip()
+            or not isinstance(state, str) or not state.strip()
+        ):
+            raise CaptureError("GITHUB_WORKFLOW_RESPONSE_INVALID")
+        if workflow_id in workflows_by_id:
+            raise CaptureError("GITHUB_WORKFLOW_ID_DUPLICATE")
+        workflows_by_id[workflow_id] = {"name": name, "path": path}
+        catalog_items.append({"id": workflow_id, "name": name, "path": path, "state": state})
+
+    checks_by_id: dict[int, dict[str, Any]] = {}
+    for check in check_runs:
+        check_id = check.get("id")
+        if not isinstance(check_id, int) or isinstance(check_id, bool) or check_id < 1 or check_id in checks_by_id:
+            raise CaptureError("GITHUB_CHECK_RUN_RESPONSE_INVALID")
+        checks_by_id[check_id] = check
+
+    runs = _object_pages(
+        api,
+        f"repos/{repository}/actions/runs?head_sha={quote(head_sha, safe='')}",
+        "workflow_runs",
+    )
+    projected_runs = []
+    for run in runs:
+        run_id = run.get("id")
+        workflow_id = run.get("workflow_id")
+        run_head = run.get("head_sha")
+        event = run.get("event")
+        attempt = run.get("run_attempt")
+        run_repository = run.get("repository")
+        associations = run.get("pull_requests")
+        if (
+            not isinstance(run_id, int) or isinstance(run_id, bool) or run_id < 1
+            or not isinstance(workflow_id, int) or isinstance(workflow_id, bool) or workflow_id < 1
+            or not isinstance(run_head, str) or not isinstance(event, str)
+            or not isinstance(attempt, int) or isinstance(attempt, bool) or attempt < 1
+            or not isinstance(run_repository, dict)
+            or run_repository.get("id") != repository_id
+            or str(run_repository.get("full_name", "")).casefold() != repository.casefold()
+            or not isinstance(associations, list)
+        ):
+            raise CaptureError("GITHUB_WORKFLOW_RUN_RESPONSE_INVALID")
+        workflow = workflows_by_id.get(workflow_id)
+        if workflow is None:
+            raise CaptureError("GITHUB_WORKFLOW_ID_UNKNOWN")
+        projected_associations = []
+        for association in associations:
+            if not isinstance(association, dict) or not isinstance(association.get("head"), dict):
+                raise CaptureError("GITHUB_WORKFLOW_RUN_PR_ASSOCIATION_INVALID")
+            number = association.get("number")
+            association_head = association["head"].get("sha")
+            if not isinstance(number, int) or isinstance(number, bool) or number < 1 or not isinstance(association_head, str):
+                raise CaptureError("GITHUB_WORKFLOW_RUN_PR_ASSOCIATION_INVALID")
+            projected_associations.append({"number": number, "head_sha": association_head})
+
+        jobs = _object_pages(
+            api,
+            f"repos/{repository}/actions/runs/{run_id}/attempts/{attempt}/jobs",
+            "jobs",
+        )
+        projected_jobs = []
+        for job in jobs:
+            job_id = job.get("id")
+            job_run_id = job.get("run_id")
+            job_head = job.get("head_sha")
+            job_name = job.get("name")
+            if (
+                not isinstance(job_id, int) or isinstance(job_id, bool) or job_id < 1
+                or job_run_id != run_id
+                or not isinstance(job_head, str) or job_head != run_head
+                or not isinstance(job_name, str) or not job_name.strip()
+                or not isinstance(job.get("status"), str)
+                or (job.get("conclusion") is not None and not isinstance(job.get("conclusion"), str))
+            ):
+                raise CaptureError("GITHUB_WORKFLOW_JOB_RESPONSE_INVALID")
+            check = checks_by_id.get(job_id)
+            if check is None:
+                raise CaptureError("GITHUB_WORKFLOW_JOB_CHECK_RUN_MISSING")
+            projected_jobs.append({
+                "workflow_run_id": run_id,
+                "job_id": job_id,
+                "check_run_id": check["id"],
+                "run_attempt": attempt,
+                "name": job_name,
+                "check_name": check["name"],
+                "head_sha": job_head,
+                "status": job["status"],
+                "conclusion": job.get("conclusion"),
+                "app_id": check["app_id"],
+                "app_slug": check["app_slug"],
+            })
+        projected_runs.append({
+            "repository_id": repository_id,
+            "repository_full_name": repository,
+            "run_id": run_id,
+            "workflow_id": workflow_id,
+            "workflow_path": workflow["path"],
+            "workflow_name": workflow["name"],
+            "event": event,
+            "head_sha": run_head,
+            "pull_requests": projected_associations,
+            "run_attempt": attempt,
+            "status": run.get("status"),
+            "conclusion": run.get("conclusion"),
+            "jobs_complete": True,
+            "jobs": projected_jobs,
+        })
+    return {
+        "complete": True,
+        "repository_id": repository_id,
+        "repository_full_name": repository,
+        "subject_sha": subject_sha,
+        "pull_request_number": pull_number,
+        "pull_request_head_sha": head_sha,
+        "workflow_catalog": {"complete": True, "items": catalog_items},
+        "items": projected_runs,
+    }
+
+
 def _write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
@@ -254,24 +421,25 @@ def capture_snapshots(api: GitHubReader, repository: str, pull_number: int, subj
             "submitted_at": item.get("submitted_at"),
         })
     checks = []
-    page = 1
-    while True:
-        value, _ = api.get(f"repos/{repository}/commits/{head_sha}/check-runs?per_page=100&page={page}")
-        if not isinstance(value, dict) or not isinstance(value.get("check_runs"), list):
-            raise CaptureError("GITHUB_CHECK_RUN_RESPONSE_INVALID")
-        runs = value["check_runs"]
-        for item in runs:
-            app = item.get("app")
-            if not isinstance(app, dict):
-                app = {}
-            checks.append({
-                "id": item.get("id"), "name": item.get("name"), "head_sha": item.get("head_sha"),
-                "status": item.get("status"), "conclusion": item.get("conclusion"),
-                "app_id": app.get("id"), "app_slug": app.get("slug"),
-            })
-        if len(runs) < 100:
-            break
-        page += 1
+    raw_checks = _object_pages(api, f"repos/{repository}/commits/{head_sha}/check-runs", "check_runs")
+    for item in raw_checks:
+        app = item.get("app")
+        if not isinstance(app, dict):
+            app = {}
+        checks.append({
+            "id": item.get("id"), "name": item.get("name"), "head_sha": item.get("head_sha"),
+            "status": item.get("status"), "conclusion": item.get("conclusion"),
+            "app_id": app.get("id"), "app_slug": app.get("slug"),
+        })
+    workflow_provenance = capture_workflow_run_provenance(
+        api,
+        repository=repository,
+        repository_id=repository_id,
+        pull_number=pull_number,
+        subject_sha=subject_sha,
+        head_sha=head_sha,
+        check_runs=checks,
+    )
     files = _array_pages(api, f"repos/{repository}/pulls/{pull_number}/files")
     projected_files = [{"filename": item.get("filename")} for item in files]
     commit_value, _ = api.get(f"repos/{repository}/commits/{merge_sha}")
@@ -287,6 +455,7 @@ def capture_snapshots(api: GitHubReader, repository: str, pull_number: int, subj
         "pull_request": pull,
         "pull_request_reviews": projected_reviews,
         "pull_request_check_runs": {"complete": True, "items": checks},
+        "workflow_run_provenance": workflow_provenance,
         "pull_request_files": {"complete": True, "items": projected_files},
         "merge_commit": merge_commit,
         "candidate_codeowners": _candidate_file(api, repository, CODEOWNERS_PATH, subject_sha),
