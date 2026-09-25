@@ -7,7 +7,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from evals.capture_governance import CaptureError, capture_workflow_run_provenance
+from evals.capture_governance import (
+    CaptureError,
+    _pull_projection,
+    capture_head_commit_pull_requests,
+    capture_workflow_run_provenance,
+)
 from evals.release import _load_records, derive_release_state
 from k_slide.certification import (
     EVIDENCE_SCHEMA_VERSION,
@@ -31,6 +36,7 @@ from tests.ksa32_governance_fixtures import (
     HEAD_SHA,
     OWNER_ID,
     PULL_NUMBER,
+    REPOSITORY_ID,
     REPOSITORY_FULL_NAME,
     SUBJECT,
     github_governance_snapshot,
@@ -124,7 +130,7 @@ class KSA32ReleaseGovernanceTests(unittest.TestCase):
         payload = loaded["payload"]
         self.assertEqual(payload["governance_policy_identity"], GOVERNANCE_POLICY_IDENTITY)
         self.assertEqual(payload["governance_contract_identity"], GOVERNANCE_CONTRACT_IDENTITY)
-        self.assertEqual(payload["governance_contract_version"], "1.1")
+        self.assertEqual(payload["governance_contract_version"], "1.2")
         self.assertEqual(payload["governance_policy_version"], "1.1")
         self.assertEqual(EVIDENCE_SCHEMA_VERSION, "2.6")
         self.assertEqual(payload["protection_mechanism"], "repository_rulesets")
@@ -133,7 +139,8 @@ class KSA32ReleaseGovernanceTests(unittest.TestCase):
         self.assertEqual(payload["review_count"], 1)
         self.assertNotIn("user_login", payload)
         self.assertNotIn("comment", json.dumps(payload).casefold())
-        self.assertEqual(len(loaded["sources"]), 13)
+        self.assertEqual(len(loaded["sources"]), 14)
+        self.assertRegex(payload["head_commit_pull_requests_identity_sha256"], r"^[0-9a-f]{64}$")
         self.assertEqual(payload["required_check_workflow_paths"], [
             item["workflow_path"] for item in GOVERNANCE_POLICY["status_checks"]["authorized_workflows"]
         ])
@@ -320,10 +327,14 @@ class KSA32ReleaseGovernanceTests(unittest.TestCase):
 
     def test_wrong_pr_association_and_workflow_identity_fail(self):
         snapshot = github_governance_snapshot()
-        for run in snapshot["workflow_run_provenance"]["items"]:
-            if run["event"] == "pull_request":
-                run["pull_requests"][0]["number"] = 99
-        self._reject_snapshot(snapshot, "CHECK_RUN_MISSING_OR_AMBIGUOUS")
+        run, _job, _check = self._pr_job(snapshot, "test (3.11)")
+        run["pull_requests"] = [{"number": 99, "head_sha": HEAD_SHA}]
+        self._reject_snapshot(snapshot, "WORKFLOW_RUN_PR_ASSOCIATION_CONTRADICTION")
+
+        snapshot = github_governance_snapshot()
+        run, _job, _check = self._pr_job(snapshot, "test (3.11)")
+        run["pull_requests"] = [{"number": PULL_NUMBER, "head_sha": "d" * 40}]
+        self._reject_snapshot(snapshot, "WORKFLOW_RUN_PR_HEAD_MISMATCH")
 
         snapshot = github_governance_snapshot()
         run, _job, _check = self._pr_job(snapshot, "test (3.11)")
@@ -347,7 +358,12 @@ class KSA32ReleaseGovernanceTests(unittest.TestCase):
         run["workflow_id"] = phase_workflow["id"]
         run["workflow_path"] = phase_workflow["path"]
         run["workflow_name"] = phase_workflow["name"]
-        self._reject_snapshot(snapshot, "CHECK_RUN_MISSING_OR_AMBIGUOUS")
+        self._reject_snapshot(snapshot, "WORKFLOW_RUN_NOT_AUTHORIZED_FOR_REQUIRED_CHECK")
+
+        snapshot = github_governance_snapshot()
+        run, _job, _check = self._pr_job(snapshot, "test (3.11)")
+        run["event"] = "workflow_dispatch"
+        self._reject_snapshot(snapshot, "WORKFLOW_RUN_EVENT_INVALID_FOR_REQUIRED_CHECK")
 
     def test_workflow_provenance_is_bound_to_candidate_subject_pr_and_head(self):
         for field, value in (
@@ -358,6 +374,67 @@ class KSA32ReleaseGovernanceTests(unittest.TestCase):
             snapshot = github_governance_snapshot()
             snapshot["workflow_run_provenance"][field] = value
             self._reject_snapshot(snapshot, "WORKFLOW_RUN_CANDIDATE_BINDING_MISMATCH")
+
+    def test_pr31_empty_workflow_associations_qualify_only_with_global_commit_association(self):
+        snapshot = github_governance_snapshot()
+        self.assertTrue(all(
+            run["pull_requests"] == []
+            for run in snapshot["workflow_run_provenance"]["items"]
+            if run["event"] == "pull_request"
+        ))
+        payload = self._load(self._build(self._sources(snapshot=snapshot)))["payload"]
+        self.assertEqual(payload["pull_request_number"], PULL_NUMBER)
+        self.assertEqual(payload["pull_request_head_sha"], HEAD_SHA)
+
+        missing = github_governance_snapshot()
+        missing["head_commit_pull_requests"]["items"] = []
+        self._reject_snapshot(missing, "HEAD_COMMIT_PULL_REQUESTS_REQUESTED_PR_MISSING_OR_AMBIGUOUS")
+
+    def test_commit_pull_association_must_be_unique_and_match_exact_pr_facts(self):
+        mutations = (
+            ("head_sha", "d" * 40),
+            ("base_ref", "develop"),
+            ("base_repository_id", REPOSITORY_ID + 1),
+            ("base_repository_full_name", "other/repository"),
+            ("head_repository_id", REPOSITORY_ID + 1),
+            ("head_repository_full_name", "other/fork"),
+        )
+        for field, value in mutations:
+            snapshot = github_governance_snapshot()
+            snapshot["head_commit_pull_requests"]["items"][0][field] = value
+            with self.subTest(field=field):
+                self._reject_snapshot(snapshot, "HEAD_COMMIT_PULL_REQUESTS_REQUESTED_PR_MISMATCH")
+
+        snapshot = github_governance_snapshot()
+        snapshot["head_commit_pull_requests"]["repository_id"] += 1
+        self._reject_snapshot(snapshot, "HEAD_COMMIT_PULL_REQUESTS_BINDING_MISMATCH")
+
+        snapshot = github_governance_snapshot()
+        snapshot["head_commit_pull_requests"]["repository_full_name"] = "other/repository"
+        self._reject_snapshot(snapshot, "HEAD_COMMIT_PULL_REQUESTS_BINDING_MISMATCH")
+
+        snapshot = github_governance_snapshot()
+        snapshot["head_commit_pull_requests"]["head_sha"] = "d" * 40
+        self._reject_snapshot(snapshot, "HEAD_COMMIT_PULL_REQUESTS_BINDING_MISMATCH")
+
+        snapshot = github_governance_snapshot()
+        snapshot["head_commit_pull_requests"]["items"].append(copy.deepcopy(snapshot["head_commit_pull_requests"]["items"][0]))
+        self._reject_snapshot(snapshot, "HEAD_COMMIT_PULL_REQUESTS_REQUESTED_PR_MISSING_OR_AMBIGUOUS")
+
+    def test_other_commit_pull_associations_do_not_make_exact_pr_ambiguous(self):
+        snapshot = github_governance_snapshot()
+        snapshot["head_commit_pull_requests"]["items"].append({
+            "id": 88002,
+            "number": 17,
+            "base_repository_id": REPOSITORY_ID,
+            "base_repository_full_name": REPOSITORY_FULL_NAME,
+            "base_ref": "main",
+            "head_sha": HEAD_SHA,
+            "head_ref": "historical-branch",
+            "head_repository_id": 998877,
+            "head_repository_full_name": "contributor/k-slide",
+        })
+        self.assertTrue(self._load(self._build(self._sources(snapshot=snapshot)))["payload"]["required_check_pass"])
 
     def test_latest_attempt_qualifies_older_superseded_attempt_does_not(self):
         snapshot = github_governance_snapshot()
@@ -631,6 +708,81 @@ class KSA32ReleaseGovernanceTests(unittest.TestCase):
                 FakeApi(incomplete=True), repository=REPOSITORY_FULL_NAME,
                 repository_id=81234567, pull_number=PULL_NUMBER, subject_sha=SUBJECT,
                 head_sha=HEAD_SHA, check_runs=source["pull_request_check_runs"]["items"],
+            )
+
+    def test_capture_commit_pull_pages_and_exact_pr_normalization(self):
+        def raw_pull(number: int, *, head_sha: str = HEAD_SHA) -> dict:
+            return {
+                "id": 9901 if number == PULL_NUMBER else 10000 + number,
+                "number": number,
+                "base": {
+                    "ref": "main",
+                    "repo": {"id": REPOSITORY_ID, "full_name": "KimHW8084/K-Slide"},
+                },
+                "head": {
+                    "sha": head_sha,
+                    "ref": "release-candidate" if number == PULL_NUMBER else f"historical-{number}",
+                    "repo": {"id": REPOSITORY_ID, "full_name": "KimHW8084/K-Slide"},
+                },
+            }
+
+        exact_pr = {
+            "id": 9901,
+            "number": PULL_NUMBER,
+            "user": {"id": AUTHOR_ID, "login": "release-contributor"},
+            "base": {
+                "sha": BASE_SHA, "ref": "main",
+                "repo": {"id": REPOSITORY_ID, "full_name": "KimHW8084/K-Slide"},
+            },
+            "head": {
+                "sha": HEAD_SHA, "ref": "release-candidate",
+                "repo": {"id": REPOSITORY_ID, "full_name": "KimHW8084/K-Slide"},
+            },
+            "state": "closed", "merged": True, "merged_at": "2026-09-24T00:00:00Z",
+            "merge_commit_sha": SUBJECT,
+        }
+        projected_pr = _pull_projection(exact_pr, REPOSITORY_ID, PULL_NUMBER)
+        self.assertEqual(projected_pr["base"]["repository_full_name"], REPOSITORY_FULL_NAME)
+        self.assertEqual(projected_pr["head"]["repository_id"], REPOSITORY_ID)
+        self.assertEqual(projected_pr["head"]["repository_full_name"], REPOSITORY_FULL_NAME)
+
+        raw_items = [raw_pull(100 + index, head_sha="e" * 40) for index in range(100)]
+        raw_items.append(raw_pull(PULL_NUMBER))
+        routes = []
+
+        class FakeApi:
+            def get(self, route: str, **_kwargs):
+                routes.append(route)
+                page = int(route.rsplit("page=", 1)[1])
+                return (raw_items[:100] if page == 1 else raw_items[100:]), 200
+
+        captured = capture_head_commit_pull_requests(
+            FakeApi(), repository=REPOSITORY_FULL_NAME, repository_id=REPOSITORY_ID,
+            pull_number=PULL_NUMBER, head_sha=HEAD_SHA,
+        )
+        self.assertTrue(captured["complete"])
+        self.assertEqual(len(captured["items"]), 101)
+        self.assertEqual([route.rsplit("page=", 1)[1] for route in routes], ["1", "2"])
+        requested = next(item for item in captured["items"] if item["number"] == PULL_NUMBER)
+        self.assertEqual(requested, {
+            "id": 9901, "number": PULL_NUMBER,
+            "base_repository_id": REPOSITORY_ID,
+            "base_repository_full_name": REPOSITORY_FULL_NAME,
+            "base_ref": "main", "head_sha": HEAD_SHA, "head_ref": "release-candidate",
+            "head_repository_id": REPOSITORY_ID,
+            "head_repository_full_name": REPOSITORY_FULL_NAME,
+        })
+
+        class IncompleteApi:
+            def get(self, route: str, **_kwargs):
+                if int(route.rsplit("page=", 1)[1]) == 1:
+                    return raw_items[:100], 200
+                raise CaptureError("GITHUB_API_REQUEST_FAILED")
+
+        with self.assertRaises(CaptureError):
+            capture_head_commit_pull_requests(
+                IncompleteApi(), repository=REPOSITORY_FULL_NAME, repository_id=REPOSITORY_ID,
+                pull_number=PULL_NUMBER, head_sha=HEAD_SHA,
             )
 
     def test_capture_workflow_is_manual_and_keeps_raw_snapshots_separate(self):

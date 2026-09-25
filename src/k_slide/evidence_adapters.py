@@ -82,7 +82,8 @@ _ROLES: dict[str, tuple[str, ...]] = {
     "governance": (
         "repository_metadata", "target_branch", "ruleset_collection", "ruleset_details",
         "legacy_branch_protection", "pull_request", "pull_request_reviews",
-        "pull_request_check_runs", "workflow_run_provenance", "pull_request_files", "merge_commit",
+        "pull_request_check_runs", "workflow_run_provenance", "head_commit_pull_requests",
+        "pull_request_files", "merge_commit",
         "candidate_codeowners", "candidate_governance_policy",
     ),
 }

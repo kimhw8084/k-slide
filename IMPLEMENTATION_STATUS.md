@@ -653,6 +653,44 @@ git diff --check: passed.
 
 The release-state assertions use synthetic temporary evidence only. No real governance qualification, release, BUILD COMPLETE, or production certification is claimed. KSA-33 and later work remains out of scope.
 
+## CHG-16 / KSA-32 FIX02 — F32-02 closed; NOT QUALIFIED
+
+FIX02 began at the exact integrated base `81c89b9a0859282a2069be2b4aeab45ec61e518a` on branch `codex/k-slide-chg16-protected-release-governance-01-fix02`, then fast-forwarded only that branch to the immutable FIX01 candidate `a20bfd1e1439a76b66c6ff7435820c6024145a74`, preserving its BUILD parent `22431e4663b57b8f8ac98e58012f8a6fc7d8a66e` and all valid KSA-32 work. Main was not moved or merged. F32-02 is the only newly closed work item; F32-01 remains closed.
+
+FIX02 adds the closed raw source role `head_commit_pull_requests`, captured from GitHub's paginated commit-associated-pulls array endpoint for the exact PR head. Derivation independently validates completeness, repository and head binding, and exactly one requested PR association, including PR ID/number, head SHA/ref/repository, and base branch/repository against the captured PR object. Other historical PR associations remain valid when the requested PR is unique. An empty `workflow_run.pull_requests` list is accepted as observed for PR #31; any populated contradictory association fails. Same-head push runs remain ineligible and do not create PR-job ambiguity. Durable evidence stores only a deterministic hash of the normalized association snapshot.
+
+The governance evidence contract moved from `1.1` to `1.2` for the required raw role and source-free payload extension. Policy behavior and policy version `1.1` remain unchanged; its identity is rederived because the pinned contract identity changed. Shared evidence schema `2.6`, machine adapter `2.8`, subject-sensitive change-impact policy `1.2`, governance release authority, and KSA-31 promotion/recertification contracts remain. The required five checks and all protection, review, CODEOWNERS, candidate-binding, merge-subject, and release-state gates remain in force.
+
+The candidate profile remains incomplete on `provider`, `behavior_configuration`, `corpus_identity.governed_sets`, and `opencode_version`. Current live status remains **NOT QUALIFIED**: `main` is unprotected, repository rulesets are empty, legacy protection detail is unavailable through the current App, PR #31 has zero reviews, CODEOWNERS still names only `@kimhw8084`, and `KSLIDE_GOVERNANCE_READ_TOKEN` is not configured. No live GitHub settings or reviewers were changed, and no live API capture, qualification, release, BUILD COMPLETE, or production certification is claimed. KSA-33 and later remain out of scope.
+
+Changed files for FIX02:
+
+- `.codex-fabric/audit.json`
+- `IMPLEMENTATION_STATUS.md`
+- `docs/ksa32-release-governance.md`
+- `evals/capture_governance.py`
+- `security/release-governance-policy.json`
+- `src/k_slide/evidence_adapters.py`
+- `src/k_slide/release_governance.py`
+- `tests/ksa32_governance_fixtures.py`
+- `tests/test_ksa32_release_governance.py`
+
+FIX02 verification:
+
+```text
+Focused KSA-32 FIX02 acceptance: 40 tests passed, including the PR #31 empty-workflow-association case, commit-to-pulls completeness/normalization, and fail-closed mismatch/ambiguity cases.
+KSA-26–32 governance, KSA-31–27, certification/release, production-freshness, and phase regressions: 271 tests passed.
+KSA-21–25 compatibility/security/recovery plus KSA-15–20 host/security/runtime regressions: 325 passed; 2 skipped.
+OpenCode TypeScript host attachment regression: passed.
+All 4 repository JSON schemas passed Draft 2020-12 schema validation.
+TranslationPatch Python/schema/TypeScript and provenance regression: 23 tests passed.
+Full Python 3.11.7 unittest discovery: 653 passed; 4 optional skips.
+Full isolated Python 3.12.9 unittest discovery: 653 passed; no skips.
+Compileall on Python 3.11.7 and isolated Python 3.12.9: passed.
+git diff --check: passed.
+Credentialless capture stopped with GOVERNANCE_READ_CREDENTIAL_MISSING before any GitHub API request, as expected.
+```
+
 ## Next phase
 
 KSA-33 and later work requires a separate scoped request. Authoritative target-Gemma evaluation and the remaining external production-candidate prerequisites are still unproven; no live promotion, release, or production certification was performed here.

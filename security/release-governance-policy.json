@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "contract": {
     "id": "k-slide.protected-release-governance",
-    "version": "1.1"
+    "version": "1.2"
   },
   "policy": {
     "id": "kimhw8084-k-slide-production-release",

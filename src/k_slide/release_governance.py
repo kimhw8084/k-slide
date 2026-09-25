@@ -17,10 +17,10 @@ from pathlib import Path
 from typing import Any
 
 
-GOVERNANCE_CONTRACT_VERSION = "1.1"
+GOVERNANCE_CONTRACT_VERSION = "1.2"
 GOVERNANCE_POLICY = {
     "schema_version": "1.0",
-    "contract": {"id": "k-slide.protected-release-governance", "version": "1.1"},
+    "contract": {"id": "k-slide.protected-release-governance", "version": "1.2"},
     "policy": {"id": "kimhw8084-k-slide-production-release", "version": "1.1"},
     "repository": {"full_name": "kimhw8084/k-slide"},
     "target": {"default_branch": "main", "release_branch": "main"},
@@ -75,7 +75,8 @@ CODEOWNERS_PATH = ".github/CODEOWNERS"
 _ROLES = frozenset({
     "repository_metadata", "target_branch", "ruleset_collection", "ruleset_details",
     "legacy_branch_protection", "pull_request", "pull_request_reviews",
-    "pull_request_check_runs", "workflow_run_provenance", "pull_request_files", "merge_commit",
+    "pull_request_check_runs", "workflow_run_provenance", "head_commit_pull_requests",
+    "pull_request_files", "merge_commit",
     "candidate_codeowners", "candidate_governance_policy",
 })
 _PASS_CODES = [
@@ -101,6 +102,7 @@ _PAYLOAD_KEYS = frozenset({
     "status_check_contexts", "required_check_run_ids", "required_check_identities",
     "required_check_app_ids", "required_check_workflow_run_ids", "required_check_workflow_ids",
     "required_check_workflow_paths", "required_check_run_attempts", "required_check_job_ids",
+    "head_commit_pull_requests_identity_sha256",
     "required_check_pass", "required_status_checks_strict",
     "stale_review_dismissal_required", "last_push_approval_required",
     "code_owner_enforcement_required", "conversation_resolution_required",
@@ -595,7 +597,94 @@ def _safe_pr_projection(value: dict[str, Any]) -> dict[str, Any]:
         "author_id": value["author"]["id"], "base_sha": value["base"]["sha"],
         "base_ref": value["base"]["ref"], "base_repository_id": value["base"]["repository_id"],
         "head_sha": value["head"]["sha"], "head_ref": value["head"]["ref"],
+        "head_repository_id": value["head"]["repository_id"],
+        "head_repository_full_name": value["head"]["repository_full_name"],
     }
+
+
+def _validate_head_commit_pull_requests(
+    value: Any,
+    *,
+    repository_id: int,
+    repository_full_name: str,
+    pull_number: int,
+    head_sha: str,
+    pull_request: dict[str, Any],
+) -> str:
+    """Rederive the exact requested PR association from the commit-pulls snapshot."""
+
+    wrapper = _expect_keys(value, {
+        "complete", "repository_id", "repository_full_name", "requested_pull_number", "head_sha", "items",
+    }, "HEAD_COMMIT_PULL_REQUESTS_INVALID")
+    if wrapper["complete"] is not True or not isinstance(wrapper["items"], list):
+        raise ReleaseGovernanceError("HEAD_COMMIT_PULL_REQUESTS_INCOMPLETE")
+    if (
+        _int(wrapper["repository_id"], "HEAD_COMMIT_PULL_REQUESTS_INVALID") != repository_id
+        or _string(wrapper["repository_full_name"], "HEAD_COMMIT_PULL_REQUESTS_INVALID").casefold() != repository_full_name.casefold()
+        or _int(wrapper["requested_pull_number"], "HEAD_COMMIT_PULL_REQUESTS_INVALID") != pull_number
+        or _sha(wrapper["head_sha"], "HEAD_COMMIT_PULL_REQUESTS_INVALID") != head_sha
+    ):
+        raise ReleaseGovernanceError("HEAD_COMMIT_PULL_REQUESTS_BINDING_MISMATCH")
+
+    keys = {
+        "id", "number", "base_repository_id", "base_repository_full_name", "base_ref",
+        "head_sha", "head_ref", "head_repository_id", "head_repository_full_name",
+    }
+    normalized_items: list[dict[str, Any]] = []
+    requested: list[dict[str, Any]] = []
+    pr_id = _int(pull_request["id"], "PR_SNAPSHOT_INVALID")
+    for raw in wrapper["items"]:
+        item = _expect_keys(raw, keys, "HEAD_COMMIT_PULL_REQUESTS_INVALID")
+        normalized = {
+            "id": _int(item["id"], "HEAD_COMMIT_PULL_REQUESTS_INVALID"),
+            "number": _int(item["number"], "HEAD_COMMIT_PULL_REQUESTS_INVALID"),
+            "base_repository_id": _int(item["base_repository_id"], "HEAD_COMMIT_PULL_REQUESTS_INVALID"),
+            "base_repository_full_name": _string(item["base_repository_full_name"], "HEAD_COMMIT_PULL_REQUESTS_INVALID").casefold(),
+            "base_ref": _string(item["base_ref"], "HEAD_COMMIT_PULL_REQUESTS_INVALID"),
+            "head_sha": _sha(item["head_sha"], "HEAD_COMMIT_PULL_REQUESTS_INVALID"),
+            "head_ref": _string(item["head_ref"], "HEAD_COMMIT_PULL_REQUESTS_INVALID"),
+            "head_repository_id": None,
+            "head_repository_full_name": None,
+        }
+        head_repository_id = item["head_repository_id"]
+        head_repository_full_name = item["head_repository_full_name"]
+        if head_repository_id is not None or head_repository_full_name is not None:
+            normalized["head_repository_id"] = _int(head_repository_id, "HEAD_COMMIT_PULL_REQUESTS_INVALID")
+            normalized["head_repository_full_name"] = _string(head_repository_full_name, "HEAD_COMMIT_PULL_REQUESTS_INVALID").casefold()
+        normalized_items.append(normalized)
+        if normalized["number"] == pull_number:
+            requested.append(normalized)
+        elif normalized["id"] == pr_id:
+            raise ReleaseGovernanceError("HEAD_COMMIT_PULL_REQUESTS_REQUESTED_PR_CONTRADICTORY")
+
+    if len(requested) != 1:
+        raise ReleaseGovernanceError("HEAD_COMMIT_PULL_REQUESTS_REQUESTED_PR_MISSING_OR_AMBIGUOUS")
+    association = requested[0]
+    expected = {
+        "id": pr_id,
+        "number": pull_number,
+        "base_repository_id": _int(pull_request["base"]["repository_id"], "PR_BASE_INVALID"),
+        "base_repository_full_name": _string(pull_request["base"]["repository_full_name"], "PR_BASE_INVALID").casefold(),
+        "base_ref": _string(pull_request["base"]["ref"], "PR_BASE_INVALID"),
+        "head_sha": _sha(pull_request["head"]["sha"], "PR_HEAD_INVALID"),
+        "head_ref": _string(pull_request["head"]["ref"], "PR_HEAD_INVALID"),
+        "head_repository_id": pull_request["head"]["repository_id"],
+        "head_repository_full_name": pull_request["head"]["repository_full_name"],
+    }
+    if expected["head_repository_id"] is not None:
+        expected["head_repository_id"] = _int(expected["head_repository_id"], "PR_HEAD_INVALID")
+    if expected["head_repository_full_name"] is not None:
+        expected["head_repository_full_name"] = _string(expected["head_repository_full_name"], "PR_HEAD_INVALID").casefold()
+    if association != expected:
+        raise ReleaseGovernanceError("HEAD_COMMIT_PULL_REQUESTS_REQUESTED_PR_MISMATCH")
+
+    return _identity({
+        "repository_id": repository_id,
+        "repository_full_name": repository_full_name.casefold(),
+        "requested_pull_number": pull_number,
+        "head_sha": head_sha,
+        "items": sorted(normalized_items, key=_canonical_bytes),
+    })
 
 
 def _evaluate_check_runs(
@@ -701,7 +790,10 @@ def _evaluate_check_runs(
         associations = run["pull_requests"]
         if not isinstance(associations, list):
             raise ReleaseGovernanceError("WORKFLOW_RUN_PR_ASSOCIATION_INVALID")
-        associated_target = False
+        # GitHub omits pull_requests on real pull_request runs for this repo.
+        # The separately validated commit-to-pulls snapshot is the authority;
+        # a populated Actions association is only a consistency constraint.
+        associated_target = not associations
         seen_associations: set[tuple[int, str]] = set()
         for association_value in associations:
             association = _expect_keys(association_value, {"number", "head_sha"}, "WORKFLOW_RUN_PR_ASSOCIATION_INVALID")
@@ -710,10 +802,11 @@ def _evaluate_check_runs(
             if (number, associated_head) in seen_associations:
                 raise ReleaseGovernanceError("WORKFLOW_RUN_PR_ASSOCIATION_DUPLICATE")
             seen_associations.add((number, associated_head))
-            if number == pull_number:
-                if associated_head != head_sha:
-                    raise ReleaseGovernanceError("WORKFLOW_RUN_PR_HEAD_MISMATCH")
-                associated_target = True
+            if number != pull_number:
+                raise ReleaseGovernanceError("WORKFLOW_RUN_PR_ASSOCIATION_CONTRADICTION")
+            if associated_head != head_sha:
+                raise ReleaseGovernanceError("WORKFLOW_RUN_PR_HEAD_MISMATCH")
+            associated_target = True
         if run["jobs_complete"] is not True or not isinstance(run["jobs"], list):
             raise ReleaseGovernanceError("WORKFLOW_JOB_SNAPSHOT_INCOMPLETE")
         for raw_job in run["jobs"]:
@@ -753,15 +846,24 @@ def _evaluate_check_runs(
                 raise ReleaseGovernanceError("WORKFLOW_JOB_CHECK_RUN_MISMATCH")
             # The workflow-run API reports run_attempt as the authoritative latest
             # attempt. Historical job snapshots are ignored for qualification.
-            if job_attempt != attempt or event != "pull_request" or not associated_target:
+            if job_attempt != attempt:
+                continue
+            if event == "push":
+                continue
+            if job_name not in authorized_workflows:
+                continue
+            if event != "pull_request":
+                raise ReleaseGovernanceError("WORKFLOW_RUN_EVENT_INVALID_FOR_REQUIRED_CHECK")
+            if not associated_target:
                 continue
             if job_name != check_name:
                 raise ReleaseGovernanceError("WORKFLOW_JOB_CHECK_NAME_MISMATCH")
-            for context, authorization in authorized_workflows.items():
-                if job_name == context and workflow_path == authorization["workflow_path"] and workflow_name == authorization["workflow_name"]:
-                    runs_by_context[context].append({
-                        "run": run, "job": job, "check": check, "authorization": authorization,
-                    })
+            authorization = authorized_workflows[job_name]
+            if workflow_path != authorization["workflow_path"] or workflow_name != authorization["workflow_name"]:
+                raise ReleaseGovernanceError("WORKFLOW_RUN_NOT_AUTHORIZED_FOR_REQUIRED_CHECK")
+            runs_by_context[job_name].append({
+                "run": run, "job": job, "check": check, "authorization": authorization,
+            })
 
     selected: list[dict[str, Any]] = []
     for context in GOVERNANCE_POLICY["status_checks"]["required_contexts"]:
@@ -944,11 +1046,18 @@ def derive_governance_payload(
     base = _expect_keys(pr["base"], {"sha", "ref", "repository_id", "repository_full_name"}, "PR_BASE_INVALID")
     base_sha = _sha(base["sha"], "PR_BASE_INVALID")
     base_ref = _string(base["ref"], "PR_BASE_INVALID")
-    if base_ref != RELEASE_BRANCH or _int(base["repository_id"], "PR_BASE_INVALID") != repository_id or base["repository_full_name"].casefold() != full_name.casefold():
+    base_repository_id = _int(base["repository_id"], "PR_BASE_INVALID")
+    base_repository_full_name = _string(base["repository_full_name"], "PR_BASE_INVALID")
+    if base_ref != RELEASE_BRANCH or base_repository_id != repository_id or base_repository_full_name.casefold() != full_name.casefold():
         raise ReleaseGovernanceError("PR_TARGET_MISMATCH")
-    head = _expect_keys(pr["head"], {"sha", "ref"}, "PR_HEAD_INVALID")
+    head = _expect_keys(pr["head"], {"sha", "ref", "repository_id", "repository_full_name"}, "PR_HEAD_INVALID")
     head_sha = _sha(head["sha"], "PR_HEAD_INVALID")
     _string(head["ref"], "PR_HEAD_INVALID")
+    if (head["repository_id"] is None) != (head["repository_full_name"] is None):
+        raise ReleaseGovernanceError("PR_HEAD_INVALID")
+    if head["repository_id"] is not None:
+        _int(head["repository_id"], "PR_HEAD_INVALID")
+        _string(head["repository_full_name"], "PR_HEAD_INVALID")
     merge_sha = _sha(pr["merge_commit_sha"], "PR_MERGE_SHA_INVALID")
     if pr["state"] != "closed" or pr["merged"] is not True or not isinstance(pr["merged_at"], str) or not pr["merged_at"] or merge_sha != subject:
         raise ReleaseGovernanceError("RELEASE_SUBJECT_NOT_FROM_MERGED_PR")
@@ -958,6 +1067,15 @@ def derive_governance_payload(
     parent_shas = [_sha(item, "MERGE_COMMIT_PARENT_INVALID") for item in commit["parent_shas"]]
     if len(parent_shas) > 2:
         raise ReleaseGovernanceError("MERGE_COMMIT_PARENT_COUNT_INVALID")
+
+    head_commit_pull_requests_identity = _validate_head_commit_pull_requests(
+        snapshot["head_commit_pull_requests"],
+        repository_id=repository_id,
+        repository_full_name=full_name,
+        pull_number=pr_number,
+        head_sha=head_sha,
+        pull_request=pr,
+    )
 
     files = _expect_keys(snapshot["pull_request_files"], {"complete", "items"}, "PR_FILES_SNAPSHOT_INVALID")
     if files["complete"] is not True or not isinstance(files["items"], list):
@@ -1040,6 +1158,7 @@ def derive_governance_payload(
         "pull_request_head_sha": head_sha,
         "pull_request_base_sha": base_sha,
         "pull_request_merge_commit_sha": merge_sha,
+        "head_commit_pull_requests_identity_sha256": head_commit_pull_requests_identity,
         "candidate_deployment_fingerprint": deployment,
         "candidate_spec_identity_sha256": candidate_identity,
         "protection_mechanism": mechanism_name,
@@ -1104,6 +1223,7 @@ def validate_governance_payload(payload: dict[str, Any]) -> None:
         "governance_policy_file_sha256", "repository_identity_sha256",
         "pull_request_identity_sha256", "pull_request_author_identity_sha256", "candidate_deployment_fingerprint",
         "candidate_spec_identity_sha256", "effective_protection_sha256", "codeowners_sha256",
+        "head_commit_pull_requests_identity_sha256",
         "changed_file_set_sha256",
     ):
         _sha(payload[field], "GOVERNANCE_PAYLOAD_IDENTITY_INVALID", length=64)

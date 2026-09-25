@@ -199,7 +199,26 @@ def _pull_projection(value: dict[str, Any], repository_id: int, requested_number
     if not all(isinstance(item, dict) for item in (author, base, head)):
         raise CaptureError("GITHUB_PULL_REQUEST_RESPONSE_INVALID")
     base_repo = base.get("repo")
-    if not isinstance(base_repo, dict):
+    head_repo = head.get("repo")
+    if (
+        not isinstance(base_repo, dict)
+        or (head_repo is not None and not isinstance(head_repo, dict))
+        or not isinstance(value.get("id"), int) or isinstance(value.get("id"), bool) or value["id"] < 1
+        or not isinstance(value.get("number"), int) or isinstance(value.get("number"), bool) or value["number"] != requested_number
+        or not isinstance(base_repo.get("id"), int) or isinstance(base_repo.get("id"), bool) or base_repo["id"] < 1
+        or not isinstance(base_repo.get("full_name"), str) or not base_repo["full_name"].strip()
+        or base_repo["id"] != repository_id
+        or base_repo["full_name"].casefold() != REPOSITORY_FULL_NAME.casefold()
+        or not isinstance(base.get("ref"), str) or not base.get("ref")
+        or not isinstance(head.get("sha"), str) or not isinstance(head.get("ref"), str)
+        or not isinstance(author.get("id"), int) or isinstance(author.get("id"), bool) or author["id"] < 1
+        or not isinstance(author.get("login"), str) or not author["login"].strip()
+    ):
+        raise CaptureError("GITHUB_PULL_REQUEST_RESPONSE_INVALID")
+    if head_repo is not None and (
+        not isinstance(head_repo.get("id"), int) or isinstance(head_repo.get("id"), bool) or head_repo["id"] < 1
+        or not isinstance(head_repo.get("full_name"), str) or not head_repo["full_name"].strip()
+    ):
         raise CaptureError("GITHUB_PULL_REQUEST_RESPONSE_INVALID")
     return {
         "id": value.get("id"), "number": value.get("number"), "requested_number": requested_number, "state": value.get("state"),
@@ -208,10 +227,81 @@ def _pull_projection(value: dict[str, Any], repository_id: int, requested_number
         "author": {"id": author.get("id"), "login": author.get("login")},
         "base": {
             "sha": base.get("sha"), "ref": base.get("ref"),
-            "repository_id": base_repo.get("id", repository_id),
-            "repository_full_name": base_repo.get("full_name"),
+            "repository_id": base_repo["id"],
+            "repository_full_name": base_repo["full_name"].casefold(),
         },
-        "head": {"sha": head.get("sha"), "ref": head.get("ref")},
+        "head": {
+            "sha": head.get("sha"), "ref": head.get("ref"),
+            "repository_id": None if head_repo is None else head_repo["id"],
+            "repository_full_name": None if head_repo is None else head_repo["full_name"].casefold(),
+        },
+    }
+
+
+def _pull_association_projection(value: dict[str, Any]) -> dict[str, Any]:
+    base = value.get("base")
+    head = value.get("head")
+    if not isinstance(base, dict) or not isinstance(head, dict):
+        raise CaptureError("GITHUB_COMMIT_PULL_REQUEST_RESPONSE_INVALID")
+    base_repo = base.get("repo")
+    head_repo = head.get("repo")
+    if (
+        not isinstance(base_repo, dict)
+        or (head_repo is not None and not isinstance(head_repo, dict))
+        or not isinstance(value.get("id"), int) or isinstance(value.get("id"), bool) or value["id"] < 1
+        or not isinstance(value.get("number"), int) or isinstance(value.get("number"), bool) or value["number"] < 1
+        or not isinstance(base_repo.get("id"), int) or isinstance(base_repo.get("id"), bool) or base_repo["id"] < 1
+        or not isinstance(base_repo.get("full_name"), str) or not base_repo["full_name"].strip()
+        or not isinstance(base.get("ref"), str) or not base.get("ref")
+        or not isinstance(head.get("sha"), str) or not isinstance(head.get("ref"), str)
+    ):
+        raise CaptureError("GITHUB_COMMIT_PULL_REQUEST_RESPONSE_INVALID")
+    if head_repo is not None and (
+        not isinstance(head_repo.get("id"), int) or isinstance(head_repo.get("id"), bool) or head_repo["id"] < 1
+        or not isinstance(head_repo.get("full_name"), str) or not head_repo["full_name"].strip()
+    ):
+        raise CaptureError("GITHUB_COMMIT_PULL_REQUEST_RESPONSE_INVALID")
+    return {
+        "id": value["id"],
+        "number": value["number"],
+        "base_repository_id": base_repo["id"],
+        "base_repository_full_name": base_repo["full_name"].casefold(),
+        "base_ref": base["ref"],
+        "head_sha": head["sha"],
+        "head_ref": head["ref"],
+        "head_repository_id": None if head_repo is None else head_repo["id"],
+        "head_repository_full_name": None if head_repo is None else head_repo["full_name"].casefold(),
+    }
+
+
+def capture_head_commit_pull_requests(
+    api: GitHubReader,
+    *,
+    repository: str,
+    repository_id: int,
+    pull_number: int,
+    head_sha: str,
+) -> dict[str, Any]:
+    """Capture the complete normalized PR association list for one exact head."""
+
+    if (
+        repository.casefold() != REPOSITORY_FULL_NAME.casefold()
+        or not isinstance(repository_id, int) or isinstance(repository_id, bool) or repository_id < 1
+        or not isinstance(pull_number, int) or isinstance(pull_number, bool) or pull_number < 1
+        or not isinstance(head_sha, str) or len(head_sha) != 40 or any(char not in "0123456789abcdefABCDEF" for char in head_sha)
+    ):
+        raise CaptureError("GITHUB_COMMIT_PULL_REQUEST_REQUEST_BINDING_INVALID")
+    associated_pulls = _array_pages(
+        api,
+        f"repos/{repository}/commits/{quote(head_sha, safe='')}/pulls",
+    )
+    return {
+        "complete": True,
+        "repository_id": repository_id,
+        "repository_full_name": repository.casefold(),
+        "requested_pull_number": pull_number,
+        "head_sha": head_sha,
+        "items": [_pull_association_projection(item) for item in associated_pulls],
     }
 
 
@@ -368,6 +458,13 @@ def capture_snapshots(api: GitHubReader, repository: str, pull_number: int, subj
     if not isinstance(repo, dict):
         raise CaptureError("GITHUB_REPOSITORY_RESPONSE_INVALID")
     repository_id = repo.get("id")
+    if (
+        not isinstance(repository_id, int) or isinstance(repository_id, bool) or repository_id < 1
+        or not isinstance(repo.get("full_name"), str)
+        or repo["full_name"].casefold() != repository.casefold()
+        or not isinstance(repo.get("default_branch"), str) or not repo["default_branch"].strip()
+    ):
+        raise CaptureError("GITHUB_REPOSITORY_RESPONSE_INVALID")
     branch_name = "main"
     branch, _ = api.get(f"repos/{repository}/branches/{quote(branch_name, safe='')}")
     if not isinstance(branch, dict) or not isinstance(branch.get("commit"), dict):
@@ -408,6 +505,13 @@ def capture_snapshots(api: GitHubReader, repository: str, pull_number: int, subj
     merge_sha = pull["merge_commit_sha"]
     if not isinstance(head_sha, str) or not isinstance(merge_sha, str):
         raise CaptureError("GITHUB_PULL_REQUEST_RESPONSE_INVALID")
+    head_commit_pull_requests = capture_head_commit_pull_requests(
+        api,
+        repository=repository,
+        repository_id=repository_id,
+        pull_number=pull_number,
+        head_sha=head_sha,
+    )
 
     reviews = _array_pages(api, f"repos/{repository}/pulls/{pull_number}/reviews")
     projected_reviews = []
@@ -456,6 +560,7 @@ def capture_snapshots(api: GitHubReader, repository: str, pull_number: int, subj
         "pull_request_reviews": projected_reviews,
         "pull_request_check_runs": {"complete": True, "items": checks},
         "workflow_run_provenance": workflow_provenance,
+        "head_commit_pull_requests": head_commit_pull_requests,
         "pull_request_files": {"complete": True, "items": projected_files},
         "merge_commit": merge_commit,
         "candidate_codeowners": _candidate_file(api, repository, CODEOWNERS_PATH, subject_sha),
