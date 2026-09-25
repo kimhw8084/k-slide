@@ -60,6 +60,7 @@ from k_slide.quality_policy import QUALITY_POLICY_IDENTITY, policy_identity_reco
 from k_slide.bilingual_adjudication import build_internal_bilingual_payload
 from tests.bilingual_review_fixtures import make_review_contract
 from tests.zero_korean_study_fixtures import zero_korean_payload
+from tests.ksa32_governance_fixtures import write_governance_sources
 from evals.model_results import aggregate_model_results
 from k_slide.production import ProductionProfile, _asset_manifest_status, _manifest_and_fingerprint_status
 
@@ -1757,11 +1758,10 @@ class CertificationClosureTests(unittest.TestCase):
                 records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=Path.cwd())
             governance_folder = root / "governance"
             governance_folder.mkdir()
-            governance_source = governance_folder / "governance.json"
-            _write(governance_source, {"source_kind": "github_api", "codeowners_pass": True, "branch_protection_pass": True, "required_ci_pass": True, "review_required": True})
+            governance_sources = write_governance_sources(governance_folder, subject=subject)
             governance_path = governance_folder / "evidence.json"
-            build_machine_evidence(governance_path, evidence_type="governance", subject_git_sha=subject, deployment_fingerprint=deployment, sources={"governance_api": governance_source}, root=Path.cwd())
-            records["governance"] = load_evidence(governance_path, expected_type="governance", subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=Path.cwd())
+            build_machine_evidence(governance_path, evidence_type="governance", subject_git_sha=subject, deployment_fingerprint=deployment, sources=governance_sources, candidate_spec=candidate)
+            records["governance"] = load_evidence(governance_path, expected_type="governance", subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=Path.cwd(), candidate_spec=candidate, require_candidate_spec=True)
             pilot_path = root / "pilot.json"
             write_evidence(pilot_path, evidence_type="pilot_canary", subject_git_sha=subject, deployment_fingerprint=deployment, payload={"attestation_id": "pilot-test", "users": 5, "artifacts": 50, "critical_confirmed_errors": 0, "cross_user_exposure": 0, "security_incidents": 0, "silent_incomplete_output": 0}, generated_at="2026-09-09T00:00:00Z")
             records["pilot_canary"] = load_evidence(pilot_path, expected_type="pilot_canary", subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root)
@@ -2109,10 +2109,9 @@ class CertificationClosureTests(unittest.TestCase):
                 records[evidence_type] = load_evidence(path, expected_type=evidence_type, subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate, require_candidate_spec=True)
             governance_folder = root / "governance"
             governance_folder.mkdir()
-            governance_source = governance_folder / "governance.json"
-            _write(governance_source, {"source_kind": "github_api", "codeowners_pass": True, "branch_protection_pass": True, "required_ci_pass": True, "review_required": True})
+            governance_sources = write_governance_sources(governance_folder, subject=subject)
             governance_path = governance_folder / "evidence.json"
-            build_machine_evidence(governance_path, evidence_type="governance", subject_git_sha=subject, deployment_fingerprint=deployment, sources={"governance_api": governance_source}, root=root, candidate_spec=candidate)
+            build_machine_evidence(governance_path, evidence_type="governance", subject_git_sha=subject, deployment_fingerprint=deployment, sources=governance_sources, root=root, candidate_spec=candidate)
             records["governance"] = load_evidence(governance_path, expected_type="governance", subject_git_sha=subject, deployment_fingerprint=deployment, repository_root=root, candidate_spec=candidate, require_candidate_spec=True)
             pilot_folder = root / "pilot_canary"
             pilot_folder.mkdir()

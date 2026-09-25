@@ -1566,7 +1566,15 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
         "reliability": ("timeout_recovery_pass", "resume_pass", "fifty_slide_pass", "concurrency_pass", "slo_pass", "concurrent_runs"),
         "model_data_policy": ("attestation_id", "approved_for_internal_artifacts"),
         "pilot_canary": ("attestation_id", "users", "artifacts", "critical_confirmed_errors", "cross_user_exposure", "security_incidents", "silent_incomplete_output"),
-        "governance": ("codeowners_pass", "branch_protection_pass", "required_ci_pass", "review_required"),
+        "governance": (
+            "governance_contract_version", "governance_contract_identity",
+            "governance_policy_id", "governance_policy_version", "governance_policy_identity",
+            "repository_identity_sha256", "release_subject_sha", "pull_request_number",
+            "pull_request_head_sha", "pull_request_base_sha", "pull_request_merge_commit_sha",
+            "candidate_deployment_fingerprint", "candidate_spec_identity_sha256",
+            "protection_mechanism", "review_pass", "codeowners_pass", "required_check_pass",
+            "required_status_checks_strict", "pass_codes",
+        ),
     }
     missing = [key for key in requirements.get(evidence_type, ()) if key not in payload]
     if missing:
@@ -1701,8 +1709,13 @@ def validate_evidence_payload(evidence_type: str, payload: dict[str, Any]) -> No
             raise EvidenceValidationError("pilot sample/attestation is insufficient")
         if any(payload[key] != 0 for key in ("critical_confirmed_errors", "cross_user_exposure", "security_incidents", "silent_incomplete_output")):
             raise EvidenceValidationError("pilot safety gate failed")
-    elif evidence_type == "governance" and not all(_is_true(payload[key]) for key in ("codeowners_pass", "branch_protection_pass", "required_ci_pass", "review_required")):
-        raise EvidenceValidationError("repository governance evidence is incomplete")
+    elif evidence_type == "governance":
+        from .release_governance import ReleaseGovernanceError, validate_governance_payload
+
+        try:
+            validate_governance_payload(payload)
+        except ReleaseGovernanceError as exc:
+            raise EvidenceValidationError(f"repository governance payload is invalid ({exc})") from exc
 
 
 def validate_model_evidence_corpus_binding(evidence_type: str, payload: dict[str, Any], candidate_spec: dict[str, Any] | None) -> None:

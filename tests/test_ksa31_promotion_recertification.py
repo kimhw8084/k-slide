@@ -249,7 +249,7 @@ class KSA31PromotionRecertificationTests(unittest.TestCase):
         model_change = _change(self.candidate, "provider", "alternate-provider")
         impact = candidate_change_impact(self.candidate, model_change)
         self.assertTrue(impact["champion_affected"])
-        self.assertEqual(set(impact["affected_evidence"]), {"runtime", "model_validation", "model_high_risk_stability", "model_held_out", "internal_bilingual", "zero_korean_comprehension", "reliability", "model_data_policy", "pilot_canary"})
+        self.assertEqual(set(impact["affected_evidence"]), {"runtime", "model_validation", "model_high_risk_stability", "model_held_out", "internal_bilingual", "zero_korean_comprehension", "reliability", "model_data_policy", "governance", "pilot_canary"})
         ocr_change = copy.deepcopy(self.candidate)
         ocr_change["ocr_asset_manifest_sha256"] = "9" * 64
         ocr_impact = candidate_change_impact(self.candidate, ocr_change)
@@ -555,7 +555,7 @@ class KSA31PromotionRecertificationTests(unittest.TestCase):
             self.assertNotEqual(candidate_deployment_fingerprint(new_candidate), old_deployment)
             self.assertEqual(
                 candidate_change_impact(candidate, new_candidate)["affected_evidence"],
-                {"model_data_policy": ["retention_policy"], "pilot_canary": ["retention_policy"]},
+                {"model_data_policy": ["retention_policy"], "governance": ["retention_policy"], "pilot_canary": ["retention_policy"]},
             )
 
             carry_types = (

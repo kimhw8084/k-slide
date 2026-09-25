@@ -79,7 +79,13 @@ _ROLES: dict[str, tuple[str, ...]] = {
     "model_held_out": ("model_summary", "experiment_manifest", "results_jsonl"),
     "security": ("pip_audit", "gitleaks", "semgrep", "scanner_exits", "audit_context", "semgrep_ruleset", "dependency_inventory", "production_lock", "production_sbom"),
     "reliability": ("failure_injection", "concurrency", "large_deck", "performance_slo"),
-    "governance": ("governance_api",),
+    "governance": (
+        "repository_metadata", "target_branch", "ruleset_collection", "ruleset_details",
+        "legacy_branch_protection", "pull_request", "pull_request_reviews",
+        "pull_request_check_runs", "workflow_run_provenance", "head_commit_pull_requests",
+        "pull_request_files", "merge_commit",
+        "candidate_codeowners", "candidate_governance_policy",
+    ),
 }
 
 _SECURITY_SCANNER_ROLES = ("pip_audit", "gitleaks", "semgrep", "scanner_exits")
@@ -1769,15 +1775,19 @@ def _derive_reliability(sources: dict[str, Path]) -> dict[str, Any]:
     return {"timeout_recovery_pass": True, "resume_pass": True, "fifty_slide_pass": True, "concurrency_pass": True, "slo_pass": True, "concurrent_runs": runs}
 
 
-def _derive_governance(sources: dict[str, Path]) -> dict[str, Any]:
+def _derive_governance(sources: dict[str, Path], *, subject_git_sha: str, deployment_fingerprint: str, candidate_spec: dict[str, Any] | None) -> dict[str, Any]:
     values, _ = source_records(sources, expected=_ROLES["governance"])
-    value = _read_json(values["governance_api"])
-    if not isinstance(value, dict) or value.get("source_kind") not in {"github_api", "approved_governance_api"}:
-        raise AdapterError("governance result is not an authoritative API result")
-    for key in ("codeowners_pass", "branch_protection_pass", "required_ci_pass", "review_required"):
-        if value.get(key) is not True:
-            raise AdapterError(f"governance check failed: {key}")
-    return {key: True for key in ("codeowners_pass", "branch_protection_pass", "required_ci_pass", "review_required")}
+    from .release_governance import ReleaseGovernanceError, derive_governance_payload
+
+    try:
+        return derive_governance_payload(
+            values,
+            subject_git_sha=subject_git_sha,
+            deployment_fingerprint=deployment_fingerprint,
+            candidate_spec=candidate_spec,
+        )
+    except ReleaseGovernanceError as exc:
+        raise AdapterError(f"GitHub release-governance facts failed closed ({exc})") from exc
 
 
 _DERIVERS: dict[str, Callable[..., dict[str, Any]]] = {
@@ -1820,11 +1830,11 @@ def derive_reliability_evidence(sources: dict[str, Path], *, root: Path | None =
     return derive_payload("reliability", sources, root=root)
 
 
-def derive_governance_evidence(sources: dict[str, Path], *, root: Path | None = None) -> dict[str, Any]:
-    return derive_payload("governance", sources, root=root)
+def derive_governance_evidence(sources: dict[str, Path], *, subject_git_sha: str, deployment_fingerprint: str, candidate_spec: dict[str, Any] | None, root: Path | None = None) -> dict[str, Any]:
+    return derive_payload("governance", sources, root=root, candidate_spec=candidate_spec, subject_git_sha=subject_git_sha, deployment_fingerprint=deployment_fingerprint)
 
 
-def derive_payload(evidence_type: str, sources: dict[str, Path], *, root: Path | None = None, candidate_spec: dict[str, Any] | None = None) -> dict[str, Any]:
+def derive_payload(evidence_type: str, sources: dict[str, Path], *, root: Path | None = None, candidate_spec: dict[str, Any] | None = None, subject_git_sha: str | None = None, deployment_fingerprint: str | None = None) -> dict[str, Any]:
     try:
         deriver = _DERIVERS[evidence_type]
     except KeyError as exc:
@@ -1835,6 +1845,10 @@ def derive_payload(evidence_type: str, sources: dict[str, Path], *, root: Path |
         return deriver(sources, root=root, candidate_spec=candidate_spec)
     if evidence_type == "security":
         return deriver(sources, root=root, candidate_spec=candidate_spec)
+    if evidence_type == "governance":
+        if subject_git_sha is None or deployment_fingerprint is None:
+            raise AdapterError("governance requires its exact subject and candidate deployment identity")
+        return deriver(sources, subject_git_sha=subject_git_sha, deployment_fingerprint=deployment_fingerprint, candidate_spec=candidate_spec)
     return deriver(sources)
 
 
@@ -1940,7 +1954,7 @@ def build_machine_evidence(output: Path, *, evidence_type: str, subject_git_sha:
         _verify_candidate_execution_provenance(candidate_spec, evidence_type=evidence_type, sources=sources)
     _check_embedded_identity(sources, subject_git_sha=subject_git_sha, deployment_fingerprint=deployment_fingerprint)
     descriptors = _source_descriptors(sources, output)
-    payload = derive_payload(evidence_type, sources, root=root, candidate_spec=candidate_spec)
+    payload = derive_payload(evidence_type, sources, root=root, candidate_spec=candidate_spec, subject_git_sha=subject_git_sha, deployment_fingerprint=deployment_fingerprint)
     envelope = {"schema_version": EVIDENCE_SCHEMA_VERSION, "evidence_type": evidence_type, "status": "PASS", "subject_git_sha": subject_git_sha, "deployment_fingerprint": _require_hex(deployment_fingerprint, "deployment_fingerprint"), "generated_at": generated_at or datetime.now(timezone.utc).isoformat(), "adapter_version": ADAPTER_VERSION, "sources": descriptors, "payload": payload}
     if candidate_factors is not None:
         envelope["candidate_spec"] = candidate_factors
@@ -1968,7 +1982,14 @@ def verify_machine_envelope(path: Path, envelope: dict[str, Any], *, subject_git
             raise AdapterError("machine evidence candidate specification is inconsistent")
         _verify_candidate_execution_provenance(candidate_spec, evidence_type=evidence_type, sources=sources)
     _check_embedded_identity(sources, subject_git_sha=subject_git_sha, deployment_fingerprint=deployment_fingerprint)
-    derived = derive_payload(evidence_type, sources, root=root, candidate_spec=candidate_spec)
+    derived = derive_payload(
+        evidence_type,
+        sources,
+        root=root,
+        candidate_spec=candidate_spec,
+        subject_git_sha=str(envelope.get("subject_git_sha") or ""),
+        deployment_fingerprint=str(envelope.get("deployment_fingerprint") or ""),
+    )
     if envelope.get("payload") != derived:
         raise AdapterError("machine evidence payload does not match derived source result")
     return {"sources": descriptors, "payload": derived}

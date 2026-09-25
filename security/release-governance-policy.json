@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0",
+  "contract": {
+    "id": "k-slide.protected-release-governance",
+    "version": "1.2"
+  },
+  "policy": {
+    "id": "kimhw8084-k-slide-production-release",
+    "version": "1.1"
+  },
+  "repository": {
+    "full_name": "kimhw8084/k-slide"
+  },
+  "target": {
+    "default_branch": "main",
+    "release_branch": "main"
+  },
+  "production_sensitive_paths": [
+    "/AGENTS.md",
+    "/src/",
+    "/.opencode/",
+    "/schemas/",
+    "/evals/",
+    "/prompts/",
+    "/termbase/",
+    "/security/",
+    "/deploy/",
+    "/.github/workflows/",
+    "/.github/CODEOWNERS",
+    "/constraints-production.txt",
+    "/pyproject.toml",
+    "/production-slo.yaml",
+    "/scripts/",
+    "/private-evals/",
+    "/tests/",
+    "/docs/zero-korean-human-study.md"
+  ],
+  "eligible_codeowners": [
+    "kimhw8084"
+  ],
+  "review": {
+    "minimum_approvals": 1,
+    "independent_from_author": true,
+    "approval_commit": "exact_current_pr_head",
+    "dismiss_stale_reviews_on_push": true,
+    "require_last_push_approval": true,
+    "require_code_owner_review": true
+  },
+  "status_checks": {
+    "strict": true,
+    "required_contexts": [
+      "test (3.11)",
+      "test (3.12)",
+      "security",
+      "fast (3.11)",
+      "fast (3.12)"
+    ],
+    "authorized_workflows": [
+      {
+        "context": "test (3.11)",
+        "workflow_path": ".github/workflows/k-slide.yml",
+        "workflow_name": "K-Slide",
+        "job_name": "test (3.11)"
+      },
+      {
+        "context": "test (3.12)",
+        "workflow_path": ".github/workflows/k-slide.yml",
+        "workflow_name": "K-Slide",
+        "job_name": "test (3.12)"
+      },
+      {
+        "context": "security",
+        "workflow_path": ".github/workflows/k-slide-security.yml",
+        "workflow_name": "K-Slide security evidence",
+        "job_name": "security"
+      },
+      {
+        "context": "fast (3.11)",
+        "workflow_path": ".github/workflows/k-slide-phase32.yml",
+        "workflow_name": "K-Slide Phase 3.5 execution isolation and heavy runtime",
+        "job_name": "fast (3.11)"
+      },
+      {
+        "context": "fast (3.12)",
+        "workflow_path": ".github/workflows/k-slide-phase32.yml",
+        "workflow_name": "K-Slide Phase 3.5 execution isolation and heavy runtime",
+        "job_name": "fast (3.12)"
+      }
+    ],
+    "integration": {
+      "app_id": 15368,
+      "slug": "github-actions"
+    }
+  },
+  "protection": {
+    "pr_only_integration": true,
+    "conversation_resolution": true,
+    "prevent_force_pushes": true,
+    "prevent_branch_deletion": true,
+    "enforce_admins": true,
+    "allow_bypass_actors": false,
+    "supported_mechanisms": [
+      "repository_rulesets",
+      "legacy_branch_protection"
+    ]
+  }
+}
