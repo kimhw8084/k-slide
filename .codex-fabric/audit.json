@@ -1,7 +1,7 @@
 {
   "artifact_bridge": {
     "published": false,
-    "reason": "No Project OS Artifact Bridge tool is exposed in this session; deterministic evidence is committed locally for independent audit.",
+    "reason": "No Project OS Artifact Bridge tool is exposed in this session; deterministic FIX01 evidence is committed locally for independent audit.",
     "requested_bridge": "Project OS Artifact Bridge",
     "tool_available_in_active_session": false
   },
@@ -11,7 +11,7 @@
   "candidate": {
     "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
     "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
-    "branch": "codex/k-slide-chg16-rollout-controls-01",
+    "branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
     "candidate_changes_committed": true,
     "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
     "candidate_source_content_manifest": [
@@ -66,13 +66,36 @@
     ],
     "candidate_source_content_manifest_sha256": "9da57ab7186bbf84ba3fbff1dfb40f35318d2807bd243f16852ff14b58089594",
     "candidate_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
-    "working_tree_clean_before_audit_write": true
+    "working_tree_clean_before_audit_write": true,
+    "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
+    "product_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
+    "product_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
+    "candidate_identity": {
+      "project_id": "k-slide",
+      "logical_request": "chg16-rollout-controls-01",
+      "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
+      "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
+      "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
+      "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
+      "candidate_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
+      "product_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
+      "product_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
+      "candidate_source_content_manifest_sha256": "9da57ab7186bbf84ba3fbff1dfb40f35318d2807bd243f16852ff14b58089594"
+    },
+    "candidate_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
+    "candidate_identity_sha256": "223a07c3dde460d4e6423470b75a16e848c65f4a83c00b75976b8362e330915c"
   },
   "checks": [
     {
       "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m unittest tests.test_ksa34_rollout -q",
       "exit_code": 0,
-      "name": "Focused KSA-34 rollout state-machine and host integration",
+      "name": "Focused KSA-34 rollout state-machine and host integration, Python 3.11",
+      "result": "17 tests passed"
+    },
+    {
+      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m unittest tests.test_ksa34_rollout -q",
+      "exit_code": 0,
+      "name": "Focused KSA-34 rollout state-machine and host integration, Python 3.12",
       "result": "17 tests passed"
     },
     {
@@ -88,25 +111,13 @@
       "result": "687 tests passed"
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m evals.security_controls --root . --output /tmp/k-slide-ksa34-controls-final-311.json --run-id 972811 --run-attempt 1",
-      "exit_code": 0,
-      "name": "Accepted KSA-15/17/18/21/32 controls, Python 3.11",
-      "result": "5 suites passed; 100 tests run; safe summary only"
-    },
-    {
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m evals.security_controls --root . --output /tmp/k-slide-ksa34-controls-final-312.json --run-id 972812 --run-attempt 1",
-      "exit_code": 0,
-      "name": "Accepted KSA-15/17/18/21/32 controls, Python 3.12",
-      "result": "5 suites passed; 100 tests run; safe summary only"
-    },
-    {
       "exit_code": 0,
       "name": "Repository JSON schemas, Python 3.11 and 3.12",
       "result": "All 7 schemas passed Draft 2020-12 schema validation on each version"
     },
     {
       "exit_code": 0,
-      "name": "Workflow syntax",
+      "name": "Workflow YAML and embedded shell syntax",
       "result": "All 6 workflow YAML files parsed; all 49 embedded shell steps passed bash -n"
     },
     {
@@ -115,7 +126,12 @@
       "result": "Passed on both versions"
     },
     {
-      "command": "rtk git diff --cached --check",
+      "exit_code": 0,
+      "name": "Candidate, operation, predecessor, manifest, and Fabric evidence identities",
+      "result": "All provenance identities independently rederived from Git objects and canonical JSON"
+    },
+    {
+      "command": "rtk git diff --check",
       "exit_code": 0,
       "name": "Whitespace and patch validation",
       "result": "Passed"
@@ -129,18 +145,17 @@
     "rollout_control_plane_persistence": "UNQUALIFIED"
   },
   "fabric_evidence_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators, excluding fabric_evidence_identity_sha256 itself",
-  "fabric_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5",
-  "fabric_job_id": "CHG-16-KSA-34-ROLLOUT-CONTROLS-01",
+  "fabric_job_id": "CF-972811ab7d024a50b1eb98d0",
   "generated_at": "2026-09-25",
   "issue_id": "CHG-16",
-  "job_id": "CHG-16-KSA-34-ROLLOUT-CONTROLS-01",
+  "job_id": "CF-972811ab7d024a50b1eb98d0",
   "kind": "codex-fabric-audit-evidence",
-  "operation": "IMPLEMENT",
-  "predecessor_audit_sha256": "ca0a491ae39a28df784ff8af4da5f3084ff066efc2522b5463deb463f487e061",
+  "operation": "BUILD",
+  "predecessor_audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
   "project_id": "k-slide",
   "qualification_status": "NOT_QUALIFIED",
   "release_or_production_claim": false,
-  "request": "chg16-ksa34-rollout-controls-01",
+  "request": "chg16-rollout-controls-01",
   "rollout_evidence": {
     "durable_admission_and_transition_evidence_source_free": true,
     "durable_source_document_content": false,
@@ -182,5 +197,64 @@
       "KSA-31 champion/change-impact, KSA-32 governance, and KSA-33 candidate/security authority"
     ]
   },
-  "status": "EXECUTED_CHANGE"
+  "status": "EXECUTED_CHANGE",
+  "fix_request": "chg16-rollout-controls-01-fix01",
+  "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
+  "upstream_predecessor_audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
+  "predecessor_work_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
+  "predecessor_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5",
+  "predecessor_evidence": {
+    "commit_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
+    "audit_path": ".codex-fabric/audit.json",
+    "audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
+    "fabric_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5",
+    "identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators, excluding fabric_evidence_identity_sha256 itself"
+  },
+  "historical_build_evidence": {
+    "project_id": "k-slide",
+    "request": "chg16-rollout-controls-01",
+    "operation": "BUILD",
+    "job_id": "CF-972811ab7d024a50b1eb98d0",
+    "evidence_commit_sha": "4f98ec924309337db2de985d7e913a9c28f8cf1f",
+    "evidence_audit_sha256": "8829b9fa93cd58afd236c20ccc97d4d4bbef6f588b43d73c92f5b0abd2f8ca02",
+    "original_work_branch": "codex/k-slide-chg16-rollout-controls-01",
+    "candidate_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
+    "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
+    "candidate_audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
+    "evidence_manifest_candidate_audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
+    "locator_ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-rollout-controls-01"
+  },
+  "operation_identity": {
+    "project_id": "k-slide",
+    "logical_request": "chg16-rollout-controls-01",
+    "operation": "BUILD",
+    "build_job_id": "CF-972811ab7d024a50b1eb98d0",
+    "fix_request": "chg16-rollout-controls-01-fix01",
+    "work_item": "KSA-34 F34-01",
+    "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
+    "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
+    "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
+    "product_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
+    "predecessor_work_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
+    "predecessor_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5"
+  },
+  "operation_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
+  "operation_identity_sha256": "36a262c507dbe7bd33f666d961619877f16e5d9aaff6b3dcde2072200497e411",
+  "fix01": {
+    "request": "chg16-rollout-controls-01-fix01",
+    "work_item": "KSA-34 F34-01",
+    "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
+    "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
+    "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
+    "predecessor_work_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
+    "predecessor_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5",
+    "scope": "Candidate-side audit/evidence provenance correction only.",
+    "changed_paths": [
+      ".codex-fabric/audit.json"
+    ],
+    "rollout_source_tree_changed": false,
+    "live_company_approval_or_release_claimed": false,
+    "status": "EXECUTED_CHANGE"
+  },
+  "fabric_evidence_identity_sha256": "e845136108d88710fa241e2d347eb3e0a089b3151ebd0cd0693ed513047570cb"
 }
