@@ -1,311 +1,531 @@
 {
-  "artifact_bridge": {
-    "published": false,
-    "reason": "No Project OS Artifact Bridge tool is exposed in this session; no real scanner reports or logs were generated locally. This deterministic audit artifact remains in the Fabric workspace.",
-    "requested_bridge": "Project OS Artifact Bridge",
-    "tool_available_in_active_session": false
+  "accepted_at": "2026-09-25T15:28:27Z",
+  "changed_files": [
+    {
+      "additions": 218,
+      "deletions": 1326,
+      "path": ".codex-fabric/audit.json",
+      "status": "M"
+    },
+    {
+      "additions": 139,
+      "deletions": 28,
+      "path": ".github/workflows/k-slide-security.yml",
+      "status": "M"
+    },
+    {
+      "additions": 37,
+      "deletions": 3,
+      "path": "IMPLEMENTATION_STATUS.md",
+      "status": "M"
+    },
+    {
+      "additions": 72,
+      "deletions": 0,
+      "path": "docs/ksa33-security-release-evidence.md",
+      "status": "A"
+    },
+    {
+      "additions": 205,
+      "deletions": 0,
+      "path": "evals/build_security_release_context.py",
+      "status": "A"
+    },
+    {
+      "additions": 2,
+      "deletions": 1,
+      "path": "evals/enforce_security.py",
+      "status": "M"
+    },
+    {
+      "additions": 73,
+      "deletions": 0,
+      "path": "evals/security_controls.py",
+      "status": "A"
+    },
+    {
+      "additions": 203,
+      "deletions": 0,
+      "path": "evals/security_reports.py",
+      "status": "A"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "pyproject.toml",
+      "status": "M"
+    },
+    {
+      "additions": 124,
+      "deletions": 0,
+      "path": "schemas/security-release-evidence.schema.json",
+      "status": "A"
+    },
+    {
+      "additions": 44,
+      "deletions": 0,
+      "path": "schemas/vulnerability-dispositions.schema.json",
+      "status": "A"
+    },
+    {
+      "additions": 38,
+      "deletions": 0,
+      "path": "security/release-security-policy.json",
+      "status": "A"
+    },
+    {
+      "additions": 6,
+      "deletions": 0,
+      "path": "security/vulnerability-dispositions.json",
+      "status": "A"
+    },
+    {
+      "additions": 7,
+      "deletions": 2,
+      "path": "src/k_slide/certification.py",
+      "status": "M"
+    },
+    {
+      "additions": 51,
+      "deletions": 13,
+      "path": "src/k_slide/evidence_adapters.py",
+      "status": "M"
+    },
+    {
+      "additions": 507,
+      "deletions": 0,
+      "path": "src/k_slide/security_release.py",
+      "status": "A"
+    },
+    {
+      "additions": 131,
+      "deletions": 18,
+      "path": "tests/test_certification_closure.py",
+      "status": "M"
+    },
+    {
+      "additions": 315,
+      "deletions": 0,
+      "path": "tests/test_ksa33_security_release.py",
+      "status": "A"
+    }
+  ],
+  "checks": [
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python -m unittest discover -s tests -q > /tmp/ksa33-unittest-311.log 2>&1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py312/bin/python -m unittest discover -s tests -q > /tmp/ksa33-unittest-312.log 2>&1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk tail -n 4 /tmp/ksa33-unittest-311.log && rtk tail -n 4 /tmp/ksa33-unittest-312.log'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python -c 'import json; from pathlib import Path; from jsonschema.validators import validator_for; files=sorted(Path(\\\"schemas\\\").glob(\\\"*.json\\\")); [validator_for(json.loads(p.read_text())).check_schema(json.loads(p.read_text())) for p in files]; print(len(files), \\\"schemas valid\\\")'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/ksa33-py312/bin/python -c 'import json; from pathlib import Path; from jsonschema.validators import validator_for; files=sorted(Path(\\\"schemas\\\").glob(\\\"*.json\\\")); [validator_for(json.loads(p.read_text())).check_schema(json.loads(p.read_text())) for p in files]; print(len(files), \\\"schemas valid\\\")'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk ruby -e 'require \\\"yaml\\\"; require \\\"open3\\\"; ARGV.each { |path| doc = YAML.load_file(path); next unless doc.is_a?(Hash); (doc[\\\"jobs\\\"] || {}).each_value { |job| (job[\\\"steps\\\"] || []).each { |step| next unless step.is_a?(Hash) && step[\\\"run\\\"]; command = step[\\\"run\\\"].gsub(/\\\\\"'$'\"\\\\{\\\\{.*?\\\\}\\\\}/m, \\\"EXPR\\\"); output, status = Open3.capture2(\\\"bash\\\", \\\"-n\\\", stdin_data: command); abort(\\\"#{path}: #{output}\\\") unless status.success? } } }; puts \\\"#{ARGV.length} workflows and embedded bash steps valid\\\"' .github/workflows/*.yml\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python -m evals.security_controls --root . --run-id 1 --run-attempt 1 --output /tmp/ksa33-security-controls-311.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python -m unittest tests.test_phase32 tests.test_phase35 -q > /tmp/ksa33-phase35-311.log 2>&1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py312/bin/python -m evals.security_controls --root . --run-id 1 --run-attempt 1 --output /tmp/ksa33-security-controls-312.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py312/bin/python -m unittest tests.test_phase32 tests.test_phase35 -q > /tmp/ksa33-phase35-312.log 2>&1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk tail -n 8 /tmp/ksa33-phase35-311.log && rtk tail -n 8 /tmp/ksa33-phase35-312.log'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk jq '{fabric_evidence_identity_scheme,fabric_evidence_identity_sha256,scope,security_evidence,company_environment,release_or_production_claim,artifact_bridge}' .codex-fabric/audit.json\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git diff --check && rtk git diff --stat && rtk git diff -- pyproject.toml tests/test_ksa33_security_release.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python -m compileall -q src tests evals && rtk env PYTHONPATH=src:. /tmp/ksa33-py312/bin/python -m compileall -q src tests evals'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rm -rf src/k_slide.egg-info && rtk git status --short'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk jq -r '.fabric_evidence_identity_scheme, .predecessor_audit_sha256, .candidate.candidate_commit_sha, .candidate.candidate_identity_sha256, (.candidate.candidate_source_content_manifest | length), (.checks[] | [.name, .result] | @tsv)' .codex-fabric/audit.json && rtk python3.11 -c 'import hashlib; from pathlib import Path; print(hashlib.sha256(Path(\\\".codex-fabric/audit.json\\\").read_bytes()).hexdigest())'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff -- tests/test_certification_closure.py | head -160 && rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n --hidden 'candidate_identity_sha256|candidate_source_content_manifest|fabric_evidence_identity_scheme' .codex-fabric docs scripts evals\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk jq '.candidate | {keys: (keys), source_paths: [.candidate_source_content_manifest[].path], values: with_entries(select(.key | contains(\\\"sha\\\") or contains(\\\"tree\\\") or contains(\\\"commit\\\") or contains(\\\"manifest\\\") or contains(\\\"branch\\\")))}' .codex-fabric/audit.json\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python -m k_slide.cli doctor --root . --json > /tmp/ksa33-doctor-311.json && rtk env PYTHONPATH=src:. /tmp/ksa33-py312/bin/python -m k_slide.cli doctor --root . --json > /tmp/ksa33-doctor-312.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git status --short && rtk git diff --stat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk /tmp/ksa33-py311/bin/python --version && rtk /tmp/ksa33-py312/bin/python --version && rtk /tmp/ksa33-py311/bin/python -c 'import importlib.metadata as m; print(\\\"jsonschema\\\", m.version(\\\"jsonschema\\\"))' && rtk /tmp/ksa33-py312/bin/python -c 'import importlib.metadata as m; print(\\\"jsonschema\\\", m.version(\\\"jsonschema\\\"))'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add pyproject.toml tests/test_certification_closure.py tests/test_ksa33_security_release.py && rtk git status --short'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git commit -m 'fix: make KSA-33 evidence tests Python portable' && rtk git rev-parse HEAD && rtk git rev-parse HEAD\"'^{tree} && rtk git log --oneline --decorate -4'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py312/bin/python -m unittest tests.test_ksa33_security_release tests.test_certification_closure -q > /tmp/ksa33-final-focused-312.log 2>&1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python -m unittest tests.test_ksa33_security_release tests.test_certification_closure -q > /tmp/ksa33-final-focused-311.log 2>&1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python -m unittest tests.test_phase32 tests.test_phase35 -q > /tmp/ksa33-final-phase35-311.log 2>&1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py312/bin/python -m unittest tests.test_phase32 tests.test_phase35 -q > /tmp/ksa33-final-phase35-312.log 2>&1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python -m evals.security_controls --root . --run-id 1 --run-attempt 1 --output /tmp/ksa33-final-security-controls-311.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py312/bin/python -m evals.security_controls --root . --run-id 1 --run-attempt 1 --output /tmp/ksa33-final-security-controls-312.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python -c 'import json; from pathlib import Path; from jsonschema.validators import validator_for; files=sorted(Path(\\\"schemas\\\").glob(\\\"*.json\\\")); [validator_for(json.loads(p.read_text())).check_schema(json.loads(p.read_text())) for p in files]; print(len(files), \\\"schemas valid\\\")'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/ksa33-py312/bin/python -c 'import json; from pathlib import Path; from jsonschema.validators import validator_for; files=sorted(Path(\\\"schemas\\\").glob(\\\"*.json\\\")); [validator_for(json.loads(p.read_text())).check_schema(json.loads(p.read_text())) for p in files]; print(len(files), \\\"schemas valid\\\")'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python -m compileall -q src tests evals && rtk env PYTHONPATH=src:. /tmp/ksa33-py312/bin/python -m compileall -q src tests evals && rtk git diff --check && rtk git status --porcelain=v1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk ruby -e 'require \\\"yaml\\\"; require \\\"open3\\\"; ARGV.each { |path| doc = YAML.load_file(path); next unless doc.is_a?(Hash); (doc[\\\"jobs\\\"] || {}).each_value { |job| (job[\\\"steps\\\"] || []).each { |step| next unless step.is_a?(Hash) && step[\\\"run\\\"]; command = step[\\\"run\\\"].gsub(/\\\\\"'$'\"\\\\{\\\\{.*?\\\\}\\\\}/m, \\\"EXPR\\\"); output, status = Open3.capture2(\\\"bash\\\", \\\"-n\\\", stdin_data: command); abort(\\\"#{path}: #{output}\\\") unless status.success? } } }; puts \\\"#{ARGV.length} workflows and embedded bash steps valid\\\"' .github/workflows/*.yml\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python -m unittest discover -s tests -q > /tmp/ksa33-final-unittest-311.log 2>&1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/ksa33-py312/bin/python -m unittest discover -s tests -q > /tmp/ksa33-final-unittest-312.log 2>&1'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk tail -n 2 /tmp/ksa33-final-focused-311.log && rtk tail -n 2 /tmp/ksa33-final-focused-312.log && rtk tail -n 2 /tmp/ksa33-final-unittest-311.log && rtk tail -n 2 /tmp/ksa33-final-unittest-312.log && rtk tail -n 2 /tmp/ksa33-final-phase35-311.log && rtk tail -n 2 /tmp/ksa33-final-phase35-312.log'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git merge-base --is-ancestor 82acfb2c2526232ff3384906292480f91b52a526 HEAD && rtk git merge-base --is-ancestor 1078eb166cca75d560e3fbc666ce8f43844927b8 HEAD && rtk git rev-parse HEAD && rtk git rev-parse HEAD''^{tree}'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk cat /tmp/ksa33-final-security-controls-311.json && rtk cat /tmp/ksa33-final-security-controls-312.json && rtk /tmp/ksa33-py311/bin/python -m pip show jsonschema | rtk head -n 2 && rtk /tmp/ksa33-py312/bin/python -m pip show jsonschema | rtk head -n 2'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg '\"'^Ran|''^OK$'\"' /tmp/ksa33-final-focused-311.log /tmp/ksa33-final-focused-312.log /tmp/ksa33-final-unittest-311.log /tmp/ksa33-final-unittest-312.log /tmp/ksa33-final-phase35-311.log /tmp/ksa33-final-phase35-312.log\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3.11 -c 'import hashlib,json; from pathlib import Path; d=json.loads(Path(\\\".codex-fabric/audit.json\\\").read_text()); c=d[\\\"candidate\\\"]; m=c[\\\"candidate_source_content_manifest\\\"]; values={\\\"manifest\\\": hashlib.sha256(json.dumps(m,sort_keys=True,separators=(\\\",\\\",\\\":\\\"),ensure_ascii=False).encode()).hexdigest(), \\\"base_tree_sha\\\": c[\\\"base_tree_oid\\\"], \\\"candidate_tree_sha\\\": c[\\\"candidate_tree_sha256\\\"], \\\"candidate_tree_oid\\\": c[\\\"candidate_tree_oid\\\"], \\\"base_commit_sha\\\":c[\\\"base_commit_sha\\\"], \\\"candidate_commit_sha\\\":c[\\\"candidate_commit_sha\\\"], \\\"manifest_sha\\\": c[\\\"candidate_source_content_manifest_sha256\\\"], \\\"identity\\\": c[\\\"candidate_identity_sha256\\\"]}; print(json.dumps(values,indent=2))'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python - <<'PY'\nimport hashlib\nimport json\nfrom pathlib import Path\n\nfrom k_slide.security_release import candidate_tree_sha256\n\naudit_path = Path(\\\".codex-fabric/audit.json\\\")\nprevious_bytes = audit_path.read_bytes()\naudit = json.loads(previous_bytes)\ncandidate_commit = \\\"05ff1f405381cc0a1707890067dc3ac9ae696525\\\"\ncandidate_tree_oid = \\\"69b928d2e5f6b105f21470e12ea4485777b97b86\\\"\nsource_paths = [\n    \\\"pyproject.toml\\\",\n    \\\"tests/test_certification_closure.py\\\",\n    \\\"tests/test_ksa33_security_release.py\\\",\n]\nsource_manifest = [\n    {\\\"path\\\": name, \\\"sha256\\\": hashlib.sha256(Path(name).read_bytes()).hexdigest()}\n    for name in source_paths\n]\ncanonical = lambda value: json.dumps(value, sort_keys=True, separators=(\\\",\\\", \\\":\\\"), ensure_ascii=False).encode(\\\"utf-8\\\")\nmanifest_sha = hashlib.sha256(canonical(source_manifest)).hexdigest()\nrepair = {\n    \\\"work_item\\\": \\\"KSA-33 F33-01\\\",\n    \\\"scope\\\": \\\"CI and test-environment portability only\\\",\n    \\\"status\\\": \\\"EXECUTED_CHANGE\\\",\n    \\\"base_commit_sha\\\": \\\"82acfb2c2526232ff3384906292480f91b52a526\\\",\n    \\\"predecessor_candidate_sha\\\": \\\"1078eb166cca75d560e3fbc666ce8f43844927b8\\\",\n    \\\"candidate_commit_sha\\\": candidate_commit,\n    \\\"candidate_tree_oid\\\": candidate_tree_oid,\n    \\\"candidate_tree_sha256\\\": candidate_tree_sha256(candidate_tree_oid),\n    \\\"repair_source_content_manifest\\\": source_manifest,\n    \\\"repair_source_content_manifest_sha256\\\": manifest_sha,\n    \\\"python_environments\\\": [\n        {\\\"version\\\": \\\"3.11.7\\\", \\\"jsonschema\\\": \\\"4.26.0\\\"},\n        {\\\"version\\\": \\\"3.12.9\\\", \\\"jsonschema\\\": \\\"4.26.0\\\"},\n    ],\n    \\\"dependency_change\\\": {\n        \\\"distribution\\\": \\\"jsonschema\\\",\n        \\\"constraint\\\": \\\">=4.18,<5\\\",\n        \\\"dependency_group\\\": \\\"dev\\\",\n        \\\"production_runtime_dependency\\\": False,\n    },\n    \\\"runtime_identity_regression\\\": {\n        \\\"fixture_production_python\\\": \\\"3.11.13\\\",\n        \\\"fixture_security_runner_python\\\": \\\"3.11.13\\\",\n        \\\"non_311_production_runtime_rejected\\\": \\\"3.12.9\\\",\n        \\\"production_qualification_rule_changed\\\": False,\n    },\n    \\\"preserved_security_semantics\\\": [\n        \\\"Candidate, Git tree, runtime image, dependency lock, SBOM, and egress bindings remain unchanged.\\\",\n        \\\"pip-audit, Gitleaks, Semgrep, and Trivy failure boundaries and source-free scanner projections remain unchanged.\\\",\n        \\\"AccessKey non-leakage, tenant isolation, KSA-15/17/18/21/32 control reuse, and one-to-one vulnerability disposition checks remain unchanged.\\\",\n        \\\"Company IAM, network egress, and deployed runtime remain UNQUALIFIED.\\\",\n    ],\n    \\\"validation\\\": [\n        {\\\"name\\\": \\\"Focused KSA-33 and certification closure on Python 3.11\\\", \\\"status\\\": \\\"PASS\\\", \\\"tests\\\": 99},\n        {\\\"name\\\": \\\"Focused KSA-33 and certification closure on Python 3.12\\\", \\\"status\\\": \\\"PASS\\\", \\\"tests\\\": 99},\n        {\\\"name\\\": \\\"Full repository unittest suite on Python 3.11\\\", \\\"status\\\": \\\"PASS\\\", \\\"tests\\\": 670},\n        {\\\"name\\\": \\\"Full repository unittest suite on Python 3.12\\\", \\\"status\\\": \\\"PASS\\\", \\\"tests\\\": 670},\n        {\\\"name\\\": \\\"Phase 3.2/3.5 focused suites on Python 3.11\\\", \\\"status\\\": \\\"PASS\\\", \\\"tests\\\": 38},\n        {\\\"name\\\": \\\"Phase 3.2/3.5 focused suites on Python 3.12\\\", \\\"status\\\": \\\"PASS\\\", \\\"tests\\\": 38},\n        {\\\"name\\\": \\\"KSA-15/17/18/21/32 security controls on Python 3.11\\\", \\\"status\\\": \\\"PASS\\\", \\\"control_suites\\\": 5, \\\"tests\\\": 100},\n        {\\\"name\\\": \\\"KSA-15/17/18/21/32 security controls on Python 3.12\\\", \\\"status\\\": \\\"PASS\\\", \\\"control_suites\\\": 5, \\\"tests\\\": 100},\n        {\\\"name\\\": \\\"Repository JSON schemas on Python 3.11\\\", \\\"status\\\": \\\"PASS\\\", \\\"schemas\\\": 6},\n        {\\\"name\\\": \\\"Repository JSON schemas on Python 3.12\\\", \\\"status\\\": \\\"PASS\\\", \\\"schemas\\\": 6},\n        {\\\"name\\\": \\\"Workflow YAML and embedded bash syntax\\\", \\\"status\\\": \\\"PASS\\\", \\\"workflows\\\": 6},\n        {\\\"name\\\": \\\"compileall on Python 3.11 and Python 3.12\\\", \\\"status\\\": \\\"PASS\\\"},\n        {\\\"name\\\": \\\"git diff --check\\\", \\\"status\\\": \\\"PASS\\\"},\n    ],\n    \\\"real_scanner_execution\\\": \\\"NOT_RUN_LOCALLY; unit fixtures are not scanner reports\\\",\n    \\\"live_company_approval_or_release_claimed\\\": False,\n    \\\"repair_identity_scheme\\\": \\\"SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators, excluding repair_identity_sha256 itself\\\",\n}\nrepair[\\\"repair_identity_sha256\\\"] = hashlib.sha256(canonical(repair)).hexdigest()\naudit[\\\"supersedes_audit_sha256\\\"] = hashlib.sha256(previous_bytes).hexdigest()\naudit[\\\"portability_repair\\\"] = repair\nidentity_input = dict(audit)\nidentity_input.pop(\\\"fabric_evidence_identity_sha256\\\", None)\naudit[\\\"fabric_evidence_identity_sha256\\\"] = hashlib.sha256(canonical(identity_input)).hexdigest()\naudit_path.write_text(json.dumps(audit, ensure_ascii=False, sort_keys=True, indent=2) + \\\"\\\\n\\\", encoding=\\\"utf-8\\\")\nprint(json.dumps({\n    \\\"artifact\\\": str(audit_path),\n    \\\"supersedes_audit_sha256\\\": audit[\\\"supersedes_audit_sha256\\\"],\n    \\\"repair_identity_sha256\\\": repair[\\\"repair_identity_sha256\\\"],\n    \\\"fabric_evidence_identity_sha256\\\": audit[\\\"fabric_evidence_identity_sha256\\\"],\n    \\\"candidate_commit_sha\\\": candidate_commit,\n    \\\"candidate_tree_oid\\\": candidate_tree_oid,\n    \\\"candidate_tree_sha256\\\": repair[\\\"candidate_tree_sha256\\\"],\n}, sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python - <<'PY'\nimport hashlib\nimport json\nfrom pathlib import Path\n\npath = Path(\\\".codex-fabric/audit.json\\\")\naudit = json.loads(path.read_text(encoding=\\\"utf-8\\\"))\ncanonical = lambda value: json.dumps(value, sort_keys=True, separators=(\\\",\\\", \\\":\\\"), ensure_ascii=False).encode(\\\"utf-8\\\")\nrepair = audit[\\\"portability_repair\\\"]\nrepair[\\\"candidate_branch\\\"] = \\\"codex/k-slide-chg16-security-release-evidence-01-fix01\\\"\nrepair[\\\"candidate_parent_sha\\\"] = \\\"1078eb166cca75d560e3fbc666ce8f43844927b8\\\"\nrepair[\\\"predecessor_candidate_code_sha\\\"] = \\\"765404032cf3ff2e66728fc3e5514216643fde1d\\\"\nrepair[\\\"predecessor_candidate_tree_oid\\\"] = \\\"42ad0c04245fa593fde115fd096ac2c953bc9a9f\\\"\nrepair.pop(\\\"repair_identity_sha256\\\", None)\nrepair[\\\"repair_identity_sha256\\\"] = hashlib.sha256(canonical(repair)).hexdigest()\nimplemented = audit[\\\"scope\\\"][\\\"implemented\\\"]\nrepair_scope = \\\"KSA-33 F33-01 CI/test-environment portability repair\\\"\nif repair_scope not in implemented:\n    implemented.append(repair_scope)\naudit.pop(\\\"fabric_evidence_identity_sha256\\\", None)\naudit[\\\"fabric_evidence_identity_sha256\\\"] = hashlib.sha256(canonical(audit)).hexdigest()\npath.write_text(json.dumps(audit, ensure_ascii=False, sort_keys=True, indent=2) + \\\"\\\\n\\\", encoding=\\\"utf-8\\\")\nprint(json.dumps({\n    \\\"candidate_branch\\\": repair[\\\"candidate_branch\\\"],\n    \\\"candidate_parent_sha\\\": repair[\\\"candidate_parent_sha\\\"],\n    \\\"repair_identity_sha256\\\": repair[\\\"repair_identity_sha256\\\"],\n    \\\"fabric_evidence_identity_sha256\\\": audit[\\\"fabric_evidence_identity_sha256\\\"],\n}, sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python - <<'PY'\nimport hashlib\nimport json\nfrom pathlib import Path\n\npath = Path(\\\".codex-fabric/audit.json\\\")\naudit = json.loads(path.read_text(encoding=\\\"utf-8\\\"))\ncanonical = lambda value: json.dumps(value, sort_keys=True, separators=(\\\",\\\", \\\":\\\"), ensure_ascii=False).encode(\\\"utf-8\\\")\nrepair = audit[\\\"portability_repair\\\"]\nrepair[\\\"base_tree_oid\\\"] = \\\"a83ac105bfc4b972b36091f73aec9884c84d65c6\\\"\nrepair[\\\"candidate_worktree_clean_before_audit_write\\\"] = True\nrepair.pop(\\\"repair_identity_sha256\\\", None)\nrepair[\\\"repair_identity_sha256\\\"] = hashlib.sha256(canonical(repair)).hexdigest()\naudit.pop(\\\"fabric_evidence_identity_sha256\\\", None)\naudit[\\\"fabric_evidence_identity_sha256\\\"] = hashlib.sha256(canonical(audit)).hexdigest()\npath.write_text(json.dumps(audit, ensure_ascii=False, sort_keys=True, indent=2) + \\\"\\\\n\\\", encoding=\\\"utf-8\\\")\nprint(json.dumps({\n    \\\"repair_identity_sha256\\\": repair[\\\"repair_identity_sha256\\\"],\n    \\\"fabric_evidence_identity_sha256\\\": audit[\\\"fabric_evidence_identity_sha256\\\"],\n}, sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk jq '{qualification_status, repair: {work_item: .portability_repair.work_item, candidate_commit_sha: .portability_repair.candidate_commit_sha, candidate_tree_oid: .portability_repair.candidate_tree_oid, predecessor_candidate_sha: .portability_repair.predecessor_candidate_sha, repair_identity_sha256: .portability_repair.repair_identity_sha256, validations: [.portability_repair.validation[] | {name, status, tests, schemas, workflows, control_suites}]}, fabric_evidence_identity_sha256}' .codex-fabric/audit.json\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git status --short && rtk git diff --stat'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python - <<'PY'\nimport hashlib\nimport json\nimport subprocess\nfrom pathlib import Path\n\nfrom k_slide.security_release import candidate_tree_sha256\n\ncanonical = lambda value: json.dumps(value, sort_keys=True, separators=(\\\",\\\", \\\":\\\"), ensure_ascii=False).encode(\\\"utf-8\\\")\naudit_bytes = Path(\\\".codex-fabric/audit.json\\\").read_bytes()\naudit = json.loads(audit_bytes)\nrepair = audit[\\\"portability_repair\\\"]\nmanifest = repair[\\\"repair_source_content_manifest\\\"]\nassert hashlib.sha256(canonical(manifest)).hexdigest() == repair[\\\"repair_source_content_manifest_sha256\\\"]\nassert all(hashlib.sha256(Path(row[\\\"path\\\"]).read_bytes()).hexdigest() == row[\\\"sha256\\\"] for row in manifest)\nassert hashlib.sha256(canonical({key: value for key, value in repair.items() if key \"'!= \"repair_identity_sha256\"})).hexdigest() == repair[\"repair_identity_sha256\"]\nassert hashlib.sha256(canonical({key: value for key, value in audit.items() if key != \"fabric_evidence_identity_sha256\"})).hexdigest() == audit[\"fabric_evidence_identity_sha256\"]\nassert subprocess.check_output([\"git\", \"rev-parse\", f'\"'{repair[\\\"candidate_commit_sha\\\"]}\"'^'\"'], text=True).strip() == repair[\\\"candidate_parent_sha\\\"]\nassert subprocess.check_output([\\\"git\\\", \\\"rev-parse\\\", f'{repair[\\\"candidate_commit_sha\\\"]}\"'^{{tree}}'\"'], text=True).strip() == repair[\\\"candidate_tree_oid\\\"]\nassert candidate_tree_sha256(repair[\\\"candidate_tree_oid\\\"]) == repair[\\\"candidate_tree_sha256\\\"]\nassert subprocess.check_output([\\\"git\\\", \\\"rev-parse\\\", f'{repair[\\\"base_commit_sha\\\"]}\"'^{{tree}}'\"'], text=True).strip() == repair[\\\"base_tree_oid\\\"]\npredecessor_audit = subprocess.check_output([\\\"git\\\", \\\"show\\\", f'{repair[\\\"predecessor_candidate_sha\\\"]}:.codex-fabric/audit.json'])\nassert hashlib.sha256(predecessor_audit).hexdigest() == audit[\\\"supersedes_audit_sha256\\\"]\nprint(\\\"Fabric repair identity, source manifest, commit/tree, parent, base, and predecessor audit checks pass\\\")\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git add .codex-fabric/audit.json && rtk git commit -m 'chore(fabric): record KSA-33 F33-01 portability evidence' && rtk git rev-parse HEAD && rtk git status --short --branch && rtk git log --oneline --decorate -5\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check 82acfb2c2526232ff3384906292480f91b52a526..HEAD && rtk git status --short --branch && rtk git branch --show-current && rtk git rev-parse origin/main'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/ksa33-py311/bin/python - <<'PY'\nimport hashlib\nimport json\nimport subprocess\nfrom pathlib import Path\n\nfrom k_slide.security_release import candidate_tree_sha256\n\npath = Path(\\\".codex-fabric/audit.json\\\")\naudit_bytes = path.read_bytes()\naudit = json.loads(audit_bytes)\nrepair = audit[\\\"portability_repair\\\"]\ncanonical = lambda value: json.dumps(value, sort_keys=True, separators=(\\\",\\\", \\\":\\\"), ensure_ascii=False).encode(\\\"utf-8\\\")\nassert hashlib.sha256(canonical({key: value for key, value in repair.items() if key \"'!= \"repair_identity_sha256\"})).hexdigest() == repair[\"repair_identity_sha256\"]\nassert hashlib.sha256(canonical({key: value for key, value in audit.items() if key != \"fabric_evidence_identity_sha256\"})).hexdigest() == audit[\"fabric_evidence_identity_sha256\"]\nassert subprocess.check_output([\"git\", \"rev-parse\", f'\"'{repair[\\\"candidate_commit_sha\\\"]}\"'^'\"'], text=True).strip() == repair[\\\"candidate_parent_sha\\\"]\nassert subprocess.check_output([\\\"git\\\", \\\"rev-parse\\\", f'{repair[\\\"candidate_commit_sha\\\"]}\"'^{{tree}}'\"'], text=True).strip() == repair[\\\"candidate_tree_oid\\\"]\nassert candidate_tree_sha256(repair[\\\"candidate_tree_oid\\\"]) == repair[\\\"candidate_tree_sha256\\\"]\nassert subprocess.check_output([\\\"git\\\", \\\"rev-parse\\\", f'{repair[\\\"base_commit_sha\\\"]}\"'^{{tree}}'\"'], text=True).strip() == repair[\\\"base_tree_oid\\\"]\npredecessor_audit = subprocess.check_output([\\\"git\\\", \\\"show\\\", f'{repair[\\\"predecessor_candidate_sha\\\"]}:.codex-fabric/audit.json'])\nassert hashlib.sha256(predecessor_audit).hexdigest() == audit[\\\"supersedes_audit_sha256\\\"]\nassert subprocess.run([\\\"git\\\", \\\"merge-base\\\", \\\"--is-ancestor\\\", repair[\\\"base_commit_sha\\\"], \\\"HEAD\\\"]).returncode == 0\nassert subprocess.run([\\\"git\\\", \\\"merge-base\\\", \\\"--is-ancestor\\\", repair[\\\"predecessor_candidate_sha\\\"], \\\"HEAD\\\"]).returncode == 0\nassert not subprocess.check_output([\\\"git\\\", \\\"status\\\", \\\"--porcelain\\\"])\nprint(json.dumps({\n    \\\"repair_identity_sha256\\\": repair[\\\"repair_identity_sha256\\\"],\n    \\\"fabric_evidence_identity_sha256\\\": audit[\\\"fabric_evidence_identity_sha256\\\"],\n    \\\"repair_candidate_commit\\\": repair[\\\"candidate_commit_sha\\\"],\n    \\\"final_head\\\": subprocess.check_output([\\\"git\\\", \\\"rev-parse\\\", \\\"HEAD\\\"], text=True).strip(),\n    \\\"base_and_predecessor_ancestry\\\": \\\"PASS\\\",\n    \\\"worktree\\\": \\\"CLEAN\\\",\n}, sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.156.1",
+    "configured_model": "gpt-6-luna",
+    "event_count": 206,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.04,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 6012928,
+      "fresh_input_tokens": 183254,
+      "input_tokens": 6196182,
+      "non_reasoning_output_tokens": 17315,
+      "output_tokens": 54103,
+      "reasoning_output_tokens": 36788,
+      "total_processed_tokens": 6250285
+    },
+    "warnings": []
   },
-  "artifact_path": ".codex-fabric/audit.json",
-  "candidate": {
-    "base_commit_sha": "82acfb2c2526232ff3384906292480f91b52a526",
-    "base_tree_oid": "a83ac105bfc4b972b36091f73aec9884c84d65c6",
-    "branch": "codex/k-slide-chg16-security-release-evidence-01",
-    "candidate_changes_committed": true,
-    "candidate_commit_sha": "765404032cf3ff2e66728fc3e5514216643fde1d",
-    "candidate_identity_sha256": "0d95340df07aafbc6e834a80d756bdedbec211c1bcab3ebb9c4f7e3b808e4800",
-    "candidate_source_content_manifest": [
+  "commits": [
+    {
+      "sha": "9ef767088d58d2b13e5f967c997f533b9411df4c",
+      "subject": "chore(fabric): record KSA-33 F33-01 portability evidence"
+    },
+    {
+      "sha": "05ff1f405381cc0a1707890067dc3ac9ae696525",
+      "subject": "fix: make KSA-33 evidence tests Python portable"
+    },
+    {
+      "sha": "1078eb166cca75d560e3fbc666ce8f43844927b8",
+      "subject": "Record KSA-33 Fabric audit evidence"
+    },
+    {
+      "sha": "765404032cf3ff2e66728fc3e5514216643fde1d",
+      "subject": "Implement KSA-33 candidate security evidence"
+    }
+  ],
+  "diff": {
+    "additions": 2173,
+    "changed_files": 18,
+    "commit_count": 4,
+    "deletions": 1392
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 8,
+    "items": [
       {
-        "path": ".github/workflows/k-slide-security.yml",
-        "sha256": "034ce6d036356a80524aea0c0c120fa635028df2a74e46c58f585f9dae651877"
+        "bytes": 12641,
+        "path": ".codex-fabric/audit.json",
+        "sha256": "ca0a491ae39a28df784ff8af4da5f3084ff066efc2522b5463deb463f487e061"
       },
       {
+        "bytes": 86660,
         "path": "IMPLEMENTATION_STATUS.md",
         "sha256": "b139c167498980f3962e0b94f699427f15f5ca760d9c04a09a169c983fedb02c"
       },
       {
+        "bytes": 4387,
         "path": "docs/ksa33-security-release-evidence.md",
         "sha256": "381e71ba25561b4d6e68ab1354ef3209ea10eb3ea6b67bf0bc6499dc83a2c902"
       },
       {
-        "path": "evals/build_security_release_context.py",
-        "sha256": "2b21c00f56c3f7dc182203fb955df07509c9f16a9abcb595f5d241e0508edc5a"
-      },
-      {
-        "path": "evals/enforce_security.py",
-        "sha256": "13444c86707f337af7e06b4dfaa89764d18d019ad3ff6ee2e92a503e79b6d746"
-      },
-      {
-        "path": "evals/security_controls.py",
-        "sha256": "fab766af4fbf741106346d12520f3c0c64e60328ece8418fe8a4269dbe88b6b7"
-      },
-      {
-        "path": "evals/security_reports.py",
-        "sha256": "bb93694c45578f7a9084ee596d4c336e485ce5aebf02ca34743d771c272948c2"
-      },
-      {
+        "bytes": 7606,
         "path": "schemas/security-release-evidence.schema.json",
         "sha256": "02c9fa086fdc363ae567394990f9e389fd91f07a20e9e3d60a537389d00850d8"
       },
       {
+        "bytes": 1850,
         "path": "schemas/vulnerability-dispositions.schema.json",
         "sha256": "8580fe6225a9a935d809064fe13f098f1ebf9fe6747a931ced1f19fe6ca9aa5d"
       },
       {
+        "bytes": 1941,
         "path": "security/release-security-policy.json",
         "sha256": "c9569b93c65b8e1c8ab72232c737dcf36fa4f7599990bdea3f46bb663f7dfb60"
       },
       {
+        "bytes": 134,
         "path": "security/vulnerability-dispositions.json",
         "sha256": "77654e90944995aff6e4bfd777baa8010d84a50719e283d0d8fd917705212d93"
       },
       {
-        "path": "src/k_slide/certification.py",
-        "sha256": "d0c59aa23c402428079278da852998369f9cfa9f5fde9a51d759aed07e4ba079"
-      },
-      {
+        "bytes": 136658,
         "path": "src/k_slide/evidence_adapters.py",
         "sha256": "d9cde1da558719557a93e6bf25ec5827fdad1fcd05ce721dbabb73036fdd8d03"
-      },
-      {
-        "path": "src/k_slide/security_release.py",
-        "sha256": "dfb2cbf19bc78f44bbc9d16bf807abb4d1c2d6770816a1c850e661b3d83e95e2"
-      },
-      {
-        "path": "tests/test_certification_closure.py",
-        "sha256": "fff5d806f19f9d9f79686ce7fff889de7a68d18f590f42f5190e7eca4fa1b93d"
-      },
-      {
-        "path": "tests/test_ksa33_security_release.py",
-        "sha256": "82246e2214c03cabd852034e26586ad1f5bd99942e76a7a8b7c153e6f18c7346"
       }
     ],
-    "candidate_source_content_manifest_sha256": "9af598e905381ddc992c9ff58e90b7f66d159cbaf58750e9b07af0ac361729a4",
-    "candidate_tree_oid": "de0324e20dc098ab78ab4812a0ce92e412832cca",
-    "candidate_tree_sha256": "72d9e1d18438540f9811385ca567fee65d7c18956287f4b537353ca00002c71e",
-    "working_tree_clean_before_audit_write": true
+    "version": 1
   },
-  "checks": [
-    {
-      "command": "rtk env PYTHONPATH=src:. python3.11 -m unittest tests.test_ksa33_security_release tests.test_certification_closure -q",
-      "exit_code": 0,
-      "name": "KSA-33 and certification closure",
-      "result": "96 tests passed"
-    },
-    {
-      "command": "rtk env PYTHONPATH=src:. python3.11 -m unittest discover -s tests -p 'test_*.py' -q",
-      "exit_code": 0,
-      "name": "Broad regression/security/runtime suite",
-      "result": "667 tests passed; 4 skipped"
-    },
-    {
-      "command": "rtk env PYTHONPATH=src:. python3.11 -m evals.security_controls --root . --output /tmp/k-slide-ksa33-controls-final.json --run-id 501 --run-attempt 1",
-      "exit_code": 0,
-      "name": "Accepted KSA-15/17/18/21/32 control suites",
-      "result": "5 suites passed; 100 tests run; safe summary only"
-    },
-    {
-      "exit_code": 0,
-      "name": "Repository JSON schemas",
-      "result": "All 6 schemas passed Draft 2020-12 schema validation"
-    },
-    {
-      "exit_code": 0,
-      "name": "Security workflow syntax",
-      "result": "Workflow YAML parsed; all 13 shell steps passed bash -n"
-    },
-    {
-      "command": "rtk git diff --check",
-      "exit_code": 0,
-      "name": "Whitespace and patch validation",
-      "result": "Passed"
+  "evidence_publisher_release": "1.2.5-dashboard-controls-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
     }
-  ],
-  "company_environment": {
-    "deployed_runtime_identity": "UNQUALIFIED",
-    "iam": "UNQUALIFIED",
-    "live_company_approval": "NOT_CLAIMED",
-    "network_egress": "UNQUALIFIED"
   },
-  "fabric_evidence_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators, excluding fabric_evidence_identity_sha256 itself",
-  "fabric_evidence_identity_sha256": "52003b1e821caefb2703547511d616b0a40d2875cef1ac13d78b6fb0ccb6d75d",
-  "fabric_job_id": "CHG-16-KSA-33-SECURITY-RELEASE-EVIDENCE-01",
-  "generated_at": "2026-09-25",
-  "issue_id": "CHG-16",
-  "job_id": "CHG-16-KSA-33-SECURITY-RELEASE-EVIDENCE-01",
+  "fabric_release": "1.2.5-dashboard-controls-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-25T15:49:40Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "82acfb2c2526232ff3384906292480f91b52a526",
+    "branch": "codex/k-slide-chg16-security-release-evidence-01-fix01",
+    "detached_verify": false,
+    "head_sha": "9ef767088d58d2b13e5f967c997f533b9411df4c",
+    "remote_exact_head": true,
+    "remote_head_sha": "9ef767088d58d2b13e5f967c997f533b9411df4c",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "82acfb2c2526232ff3384906292480f91b52a526",
+    "work_branch": "codex/k-slide-chg16-security-release-evidence-01-fix01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-4eb51fe8c3fe1b6a0e78a214",
   "kind": "codex-fabric-audit-evidence",
-  "operation": "IMPLEMENT",
-  "portability_repair": {
-    "base_commit_sha": "82acfb2c2526232ff3384906292480f91b52a526",
-    "base_tree_oid": "a83ac105bfc4b972b36091f73aec9884c84d65c6",
-    "candidate_branch": "codex/k-slide-chg16-security-release-evidence-01-fix01",
-    "candidate_commit_sha": "05ff1f405381cc0a1707890067dc3ac9ae696525",
-    "candidate_parent_sha": "1078eb166cca75d560e3fbc666ce8f43844927b8",
-    "candidate_tree_oid": "69b928d2e5f6b105f21470e12ea4485777b97b86",
-    "candidate_tree_sha256": "b4a3db2b55ddc5f93806a840565a5a47630bdb577a0a9cf6743ba96333c6cd08",
-    "candidate_worktree_clean_before_audit_write": true,
-    "dependency_change": {
-      "constraint": ">=4.18,<5",
-      "dependency_group": "dev",
-      "distribution": "jsonschema",
-      "production_runtime_dependency": false
-    },
-    "live_company_approval_or_release_claimed": false,
-    "predecessor_candidate_code_sha": "765404032cf3ff2e66728fc3e5514216643fde1d",
-    "predecessor_candidate_sha": "1078eb166cca75d560e3fbc666ce8f43844927b8",
-    "predecessor_candidate_tree_oid": "42ad0c04245fa593fde115fd096ac2c953bc9a9f",
-    "preserved_security_semantics": [
-      "Candidate, Git tree, runtime image, dependency lock, SBOM, and egress bindings remain unchanged.",
-      "pip-audit, Gitleaks, Semgrep, and Trivy failure boundaries and source-free scanner projections remain unchanged.",
-      "AccessKey non-leakage, tenant isolation, KSA-15/17/18/21/32 control reuse, and one-to-one vulnerability disposition checks remain unchanged.",
-      "Company IAM, network egress, and deployed runtime remain UNQUALIFIED."
-    ],
-    "python_environments": [
-      {
-        "jsonschema": "4.26.0",
-        "version": "3.11.7"
-      },
-      {
-        "jsonschema": "4.26.0",
-        "version": "3.12.9"
-      }
-    ],
-    "real_scanner_execution": "NOT_RUN_LOCALLY; unit fixtures are not scanner reports",
-    "repair_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators, excluding repair_identity_sha256 itself",
-    "repair_identity_sha256": "b688b461ed18493c8bf415a2f6b6aa5cf43b6f7b1d70720278d0168d30dda94c",
-    "repair_source_content_manifest": [
-      {
-        "path": "pyproject.toml",
-        "sha256": "326b499d33cd5c26c97666b46e129f3338256ca9bd496603b84d8780522013ec"
-      },
-      {
-        "path": "tests/test_certification_closure.py",
-        "sha256": "63f449e35ebc845d42d5970fa2f37284abb2805a0eba0bc30ec4cae229f90cbe"
-      },
-      {
-        "path": "tests/test_ksa33_security_release.py",
-        "sha256": "5080c19169eacbf75cffd3c9afe4d69267683c5931592427a908854c643ea17e"
-      }
-    ],
-    "repair_source_content_manifest_sha256": "68edf2311696f57dc976590475f87430751d06f330dd542e618b01f5f7d9ef7e",
-    "runtime_identity_regression": {
-      "fixture_production_python": "3.11.13",
-      "fixture_security_runner_python": "3.11.13",
-      "non_311_production_runtime_rejected": "3.12.9",
-      "production_qualification_rule_changed": false
-    },
-    "scope": "CI and test-environment portability only",
-    "status": "EXECUTED_CHANGE",
-    "validation": [
-      {
-        "name": "Focused KSA-33 and certification closure on Python 3.11",
-        "status": "PASS",
-        "tests": 99
-      },
-      {
-        "name": "Focused KSA-33 and certification closure on Python 3.12",
-        "status": "PASS",
-        "tests": 99
-      },
-      {
-        "name": "Full repository unittest suite on Python 3.11",
-        "status": "PASS",
-        "tests": 670
-      },
-      {
-        "name": "Full repository unittest suite on Python 3.12",
-        "status": "PASS",
-        "tests": 670
-      },
-      {
-        "name": "Phase 3.2/3.5 focused suites on Python 3.11",
-        "status": "PASS",
-        "tests": 38
-      },
-      {
-        "name": "Phase 3.2/3.5 focused suites on Python 3.12",
-        "status": "PASS",
-        "tests": 38
-      },
-      {
-        "control_suites": 5,
-        "name": "KSA-15/17/18/21/32 security controls on Python 3.11",
-        "status": "PASS",
-        "tests": 100
-      },
-      {
-        "control_suites": 5,
-        "name": "KSA-15/17/18/21/32 security controls on Python 3.12",
-        "status": "PASS",
-        "tests": 100
-      },
-      {
-        "name": "Repository JSON schemas on Python 3.11",
-        "schemas": 6,
-        "status": "PASS"
-      },
-      {
-        "name": "Repository JSON schemas on Python 3.12",
-        "schemas": 6,
-        "status": "PASS"
-      },
-      {
-        "name": "Workflow YAML and embedded bash syntax",
-        "status": "PASS",
-        "workflows": 6
-      },
-      {
-        "name": "compileall on Python 3.11 and Python 3.12",
-        "status": "PASS"
-      },
-      {
-        "name": "git diff --check",
-        "status": "PASS"
-      }
-    ],
-    "work_item": "KSA-33 F33-01"
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-security-release-evidence-01-fix01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-security-release-evidence-01-fix01"
   },
-  "predecessor_audit_sha256": "2178f23a33139b2dc3d3c113bee6546171bc714a710dbe7a9211a63aa9da4783",
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.5-dashboard-controls-candidate",
+    "policy_sha256": "123615bf2f6e57dcac197e49ca98ceac59ada86a55e2c84445ea5d00812c0833",
+    "registry_sha256": "af81b8552f9d6a33847310e3c6bcd2d48401782b963a58efd2993e93570cb4aa"
+  },
   "project_id": "k-slide",
-  "qualification_status": "NOT_QUALIFIED",
-  "release_or_production_claim": false,
-  "request": "chg16-security-release-evidence-01",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-security-release-evidence-01-fix01",
   "schema_version": 1,
-  "scope": {
-    "excluded": [
-      "KSA-34 and later",
-      "Live GitHub/company security, network, or IAM settings",
-      "Moving or merging main",
-      "Live company approval or qualification",
-      "Target-Gemma certification",
-      "Release, pilot/canary, BUILD COMPLETE, or production certification"
-    ],
-    "implemented": [
-      "KSA-33 candidate-bound security release evidence contract only",
-      "KSA-33 F33-01 CI/test-environment portability repair"
-    ],
-    "preserved": [
-      "Accepted KSA-01 through KSA-32 behavior",
-      "Existing release-state separation",
-      "KSA-15, KSA-17, KSA-18, KSA-21, and KSA-32 control mechanisms"
-    ]
-  },
-  "security_evidence": {
-    "adversarial_controls": "KSA-15/17/18/21/32 reused; KSA-33 replay, stale, missing, malformed, mismatch, leakage, and disposition bypass tests present",
-    "candidate_scanner_evidence": "NOT_GENERATED_LOCALLY",
-    "dependency_scanning_contract": "REQUIRED_FAIL_CLOSED",
-    "durable_accesskey_values": false,
-    "durable_raw_scanner_payloads": false,
-    "durable_source_document_content": false,
-    "image_scanning_contract": "REQUIRED_FAIL_CLOSED",
-    "local_container_runtime_execution": "NOT_RUN_DOCKER_DAEMON_UNAVAILABLE",
-    "repository_contract": "IMPLEMENTED",
-    "runtime_source_binding": "RUNTIME_MANIFEST_SOURCE_HASH_MATCHED_TO_EXACT_CANDIDATE_GIT_ARCHIVE",
-    "secret_scanning_contract": "REQUIRED_FAIL_CLOSED",
-    "source_tree_binding": "SHA256_DOMAIN_SEPARATED_FROM_EXACT_GIT_TREE_OID",
-    "static_security_analysis_contract": "REQUIRED_FAIL_CLOSED",
-    "synthetic_scanner_fixtures_are_scanner_results": false,
-    "vulnerability_disposition": "EXPLICIT_CANDIDATE_BOUND_ONE_TO_ONE_POLICY_CHECKED"
-  },
+  "started_at": "2026-09-25T15:28:27Z",
   "status": "EXECUTED_CHANGE",
-  "supersedes_audit_sha256": "94497251c64a3cdb459096570d6e6de45a6f8f5308f96f468983ebd739541923"
+  "timing": {
+    "execution_seconds": 1273,
+    "queue_seconds": 0,
+    "total_seconds": 1273
+  },
+  "transport": {
+    "bytes": 3064,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 2723,
+    "prompt_sha256": "37148ef0ef1f606422e5c91580488b1397c9ce8cf9ec7a44c1bb2c0021c5ad9b",
+    "sha256": "4eb51fe8c3fe1b6a0e78a21415371b5712f80daa843ceea7a52a201ab7894d10"
+  }
 }
