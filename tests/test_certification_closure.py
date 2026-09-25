@@ -4,7 +4,6 @@ import copy
 import hashlib
 import json
 import os
-import platform
 import shutil
 import subprocess
 import tempfile
@@ -70,7 +69,7 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-TEST_PYTHON_VERSION = platform.python_version()
+PINNED_PRODUCTION_PYTHON_VERSION = "3.11.13"
 
 
 def _write(path: Path, value: object) -> Path:
@@ -169,7 +168,7 @@ def _write_opencode_bootstrap(root: Path) -> Path:
 
 
 def _runtime_sources(root: Path, *, provider: str = "google", ocr_provider: str = "none") -> dict[str, Path]:
-    _write(root / "diagnostic.json", {"levels": [{"level": name, "status": "PASS"} for name in ("level1a_pure_opencode", "level1_plain_opencode", "level2_explicit_model", "level3_k_slide_agent")], "runtime_provenance": {"opencode_version": "1.3.9", "python_version": TEST_PYTHON_VERSION, "provider": provider, "ocr_provider": ocr_provider}})
+    _write(root / "diagnostic.json", {"levels": [{"level": name, "status": "PASS"} for name in ("level1a_pure_opencode", "level1_plain_opencode", "level2_explicit_model", "level3_k_slide_agent")], "runtime_provenance": {"opencode_version": "1.3.9", "python_version": PINNED_PRODUCTION_PYTHON_VERSION, "provider": provider, "ocr_provider": ocr_provider}})
     contract = {"status": "PASS", "kslide_complete": True, "run_complete": True, "required_media_compliance": True, "forbidden_tool_attempts": []}
     _write(root / "simple.json", contract)
     _write(root / "three.json", {**contract, "expected_units": 3, "artifact_units": 3})
@@ -180,7 +179,7 @@ def _runtime_sources(root: Path, *, provider: str = "google", ocr_provider: str 
 def _doctor(networkless: bool = False) -> dict[str, object]:
     value = {key: {"status": "PASS"} for key in ("libreoffice", "pymupdf", "python_pptx", "pillow", "paddleocr", "paddlepaddle", "korean_font", "paddle_load", "libreoffice_roundtrip", "paddle_ocr_roundtrip")}
     value["network"] = {"networkless_asserted": networkless, "network_required": not networkless}
-    value["runtime_provenance"] = {"python_version": TEST_PYTHON_VERSION, "paddle_version": "3.0.0", "paddleocr_version": "3.0.3", "libreoffice_version": "25.2.3"}
+    value["runtime_provenance"] = {"python_version": PINNED_PRODUCTION_PYTHON_VERSION, "paddle_version": "3.0.0", "paddleocr_version": "3.0.3", "libreoffice_version": "25.2.3"}
     return value
 
 
@@ -462,7 +461,7 @@ def _security_sources(root: Path, *, vulnerable: bool = False, constraints_hash:
     candidate_runtime_identity = candidate_spec.get("runtime_artifact_identity") if candidate_spec else None
     if isinstance(candidate_runtime_identity, dict):
         candidate_runtime_identity = candidate_runtime_identity.get("sha256")
-    runtime_version = str(candidate_spec.get("python_version")) if candidate_spec else TEST_PYTHON_VERSION
+    runtime_version = str(candidate_spec.get("python_version")) if candidate_spec else PINNED_PRODUCTION_PYTHON_VERSION
     runtime = {
         "artifact_identity_sha256": candidate_runtime_identity if isinstance(candidate_runtime_identity, str) and len(candidate_runtime_identity) == 64 else "e" * 64,
         "manifest_sha256": str(candidate_spec.get("runtime_artifact_manifest_sha256")) if candidate_spec and candidate_spec.get("runtime_artifact_manifest_sha256") not in (None, "UNSET") else "a" * 64,
@@ -598,7 +597,7 @@ def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model
         "ocr_asset_manifest_sha256": asset_hash,
         "normalization_behavior": {"render_dpi": 220},
         "repair_policy": {"max_auto_repairs_per_unit": 2},
-        "python_version": TEST_PYTHON_VERSION,
+        "python_version": PINNED_PRODUCTION_PYTHON_VERSION,
         "paddle_version": "3.0.0",
         "paddleocr_version": "3.0.3",
         "libreoffice_version": "25.2.3",
@@ -647,6 +646,31 @@ def _candidate_model_sources(root: Path, *, split: str, repeats: int, subject: s
 
 
 class CertificationClosureTests(unittest.TestCase):
+    def test_certification_runtime_fixtures_encode_the_pinned_production_interpreter(self):
+        self.assertEqual(PINNED_PRODUCTION_PYTHON_VERSION, "3.11.13")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runtime_root = root / "runtime"
+            heavy_root = root / "heavy"
+            security_root = root / "security"
+            runtime_root.mkdir()
+            heavy_root.mkdir()
+            security_root.mkdir()
+
+            runtime_sources = _runtime_sources(runtime_root)
+            heavy_sources = _heavy_sources(heavy_root)
+            security_sources = _security_sources(security_root)
+            candidate = _candidate_spec("a" * 40)
+
+            diagnostic = json.loads(runtime_sources["diagnostic_ladder"].read_text(encoding="utf-8"))
+            doctor = json.loads(heavy_sources["required_doctor"].read_text(encoding="utf-8"))
+            security_context = json.loads(security_sources["security_release_context"].read_text(encoding="utf-8"))
+            self.assertEqual(diagnostic["runtime_provenance"]["python_version"], PINNED_PRODUCTION_PYTHON_VERSION)
+            self.assertEqual(doctor["runtime_provenance"]["python_version"], PINNED_PRODUCTION_PYTHON_VERSION)
+            self.assertEqual(candidate["python_version"], PINNED_PRODUCTION_PYTHON_VERSION)
+            self.assertEqual(security_context["runtime"]["python_version"], PINNED_PRODUCTION_PYTHON_VERSION)
+            self.assertEqual(security_context["runner"]["python_version"], "3.11.13")
+
     def test_repository_execution_binding_rejects_wrong_material_behavior(self):
         base = _candidate_spec("a" * 40)
         cases = (
@@ -777,7 +801,7 @@ class CertificationClosureTests(unittest.TestCase):
 
         with self.assertRaises(EvidenceValidationError):
             canonical_exact_version("3.11", "python_version")
-        self.assertEqual(canonical_exact_version(TEST_PYTHON_VERSION, "python_version"), TEST_PYTHON_VERSION)
+        self.assertEqual(canonical_exact_version(PINNED_PRODUCTION_PYTHON_VERSION, "python_version"), PINNED_PRODUCTION_PYTHON_VERSION)
         self.assertEqual(parse_libreoffice_version("LibreOffice 25.2.3.1 40(Build:1)"), "25.2.3.1")
         self.assertIsNone(parse_libreoffice_version("LibreOffice 25.2"))
         from k_slide.runtime import _version as runtime_version
@@ -2047,7 +2071,7 @@ class CertificationClosureTests(unittest.TestCase):
 
             scored = {"coverage": 1.0, "numeric_fidelity": 1.0, "modality": 1.0, "table_cell_fidelity": 1.0, "visual_relation_recall": 1.0, "critical_failures": [], "unresolved_region_rate": 0.0, "unexpected_unresolved_rate": 0.0}
             consistency = {"term_consistency_recall": 1.0, "inconsistent_alternate_count": 0, "critical_failures": []}
-            runtime = SimpleNamespace(as_dict=lambda: {"opencode_version": "1.3.9", "python_version": TEST_PYTHON_VERSION, "provider": "google", "ocr_provider": "none"})
+            runtime = SimpleNamespace(as_dict=lambda: {"opencode_version": "1.3.9", "python_version": PINNED_PRODUCTION_PYTHON_VERSION, "provider": "google", "ocr_provider": "none"})
             with patch("evals.model_eval.generate_artifacts"), patch("evals.model_eval.OpenCodeEvalRunner", return_value=FakeOpenCode()), patch("evals.model_eval.discover_runtime", return_value=runtime), patch("evals.model_eval._latest_run", return_value=None), patch("evals.model_eval.collect_run_artifacts", return_value=[{"work_unit_id": "u1", "evidence": {}, "patch": {}, "slide_ir": None}]), patch("evals.model_eval._engine_gate", return_value=("PASS", [])), patch("evals.model_eval._work_unit_contract", return_value=(True, [])), patch("evals.model_eval.score_translation_patch", return_value=scored), patch("evals.model_eval.score_deck_consistency", return_value=consistency):
                 output = root / "high-risk"
                 result = ModelEvaluationRunner(model=target, output=output, split="validation", repeats=5, mode="quality", candidate_profile=candidate_path, high_risk=True).run()
@@ -2262,7 +2286,7 @@ class CertificationClosureTests(unittest.TestCase):
             inventory_patch = patch("k_slide.production.installed_dependency_inventory", return_value=production_inventory)
             inventory_patch.start()
             self.addCleanup(inventory_patch.stop)
-            with patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"AccessKey": "synthetic-doctor-key", "KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1", **bootstrap_environment}):
+            with patch("k_slide.runtime.platform.python_version", return_value=PINNED_PRODUCTION_PYTHON_VERSION), patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"AccessKey": "synthetic-doctor-key", "KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1", **bootstrap_environment}):
                 runtime = discover_runtime(root)
                 doctor_result = diagnose(root, production=True)
             self.assertEqual(doctor_result["overall"], "WARN", msg=json.dumps([item for item in doctor_result["checks"] if item["status"] != "PASS"], indent=2))
@@ -2271,7 +2295,7 @@ class CertificationClosureTests(unittest.TestCase):
                 ["Live deployment network enforcement"],
             )
             alternate_config = asset_dir / "alternate.yaml"
-            with patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1", "KSLIDE_PADDLEX_CONFIG": str(alternate_config)}):
+            with patch("k_slide.runtime.platform.python_version", return_value=PINNED_PRODUCTION_PYTHON_VERSION), patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1", "KSLIDE_PADDLEX_CONFIG": str(alternate_config)}):
                 mismatched_config_doctor = diagnose(root, production=True)
             self.assertEqual(mismatched_config_doctor["overall"], "FAIL")
             self.assertEqual(next(item for item in mismatched_config_doctor["checks"] if item["label"] == "OCR selected configuration")["status"], "FAIL")

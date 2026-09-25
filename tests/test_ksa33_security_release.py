@@ -14,7 +14,7 @@ from k_slide.evidence_adapters import AdapterError, build_machine_evidence
 from k_slide.runtime_artifact import source_tree_sha256
 from k_slide.security_release import candidate_tree_sha256, canonical_bytes, sha256
 from evals.security_reports import SecurityReportError, sanitize_gitleaks, sanitize_pip_audit, sanitize_semgrep, sanitize_trivy
-from tests.test_certification_closure import _security_sources, _write
+from tests.test_certification_closure import PINNED_PRODUCTION_PYTHON_VERSION, _security_sources, _write
 
 
 SUBJECT = "a" * 40
@@ -81,6 +81,26 @@ class KSA33SecurityReleaseEvidenceTests(unittest.TestCase):
             disposition_schema = json.loads(Path("schemas/vulnerability-dispositions.schema.json").read_text(encoding="utf-8"))
             Draft202012Validator.check_schema(disposition_schema)
             Draft202012Validator(disposition_schema).validate(json.loads(sources["vulnerability_dispositions"].read_text(encoding="utf-8")))
+
+    def test_security_evidence_fixtures_use_pinned_python_311_independent_of_test_host(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = self._sources(root)
+            context = json.loads(sources["security_release_context"].read_text(encoding="utf-8"))
+            self.assertEqual(PINNED_PRODUCTION_PYTHON_VERSION, "3.11.13")
+            self.assertEqual(context["runtime"]["python_version"], PINNED_PRODUCTION_PYTHON_VERSION)
+            self.assertEqual(context["runner"]["python_version"], "3.11.13")
+            self._build(root, sources)
+
+    def test_security_evidence_rejects_a_non_311_production_runtime_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = self._sources(root)
+            context = json.loads(sources["security_release_context"].read_text(encoding="utf-8"))
+            context["runtime"]["python_version"] = "3.12.9"
+            _write(sources["security_release_context"], context)
+            with self.assertRaises(AdapterError):
+                self._build(root, sources)
 
     def test_candidate_sha_tree_and_fingerprint_replay_fail_closed(self):
         for field, value in (("subject_git_sha", "f" * 40), ("source_tree_sha256", "e" * 64), ("deployment_fingerprint", "c" * 64)):
