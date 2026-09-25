@@ -27,6 +27,7 @@ from k_slide.queue import WorkUnitStatus, load_queue, save_queue
 from k_slide.evidence_ir import EvidenceIR, EvidenceRegion, save_evidence
 from k_slide.state import RunPhase, load_state, save_state
 from k_slide.verify import finalize_run, verify_run
+from tests.rollout_fixtures import TestOnlyRolloutAdmission
 
 
 def _sha(value: str) -> str:
@@ -300,7 +301,7 @@ class EnvironmentBindingTests(unittest.TestCase):
     def _translation_run(self, root: Path, environment: RunEnvironmentIdentity) -> Path:
         source = root / "slide.png"
         source.write_bytes(b"\x89PNG\r\n\x1a\nfixture")
-        run = prepare_run(root, explicit_paths=[str(source)], environment_identity=environment)
+        run = prepare_run(root, explicit_paths=[str(source)], environment_identity=environment, rollout_control=TestOnlyRolloutAdmission())
         queue = load_queue(run)
         unit = queue.work_units[0]
         evidence = EvidenceIR(

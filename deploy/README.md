@@ -89,3 +89,15 @@ root with relative paths so a deployed doctor can re-open and re-derive every
 machine envelope. Runtime-enforced limits are not stored as decorative profile fields;
 measured SLOs remain in `production-slo.yaml` until the deployment wires them
 to a managed timeout policy.
+
+KSA-34 rollout admission is configured independently of the certified profile.
+Candidate-bound deployments must provide a process-level
+`RolloutAdmissionProvider` through `KSLIDE_ROLLOUT_CONTROL_FACTORY`; its
+factory receives no workspace path or request inputs, its authenticated
+deployment identity adapter assigns named cohorts, and its policy/state store
+supplies an anti-replay compare-and-swap revision anchor.
+Missing rollout authority blocks new candidate-bound runs before source input
+is inspected. The repository filesystem adapter is for tests only. See
+[`KSA-34 rollout controls`](../docs/ksa34-rollout-controls.md) for the signed
+stage, disable, and rollback contract. Rollout configuration gates admission
+only and does not contribute release or certification state.
