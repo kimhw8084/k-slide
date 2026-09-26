@@ -11,6 +11,7 @@ from pathlib import Path
 
 from PIL import Image
 
+from evals.performance_load import _KNOWN_STDOUT_LIBRARY_WARNING, _parse_product_cli_json
 from k_slide.cli import _charge_model_output_budget, _reserve_model_input_budget
 from k_slide.certification import candidate_completeness
 from k_slide.errors import ErrorCode, KSlideError
@@ -71,6 +72,13 @@ def _runtime() -> RuntimeIdentity:
 
 
 class ResourceBudgetContractTests(unittest.TestCase):
+    def test_load_harness_accepts_only_the_known_library_warning_before_cli_json(self) -> None:
+        payload = json.dumps({"status": "EXTRACTED", "run_id": "synthetic-run"})
+        self.assertEqual(_parse_product_cli_json(payload), json.loads(payload))
+        self.assertEqual(_parse_product_cli_json(f"{_KNOWN_STDOUT_LIBRARY_WARNING}\n{payload}"), json.loads(payload))
+        self.assertIsNone(_parse_product_cli_json(f"unexpected diagnostic\n{payload}"))
+        self.assertIsNone(_parse_product_cli_json(f"{_KNOWN_STDOUT_LIBRARY_WARNING}\nnot-json"))
+
     def test_resource_budget_and_telemetry_error_schemas_match_runtime_contract(self) -> None:
         import jsonschema
 

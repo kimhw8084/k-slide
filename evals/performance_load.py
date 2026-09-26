@@ -37,6 +37,7 @@ BASE_SHA = "71d3b0a56eee84716a37712440dd1763fd078c66"
 REQUEST_ID = "chg16-performance-load-budget-01"
 MAX_REPETITIONS = 5
 MAX_WARMUPS = 1
+_KNOWN_STDOUT_LIBRARY_WARNING = "warning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead."
 CORE_TOPOLOGIES = (
     ("local_cli_reference", "explicit_paths"),
     ("opencode_shared_core_reference", "attachment_reference"),
@@ -169,6 +170,27 @@ def _percentile(samples: list[float], percentile: float) -> float | None:
     return ordered[max(0, math.ceil(percentile * len(ordered)) - 1)]
 
 
+def _parse_product_cli_json(stdout: str) -> dict[str, Any] | None:
+    """Parse one product CLI response, allowing only the known PyMuPDF warning."""
+
+    try:
+        value = json.loads(stdout)
+    except json.JSONDecodeError:
+        start = stdout.find("{")
+        if start < 0:
+            return None
+        prefix = stdout[:start].strip()
+        if not prefix or any(line != _KNOWN_STDOUT_LIBRARY_WARNING for line in prefix.splitlines()):
+            return None
+        try:
+            value, end = json.JSONDecoder().raw_decode(stdout, start)
+        except json.JSONDecodeError:
+            return None
+        if stdout[end:].strip():
+            return None
+    return value if isinstance(value, dict) else None
+
+
 def _reference_environment(source_revision: str) -> RunEnvironmentIdentity:
     return RunEnvironmentIdentity.legacy_reference(
         runtime_ref="ksa36-local-reference-runtime",
@@ -232,9 +254,8 @@ with patch.object(cli, "prepare_run", side_effect=prepare_with_reference):
         check=False,
     )
     elapsed_ms = (time.perf_counter_ns() - started) / 1_000_000
-    try:
-        output = json.loads(completed.stdout)
-    except (json.JSONDecodeError, TypeError):
+    output = _parse_product_cli_json(completed.stdout)
+    if output is None:
         return {
             "status": "NOT_MEASURED",
             "process_exit_code": completed.returncode,
