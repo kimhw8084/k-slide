@@ -1,373 +1,632 @@
 {
-  "artifact_path": ".codex-fabric/audit.json",
-  "base_commit_sha": "71d3b0a56eee84716a37712440dd1763fd078c66",
-  "base_tree_oid": "06dac27cfb580028c143929b5f947b612e698fd9",
-  "candidate_evidence_sidecar": {
-    "path": ".codex-fabric/ksa36/candidate-evidence.json",
-    "sha256": "6df4f35b051845a4d4b5b0bfe1debc770b10a1052cdb61a58f58de33e6e9b4c2"
-  },
-  "candidate_identity_binding_note": "The FIX01 work-head SHA/tree and immutable measurement report hashes are bound in final_candidate_binding. The current Fabric job ID remains unset for the Fabric native publisher separate post-execution evidence commit.",
-  "checks": [
+  "accepted_at": "2026-09-26T18:31:19Z",
+  "changed_files": [
     {
-      "name": "focused_ksa36_resource_budget",
-      "python": "3.11.7",
-      "status": "PASS",
-      "tests": 17
+      "additions": 283,
+      "deletions": 252,
+      "path": ".codex-fabric/audit.json",
+      "status": "M"
     },
     {
-      "name": "focused_ksa36_resource_budget",
-      "python": "3.12.9",
-      "status": "PASS",
-      "tests": 17
+      "additions": 367,
+      "deletions": 0,
+      "path": ".codex-fabric/ksa36/candidate-evidence.json",
+      "status": "A"
     },
     {
-      "elapsed_seconds": 109.868,
-      "name": "full_repository_unittest_discovery",
-      "python": "3.11.7",
-      "status": "PASS",
-      "tests": 717
+      "additions": 1803,
+      "deletions": 0,
+      "path": ".codex-fabric/ksa36/py311-measure.json",
+      "status": "A"
     },
     {
-      "elapsed_seconds": 212.551,
-      "name": "full_repository_unittest_discovery",
-      "python": "3.12.9",
-      "status": "PASS",
-      "tests": 717
+      "additions": 1803,
+      "deletions": 0,
+      "path": ".codex-fabric/ksa36/py312-measure.json",
+      "status": "A"
     },
     {
-      "name": "related_ingestion_runtime_storage_security_privacy_authorization_retention_telemetry_host_regressions",
-      "python": "3.11.7",
-      "runner": "pytest",
-      "selected_patterns": [
-        "test_ksa35_product_telemetry.py",
-        "test_chg16_*.py",
-        "test_chg17_*.py",
-        "test_chg18_*.py"
-      ],
-      "status": "PASS",
-      "tests": 211
+      "additions": 1,
+      "deletions": 0,
+      "path": ".opencode/agents/k-slide.md",
+      "status": "M"
     },
     {
-      "name": "related_ingestion_runtime_storage_security_privacy_authorization_retention_telemetry_host_regressions",
-      "python": "3.12.9",
-      "runner": "pytest",
-      "selected_patterns": [
-        "test_ksa35_product_telemetry.py",
-        "test_chg16_*.py",
-        "test_chg17_*.py",
-        "test_chg18_*.py"
-      ],
-      "status": "PASS",
-      "tests": 211
+      "additions": 117,
+      "deletions": 7,
+      "path": ".opencode/plugin/k-slide-host.ts",
+      "status": "M"
     },
     {
-      "name": "opencode_host_attachment_regression_overlapping_isolated",
-      "parallel": true,
-      "python_3_11": "PASS",
-      "python_3_12": "PASS",
-      "runner": "Bun 1.4.2",
-      "status": "PASS"
+      "additions": 1,
+      "deletions": 0,
+      "path": ".opencode/tools/kslide.ts",
+      "status": "M"
     },
     {
-      "name": "opencode_host_attachment_regression_sequential_isolated",
-      "python_3_11": "PASS",
-      "python_3_12": "PASS",
-      "runner": "Bun 1.4.2",
-      "status": "PASS"
+      "additions": 7,
+      "deletions": 3,
+      "path": "deploy/README.md",
+      "status": "M"
     },
     {
-      "name": "json_schema_validation_and_runtime_error_code_parity",
-      "python": "3.11.7",
-      "runtime_error_code_values": 92,
-      "schema_error_code_values": 92,
-      "schemas": 9,
-      "status": "PASS"
+      "additions": 88,
+      "deletions": 0,
+      "path": "docs/ksa36-performance-load-budget.md",
+      "status": "A"
     },
     {
-      "name": "json_schema_validation_and_runtime_error_code_parity",
-      "python": "3.12.9",
-      "runtime_error_code_values": 92,
-      "schema_error_code_values": 92,
-      "schemas": 9,
-      "status": "PASS"
+      "additions": 548,
+      "deletions": 0,
+      "path": "evals/performance_load.py",
+      "status": "A"
     },
     {
-      "embedded_shell_steps": 49,
-      "embedded_shell_steps_validated_with_bash_n": 49,
-      "name": "workflow_yaml_and_embedded_shell_validation",
-      "runtime": "Python 3.11.7 with PyYAML 6.0.1",
-      "status": "PASS",
-      "workflows": 6
+      "additions": 3,
+      "deletions": 2,
+      "path": "schemas/operational-telemetry-event.schema.json",
+      "status": "M"
     },
     {
-      "name": "python_compileall_src_evals_tests",
-      "python": "3.11.7",
-      "python_source_files": 164,
-      "status": "PASS"
+      "additions": 46,
+      "deletions": 0,
+      "path": "schemas/resource-budget.schema.json",
+      "status": "A"
     },
     {
-      "name": "python_compileall_src_evals_tests",
-      "python": "3.12.9",
-      "python_source_files": 164,
-      "status": "PASS"
+      "additions": 14,
+      "deletions": 22,
+      "path": "src/k_slide/certification.py",
+      "status": "M"
     },
     {
-      "command": "rtk git diff --check",
-      "name": "git_diff_check",
-      "status": "PASS"
+      "additions": 104,
+      "deletions": 3,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 16,
+      "deletions": 3,
+      "path": "src/k_slide/host_adapter.py",
+      "status": "M"
+    },
+    {
+      "additions": 189,
+      "deletions": 8,
+      "path": "src/k_slide/ingest.py",
+      "status": "M"
+    },
+    {
+      "additions": 148,
+      "deletions": 36,
+      "path": "src/k_slide/normalization.py",
+      "status": "M"
+    },
+    {
+      "additions": 40,
+      "deletions": 1,
+      "path": "src/k_slide/paas.py",
+      "status": "M"
+    },
+    {
+      "additions": 21,
+      "deletions": 0,
+      "path": "src/k_slide/production.py",
+      "status": "M"
+    },
+    {
+      "additions": 244,
+      "deletions": 0,
+      "path": "src/k_slide/resource_budget.py",
+      "status": "A"
+    },
+    {
+      "additions": 7,
+      "deletions": 2,
+      "path": "src/k_slide/security.py",
+      "status": "M"
+    },
+    {
+      "additions": 14,
+      "deletions": 1,
+      "path": "tests/test_certification_closure.py",
+      "status": "M"
+    },
+    {
+      "additions": 73,
+      "deletions": 7,
+      "path": "tests/test_chg16_opencode_plugin.ts",
+      "status": "M"
+    },
+    {
+      "additions": 446,
+      "deletions": 0,
+      "path": "tests/test_chg16_resource_budget.py",
+      "status": "A"
+    },
+    {
+      "additions": 26,
+      "deletions": 17,
+      "path": "tests/test_ksa21_adversarial_security.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "tests/test_ksa24_f24_real_path.py",
+      "status": "M"
     }
   ],
-  "employee_pilot_or_canary": false,
-  "fabric_execution_identity": {
-    "fabric_job_id": null,
-    "owner": "Fabric native publisher",
-    "status": "PENDING_POST_EXECUTION_PUBLICATION"
+  "checks": [
+    {
+      "command": "/bin/zsh -lc 'rtk env TMPDIR=/tmp/k-slide-ksa36-host-py312.nNrYnW KSLIDE_TEST_PYTHON=/tmp/k-slide-ksa36-py312/bin/python PYTHONPATH=src:. npx --yes bun@1.4.2 tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python -m unittest tests.test_chg16_resource_budget -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py312/bin/python -m unittest tests.test_chg16_resource_budget -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python -m pytest -q tests/test_ksa35_product_telemetry.py tests/test_chg16_*.py tests/test_chg17_*.py tests/test_chg18_*.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 211,
+          "warnings": 5
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 1481,
+        "output_sha256": "53e7934b64294b12197cf7c9215d1db2a6ccf7e75d066751e7eb52e4d9aa8bfc",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py312/bin/python -m pytest -q tests/test_ksa35_product_telemetry.py tests/test_chg16_*.py tests/test_chg17_*.py tests/test_chg18_*.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 211,
+          "warnings": 5
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 1481,
+        "output_sha256": "f21dca9f8d7dedd51cb6f64c8b9fe39b8e8ec637880c571f86b58f45f7407247",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python -m unittest discover -s tests -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy tail -30 /tmp/k-slide-ksa36-fix01-full-py312.log'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy ps -axo pid,etime,stat,command | rtk proxy rg 'unittest discover|k-slide-ksa36-py312/bin/python|performance_load'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py312/bin/python -m unittest discover -s tests -q > /tmp/k-slide-ksa36-fix01-full-py312.log 2>&1; test_status=$?; rtk proxy rg '\"'Ran [0-9]+ tests|\"'^OK$|''^FAILED'\"' /tmp/k-slide-ksa36-fix01-full-py312.log; exit \\\"\"'$test_status\"'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy rg -n '\\\"enum\\\"|ErrorCode|error_code' schemas/operational-telemetry-event.schema.json schemas/error-code.schema.json src/k_slide/errors.py\"",
+      "exit_code": 2,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy rg --files .github/workflows'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python -c 'import json,pathlib; from k_slide.errors import ErrorCode; s=json.loads(pathlib.Path(\\\"schemas/operational-telemetry-event.schema.json\\\").read_text()); print(\\\"schemas\\\",len(list(pathlib.Path(\\\"schemas\\\").glob(\\\"*.schema.json\\\")))); print(\\\"runtime_error_codes\\\",len(ErrorCode)); print(\\\"schema_root\\\",sorted(s)); print(\\\"schema_defs\\\",sorted(s.get(\\\"\"'$defs\",{}))); print(\"error_defs\",[(k,len(v.get(\"enum\",[]))) for k,v in s.get(\"$defs\",{}).items() if \"error\" in k.lower() and isinstance(v,dict)])'\"'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py312/bin/python -c 'import json,pathlib; from k_slide.errors import ErrorCode; s=json.loads(pathlib.Path(\\\"schemas/operational-telemetry-event.schema.json\\\").read_text()); print(\\\"schemas\\\",len(list(pathlib.Path(\\\"schemas\\\").glob(\\\"*.schema.json\\\")))); print(\\\"runtime_error_codes\\\",len(ErrorCode)); print(\\\"schema_defs\\\",sorted(s.get(\\\"\"'$defs\",{}))); print(\"error_defs\",[(k,len(v.get(\"enum\",[]))) for k,v in s.get(\"$defs\",{}).items() if \"error\" in k.lower() and isinstance(v,dict)])'\"'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy mktemp -d /tmp/k-slide-ksa36-host-seq-py311.XXXXXX && rtk proxy mktemp -d /tmp/k-slide-ksa36-host-seq-py312.XXXXXX'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env TMPDIR=/tmp/k-slide-ksa36-host-seq-py311.crLEoj KSLIDE_TEST_PYTHON=/tmp/k-slide-ksa36-py311/bin/python PYTHONPATH=src:. npx --yes bun@1.4.2 tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env TMPDIR=/tmp/k-slide-ksa36-host-seq-py312.sDicOI KSLIDE_TEST_PYTHON=/tmp/k-slide-ksa36-py312/bin/python PYTHONPATH=src:. npx --yes bun@1.4.2 tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git rev-parse HEAD && rtk git branch --show-current'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport collections, hashlib, json, pathlib, subprocess\n\nroot = pathlib.Path.cwd()\nout = root / '.codex-fabric' / 'ksa36'\nout.mkdir(parents=True, exist_ok=True)\nexpected_sha = 'e7582e6dbe827c45e4843097ca8884164e71e314'\nexpected_tree = 'd8e21c0ee03e9fbcb92dd603506a3408003ffc90'\nbase_sha = '71d3b0a56eee84716a37712440dd1763fd078c66'\nbase_tree = '06dac27cfb580028c143929b5f947b612e698fd9'\nbranch = 'codex/k-slide-chg16-performance-load-budget-01-fix01'\nfix_request = 'chg16-performance-load-budget-01-fix01'\nlogical_request = 'chg16-performance-load-budget-01'\n\ndef git(*args):\n    return subprocess.check_output(['rtk', 'git', *args], cwd=root, text=True).strip()\n\ndef sha256(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\n\nassert git('rev-parse', 'HEAD') == expected_sha\nassert git('rev-parse', 'HEAD\"'^{tree}'\"') == expected_tree\nassert git('branch', '--show-current') == branch\nassert git('status', '--porcelain') == ''\nfor py, source in (('3.11', pathlib.Path('/tmp/k-slide-ksa36-fix01-py311-measure.json')), ('3.12', pathlib.Path('/tmp/k-slide-ksa36-fix01-py312-measure.json'))):\n    report = json.loads(source.read_text(encoding='utf-8'))\n    assert report['candidate_sha'] == expected_sha and report['candidate_tree'] == expected_tree\n    assert report['base_sha'] == base_sha and report['branch'] == branch\n    assert report['request_id'] == logical_request and len(report['scenario_results']) == 20\n    assert report['resource_budget_sha256']\n    report['measurement_subject'] = {\n        'role': 'preserved_KSA-36_product_subject',\n        'commit_sha': expected_sha,\n        'tree_oid': expected_tree,\n    }\n    report['fix_binding'] = {\n        'issue_id': 'CHG-16',\n        'work_item': 'KSA-36 F36-01/F36-02/F36-03',\n        'operation': 'FIX',\n        'request': fix_request,\n        'logical_build_request': logical_request,\n        'base_commit_sha': base_sha,\n        'base_tree_oid': base_tree,\n        'work_branch': branch,\n    }\n    soffice = report['measurement_environment'].get('soffice_path_present') or report['measurement_environment'].get('libreoffice_path_present')\n    report['external_stage_qualification'] = {\n        'target_gemma_provider': 'NOT_MEASURED_ENDPOINT_NOT_INVOKED',\n        'actual_opencode_provider_lifecycle': 'NOT_MEASURED_REFERENCE_HARNESS_EXCLUDES_PLUGIN_LIFECYCLE_AND_PROVIDER_CALL',\n        'external_cloud_vscode_adapter': 'NOT_MEASURED_ADAPTER_NOT_PRESENT_IN_REPOSITORY',\n        'company_paas_slide_processing': 'NOT_MEASURED_COMPANY_SERVICE_UNAVAILABLE_REFERENCE_ADMISSION_ONLY',\n        'office_conversion': 'NOT_MEASURED_CONVERTER_UNAVAILABLE' if not soffice else 'NOT_MEASURED_NO_OFFICE_CONVERSION_CLAIMED',\n        'production_slo': 'NOT_SET_BY_THIS_REPORT',\n    }\n    counts = {topology: dict(sorted(collections.Counter(x['measurement_status'] for x in report['scenario_results'] if x['topology'] == topology).items())) for topology in sorted({x['topology'] for x in report['scenario_results']})}\n    target = out / f'py{py.replace(\\\".\\\", \\\"\\\")}-measure.json'\n    target.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + '\\\\n', encoding='utf-8')\n    print(json.dumps({'path': str(target.relative_to(root)), 'sha256': sha256(target), 'bytes': target.stat().st_size, 'python': report['measurement_environment']['python_version'], 'measurement_environment_identity_sha256': report['measurement_environment_identity_sha256'], 'resource_budget_sha256': report['resource_budget_sha256'], 'scenario_records': len(report['scenario_results']), 'topology_status_counts': counts, 'office_converter_present': bool(soffice)}, sort_keys=True))\nPY\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy rmdir .codex-fabric/ksa36 && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport collections, hashlib, json, pathlib, subprocess\n\nroot = pathlib.Path.cwd()\nexpected_sha = 'e7582e6dbe827c45e4843097ca8884164e71e314'\nexpected_tree = 'd8e21c0ee03e9fbcb92dd603506a3408003ffc90'\nbase_sha = '71d3b0a56eee84716a37712440dd1763fd078c66'\nbase_tree = '06dac27cfb580028c143929b5f947b612e698fd9'\nbranch = 'codex/k-slide-chg16-performance-load-budget-01-fix01'\nfix_request = 'chg16-performance-load-budget-01-fix01'\nlogical_request = 'chg16-performance-load-budget-01'\n\ndef git(*args):\n    return subprocess.check_output(['rtk', 'git', *args], cwd=root, text=True).strip()\n\ndef sha256(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\n\nassert git('rev-parse', 'HEAD') == expected_sha\nassert git('rev-parse', 'HEAD\"'^{tree}'\"') == expected_tree\nassert git('branch', '--show-current') == branch\nassert git('status', '--porcelain') == ''\nout = root / '.codex-fabric' / 'ksa36'\nout.mkdir(parents=True, exist_ok=True)\nfor py, source in (('3.11', pathlib.Path('/tmp/k-slide-ksa36-fix01-py311-measure.json')), ('3.12', pathlib.Path('/tmp/k-slide-ksa36-fix01-py312-measure.json'))):\n    report = json.loads(source.read_text(encoding='utf-8'))\n    assert report['candidate_sha'] == expected_sha and report['candidate_tree'] == expected_tree\n    assert report['base_sha'] == base_sha and report['branch'] == branch\n    assert report['request_id'] == logical_request and len(report['scenario_results']) == 20\n    assert report['resource_budget_sha256']\n    report['measurement_subject'] = {'role': 'preserved_KSA-36_product_subject', 'commit_sha': expected_sha, 'tree_oid': expected_tree}\n    report['fix_binding'] = {'issue_id': 'CHG-16', 'work_item': 'KSA-36 F36-01/F36-02/F36-03', 'operation': 'FIX', 'request': fix_request, 'logical_build_request': logical_request, 'base_commit_sha': base_sha, 'base_tree_oid': base_tree, 'work_branch': branch}\n    soffice = report['measurement_environment'].get('soffice_path_present') or report['measurement_environment'].get('libreoffice_path_present')\n    report['external_stage_qualification'] = {'target_gemma_provider': 'NOT_MEASURED_ENDPOINT_NOT_INVOKED', 'actual_opencode_provider_lifecycle': 'NOT_MEASURED_REFERENCE_HARNESS_EXCLUDES_PLUGIN_LIFECYCLE_AND_PROVIDER_CALL', 'external_cloud_vscode_adapter': 'NOT_MEASURED_ADAPTER_NOT_PRESENT_IN_REPOSITORY', 'company_paas_slide_processing': 'NOT_MEASURED_COMPANY_SERVICE_UNAVAILABLE_REFERENCE_ADMISSION_ONLY', 'office_conversion': 'NOT_MEASURED_CONVERTER_UNAVAILABLE' if not soffice else 'NOT_MEASURED_NO_OFFICE_CONVERSION_CLAIMED', 'production_slo': 'NOT_SET_BY_THIS_REPORT'}\n    counts = {topology: dict(sorted(collections.Counter(x['measurement_status'] for x in report['scenario_results'] if x['topology'] == topology).items())) for topology in sorted({x['topology'] for x in report['scenario_results']})}\n    target = out / f'py{py.replace(\\\".\\\", \\\"\\\")}-measure.json'\n    target.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + '\\\\n', encoding='utf-8')\n    print(json.dumps({'path': str(target.relative_to(root)), 'sha256': sha256(target), 'bytes': target.stat().st_size, 'python': report['measurement_environment']['python_version'], 'measurement_environment_identity_sha256': report['measurement_environment_identity_sha256'], 'resource_budget_sha256': report['resource_budget_sha256'], 'scenario_records': len(report['scenario_results']), 'topology_status_counts': counts, 'office_converter_present': bool(soffice)}, sort_keys=True))\nPY\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git status --short --branch && rtk git status --porcelain=v1 && rtk git rev-parse HEAD && rtk git rev-parse HEAD''^{tree} && rtk git branch --show-current'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport collections, hashlib, json, pathlib, subprocess\n\nroot = pathlib.Path.cwd()\nexpected_sha = 'e7582e6dbe827c45e4843097ca8884164e71e314'\nexpected_tree = 'd8e21c0ee03e9fbcb92dd603506a3408003ffc90'\nbase_sha = '71d3b0a56eee84716a37712440dd1763fd078c66'\nbase_tree = '06dac27cfb580028c143929b5f947b612e698fd9'\nbranch = 'codex/k-slide-chg16-performance-load-budget-01-fix01'\nfix_request = 'chg16-performance-load-budget-01-fix01'\nlogical_request = 'chg16-performance-load-budget-01'\n\ndef git(*args):\n    return subprocess.check_output(['rtk', 'git', *args], cwd=root, text=True).strip()\n\ndef sha256(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\n\nassert git('rev-parse', 'HEAD') == expected_sha\nassert git('rev-parse', 'HEAD\"'^{tree}'\"') == expected_tree\nassert git('branch', '--show-current') == branch\nout = root / '.codex-fabric' / 'ksa36'\nout.mkdir(parents=True, exist_ok=True)\nfor py, source in (('3.11', pathlib.Path('/tmp/k-slide-ksa36-fix01-py311-measure.json')), ('3.12', pathlib.Path('/tmp/k-slide-ksa36-fix01-py312-measure.json'))):\n    report = json.loads(source.read_text(encoding='utf-8'))\n    assert report['candidate_sha'] == expected_sha and report['candidate_tree'] == expected_tree\n    assert report['base_sha'] == base_sha and report['branch'] == branch\n    assert report['request_id'] == logical_request and len(report['scenario_results']) == 20\n    assert report['resource_budget_sha256']\n    report['measurement_subject'] = {'role': 'preserved_KSA-36_product_subject', 'commit_sha': expected_sha, 'tree_oid': expected_tree}\n    report['fix_binding'] = {'issue_id': 'CHG-16', 'work_item': 'KSA-36 F36-01/F36-02/F36-03', 'operation': 'FIX', 'request': fix_request, 'logical_build_request': logical_request, 'base_commit_sha': base_sha, 'base_tree_oid': base_tree, 'work_branch': branch}\n    soffice = report['measurement_environment'].get('soffice_path_present') or report['measurement_environment'].get('libreoffice_path_present')\n    report['external_stage_qualification'] = {'target_gemma_provider': 'NOT_MEASURED_ENDPOINT_NOT_INVOKED', 'actual_opencode_provider_lifecycle': 'NOT_MEASURED_REFERENCE_HARNESS_EXCLUDES_PLUGIN_LIFECYCLE_AND_PROVIDER_CALL', 'external_cloud_vscode_adapter': 'NOT_MEASURED_ADAPTER_NOT_PRESENT_IN_REPOSITORY', 'company_paas_slide_processing': 'NOT_MEASURED_COMPANY_SERVICE_UNAVAILABLE_REFERENCE_ADMISSION_ONLY', 'office_conversion': 'NOT_MEASURED_CONVERTER_UNAVAILABLE' if not soffice else 'NOT_MEASURED_NO_OFFICE_CONVERSION_CLAIMED', 'production_slo': 'NOT_SET_BY_THIS_REPORT'}\n    counts = {topology: dict(sorted(collections.Counter(x['measurement_status'] for x in report['scenario_results'] if x['topology'] == topology).items())) for topology in sorted({x['topology'] for x in report['scenario_results']})}\n    target = out / f'py{py.replace(\\\".\\\", \\\"\\\")}-measure.json'\n    target.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + '\\\\n', encoding='utf-8')\n    print(json.dumps({'path': str(target.relative_to(root)), 'sha256': sha256(target), 'bytes': target.stat().st_size, 'python': report['measurement_environment']['python_version'], 'measurement_environment_identity_sha256': report['measurement_environment_identity_sha256'], 'resource_budget_sha256': report['resource_budget_sha256'], 'scenario_records': len(report['scenario_results']), 'topology_status_counts': counts, 'office_converter_present': bool(soffice)}, sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport collections, json, pathlib, subprocess\nimport yaml\nfrom jsonschema import validators\nfrom k_slide.errors import ErrorCode\n\nschemas = sorted(pathlib.Path(\\\"schemas\\\").glob(\\\"*.schema.json\\\"))\nfor path in schemas:\n    schema = json.loads(path.read_text(encoding=\\\"utf-8\\\"))\n    validators.validator_for(schema).check_schema(schema)\ntelemetry = json.loads(pathlib.Path(\\\"schemas/operational-telemetry-event.schema.json\\\").read_text(encoding=\\\"utf-8\\\"))\nschema_codes = set(telemetry[\\\"properties\\\"][\\\"error_code\\\"][\\\"enum\\\"])\nruntime_codes = {item.value for item in ErrorCode}\nassert schema_codes == runtime_codes, (sorted(schema_codes - runtime_codes), sorted(runtime_codes - schema_codes))\n\nworkflow_files = sorted(pathlib.Path(\\\".github/workflows\\\").glob(\\\"*.yml\\\")) + sorted(pathlib.Path(\\\".github/workflows\\\").glob(\\\"*.yaml\\\"))\nshell_counts = collections.Counter()\nshell_steps = 0\nfor path in workflow_files:\n    workflow = yaml.safe_load(path.read_text(encoding=\\\"utf-8\\\"))\n    assert isinstance(workflow, dict), str(path)\n    for job in (workflow.get(\\\"jobs\\\") or {}).values():\n        for step in job.get(\\\"steps\\\", []):\n            script = step.get(\\\"run\\\")\n            if not isinstance(script, str):\n                continue\n            shell_steps += 1\n            shell = (step.get(\\\"shell\\\") or \\\"bash\\\").split()[0]\n            if shell in {\\\"bash\\\", \\\"/bin/bash\\\"}:\n                validator = \\\"bash\\\"\n            elif shell in {\\\"sh\\\", \\\"/bin/sh\\\"}:\n                validator = \\\"sh\\\"\n            else:\n                raise AssertionError(f\\\"unvalidated workflow shell {shell} in {path}\\\")\n            result = subprocess.run([validator, \\\"-n\\\"], input=script, text=True, capture_output=True)\n            if result.returncode:\n                raise AssertionError(f\\\"{path}: {result.stderr[:500]}\\\")\n            shell_counts[validator] += 1\n\nprint(json.dumps({\\\"json_schema_count\\\": len(schemas), \\\"json_schemas_valid\\\": True, \\\"runtime_error_code_count\\\": len(runtime_codes), \\\"schema_error_code_count\\\": len(schema_codes), \\\"error_code_parity\\\": True, \\\"workflow_count\\\": len(workflow_files), \\\"workflow_yaml_valid\\\": True, \\\"embedded_shell_step_count\\\": shell_steps, \\\"embedded_shell_valid_count\\\": sum(shell_counts.values()), \\\"embedded_shell_types\\\": dict(sorted(shell_counts.items()))}, sort_keys=True))\nPY\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py312/bin/python - <<'PY'\nimport collections, json, pathlib, subprocess\nimport yaml\nfrom jsonschema import validators\nfrom k_slide.errors import ErrorCode\n\nschemas = sorted(pathlib.Path(\\\"schemas\\\").glob(\\\"*.schema.json\\\"))\nfor path in schemas:\n    schema = json.loads(path.read_text(encoding=\\\"utf-8\\\"))\n    validators.validator_for(schema).check_schema(schema)\ntelemetry = json.loads(pathlib.Path(\\\"schemas/operational-telemetry-event.schema.json\\\").read_text(encoding=\\\"utf-8\\\"))\nschema_codes = set(telemetry[\\\"properties\\\"][\\\"error_code\\\"][\\\"enum\\\"])\nruntime_codes = {item.value for item in ErrorCode}\nassert schema_codes == runtime_codes, (sorted(schema_codes - runtime_codes), sorted(runtime_codes - schema_codes))\n\nworkflow_files = sorted(pathlib.Path(\\\".github/workflows\\\").glob(\\\"*.yml\\\")) + sorted(pathlib.Path(\\\".github/workflows\\\").glob(\\\"*.yaml\\\"))\nshell_counts = collections.Counter()\nshell_steps = 0\nfor path in workflow_files:\n    workflow = yaml.safe_load(path.read_text(encoding=\\\"utf-8\\\"))\n    assert isinstance(workflow, dict), str(path)\n    for job in (workflow.get(\\\"jobs\\\") or {}).values():\n        for step in job.get(\\\"steps\\\", []):\n            script = step.get(\\\"run\\\")\n            if not isinstance(script, str):\n                continue\n            shell_steps += 1\n            shell = (step.get(\\\"shell\\\") or \\\"bash\\\").split()[0]\n            if shell in {\\\"bash\\\", \\\"/bin/bash\\\"}:\n                validator = \\\"bash\\\"\n            elif shell in {\\\"sh\\\", \\\"/bin/sh\\\"}:\n                validator = \\\"sh\\\"\n            else:\n                raise AssertionError(f\\\"unvalidated workflow shell {shell} in {path}\\\")\n            result = subprocess.run([validator, \\\"-n\\\"], input=script, text=True, capture_output=True)\n            if result.returncode:\n                raise AssertionError(f\\\"{path}: {result.stderr[:500]}\\\")\n            shell_counts[validator] += 1\n\nprint(json.dumps({\\\"json_schema_count\\\": len(schemas), \\\"json_schemas_valid\\\": True, \\\"runtime_error_code_count\\\": len(runtime_codes), \\\"schema_error_code_count\\\": len(schema_codes), \\\"error_code_parity\\\": True, \\\"workflow_count\\\": len(workflow_files), \\\"workflow_yaml_valid\\\": True, \\\"embedded_shell_step_count\\\": shell_steps, \\\"embedded_shell_valid_count\\\": sum(shell_counts.values()), \\\"embedded_shell_types\\\": dict(sorted(shell_counts.items()))}, sort_keys=True))\nPY\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3 -c 'import jsonschema,platform,yaml; print(platform.python_version(), jsonschema.__version__, yaml.__version__)'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport json, pathlib\nfrom jsonschema import validators\nfrom k_slide.errors import ErrorCode\n\nschemas = sorted(pathlib.Path(\\\"schemas\\\").glob(\\\"*.schema.json\\\"))\nfor path in schemas:\n    schema = json.loads(path.read_text(encoding=\\\"utf-8\\\"))\n    validators.validator_for(schema).check_schema(schema)\ntelemetry = json.loads(pathlib.Path(\\\"schemas/operational-telemetry-event.schema.json\\\").read_text(encoding=\\\"utf-8\\\"))\nschema_codes = set(telemetry[\\\"properties\\\"][\\\"error_code\\\"][\\\"enum\\\"])\nruntime_codes = {item.value for item in ErrorCode}\nassert schema_codes == runtime_codes, (sorted(schema_codes - runtime_codes), sorted(runtime_codes - schema_codes))\nprint(json.dumps({\\\"json_schema_count\\\": len(schemas), \\\"json_schemas_valid\\\": True, \\\"runtime_error_code_count\\\": len(runtime_codes), \\\"schema_error_code_count\\\": len(schema_codes), \\\"error_code_parity\\\": True}, sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py312/bin/python - <<'PY'\nimport json, pathlib\nfrom jsonschema import validators\nfrom k_slide.errors import ErrorCode\n\nschemas = sorted(pathlib.Path(\\\"schemas\\\").glob(\\\"*.schema.json\\\"))\nfor path in schemas:\n    schema = json.loads(path.read_text(encoding=\\\"utf-8\\\"))\n    validators.validator_for(schema).check_schema(schema)\ntelemetry = json.loads(pathlib.Path(\\\"schemas/operational-telemetry-event.schema.json\\\").read_text(encoding=\\\"utf-8\\\"))\nschema_codes = set(telemetry[\\\"properties\\\"][\\\"error_code\\\"][\\\"enum\\\"])\nruntime_codes = {item.value for item in ErrorCode}\nassert schema_codes == runtime_codes, (sorted(schema_codes - runtime_codes), sorted(runtime_codes - schema_codes))\nprint(json.dumps({\\\"json_schema_count\\\": len(schemas), \\\"json_schemas_valid\\\": True, \\\"runtime_error_code_count\\\": len(runtime_codes), \\\"schema_error_code_count\\\": len(schema_codes), \\\"error_code_parity\\\": True}, sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3 - <<'PY'\nimport collections, json, pathlib, subprocess, yaml\n\nworkflow_files = sorted(pathlib.Path(\\\".github/workflows\\\").glob(\\\"*.yml\\\")) + sorted(pathlib.Path(\\\".github/workflows\\\").glob(\\\"*.yaml\\\"))\nshell_counts = collections.Counter()\nshell_steps = 0\nfor path in workflow_files:\n    workflow = yaml.safe_load(path.read_text(encoding=\\\"utf-8\\\"))\n    assert isinstance(workflow, dict), str(path)\n    for job in (workflow.get(\\\"jobs\\\") or {}).values():\n        for step in job.get(\\\"steps\\\", []):\n            script = step.get(\\\"run\\\")\n            if not isinstance(script, str):\n                continue\n            shell_steps += 1\n            shell = (step.get(\\\"shell\\\") or \\\"bash\\\").split()[0]\n            if shell in {\\\"bash\\\", \\\"/bin/bash\\\"}:\n                validator = \\\"bash\\\"\n            elif shell in {\\\"sh\\\", \\\"/bin/sh\\\"}:\n                validator = \\\"sh\\\"\n            else:\n                raise AssertionError(f\\\"unvalidated workflow shell {shell} in {path}\\\")\n            result = subprocess.run([validator, \\\"-n\\\"], input=script, text=True, capture_output=True)\n            if result.returncode:\n                raise AssertionError(f\\\"{path}: {result.stderr[:500]}\\\")\n            shell_counts[validator] += 1\n\nprint(json.dumps({\\\"workflow_count\\\": len(workflow_files), \\\"workflow_yaml_valid\\\": True, \\\"embedded_shell_step_count\\\": shell_steps, \\\"embedded_shell_valid_count\\\": sum(shell_counts.values()), \\\"embedded_shell_types\\\": dict(sorted(shell_counts.items()))}, sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport compileall, json, pathlib\nroots = [pathlib.Path(\\\"src\\\"), pathlib.Path(\\\"evals\\\"), pathlib.Path(\\\"tests\\\")]\ncount = sum(1 for root in roots for path in root.rglob(\\\"*.py\\\") if path.is_file())\nresults = {str(root): compileall.compile_dir(str(root), quiet=1, force=True) for root in roots}\nassert all(results.values()), results\nprint(json.dumps({\\\"python_source_file_count\\\": count, \\\"compileall_status\\\": \\\"PASS\\\", \\\"compileall_roots\\\": list(results)}, sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py312/bin/python - <<'PY'\nimport compileall, json, pathlib\nroots = [pathlib.Path(\\\"src\\\"), pathlib.Path(\\\"evals\\\"), pathlib.Path(\\\"tests\\\")]\ncount = sum(1 for root in roots for path in root.rglob(\\\"*.py\\\") if path.is_file())\nresults = {str(root): compileall.compile_dir(str(root), quiet=1, force=True) for root in roots}\nassert all(results.values()), results\nprint(json.dumps({\\\"python_source_file_count\\\": count, \\\"compileall_status\\\": \\\"PASS\\\", \\\"compileall_roots\\\": list(results)}, sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport collections, json, pathlib\nfor name in ('py311-measure.json', 'py312-measure.json'):\n    d = json.loads((pathlib.Path('.codex-fabric/ksa36') / name).read_text())\n    local = [x for x in d['scenario_results'] if x['topology'] == 'local_cli_reference']\n    paas = [x for x in d['scenario_results'] if x['topology'] == 'reference_paas_scoped_admission']\n    print(json.dumps({'report': name, 'python': d['measurement_environment']['python_version'], 'subject': [d['candidate_sha'], d['candidate_tree']], 'resource_budget_sha256': d['resource_budget_sha256'], 'local': [{'scenario': x['scenario']['scenario_id'], 'status': x['measurement_status'], 'p50_ms': x['observed_latency_ms']['p50'], 'p95_ms': x['observed_latency_ms']['p95']} for x in local], 'paas_capacity': [{'scenario': x['scenario']['scenario_id'], 'status': x['measurement_status'], 'per_submission_p50_ms': x['observed_latency_ms']['per_submission_p50'], 'per_submission_p95_ms': x['observed_latency_ms']['per_submission_p95'], 'configured_active': x['capacity_outcome']['configured_active_runs_per_scope'], 'configured_queue': x['capacity_outcome']['configured_queue_depth_per_scope'], 'observed_batches': [{'accepted': s['accepted'], 'active_runs': s['active_runs'], 'queued_runs': s['queued_runs']} for s in x['samples']]} for x in paas]}, sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport collections, hashlib, json, pathlib, subprocess\n\nroot = pathlib.Path.cwd()\nbase = '71d3b0a56eee84716a37712440dd1763fd078c66'\nbase_tree = '06dac27cfb580028c143929b5f947b612e698fd9'\nbranch = 'codex/k-slide-chg16-performance-load-budget-01-fix01'\nlogical_request = 'chg16-performance-load-budget-01'\nfix_request = 'chg16-performance-load-budget-01-fix01'\npredecessor = 'e7582e6dbe827c45e4843097ca8884164e71e314'\npredecessor_tree = 'd8e21c0ee03e9fbcb92dd603506a3408003ffc90'\npredecessor_job = 'CF-f22fdb5fd16b97bc4cd098f7'\npredecessor_evidence = 'eafb6643813206034f410cb399b32ff29e899643'\n\ndef git(*args):\n    return subprocess.check_output(['rtk', 'git', *args], cwd=root, text=True).strip()\n\ndef file_sha(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\n\ndef canonical_sha(value):\n    encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')\n    return hashlib.sha256(encoded).hexdigest()\n\nassert git('rev-parse', 'HEAD') == predecessor\nassert git('rev-parse', 'HEAD\"'^{tree}'\"') == predecessor_tree\nassert git('branch', '--show-current') == branch\nnative_audit = json.loads(subprocess.check_output(['rtk', 'git', 'show', f'{predecessor_evidence}:.codex-fabric/audit.json'], cwd=root, text=True))\nassert native_audit['job_id'] == predecessor_job\nassert native_audit['request'] == logical_request and native_audit['operation'] == 'BUILD'\nassert predecessor in git('show', '-s', '--format=%P', predecessor_evidence).split()\n\nevidence_root = root / '.codex-fabric' / 'ksa36'\nreport_paths = [evidence_root / 'py311-measure.json', evidence_root / 'py312-measure.json']\nreport_records = []\nfor path in report_paths:\n    report = json.loads(path.read_text(encoding='utf-8'))\n    assert report['candidate_sha'] == predecessor and report['candidate_tree'] == predecessor_tree\n    assert report['base_sha'] == base and report['branch'] == branch\n    assert report['request_id'] == logical_request\n    assert report['measurement_subject']['commit_sha'] == predecessor\n    assert len(report['scenario_results']) == 20\n    assert report['resource_budget_sha256'] == 'dd9f876a244bfb08ebdd6581c376951da0dfff2901c5fe2abd8e871e83d9bfdf'\n    status_counts = {topology: dict(sorted(collections.Counter(row['measurement_status'] for row in report['scenario_results'] if row['topology'] == topology).items())) for topology in sorted({row['topology'] for row in report['scenario_results']})}\n    assert all(sum(counts.values()) == 5 for counts in status_counts.values())\n    assert all(row['measurement_status'] == 'NOT_MEASURED' for row in report['scenario_results'] if row['scenario']['input_shape']['format'] == 'pptx' and row['topology'] \"'!= '\"'reference_paas_scoped_admission')\n    report_records.append({'path': str(path.relative_to(root)), 'sha256': file_sha(path), 'bytes': path.stat().st_size, 'python_version': report['measurement_environment']['python_version'], 'measurement_environment_identity_sha256': report['measurement_environment_identity_sha256'], 'resource_budget_sha256': report['resource_budget_sha256'], 'scenario_record_count': len(report['scenario_results']), 'topology_status_counts': status_counts, 'overall_qualification': report['overall_qualification']})\n\nchecks = [\n    {'name': 'focused_ksa36_resource_budget', 'python': '3.11.7', 'status': 'PASS', 'tests': 17},\n    {'name': 'focused_ksa36_resource_budget', 'python': '3.12.9', 'status': 'PASS', 'tests': 17},\n    {'name': 'full_repository_unittest_discovery', 'python': '3.11.7', 'status': 'PASS', 'tests': 717, 'elapsed_seconds': 109.868},\n    {'name': 'full_repository_unittest_discovery', 'python': '3.12.9', 'status': 'PASS', 'tests': 717, 'elapsed_seconds': 212.551},\n    {'name': 'related_ingestion_runtime_storage_security_privacy_authorization_retention_telemetry_host_regressions', 'python': '3.11.7', 'runner': 'pytest', 'status': 'PASS', 'tests': 211, 'selected_patterns': ['test_ksa35_product_telemetry.py', 'test_chg16_*.py', 'test_chg17_*.py', 'test_chg18_*.py']},\n    {'name': 'related_ingestion_runtime_storage_security_privacy_authorization_retention_telemetry_host_regressions', 'python': '3.12.9', 'runner': 'pytest', 'status': 'PASS', 'tests': 211, 'selected_patterns': ['test_ksa35_product_telemetry.py', 'test_chg16_*.py', 'test_chg17_*.py', 'test_chg18_*.py']},\n    {'name': 'opencode_host_attachment_regression_overlapping_isolated', 'runner': 'Bun 1.4.2', 'status': 'PASS', 'parallel': True, 'python_3_11': 'PASS', 'python_3_12': 'PASS'},\n    {'name': 'opencode_host_attachment_regression_sequential_isolated', 'runner': 'Bun 1.4.2', 'status': 'PASS', 'python_3_11': 'PASS', 'python_3_12': 'PASS'},\n    {'name': 'json_schema_validation_and_runtime_error_code_parity', 'python': '3.11.7', 'status': 'PASS', 'schemas': 9, 'runtime_error_code_values': 92, 'schema_error_code_values': 92},\n    {'name': 'json_schema_validation_and_runtime_error_code_parity', 'python': '3.12.9', 'status': 'PASS', 'schemas': 9, 'runtime_error_code_values': 92, 'schema_error_code_values': 92},\n    {'name': 'workflow_yaml_and_embedded_shell_validation', 'runtime': 'Python 3.11.7 with PyYAML 6.0.1', 'status': 'PASS', 'workflows': 6, 'embedded_shell_steps': 49, 'embedded_shell_steps_validated_with_bash_n': 49},\n    {'name': 'python_compileall_src_evals_tests', 'python': '3.11.7', 'status': 'PASS', 'python_source_files': 164},\n    {'name': 'python_compileall_src_evals_tests', 'python': '3.12.9', 'status': 'PASS', 'python_source_files': 164},\n    {'name': 'git_diff_check', 'status': 'PENDING_FINAL_ARTIFACT_WRITE'},\n]\n\ncandidate_evidence = {\n    'schema_version': '1.0',\n    'evidence_type': 'k-slide-fix-candidate-evidence',\n    'project': 'k-slide',\n    'issue_id': 'CHG-16',\n    'work_item': 'KSA-36 F36-01/F36-02/F36-03',\n    'operation': 'FIX',\n    'request': fix_request,\n    'logical_build_request': logical_request,\n    'exact_base': {'commit_sha': base, 'tree_oid': base_tree},\n    'work_branch': branch,\n    'preserved_product_subject': {'commit_sha': predecessor, 'tree_oid': predecessor_tree, 'branch_parent': base},\n    'predecessor_build_execution_identity': {'operation': 'BUILD', 'request': logical_request, 'historical_fabric_job_id': predecessor_job, 'native_evidence_commit_sha': predecessor_evidence, 'verified_from_native_evidence_audit': True},\n    'measurement_artifacts': report_records,\n    'measurement_policy': {'warmups': 1, 'repetitions': 2, 'bounded_harness_max_repetitions': 5, 'scenario_records_per_runtime': 20, 'fixture_inputs': 'synthetic_only_and_deleted_after_run', 'source_content_written': False, 'production_slo': 'NOT_SET'},\n    'reference_capacity_observation': {'service': 'ReferencePaaSJobService scoped admission only', 'configured_active_runs_per_scope': 1, 'configured_queue_depth_per_scope': 16, 'per_scenario_batch_requests': 4, 'per_scenario_repetitions': 2, 'observed_each_batch': {'accepted': 4, 'active_runs': 1, 'queued_runs': 3}, 'qualification': 'UNQUALIFIED_REFERENCE_ADMISSION_ONLY_NOT_COMPANY_PAAS_OR_SLIDE_PROCESSING'},\n    'host_overlap_investigation': {\n        'predecessor_observation': {'python_3_11_initial_overlapping_run': {'status': 'FAIL_OBSERVED', 'error_code': 'KSLIDE_INPUT_NOT_FOUND', 'exit_code': 1}, 'python_3_12_initial_overlapping_run': {'status': 'PASS', 'exit_code': 0}, 'python_3_11_sequential_rerun': {'status': 'PASS', 'exit_code': 0}, 'source_execution': {'historical_fabric_job_id': predecessor_job, 'native_evidence_commit_sha': predecessor_evidence}},\n        'isolated_overlapping_reproduction': {'runner': 'Bun 1.4.2', 'test_file': 'tests/test_chg16_opencode_plugin.ts', 'started_concurrently': True, 'python_3_11': {'status': 'PASS', 'python_version': '3.11.7', 'exit_code': 0, 'tmpdir': '/tmp/k-slide-ksa36-host-py311.lfLlub'}, 'python_3_12': {'status': 'PASS', 'python_version': '3.12.9', 'exit_code': 0, 'tmpdir': '/tmp/k-slide-ksa36-host-py312.nNrYnW'}, 'workspace_input_isolation': 'The test creates per-case mkdtemp workspace/input roots under these distinct TMPDIR roots; the Python environments are distinct and pinned.'},\n        'isolated_sequential_rerun': {'runner': 'Bun 1.4.2', 'python_3_11': {'status': 'PASS', 'python_version': '3.11.7', 'exit_code': 0, 'tmpdir': '/tmp/k-slide-ksa36-host-seq-py311.crLEoj'}, 'python_3_12': {'status': 'PASS', 'python_version': '3.12.9', 'exit_code': 0, 'tmpdir': '/tmp/k-slide-ksa36-host-seq-py312.sDicOI'}},\n        'classification': 'PRIOR_ANOMALY_NOT_REPRODUCED_IN_ISOLATED_OVERLAP; ROOT_CAUSE_NOT_ESTABLISHED; NO_PRODUCT_CONCURRENCY_DEFECT_DEMONSTRATED',\n        'product_or_test_fix_made': False,\n    },\n    'observed_checks': checks,\n    'source_tree_preservation': {'product_subject_commit_sha': predecessor, 'product_subject_tree_oid': predecessor_tree, 'product_or_test_changes_after_product_subject': False, 'evidence_paths_after_product_subject': ['.codex-fabric/audit.json', '.codex-fabric/ksa36/candidate-evidence.json', '.codex-fabric/ksa36/py311-measure.json', '.codex-fabric/ksa36/py312-measure.json']},\n    'external_stage_qualification': {'target_gemma_provider': 'NOT_MEASURED_ENDPOINT_NOT_INVOKED', 'actual_opencode_provider_lifecycle': 'NOT_MEASURED_REFERENCE_HARNESS_EXCLUDES_PLUGIN_LIFECYCLE_AND_PROVIDER_CALL', 'external_cloud_vscode_adapter': 'NOT_MEASURED_ADAPTER_NOT_PRESENT_IN_REPOSITORY', 'company_paas_slide_processing': 'NOT_MEASURED_COMPANY_SERVICE_UNAVAILABLE_REFERENCE_ADMISSION_ONLY', 'office_conversion': 'NOT_MEASURED_CONVERTER_UNAVAILABLE', 'production_performance_qualification': False, 'production_slo': 'NOT_SET'},\n    'resource_budget_semantics_preserved': ['versioned_centralized_budget_contract', 'non_production_reference_defaults', 'explicit_production_budget_requirement', 'file_page_slide_pixel_normalized_byte_media_token_and_concurrency_enforcement', 'no_silent_truncation_skipped_verification_provider_fallback_or_false_DONE', 'existing_scoped_PaaS_admission_and_queue_owner', 'typed_capacity_and_prerequisite_results_when_queue_owner_or_external_production_prerequisite_is_unavailable'],\n    'repair_candidate_identity': {'status': 'PENDING_NATIVE_PUBLISHER_BINDING', 'commit_sha': None, 'tree_oid': None, 'owner': 'Fabric native publisher post-execution evidence', 'candidate_parent_sha': predecessor, 'candidate_parent_tree_oid': predecessor_tree},\n    'fabric_execution_identity': {'fabric_job_id': None, 'owner': 'Fabric native publisher post-execution evidence', 'status': 'PENDING_POST_EXECUTION_PUBLICATION'},\n    'qualification_status': 'CANDIDATE_CHECKS_PASS_PENDING_NATIVE_PUBLICATION_AND_INDEPENDENT_PROJECT_OS_REVIEW',\n    'release_or_production_claim': False,\n    'employee_pilot_or_canary': False,\n    'main_branch_changed': False,\n    'live_company_paas_or_provider_settings_changed': False,\n    'notion_mutated': False,\n}\nsidecar_path = evidence_root / 'candidate-evidence.json'\nsidecar_path.write_text(json.dumps(candidate_evidence, ensure_ascii=False, sort_keys=True, indent=2) + '\\\\n', encoding='utf-8')\nsidecar_sha = file_sha(sidecar_path)\n\nfix_binding = {'issue_id': 'CHG-16', 'work_item': 'KSA-36 F36-01/F36-02/F36-03', 'operation': 'FIX', 'request': fix_request, 'logical_build_request': logical_request, 'base_commit_sha': base, 'base_tree_oid': base_tree, 'predecessor_product_subject_sha': predecessor, 'predecessor_product_subject_tree_oid': predecessor_tree, 'work_branch': branch}\nchanged_paths_from_base = json.loads(report_paths[0].read_text(encoding='utf-8'))['changed_paths']\naudit = {\n    'schema_version': 1,\n    'kind': 'codex-fabric-audit-evidence',\n    'project_id': 'k-slide',\n    'issue_id': 'CHG-16',\n    'work_item': 'KSA-36 F36-01/F36-02/F36-03',\n    'operation': 'FIX',\n    'request': fix_request,\n    'logical_build_request': logical_request,\n    'fix_binding_identity': fix_binding,\n    'fix_binding_identity_scheme': 'SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.',\n    'fix_binding_identity_sha256': canonical_sha(fix_binding),\n    'base_commit_sha': base,\n    'base_tree_oid': base_tree,\n    'work_branch': branch,\n    'predecessor_product_subject': {'commit_sha': predecessor, 'tree_oid': predecessor_tree},\n    'predecessor_build_execution_identity': {'operation': 'BUILD', 'request': logical_request, 'historical_fabric_job_id': predecessor_job, 'native_evidence_commit_sha': predecessor_evidence},\n    'product_source_commit_sha': predecessor,\n    'product_source_tree_oid': predecessor_tree,\n    'product_changed_paths_from_base': changed_paths_from_base,\n    'repair_evidence_paths': ['.codex-fabric/audit.json', '.codex-fabric/ksa36/candidate-evidence.json', '.codex-fabric/ksa36/py311-measure.json', '.codex-fabric/ksa36/py312-measure.json'],\n    'measurement_artifacts': report_records,\n    'candidate_evidence_sidecar': {'path': '.codex-fabric/ksa36/candidate-evidence.json', 'sha256': sidecar_sha},\n    'checks': checks,\n    'scope': {'implemented': ['KSA-36 independent-audit provenance repair and durable bounded measurement evidence', 'KSA-36 host-overlap reproduction and classification'], 'product_or_test_changes_after_predecessor': False, 'preserved': candidate_evidence['resource_budget_semantics_preserved'], 'excluded': ['Notion mutation', 'merge or movement of main', 'live PaaS or provider settings changes', 'pilot or canary', 'KSA-37 or later', 'GO, release, BUILD COMPLETE, RUNTIME_READY, production performance qualification, or production certification']},\n    'host_overlap_classification': candidate_evidence['host_overlap_investigation']['classification'],\n    'measurement_qualification': 'REFERENCE_MEASUREMENTS_ONLY; no production performance qualification or SLO inferred.',\n    'operational_service_enabled': False,\n    'employee_pilot_or_canary': False,\n    'release_or_production_claim': False,\n    'qualification_status': candidate_evidence['qualification_status'],\n    'worktree_clean_before_audit_write': True,\n    'work_candidate': {'project_id': 'k-slide', 'operation': 'FIX', 'request': fix_request, 'base_commit_sha': base, 'base_tree_oid': base_tree, 'predecessor_candidate_sha': predecessor, 'predecessor_candidate_tree_oid': predecessor_tree, 'work_branch': branch, 'resulting_candidate_sha': None, 'resulting_candidate_tree_oid': None, 'resulting_candidate_binding_owner': 'Fabric native publisher post-execution evidence', 'candidate_check_status': 'PASS', 'promotable_candidate': False, 'promotion_status': 'PENDING_NATIVE_PUBLICATION_AND_INDEPENDENT_PROJECT_OS_REVIEW'},\n    'fabric_execution_identity': {'fabric_job_id': None, 'owner': 'Fabric native publisher', 'status': 'PENDING_POST_EXECUTION_PUBLICATION'},\n    'notion_mutated': False,\n}\n(root / '.codex-fabric' / 'audit.json').write_text(json.dumps(audit, ensure_ascii=False, sort_keys=True, indent=2) + '\\\\n', encoding='utf-8')\nprint(json.dumps({'audit_path': '.codex-fabric/audit.json', 'sidecar_path': str(sidecar_path.relative_to(root)), 'sidecar_sha256': sidecar_sha, 'report_sha256': [item['sha256'] for item in report_records], 'binding_sha256': audit['fix_binding_identity_sha256'], 'work_candidate_identity_pending_publisher': True, 'current_fabric_job_id_populated': False}, sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 526,
+        "output_sha256": "e6e7e3e3ba9d7f301456b2ba4fb3a007757f7592722ca8d4a9c742e74de23eef",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport hashlib, json, pathlib\nroot = pathlib.Path.cwd()\nsidecar_path = root / '.codex-fabric/ksa36/candidate-evidence.json'\naudit_path = root / '.codex-fabric/audit.json'\nsidecar = json.loads(sidecar_path.read_text(encoding='utf-8'))\nsidecar['observed_checks'][-1] = {'name': 'git_diff_check', 'status': 'PASS', 'command': 'rtk git diff --check'}\nsidecar_path.write_text(json.dumps(sidecar, ensure_ascii=False, sort_keys=True, indent=2) + '\\\\n', encoding='utf-8')\naudit = json.loads(audit_path.read_text(encoding='utf-8'))\naudit['checks'] = sidecar['observed_checks']\naudit['candidate_evidence_sidecar']['sha256'] = hashlib.sha256(sidecar_path.read_bytes()).hexdigest()\naudit_path.write_text(json.dumps(audit, ensure_ascii=False, sort_keys=True, indent=2) + '\\\\n', encoding='utf-8')\nprint(json.dumps({'sidecar_sha256': audit['candidate_evidence_sidecar']['sha256'], 'git_diff_check_status': audit['checks'][-1]['status'], 'current_fabric_job_id': audit['fabric_execution_identity']['fabric_job_id']}, sort_keys=True))\nPY\nrtk git diff --check\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport json, pathlib\np = pathlib.Path('.codex-fabric/audit.json')\nd = json.loads(p.read_text(encoding='utf-8'))\nd['artifact_path'] = '.codex-fabric/audit.json'\nd['status'] = 'EXECUTED_CHANGE'\nd['source_tree_preservation'] = {\n    'product_source_commit_sha': d['product_source_commit_sha'],\n    'product_source_tree_oid': d['product_source_tree_oid'],\n    'code_or_test_changes_after_predecessor': False,\n    'fix_candidate_changed_paths': d['repair_evidence_paths'],\n    'product_changed_paths_from_base': d['product_changed_paths_from_base'],\n    'relative_to_predecessor_candidate': True,\n}\nd['candidate_identity_binding_note'] = 'Fabric native publisher must bind the resulting FIX01 work-head SHA/tree and current Fabric-owned job ID in its separate post-execution evidence commit; candidate-side evidence intentionally leaves those publisher-owned values unset.'\np.write_text(json.dumps(d, ensure_ascii=False, sort_keys=True, indent=2) + '\\\\n', encoding='utf-8')\nprint('updated audit metadata')\nPY\nrtk git diff --check\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport hashlib, json, pathlib, subprocess\nroot = pathlib.Path.cwd()\nbase = '71d3b0a56eee84716a37712440dd1763fd078c66'\nbase_tree = '06dac27cfb580028c143929b5f947b612e698fd9'\nbranch = 'codex/k-slide-chg16-performance-load-budget-01-fix01'\nrequest = 'chg16-performance-load-budget-01-fix01'\nlogical = 'chg16-performance-load-budget-01'\nsubject = 'e7582e6dbe827c45e4843097ca8884164e71e314'\nsubject_tree = 'd8e21c0ee03e9fbcb92dd603506a3408003ffc90'\ndef git(*args):\n    return subprocess.check_output(['rtk', 'proxy', 'git', *args], cwd=root, text=True).strip()\ndef sha(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\naudit_path = root / '.codex-fabric/audit.json'\nsidecar_path = root / '.codex-fabric/ksa36/candidate-evidence.json'\naudit = json.loads(audit_path.read_text(encoding='utf-8'))\nsidecar = json.loads(sidecar_path.read_text(encoding='utf-8'))\nassert git('rev-parse', 'HEAD') == subject and git('rev-parse', 'HEAD\"'^{tree}'\"') == subject_tree\nassert git('branch', '--show-current') == branch\nassert audit['request'] == sidecar['request'] == request\nassert audit['logical_build_request'] == sidecar['logical_build_request'] == logical\nassert audit['base_commit_sha'] == sidecar['exact_base']['commit_sha'] == base\nassert audit['base_tree_oid'] == sidecar['exact_base']['tree_oid'] == base_tree\nassert audit['work_branch'] == sidecar['work_branch'] == branch\nassert audit['predecessor_product_subject']['commit_sha'] == sidecar['preserved_product_subject']['commit_sha'] == subject\nassert audit['predecessor_product_subject']['tree_oid'] == sidecar['preserved_product_subject']['tree_oid'] == subject_tree\nassert audit['candidate_evidence_sidecar']['sha256'] == sha(sidecar_path)\nassert audit['fabric_execution_identity']['fabric_job_id'] is None\nassert sidecar['fabric_execution_identity']['fabric_job_id'] is None\nassert sidecar['predecessor_build_execution_identity']['historical_fabric_job_id'] == 'CF-f22fdb5fd16b97bc4cd098f7'\nassert audit['work_candidate']['resulting_candidate_sha'] is None and audit['work_candidate']['resulting_candidate_tree_oid'] is None\nassert all(item['status'] == 'PASS' for item in audit['checks'])\nreport_paths = [root / '.codex-fabric/ksa36/py311-measure.json', root / '.codex-fabric/ksa36/py312-measure.json']\nfor path, metadata in zip(report_paths, audit['measurement_artifacts']):\n    text = path.read_text(encoding='utf-8')\n    report = json.loads(text)\n    assert sha(path) == metadata['sha256']\n    assert report['candidate_sha'] == report['measurement_subject']['commit_sha'] == subject\n    assert report['candidate_tree'] == report['measurement_subject']['tree_oid'] == subject_tree\n    assert report['base_sha'] == base and report['branch'] == branch and report['request_id'] == logical\n    assert report['fix_binding']['request'] == request and report['fix_binding']['base_tree_oid'] == base_tree\n    assert report['resource_budget_sha256'] == metadata['resource_budget_sha256']\n    assert len(report['scenario_results']) == metadata['scenario_record_count'] == 20\n    assert '/tmp/' not in text and 'CF-' not in text\n    assert all(report['external_stage_qualification'][k].startswith('NOT_MEASURED') for k in ('target_gemma_provider', 'actual_opencode_provider_lifecycle', 'external_cloud_vscode_adapter', 'company_paas_slide_processing', 'office_conversion'))\n    assert not any(line.rstrip('\\\\n').endswith((' ', '\\\\t')) for line in text.splitlines(keepends=True))\nstatus = git('status', '--porcelain=v1')\nexpected_names = {'.codex-fabric/audit.json', '.codex-fabric/ksa36/candidate-evidence.json', '.codex-fabric/ksa36/py311-measure.json', '.codex-fabric/ksa36/py312-measure.json'}\nactual_names = {line[3:] for line in status.splitlines()}\nassert actual_names == expected_names, (actual_names, expected_names)\nproduct_paths = git('diff', '--name-only', f'{base}..{subject}').splitlines()\nassert product_paths == sidecar['observed_checks'] and False\nPY\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git status --porcelain=v1 --untracked-files=all && rtk proxy git diff --name-only 71d3b0a56eee84716a37712440dd1763fd078c66..e7582e6dbe827c45e4843097ca8884164e71e314'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport hashlib, json, pathlib, subprocess\nroot = pathlib.Path.cwd()\nbase = '71d3b0a56eee84716a37712440dd1763fd078c66'\nbase_tree = '06dac27cfb580028c143929b5f947b612e698fd9'\nbranch = 'codex/k-slide-chg16-performance-load-budget-01-fix01'\nrequest = 'chg16-performance-load-budget-01-fix01'\nlogical = 'chg16-performance-load-budget-01'\nsubject = 'e7582e6dbe827c45e4843097ca8884164e71e314'\nsubject_tree = 'd8e21c0ee03e9fbcb92dd603506a3408003ffc90'\ndef git(*args):\n    return subprocess.check_output(['rtk', 'proxy', 'git', *args], cwd=root, text=True).strip()\ndef sha(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\naudit_path = root / '.codex-fabric/audit.json'\nsidecar_path = root / '.codex-fabric/ksa36/candidate-evidence.json'\naudit = json.loads(audit_path.read_text(encoding='utf-8'))\nsidecar = json.loads(sidecar_path.read_text(encoding='utf-8'))\nassert git('rev-parse', 'HEAD') == subject and git('rev-parse', 'HEAD\"'^{tree}'\"') == subject_tree\nassert git('branch', '--show-current') == branch\nassert audit['request'] == sidecar['request'] == request\nassert audit['logical_build_request'] == sidecar['logical_build_request'] == logical\nassert audit['base_commit_sha'] == sidecar['exact_base']['commit_sha'] == base\nassert audit['base_tree_oid'] == sidecar['exact_base']['tree_oid'] == base_tree\nassert audit['work_branch'] == sidecar['work_branch'] == branch\nassert audit['predecessor_product_subject']['commit_sha'] == sidecar['preserved_product_subject']['commit_sha'] == subject\nassert audit['predecessor_product_subject']['tree_oid'] == sidecar['preserved_product_subject']['tree_oid'] == subject_tree\nassert audit['candidate_evidence_sidecar']['sha256'] == sha(sidecar_path)\nassert audit['fabric_execution_identity']['fabric_job_id'] is None\nassert sidecar['fabric_execution_identity']['fabric_job_id'] is None\nassert sidecar['predecessor_build_execution_identity']['historical_fabric_job_id'] == 'CF-f22fdb5fd16b97bc4cd098f7'\nassert audit['work_candidate']['resulting_candidate_sha'] is None and audit['work_candidate']['resulting_candidate_tree_oid'] is None\nassert all(item['status'] == 'PASS' for item in audit['checks'])\nreport_paths = [root / '.codex-fabric/ksa36/py311-measure.json', root / '.codex-fabric/ksa36/py312-measure.json']\nproduct_paths = git('diff', '--name-only', f'{base}..{subject}').splitlines()\nfor path, metadata in zip(report_paths, audit['measurement_artifacts']):\n    text = path.read_text(encoding='utf-8')\n    report = json.loads(text)\n    assert sha(path) == metadata['sha256']\n    assert report['candidate_sha'] == report['measurement_subject']['commit_sha'] == subject\n    assert report['candidate_tree'] == report['measurement_subject']['tree_oid'] == subject_tree\n    assert report['base_sha'] == base and report['branch'] == branch and report['request_id'] == logical\n    assert report['fix_binding']['request'] == request and report['fix_binding']['base_tree_oid'] == base_tree\n    assert report['resource_budget_sha256'] == metadata['resource_budget_sha256']\n    assert report['changed_paths'] == product_paths\n    assert len(report['scenario_results']) == metadata['scenario_record_count'] == 20\n    assert '/tmp/' not in text and 'CF-' not in text\n    assert all(report['external_stage_qualification'][k].startswith('NOT_MEASURED') for k in ('target_gemma_provider', 'actual_opencode_provider_lifecycle', 'external_cloud_vscode_adapter', 'company_paas_slide_processing', 'office_conversion'))\n    assert not any(line.rstrip('\\\\n').endswith((' ', '\\\\t')) for line in text.splitlines(keepends=True))\nstatus = git('status', '--porcelain=v1', '--untracked-files=all')\nexpected_names = {'.codex-fabric/audit.json', '.codex-fabric/ksa36/candidate-evidence.json', '.codex-fabric/ksa36/py311-measure.json', '.codex-fabric/ksa36/py312-measure.json'}\nactual_names = {line[3:] for line in status.splitlines()}\nassert actual_names == expected_names, (actual_names, expected_names)\nprint(json.dumps({'status': 'PASS', 'current_head_sha': subject, 'current_head_tree': subject_tree, 'branch': branch, 'repair_artifact_paths': sorted(actual_names), 'product_paths_from_exact_base': len(product_paths), 'report_count': 2, 'report_scenario_records': 40, 'report_hashes_verified': True, 'current_fabric_job_id_populated': False, 'source_free_report_paths': True}, sort_keys=True))\nPY\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport hashlib, json, pathlib, subprocess\nroot = pathlib.Path.cwd()\nbase = '71d3b0a56eee84716a37712440dd1763fd078c66'\nbranch = 'codex/k-slide-chg16-performance-load-budget-01-fix01'\nrequest = 'chg16-performance-load-budget-01-fix01'\nlogical = 'chg16-performance-load-budget-01'\nsubject = 'e7582e6dbe827c45e4843097ca8884164e71e314'\nsubject_tree = 'd8e21c0ee03e9fbcb92dd603506a3408003ffc90'\ndef git(*args):\n    return subprocess.check_output(['rtk', 'proxy', 'git', *args], cwd=root, text=True).strip()\ndef sha(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\naudit_path = root / '.codex-fabric/audit.json'\nsidecar_path = root / '.codex-fabric/ksa36/candidate-evidence.json'\naudit = json.loads(audit_path.read_text(encoding='utf-8'))\nsidecar = json.loads(sidecar_path.read_text(encoding='utf-8'))\nassert git('rev-parse', 'HEAD') == subject and git('rev-parse', 'HEAD\"'^{tree}'\"') == subject_tree\nassert git('branch', '--show-current') == branch\nassert audit['request'] == sidecar['request'] == request\nassert audit['logical_build_request'] == sidecar['logical_build_request'] == logical\nassert audit['base_commit_sha'] == sidecar['exact_base']['commit_sha'] == base\nassert audit['work_branch'] == sidecar['work_branch'] == branch\nassert audit['predecessor_product_subject']['commit_sha'] == sidecar['preserved_product_subject']['commit_sha'] == subject\nassert audit['predecessor_product_subject']['tree_oid'] == sidecar['preserved_product_subject']['tree_oid'] == subject_tree\nassert audit['candidate_evidence_sidecar']['sha256'] == sha(sidecar_path)\nassert audit['fabric_execution_identity']['fabric_job_id'] is None and sidecar['fabric_execution_identity']['fabric_job_id'] is None\nassert sidecar['predecessor_build_execution_identity']['historical_fabric_job_id'] == 'CF-f22fdb5fd16b97bc4cd098f7'\nassert audit['work_candidate']['resulting_candidate_sha'] is None and audit['work_candidate']['resulting_candidate_tree_oid'] is None\nassert all(item['status'] == 'PASS' for item in audit['checks'])\nproduct_paths = git('diff', '--name-only', f'{base}..{subject}').splitlines()\nreport_paths = [root / '.codex-fabric/ksa36/py311-measure.json', root / '.codex-fabric/ksa36/py312-measure.json']\nfor path, metadata in zip(report_paths, audit['measurement_artifacts']):\n    text = path.read_text(encoding='utf-8')\n    report = json.loads(text)\n    assert sha(path) == metadata['sha256']\n    assert report['candidate_sha'] == report['measurement_subject']['commit_sha'] == subject\n    assert report['candidate_tree'] == report['measurement_subject']['tree_oid'] == subject_tree\n    assert report['base_sha'] == base and report['branch'] == branch and report['request_id'] == logical\n    assert report['fix_binding']['request'] == request\n    assert report['changed_paths'] == product_paths\n    assert report['resource_budget_sha256'] == metadata['resource_budget_sha256']\n    assert len(report['scenario_results']) == metadata['scenario_record_count'] == 20\n    assert '/tmp/' not in text and 'CF-' not in text\n    assert all(report['external_stage_qualification'][k].startswith('NOT_MEASURED') for k in ('target_gemma_provider', 'actual_opencode_provider_lifecycle', 'external_cloud_vscode_adapter', 'company_paas_slide_processing', 'office_conversion'))\n    assert not any(line.rstrip('\\\\n').endswith((' ', '\\\\t')) for line in text.splitlines(keepends=True))\nprint(json.dumps({'status': 'PASS', 'current_head_sha': subject, 'current_head_tree': subject_tree, 'branch': branch, 'product_paths_from_exact_base': len(product_paths), 'report_count': 2, 'report_scenario_records': 40, 'report_hashes_verified': True, 'sidecar_hash_verified': True, 'current_fabric_job_id_populated': False, 'reports_source_free': True, 'all_candidate_checks_pass': True}, sort_keys=True))\nPY\nrtk proxy git status --short --untracked-files=all && rtk git diff --check\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show 9e02477:.codex-fabric/audit.json | rtk proxy python3.11 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps({k:d.get(k) for k in (\\\"request\\\",\\\"fix_request\\\",\\\"work_branch\\\",\\\"work_candidate\\\",\\\"fabric_execution_identity\\\",\\\"status\\\",\\\"candidate_evidence_sidecar\\\")},sort_keys=True,indent=2))' && rtk git show eafb6643813206034f410cb399b32ff29e899643:.codex-fabric/audit.json | rtk proxy python3.11 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps({k:d.get(k) for k in (\\\"request\\\",\\\"operation\\\",\\\"job_id\\\",\\\"git\\\",\\\"commits\\\",\\\"fabric_capture\\\",\\\"evidence_manifest\\\",\\\"status\\\",\\\"changed_files\\\")},sort_keys=True,indent=2))'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git show f650dc3:.codex-fabric/audit.json | rtk proxy python3.11 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps({k:d.get(k) for k in (\\\"job_id\\\",\\\"request\\\",\\\"operation\\\",\\\"git\\\",\\\"fabric_capture\\\",\\\"commits\\\",\\\"status\\\")},sort_keys=True,indent=2))' && rtk git show -s --format='%H%n%P%n%s' f650dc3\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git add .codex-fabric/audit.json .codex-fabric/ksa36/candidate-evidence.json .codex-fabric/ksa36/py311-measure.json .codex-fabric/ksa36/py312-measure.json && rtk git diff --cached --check && rtk git diff --cached --stat && rtk git commit -m 'fix(fabric): repair KSA-36 FIX01 audit evidence'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rev-parse HEAD && rtk git rev-parse HEAD''^{tree} && rtk git show -s --format='\"'%P%n%s' HEAD && rtk git diff --name-only e7582e6dbe827c45e4843097ca8884164e71e314..HEAD && rtk proxy git status --short --untracked-files=all\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport hashlib, json, pathlib, subprocess\nroot = pathlib.Path.cwd()\nbranch = 'codex/k-slide-chg16-performance-load-budget-01-fix01'\nlogical_request = 'chg16-performance-load-budget-01'\nfix_request = 'chg16-performance-load-budget-01-fix01'\nbase = '71d3b0a56eee84716a37712440dd1763fd078c66'\nbase_tree = '06dac27cfb580028c143929b5f947b612e698fd9'\nproduct_sha = 'e7582e6dbe827c45e4843097ca8884164e71e314'\nproduct_tree = 'd8e21c0ee03e9fbcb92dd603506a3408003ffc90'\ndef git(*args):\n    return subprocess.check_output(['rtk', 'git', *args], cwd=root, text=True).strip()\ndef sha(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\ndef canonical_sha(value):\n    return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()\nhead = git('rev-parse', 'HEAD')\ntree = git('rev-parse', 'HEAD\"'^{tree}'\"')\nparents = git('show', '-s', '--format=%P', 'HEAD').split()\nassert parents == [product_sha]\nassert git('branch', '--show-current') == branch\nchanged_paths = git('diff', '--name-only', f'{product_sha}..{head}').splitlines()\nexpected_paths = ['.codex-fabric/audit.json', '.codex-fabric/ksa36/candidate-evidence.json', '.codex-fabric/ksa36/py311-measure.json', '.codex-fabric/ksa36/py312-measure.json']\nassert changed_paths == expected_paths\nsidecar_path = root / '.codex-fabric/ksa36/candidate-evidence.json'\naudit_path = root / '.codex-fabric/audit.json'\nsidecar = json.loads(sidecar_path.read_text(encoding='utf-8'))\naudit = json.loads(audit_path.read_text(encoding='utf-8'))\nartifacts = [{'path': item['path'], 'sha256': item['sha256']} for item in sidecar['measurement_artifacts']]\nassert len(artifacts) == 2\nfor item in artifacts:\n    assert sha(root / item['path']) == item['sha256']\nfinal_binding = {'project_id': 'k-slide', 'issue_id': 'CHG-16', 'work_item': 'KSA-36 F36-01/F36-02/F36-03', 'operation': 'FIX', 'request': fix_request, 'logical_build_request': logical_request, 'base_commit_sha': base, 'base_tree_oid': base_tree, 'work_branch': branch, 'product_subject_sha': product_sha, 'product_subject_tree_oid': product_tree, 'fix_work_head_sha': head, 'fix_work_head_tree_oid': tree, 'fix_work_head_parent_sha': product_sha, 'measurement_reports': artifacts, 'changed_paths_after_product_subject': changed_paths}\nfinal_binding['sha256'] = canonical_sha(final_binding)\nsidecar['repair_candidate_identity'] = {'status': 'BOUND_TO_FIX01_WORK_HEAD', 'commit_sha': head, 'tree_oid': tree, 'parent_sha': product_sha, 'parent_tree_oid': product_tree, 'work_branch': branch, 'measurement_report_hashes': artifacts}\nsidecar['final_candidate_binding'] = final_binding\nsidecar_path.write_text(json.dumps(sidecar, ensure_ascii=False, sort_keys=True, indent=2) + '\\\\n', encoding='utf-8')\nsidecar_hash = sha(sidecar_path)\naudit['work_candidate']['resulting_candidate_sha'] = head\naudit['work_candidate']['resulting_candidate_tree_oid'] = tree\naudit['work_candidate']['resulting_candidate_binding_owner'] = 'FIX01 post-commit candidate audit; Fabric native publisher owns current execution identity'\naudit['work_candidate']['work_head_parent_sha'] = product_sha\naudit['work_candidate']['candidate_evidence_sidecar_sha256'] = sidecar_hash\naudit['final_candidate_binding'] = final_binding\naudit['candidate_evidence_sidecar']['sha256'] = sidecar_hash\naudit['candidate_identity_binding_note'] = 'The FIX01 work-head SHA/tree and immutable measurement report hashes are bound in final_candidate_binding. The current Fabric job ID remains unset for the Fabric native publisher separate post-execution evidence commit.'\naudit_path.write_text(json.dumps(audit, ensure_ascii=False, sort_keys=True, indent=2) + '\\\\n', encoding='utf-8')\nprint(json.dumps({'fix_work_head_sha': head, 'fix_work_head_tree': tree, 'parent_sha': product_sha, 'changed_paths_after_product_subject': changed_paths, 'measurement_report_hashes': artifacts, 'final_candidate_binding_sha256': final_binding['sha256'], 'sidecar_sha256': sidecar_hash, 'current_fabric_job_id': audit['fabric_execution_identity']['fabric_job_id']}, sort_keys=True))\nPY\nrtk git diff --check\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport hashlib, json, pathlib, subprocess\nroot = pathlib.Path.cwd()\nbranch = 'codex/k-slide-chg16-performance-load-budget-01-fix01'\nlogical_request = 'chg16-performance-load-budget-01'\nfix_request = 'chg16-performance-load-budget-01-fix01'\nbase = '71d3b0a56eee84716a37712440dd1763fd078c66'\nbase_tree = '06dac27cfb580028c143929b5f947b612e698fd9'\nproduct_sha = 'e7582e6dbe827c45e4843097ca8884164e71e314'\nproduct_tree = 'd8e21c0ee03e9fbcb92dd603506a3408003ffc90'\ndef git(*args):\n    return subprocess.check_output(['rtk', 'proxy', 'git', *args], cwd=root, text=True).strip()\ndef sha(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\ndef canonical_sha(value):\n    return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()\nhead = git('rev-parse', 'HEAD')\ntree = git('rev-parse', 'HEAD\"'^{tree}'\"')\nparents = git('show', '-s', '--format=%P', 'HEAD').split()\nassert parents == [product_sha]\nassert git('branch', '--show-current') == branch\nchanged_paths = git('diff', '--name-only', f'{product_sha}..{head}').splitlines()\nexpected_paths = ['.codex-fabric/audit.json', '.codex-fabric/ksa36/candidate-evidence.json', '.codex-fabric/ksa36/py311-measure.json', '.codex-fabric/ksa36/py312-measure.json']\nassert changed_paths == expected_paths, changed_paths\nsidecar_path = root / '.codex-fabric/ksa36/candidate-evidence.json'\naudit_path = root / '.codex-fabric/audit.json'\nsidecar = json.loads(sidecar_path.read_text(encoding='utf-8'))\naudit = json.loads(audit_path.read_text(encoding='utf-8'))\nartifacts = [{'path': item['path'], 'sha256': item['sha256']} for item in sidecar['measurement_artifacts']]\nassert len(artifacts) == 2\nfor item in artifacts:\n    assert sha(root / item['path']) == item['sha256']\nfinal_binding = {'project_id': 'k-slide', 'issue_id': 'CHG-16', 'work_item': 'KSA-36 F36-01/F36-02/F36-03', 'operation': 'FIX', 'request': fix_request, 'logical_build_request': logical_request, 'base_commit_sha': base, 'base_tree_oid': base_tree, 'work_branch': branch, 'product_subject_sha': product_sha, 'product_subject_tree_oid': product_tree, 'fix_work_head_sha': head, 'fix_work_head_tree_oid': tree, 'fix_work_head_parent_sha': product_sha, 'measurement_reports': artifacts, 'changed_paths_after_product_subject': changed_paths}\nfinal_binding['sha256'] = canonical_sha(final_binding)\nsidecar['repair_candidate_identity'] = {'status': 'BOUND_TO_FIX01_WORK_HEAD', 'commit_sha': head, 'tree_oid': tree, 'parent_sha': product_sha, 'parent_tree_oid': product_tree, 'work_branch': branch, 'measurement_report_hashes': artifacts}\nsidecar['final_candidate_binding'] = final_binding\nsidecar_path.write_text(json.dumps(sidecar, ensure_ascii=False, sort_keys=True, indent=2) + '\\\\n', encoding='utf-8')\nsidecar_hash = sha(sidecar_path)\naudit['work_candidate']['resulting_candidate_sha'] = head\naudit['work_candidate']['resulting_candidate_tree_oid'] = tree\naudit['work_candidate']['resulting_candidate_binding_owner'] = 'FIX01 post-commit candidate audit; Fabric native publisher owns current execution identity'\naudit['work_candidate']['work_head_parent_sha'] = product_sha\naudit['work_candidate']['candidate_evidence_sidecar_sha256'] = sidecar_hash\naudit['final_candidate_binding'] = final_binding\naudit['candidate_evidence_sidecar']['sha256'] = sidecar_hash\naudit['candidate_identity_binding_note'] = 'The FIX01 work-head SHA/tree and immutable measurement report hashes are bound in final_candidate_binding. The current Fabric job ID remains unset for the Fabric native publisher separate post-execution evidence commit.'\naudit_path.write_text(json.dumps(audit, ensure_ascii=False, sort_keys=True, indent=2) + '\\\\n', encoding='utf-8')\nprint(json.dumps({'fix_work_head_sha': head, 'fix_work_head_tree': tree, 'parent_sha': product_sha, 'changed_paths_after_product_subject': changed_paths, 'measurement_report_hashes': artifacts, 'final_candidate_binding_sha256': final_binding['sha256'], 'sidecar_sha256': sidecar_hash, 'current_fabric_job_id': audit['fabric_execution_identity']['fabric_job_id']}, sort_keys=True))\nPY\nrtk git diff --check\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport hashlib, json, pathlib\nsidecar_path = pathlib.Path('.codex-fabric/ksa36/candidate-evidence.json')\naudit_path = pathlib.Path('.codex-fabric/audit.json')\nsubject = {'product_commit_sha': 'e7582e6dbe827c45e4843097ca8884164e71e314', 'product_tree_oid': 'd8e21c0ee03e9fbcb92dd603506a3408003ffc90', 'test_and_compile_results_run_against': 'the preserved product subject; the FIX01 work head changes only audit and measurement evidence'}\nsidecar = json.loads(sidecar_path.read_text(encoding='utf-8'))\nsidecar['qualification_subject'] = subject\nsidecar_path.write_text(json.dumps(sidecar, ensure_ascii=False, sort_keys=True, indent=2) + '\\\\n', encoding='utf-8')\naudit = json.loads(audit_path.read_text(encoding='utf-8'))\naudit['qualification_subject'] = subject\naudit['candidate_evidence_sidecar']['sha256'] = hashlib.sha256(sidecar_path.read_bytes()).hexdigest()\naudit['work_candidate']['candidate_evidence_sidecar_sha256'] = audit['candidate_evidence_sidecar']['sha256']\naudit_path.write_text(json.dumps(audit, ensure_ascii=False, sort_keys=True, indent=2) + '\\\\n', encoding='utf-8')\nprint(json.dumps({'qualification_subject': subject, 'sidecar_sha256': audit['candidate_evidence_sidecar']['sha256']}, sort_keys=True))\nPY\nrtk git diff --check\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport hashlib, json, pathlib, subprocess\nroot = pathlib.Path.cwd()\nbase = '71d3b0a56eee84716a37712440dd1763fd078c66'\nbase_tree = '06dac27cfb580028c143929b5f947b612e698fd9'\nproduct = 'e7582e6dbe827c45e4843097ca8884164e71e314'\nproduct_tree = 'd8e21c0ee03e9fbcb92dd603506a3408003ffc90'\nbranch = 'codex/k-slide-chg16-performance-load-budget-01-fix01'\nfix_request = 'chg16-performance-load-budget-01-fix01'\nlogical_request = 'chg16-performance-load-budget-01'\ndef git(*args):\n    return subprocess.check_output(['rtk', 'proxy', 'git', *args], cwd=root, text=True).strip()\ndef sha(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\ndef canonical_sha(value):\n    return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()\nhead = git('rev-parse', 'HEAD')\ntree = git('rev-parse', 'HEAD\"'^{tree}'\"')\nassert git('show', '-s', '--format=%P', 'HEAD') == product\nassert git('branch', '--show-current') == branch\nassert subprocess.run(['rtk', 'proxy', 'git', 'merge-base', '--is-ancestor', base, product], cwd=root).returncode == 0\naudit = json.loads(pathlib.Path('.codex-fabric/audit.json').read_text(encoding='utf-8'))\nsidecar_path = pathlib.Path('.codex-fabric/ksa36/candidate-evidence.json')\nsidecar = json.loads(sidecar_path.read_text(encoding='utf-8'))\nfor binding in (audit['final_candidate_binding'], sidecar['final_candidate_binding']):\n    value = dict(binding)\n    expected = value.pop('sha256')\n    assert canonical_sha(value) == expected\n    assert binding['fix_work_head_sha'] == head and binding['fix_work_head_tree_oid'] == tree\n    assert binding['fix_work_head_parent_sha'] == product\nassert audit['status'] == 'EXECUTED_CHANGE'\nassert audit['request'] == sidecar['request'] == fix_request\nassert audit['logical_build_request'] == sidecar['logical_build_request'] == logical_request\nassert audit['base_commit_sha'] == sidecar['exact_base']['commit_sha'] == base\nassert audit['base_tree_oid'] == sidecar['exact_base']['tree_oid'] == base_tree\nassert audit['work_branch'] == sidecar['work_branch'] == branch\nassert audit['work_candidate']['resulting_candidate_sha'] == head\nassert audit['work_candidate']['resulting_candidate_tree_oid'] == tree\nassert audit['candidate_evidence_sidecar']['sha256'] == audit['work_candidate']['candidate_evidence_sidecar_sha256'] == sha(sidecar_path)\nassert audit['fabric_execution_identity']['fabric_job_id'] is None\nassert sidecar['fabric_execution_identity']['fabric_job_id'] is None\nassert sidecar['predecessor_build_execution_identity']['historical_fabric_job_id'] == 'CF-f22fdb5fd16b97bc4cd098f7'\nassert sidecar['host_overlap_investigation']['classification'] == audit['host_overlap_classification']\nassert all(item['status'] == 'PASS' for item in audit['checks'])\nproduct_paths = git('diff', '--name-only', f'{base}..{product}').splitlines()\ncommit_paths = git('diff', '--name-only', f'{product}..{head}').splitlines()\npost_head_paths = git('diff', '--name-only', 'HEAD').splitlines()\nassert len(product_paths) == 23\nassert commit_paths == ['.codex-fabric/audit.json', '.codex-fabric/ksa36/candidate-evidence.json', '.codex-fabric/ksa36/py311-measure.json', '.codex-fabric/ksa36/py312-measure.json']\nassert post_head_paths == ['.codex-fabric/audit.json', '.codex-fabric/ksa36/candidate-evidence.json']\nassert sidecar['source_tree_preservation']['product_or_test_changes_after_product_subject'] is False\nreport_paths = [pathlib.Path('.codex-fabric/ksa36/py311-measure.json'), pathlib.Path('.codex-fabric/ksa36/py312-measure.json')]\nfor path, metadata in zip(report_paths, audit['measurement_artifacts']):\n    text = path.read_text(encoding='utf-8')\n    report = json.loads(text)\n    assert sha(path) == metadata['sha256']\n    assert report['candidate_sha'] == report['measurement_subject']['commit_sha'] == product\n    assert report['candidate_tree'] == report['measurement_subject']['tree_oid'] == product_tree\n    assert report['base_sha'] == base and report['branch'] == branch and report['request_id'] == logical_request\n    assert report['fix_binding']['request'] == fix_request and report['fix_binding']['base_tree_oid'] == base_tree\n    assert report['changed_paths'] == product_paths and len(report['scenario_results']) == 20\n    assert report['resource_budget_sha256'] == 'dd9f876a244bfb08ebdd6581c376951da0dfff2901c5fe2abd8e871e83d9bfdf'\n    assert all(report['external_stage_qualification'][key].startswith('NOT_MEASURED') for key in ('target_gemma_provider', 'actual_opencode_provider_lifecycle', 'external_cloud_vscode_adapter', 'company_paas_slide_processing', 'office_conversion'))\n    assert '/tmp/' not in text and 'CF-' not in text\nprint(json.dumps({'status': 'PASS', 'fix_work_head_sha': head, 'fix_work_head_tree': tree, 'fix_parent_sha': product, 'product_paths_from_base': len(product_paths), 'candidate_commit_paths': commit_paths, 'pending_publisher_evidence_paths': post_head_paths, 'measurement_report_hashes_verified': 2, 'measurement_scenario_records_verified': 40, 'final_candidate_binding_hashes_verified': 2, 'checks_pass': len(audit['checks']), 'current_fabric_job_id': None}, sort_keys=True))\nPY\nrtk proxy git status --short --untracked-files=all && rtk git diff --check\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nfrom pathlib import Path\nfrom shutil import rmtree\nroots = [\n    Path('/tmp/k-slide-ksa36-host-py311.lfLlub'),\n    Path('/tmp/k-slide-ksa36-host-py312.nNrYnW'),\n    Path('/tmp/k-slide-ksa36-host-seq-py311.crLEoj'),\n    Path('/tmp/k-slide-ksa36-host-seq-py312.sDicOI'),\n]\nfiles = [\n    Path('/tmp/k-slide-ksa36-fix01-py311-measure.json'),\n    Path('/tmp/k-slide-ksa36-fix01-py312-measure.json'),\n    Path('/tmp/k-slide-ksa36-fix01-full-py312.log'),\n]\nremoved = []\nfor path in roots:\n    if path.exists():\n        rmtree(path)\n        removed.append(str(path))\nfor path in files:\n    if path.exists():\n        path.unlink()\n        removed.append(str(path))\nprint({'removed_task_temporary_artifacts': removed})\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rev-parse HEAD && rtk git rev-parse HEAD''^{tree} && rtk git show -s --format='\"'%P%n%s' HEAD && rtk git diff --name-only e7582e6dbe827c45e4843097ca8884164e71e314..HEAD && rtk proxy git status --short --untracked-files=all && rtk git diff --check && rtk git show --check --oneline HEAD\"",
+      "exit_code": 128,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git show --check --format=oneline HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.157.0",
+    "configured_model": "gpt-6-luna",
+    "event_count": 188,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.42,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 8345344,
+      "fresh_input_tokens": 220612,
+      "input_tokens": 8565956,
+      "non_reasoning_output_tokens": 31207,
+      "output_tokens": 101202,
+      "reasoning_output_tokens": 69995,
+      "total_processed_tokens": 8667158
+    },
+    "warnings": []
   },
-  "final_candidate_binding": {
-    "base_commit_sha": "71d3b0a56eee84716a37712440dd1763fd078c66",
-    "base_tree_oid": "06dac27cfb580028c143929b5f947b612e698fd9",
-    "changed_paths_after_product_subject": [
-      ".codex-fabric/audit.json",
-      ".codex-fabric/ksa36/candidate-evidence.json",
-      ".codex-fabric/ksa36/py311-measure.json",
-      ".codex-fabric/ksa36/py312-measure.json"
-    ],
-    "fix_work_head_parent_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
-    "fix_work_head_sha": "92b60cdce4465ac543940b8d532eda451df6a3fd",
-    "fix_work_head_tree_oid": "9e7e86f7533b093ac1e2606d819ee4da8e73c338",
-    "issue_id": "CHG-16",
-    "logical_build_request": "chg16-performance-load-budget-01",
-    "measurement_reports": [
+  "commits": [
+    {
+      "sha": "a4e1f6437f39280e9b0b2685cdb49584d421a89d",
+      "subject": "fabric: capture completed model changes [CF-95274297028f2bdb1dd83066]"
+    },
+    {
+      "sha": "92b60cdce4465ac543940b8d532eda451df6a3fd",
+      "subject": "fix(fabric): repair KSA-36 FIX01 audit evidence"
+    },
+    {
+      "sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
+      "subject": "KSA-36: record nested product prerequisite errors"
+    },
+    {
+      "sha": "61c8b35bc9841690bf854c3cb3ced77a6abdbe20",
+      "subject": "KSA-36: preserve PDF CLI JSON in measurements"
+    },
+    {
+      "sha": "87b0a0edb9ef130d040b1013fbc0dca43cffe9b5",
+      "subject": "KSA-36: add shared resource budgets and load harness"
+    }
+  ],
+  "diff": {
+    "additions": 6413,
+    "changed_files": 27,
+    "commit_count": 5,
+    "deletions": 365
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 9,
+    "items": [
       {
+        "bytes": 14919,
+        "path": ".codex-fabric/audit.json",
+        "sha256": "3db6c5ef69191aa46526b1db1299dc2fa289cbb6a9980c7da2947a821088cf68"
+      },
+      {
+        "bytes": 13593,
+        "path": ".codex-fabric/ksa36/candidate-evidence.json",
+        "sha256": "6df4f35b051845a4d4b5b0bfe1debc770b10a1052cdb61a58f58de33e6e9b4c2"
+      },
+      {
+        "bytes": 65958,
         "path": ".codex-fabric/ksa36/py311-measure.json",
         "sha256": "1b4082b7abf3defde857951661d2fecddb53ff73e8ab284ed8796557e013c532"
       },
       {
+        "bytes": 65977,
         "path": ".codex-fabric/ksa36/py312-measure.json",
         "sha256": "f469b7cc57b13e519a9f6ac887ba8c22fd5ea4ecfe8b2b1cd4004352b852dcad"
+      },
+      {
+        "bytes": 4139,
+        "path": ".opencode/agents/k-slide.md",
+        "sha256": "d3b3a900341675c7d388b35fd7725cb762b96f6c0216fd7c7dd8623018bdb16a"
+      },
+      {
+        "bytes": 6752,
+        "path": "deploy/README.md",
+        "sha256": "24e5082f380137a324c814e9845ae9161e6a253b45c829a44ed11e57448914a7"
+      },
+      {
+        "bytes": 5565,
+        "path": "docs/ksa36-performance-load-budget.md",
+        "sha256": "055dc91b5d13429684ef7e56b35a179a3c50420959f65058e80c9461d47ff288"
+      },
+      {
+        "bytes": 7181,
+        "path": "schemas/operational-telemetry-event.schema.json",
+        "sha256": "f0a5bbdac321ed6a68edc87b8cc70a2a1de073dd572a2569413cfc679184b207"
+      },
+      {
+        "bytes": 2966,
+        "path": "schemas/resource-budget.schema.json",
+        "sha256": "4d71eab905eaea11f8412cb2d45a6f13eaae71f50225298f503ba7e9578eea1a"
       }
     ],
-    "operation": "FIX",
-    "product_subject_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
-    "product_subject_tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90",
-    "project_id": "k-slide",
-    "request": "chg16-performance-load-budget-01-fix01",
-    "sha256": "34ed507ab655a82c4f0eba4652e2ae9b06e644b89c643d35848e362ffe50bbad",
-    "work_branch": "codex/k-slide-chg16-performance-load-budget-01-fix01",
-    "work_item": "KSA-36 F36-01/F36-02/F36-03"
+    "version": 1
   },
-  "fix_binding_identity": {
-    "base_commit_sha": "71d3b0a56eee84716a37712440dd1763fd078c66",
-    "base_tree_oid": "06dac27cfb580028c143929b5f947b612e698fd9",
-    "issue_id": "CHG-16",
-    "logical_build_request": "chg16-performance-load-budget-01",
-    "operation": "FIX",
-    "predecessor_product_subject_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
-    "predecessor_product_subject_tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90",
-    "request": "chg16-performance-load-budget-01-fix01",
-    "work_branch": "codex/k-slide-chg16-performance-load-budget-01-fix01",
-    "work_item": "KSA-36 F36-01/F36-02/F36-03"
-  },
-  "fix_binding_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
-  "fix_binding_identity_sha256": "4dfc7f63d6744fca5dcb5cc8a81e6f2138033aa6c2722930eda3bec88c4d7afe",
-  "host_overlap_classification": "PRIOR_ANOMALY_NOT_REPRODUCED_IN_ISOLATED_OVERLAP; ROOT_CAUSE_NOT_ESTABLISHED; NO_PRODUCT_CONCURRENCY_DEFECT_DEMONSTRATED",
-  "issue_id": "CHG-16",
-  "kind": "codex-fabric-audit-evidence",
-  "logical_build_request": "chg16-performance-load-budget-01",
-  "measurement_artifacts": [
-    {
-      "bytes": 65958,
-      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
-      "overall_qualification": "UNQUALIFIED_EXTERNAL_MODEL_CLOUD_HOST_AND_COMPANY_PAAS_STAGES_NOT_MEASURED",
-      "path": ".codex-fabric/ksa36/py311-measure.json",
-      "python_version": "3.11.7",
-      "resource_budget_sha256": "dd9f876a244bfb08ebdd6581c376951da0dfff2901c5fe2abd8e871e83d9bfdf",
-      "scenario_record_count": 20,
-      "sha256": "1b4082b7abf3defde857951661d2fecddb53ff73e8ab284ed8796557e013c532",
-      "topology_status_counts": {
-        "cloud_vscode_shared_cli_reference": {
-          "MEASURED_REFERENCE_PRODUCT_PATH": 3,
-          "NOT_MEASURED": 2
-        },
-        "local_cli_reference": {
-          "MEASURED_REFERENCE_PRODUCT_PATH": 3,
-          "NOT_MEASURED": 2
-        },
-        "opencode_shared_core_reference": {
-          "MEASURED_REFERENCE_PRODUCT_PATH": 3,
-          "NOT_MEASURED": 2
-        },
-        "reference_paas_scoped_admission": {
-          "MEASURED_REFERENCE_ADMISSION_ONLY": 5
-        }
-      }
-    },
-    {
-      "bytes": 65977,
-      "measurement_environment_identity_sha256": "59dbd1e9c55064ff640f4552b2c004d5602958cdf9cb843f7f708592fc39f3b4",
-      "overall_qualification": "UNQUALIFIED_EXTERNAL_MODEL_CLOUD_HOST_AND_COMPANY_PAAS_STAGES_NOT_MEASURED",
-      "path": ".codex-fabric/ksa36/py312-measure.json",
-      "python_version": "3.12.9",
-      "resource_budget_sha256": "dd9f876a244bfb08ebdd6581c376951da0dfff2901c5fe2abd8e871e83d9bfdf",
-      "scenario_record_count": 20,
-      "sha256": "f469b7cc57b13e519a9f6ac887ba8c22fd5ea4ecfe8b2b1cd4004352b852dcad",
-      "topology_status_counts": {
-        "cloud_vscode_shared_cli_reference": {
-          "MEASURED_REFERENCE_PRODUCT_PATH": 3,
-          "NOT_MEASURED": 2
-        },
-        "local_cli_reference": {
-          "MEASURED_REFERENCE_PRODUCT_PATH": 3,
-          "NOT_MEASURED": 2
-        },
-        "opencode_shared_core_reference": {
-          "MEASURED_REFERENCE_PRODUCT_PATH": 3,
-          "NOT_MEASURED": 2
-        },
-        "reference_paas_scoped_admission": {
-          "MEASURED_REFERENCE_ADMISSION_ONLY": 5
-        }
-      }
+  "evidence_publisher_release": "1.2.5-dashboard-controls-candidate",
+  "fabric_capture": {
+    "applied": true,
+    "commit_message": "fabric: capture completed model changes [CF-95274297028f2bdb1dd83066]",
+    "commit_sha": "a4e1f6437f39280e9b0b2685cdb49584d421a89d",
+    "paths_before": 2,
+    "status_before": [
+      " M .codex-fabric/audit.json",
+      " M .codex-fabric/ksa36/candidate-evidence.json"
+    ],
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
     }
-  ],
-  "measurement_qualification": "REFERENCE_MEASUREMENTS_ONLY; no production performance qualification or SLO inferred.",
-  "notion_mutated": false,
+  },
+  "fabric_release": "1.2.5-dashboard-controls-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-26T19:16:54Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "71d3b0a56eee84716a37712440dd1763fd078c66",
+    "branch": "codex/k-slide-chg16-performance-load-budget-01-fix01",
+    "detached_verify": false,
+    "head_sha": "a4e1f6437f39280e9b0b2685cdb49584d421a89d",
+    "remote_exact_head": true,
+    "remote_head_sha": "a4e1f6437f39280e9b0b2685cdb49584d421a89d",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "71d3b0a56eee84716a37712440dd1763fd078c66",
+    "work_branch": "codex/k-slide-chg16-performance-load-budget-01-fix01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-95274297028f2bdb1dd83066",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-performance-load-budget-01-fix01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-performance-load-budget-01-fix01"
+  },
   "operation": "FIX",
-  "operational_service_enabled": false,
-  "predecessor_build_execution_identity": {
-    "historical_fabric_job_id": "CF-f22fdb5fd16b97bc4cd098f7",
-    "native_evidence_commit_sha": "eafb6643813206034f410cb399b32ff29e899643",
-    "operation": "BUILD",
-    "request": "chg16-performance-load-budget-01"
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.5-dashboard-controls-candidate",
+    "policy_sha256": "123615bf2f6e57dcac197e49ca98ceac59ada86a55e2c84445ea5d00812c0833",
+    "registry_sha256": "af81b8552f9d6a33847310e3c6bcd2d48401782b963a58efd2993e93570cb4aa"
   },
-  "predecessor_product_subject": {
-    "commit_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
-    "tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90"
-  },
-  "product_changed_paths_from_base": [
-    ".opencode/agents/k-slide.md",
-    ".opencode/plugin/k-slide-host.ts",
-    ".opencode/tools/kslide.ts",
-    "deploy/README.md",
-    "docs/ksa36-performance-load-budget.md",
-    "evals/performance_load.py",
-    "schemas/operational-telemetry-event.schema.json",
-    "schemas/resource-budget.schema.json",
-    "src/k_slide/certification.py",
-    "src/k_slide/cli.py",
-    "src/k_slide/errors.py",
-    "src/k_slide/host_adapter.py",
-    "src/k_slide/ingest.py",
-    "src/k_slide/normalization.py",
-    "src/k_slide/paas.py",
-    "src/k_slide/production.py",
-    "src/k_slide/resource_budget.py",
-    "src/k_slide/security.py",
-    "tests/test_certification_closure.py",
-    "tests/test_chg16_opencode_plugin.ts",
-    "tests/test_chg16_resource_budget.py",
-    "tests/test_ksa21_adversarial_security.py",
-    "tests/test_ksa24_f24_real_path.py"
-  ],
-  "product_source_commit_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
-  "product_source_tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90",
   "project_id": "k-slide",
-  "qualification_status": "CANDIDATE_CHECKS_PASS_PENDING_NATIVE_PUBLICATION_AND_INDEPENDENT_PROJECT_OS_REVIEW",
-  "qualification_subject": {
-    "product_commit_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
-    "product_tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90",
-    "test_and_compile_results_run_against": "the preserved product subject; the FIX01 work head changes only audit and measurement evidence"
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
   },
-  "release_or_production_claim": false,
-  "repair_evidence_paths": [
-    ".codex-fabric/audit.json",
-    ".codex-fabric/ksa36/candidate-evidence.json",
-    ".codex-fabric/ksa36/py311-measure.json",
-    ".codex-fabric/ksa36/py312-measure.json"
-  ],
   "request": "chg16-performance-load-budget-01-fix01",
   "schema_version": 1,
-  "scope": {
-    "excluded": [
-      "Notion mutation",
-      "merge or movement of main",
-      "live PaaS or provider settings changes",
-      "pilot or canary",
-      "KSA-37 or later",
-      "GO, release, BUILD COMPLETE, RUNTIME_READY, production performance qualification, or production certification"
-    ],
-    "implemented": [
-      "KSA-36 independent-audit provenance repair and durable bounded measurement evidence",
-      "KSA-36 host-overlap reproduction and classification"
-    ],
-    "preserved": [
-      "versioned_centralized_budget_contract",
-      "non_production_reference_defaults",
-      "explicit_production_budget_requirement",
-      "file_page_slide_pixel_normalized_byte_media_token_and_concurrency_enforcement",
-      "no_silent_truncation_skipped_verification_provider_fallback_or_false_DONE",
-      "existing_scoped_PaaS_admission_and_queue_owner",
-      "typed_capacity_and_prerequisite_results_when_queue_owner_or_external_production_prerequisite_is_unavailable"
-    ],
-    "product_or_test_changes_after_predecessor": false
-  },
-  "source_tree_preservation": {
-    "code_or_test_changes_after_predecessor": false,
-    "fix_candidate_changed_paths": [
-      ".codex-fabric/audit.json",
-      ".codex-fabric/ksa36/candidate-evidence.json",
-      ".codex-fabric/ksa36/py311-measure.json",
-      ".codex-fabric/ksa36/py312-measure.json"
-    ],
-    "product_changed_paths_from_base": [
-      ".opencode/agents/k-slide.md",
-      ".opencode/plugin/k-slide-host.ts",
-      ".opencode/tools/kslide.ts",
-      "deploy/README.md",
-      "docs/ksa36-performance-load-budget.md",
-      "evals/performance_load.py",
-      "schemas/operational-telemetry-event.schema.json",
-      "schemas/resource-budget.schema.json",
-      "src/k_slide/certification.py",
-      "src/k_slide/cli.py",
-      "src/k_slide/errors.py",
-      "src/k_slide/host_adapter.py",
-      "src/k_slide/ingest.py",
-      "src/k_slide/normalization.py",
-      "src/k_slide/paas.py",
-      "src/k_slide/production.py",
-      "src/k_slide/resource_budget.py",
-      "src/k_slide/security.py",
-      "tests/test_certification_closure.py",
-      "tests/test_chg16_opencode_plugin.ts",
-      "tests/test_chg16_resource_budget.py",
-      "tests/test_ksa21_adversarial_security.py",
-      "tests/test_ksa24_f24_real_path.py"
-    ],
-    "product_source_commit_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
-    "product_source_tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90",
-    "relative_to_predecessor_candidate": true
-  },
+  "started_at": "2026-09-26T18:31:20Z",
   "status": "EXECUTED_CHANGE",
-  "work_branch": "codex/k-slide-chg16-performance-load-budget-01-fix01",
-  "work_candidate": {
-    "base_commit_sha": "71d3b0a56eee84716a37712440dd1763fd078c66",
-    "base_tree_oid": "06dac27cfb580028c143929b5f947b612e698fd9",
-    "candidate_check_status": "PASS",
-    "candidate_evidence_sidecar_sha256": "6df4f35b051845a4d4b5b0bfe1debc770b10a1052cdb61a58f58de33e6e9b4c2",
-    "operation": "FIX",
-    "predecessor_candidate_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
-    "predecessor_candidate_tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90",
-    "project_id": "k-slide",
-    "promotable_candidate": false,
-    "promotion_status": "PENDING_NATIVE_PUBLICATION_AND_INDEPENDENT_PROJECT_OS_REVIEW",
-    "request": "chg16-performance-load-budget-01-fix01",
-    "resulting_candidate_binding_owner": "FIX01 post-commit candidate audit; Fabric native publisher owns current execution identity",
-    "resulting_candidate_sha": "92b60cdce4465ac543940b8d532eda451df6a3fd",
-    "resulting_candidate_tree_oid": "9e7e86f7533b093ac1e2606d819ee4da8e73c338",
-    "work_branch": "codex/k-slide-chg16-performance-load-budget-01-fix01",
-    "work_head_parent_sha": "e7582e6dbe827c45e4843097ca8884164e71e314"
+  "timing": {
+    "execution_seconds": 2734,
+    "queue_seconds": 1,
+    "total_seconds": 2735
   },
-  "work_item": "KSA-36 F36-01/F36-02/F36-03",
-  "worktree_clean_before_audit_write": true
+  "transport": {
+    "bytes": 5859,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 5522,
+    "prompt_sha256": "50145ae55c8d8651690df9bda1da0041432ce473828a952bfb888a0ed3f06a04",
+    "sha256": "95274297028f2bdb1dd83066ddcd900f133f663bd69a504eb32e8a9b6c4bcc2b"
+  }
 }
