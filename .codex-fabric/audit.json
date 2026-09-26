@@ -18,55 +18,83 @@
       "tests": 13
     },
     {
-      "name": "Full Python unittest suite, Python 3.11",
-      "optional_skips": 4,
+      "name": "Full repository Python unittest suite, Python 3.11",
+      "status": "PASS",
+      "tests": 700,
+      "optional_skips": 4
+    },
+    {
+      "name": "Full repository Python unittest suite, Python 3.12",
       "status": "PASS",
       "tests": 700
     },
     {
-      "name": "Full Python unittest suite, Python 3.12",
+      "name": "Related telemetry/privacy/security/authorization/retention/host regressions, Python 3.11",
       "status": "PASS",
-      "tests": 700
+      "tests": 194,
+      "optional_skips": 1,
+      "module_patterns": [
+        "test_ksa35_product_telemetry.py",
+        "test_chg16_*.py",
+        "test_chg17_*.py",
+        "test_chg18_*.py"
+      ]
     },
     {
-      "name": "Telemetry, privacy, security, authorization, retention, and host regression set, Python 3.11",
-      "optional_skips": 2,
+      "name": "Related telemetry/privacy/security/authorization/retention/host regressions, Python 3.12",
       "status": "PASS",
-      "tests": 169
+      "tests": 194,
+      "module_patterns": [
+        "test_ksa35_product_telemetry.py",
+        "test_chg16_*.py",
+        "test_chg17_*.py",
+        "test_chg18_*.py"
+      ]
     },
     {
-      "name": "Telemetry, privacy, security, authorization, retention, and host regression set, Python 3.12",
+      "name": "OpenCode issue-report host regression, Python 3.11",
       "status": "PASS",
-      "tests": 169
-    },
-    {
-      "name": "OpenCode attachment and issue-report host regression, Python 3.11",
       "runner": "Bun 1.4.2",
-      "status": "PASS"
+      "test_file": "tests/test_chg16_opencode_plugin.ts"
     },
     {
-      "name": "OpenCode attachment and issue-report host regression, Python 3.12",
+      "name": "OpenCode issue-report host regression, Python 3.12",
+      "status": "PASS",
       "runner": "Bun 1.4.2",
-      "status": "PASS"
+      "test_file": "tests/test_chg16_opencode_plugin.ts"
     },
     {
-      "name": "Draft 2020-12 schema validation and telemetry enum parity, Python 3.11",
+      "name": "JSON-schema validation and ErrorCode enum parity, Python 3.11",
+      "status": "PASS",
       "schemas": 8,
-      "status": "PASS"
+      "error_enum_members": 89
     },
     {
-      "name": "Draft 2020-12 schema validation and telemetry enum parity, Python 3.12",
+      "name": "JSON-schema validation and ErrorCode enum parity, Python 3.12",
+      "status": "PASS",
       "schemas": 8,
-      "status": "PASS"
+      "error_enum_members": 89
     },
     {
       "name": "Workflow YAML parsing and embedded shell syntax",
-      "shell_steps": 49,
       "status": "PASS",
-      "workflows": 6
+      "python_versions": [
+        "3.11",
+        "3.12"
+      ],
+      "workflows": 6,
+      "shell_steps": 49
     },
     {
-      "name": "Python compileall, Python 3.11 and Python 3.12",
+      "name": "Python compileall for src, evals, and tests",
+      "status": "PASS",
+      "python_versions": [
+        "3.11",
+        "3.12"
+      ]
+    },
+    {
+      "name": "git diff --check",
       "status": "PASS"
     }
   ],
@@ -74,25 +102,22 @@
   "fix_binding_identity": {
     "base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
     "base_tree_oid": "b546ad8f1abbd0dea4124c6c3d91ac4103e4de8a",
-    "fix_request": "chg16-product-telemetry-01-fix01",
+    "fix_request": "chg16-product-telemetry-01-fix03",
     "issue_id": "CHG-16",
-    "job_id": "CF-58388dc2ed6a76e938309a56",
     "logical_build_request": "chg16-product-telemetry-01",
     "operation": "FIX",
-    "original_bound_build_job_id": "CF-ab2fb520eae8329f1d87bef3",
-    "predecessor_recovery_head_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
-    "predecessor_recovery_tree_oid": "603a9bdca64a1a9e339ca6d6e9ce9ddad7e04ec7",
+    "predecessor_candidate_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
+    "predecessor_candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
     "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
+    "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
     "product_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
-    "product_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
     "project_id": "k-slide",
-    "recovery_build_job_id": "CF-e009b0f332b3f5fba1e37419",
-    "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix01",
+    "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix03",
     "work_item": "KSA-35 F35-01/F35-02"
   },
   "fix_binding_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
-  "fix_binding_identity_sha256": "037d69907f8abf19e3ac7f129f32d10e2b2a089cbb53189ced06e4f6c1da42e7",
-  "fix_request": "chg16-product-telemetry-01-fix01",
+  "fix_binding_identity_sha256": "bb94b9409136a1e70f429e7614ba35616b5e26d110de2ce5839a9e9e7b5be36a",
+  "fix_request": "chg16-product-telemetry-01-fix03",
   "generated_at": "2026-09-25",
   "historical_build_evidence": {
     "commit_parent_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
@@ -137,47 +162,27 @@
     "work_ref": "refs/heads/codex/k-slide-chg16-product-telemetry-01-resume1"
   },
   "issue_id": "CHG-16",
-  "job_id": "CF-58388dc2ed6a76e938309a56",
-  "job_id_derivation": {
-    "job_binding_identity": {
-      "base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
-      "fix_request": "chg16-product-telemetry-01-fix01",
-      "issue_id": "CHG-16",
-      "logical_build_request": "chg16-product-telemetry-01",
-      "operation": "FIX",
-      "predecessor_recovery_head_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
-      "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
-      "project_id": "k-slide",
-      "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix01"
-    },
-    "job_binding_identity_sha256": "58388dc2ed6a76e938309a565be9c38250965ee89187381f16c80dd3521a7193",
-    "origin": "Deterministic local identity for the pre-bound FIX01 request; no live Fabric executor or Project OS bridge was available in this session.",
-    "scheme": "CF- followed by the first 24 lowercase hex characters of SHA-256 over canonical job_binding_identity."
-  },
   "kind": "codex-fabric-audit-evidence",
   "logical_request": "chg16-product-telemetry-01",
   "operation": "FIX",
   "operation_identity": {
     "base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
     "base_tree_oid": "b546ad8f1abbd0dea4124c6c3d91ac4103e4de8a",
-    "fix_request": "chg16-product-telemetry-01-fix01",
+    "fix_request": "chg16-product-telemetry-01-fix03",
     "issue_id": "CHG-16",
-    "job_id": "CF-58388dc2ed6a76e938309a56",
     "logical_build_request": "chg16-product-telemetry-01",
     "operation": "FIX",
-    "original_bound_build_job_id": "CF-ab2fb520eae8329f1d87bef3",
-    "predecessor_recovery_head_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
-    "predecessor_recovery_tree_oid": "603a9bdca64a1a9e339ca6d6e9ce9ddad7e04ec7",
+    "predecessor_candidate_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
+    "predecessor_candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
     "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
+    "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
     "product_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
-    "product_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
     "project_id": "k-slide",
-    "recovery_build_job_id": "CF-e009b0f332b3f5fba1e37419",
-    "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix01",
+    "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix03",
     "work_item": "KSA-35 F35-01/F35-02"
   },
   "operation_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
-  "operation_identity_sha256": "037d69907f8abf19e3ac7f129f32d10e2b2a089cbb53189ced06e4f6c1da42e7",
+  "operation_identity_sha256": "bb94b9409136a1e70f429e7614ba35616b5e26d110de2ce5839a9e9e7b5be36a",
   "operational_service_enabled": false,
   "predecessor_recovery_audit_sha256": "48c32b4376fb33e3ee409e3ebcd00f8e75cb86042d4a25551471848903306470",
   "predecessor_recovery_evidence_identity_sha256": "808adabcad874d8e130f2020fb64815d886bfc9138d5d3cb3e31561a7f42418f",
@@ -242,7 +247,7 @@
   "product_source_parent_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
   "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
   "project_id": "k-slide",
-  "qualification_status": "NOT_QUALIFIED",
+  "qualification_status": "CANDIDATE_CHECKS_PASS_PENDING_NATIVE_PUBLICATION_AND_INDEPENDENT_PROJECT_OS_REVIEW",
   "release_or_production_claim": false,
   "schema_version": 1,
   "scope": {
@@ -255,7 +260,7 @@
       "Release, BUILD COMPLETE, or production certification."
     ],
     "implemented": [
-      "KSA-35 F35-01/F35-02 provenance correction only."
+      "KSA-35 FIX03 candidate-side provenance correction only."
     ],
     "preserved": [
       "Typed allowlisted source-free telemetry.",
@@ -270,11 +275,12 @@
     ]
   },
   "source_tree_preservation": {
-    "code_or_test_changes_after_recovery_head": false,
+    "code_or_test_changes_after_predecessor": false,
     "fix_candidate_changed_paths": [
       ".codex-fabric/audit.json"
     ],
-    "predecessor_recovery_head_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
+    "predecessor_candidate_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
+    "predecessor_candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
     "product_changed_paths_from_base": [
       ".opencode/agents/k-slide.md",
       ".opencode/tools/kslide.ts",
@@ -291,23 +297,46 @@
       "tests/test_ksa35_product_telemetry.py"
     ],
     "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
-    "product_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
     "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
-    "relative_to_predecessor_recovery_head": true
+    "product_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
+    "relative_to_predecessor_candidate": true
   },
   "status": "EXECUTED_CHANGE",
-  "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix01",
+  "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix03",
   "work_candidate": {
+    "project_id": "k-slide",
+    "operation": "FIX",
+    "request": "chg16-product-telemetry-01-fix03",
     "base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
     "base_tree_oid": "b546ad8f1abbd0dea4124c6c3d91ac4103e4de8a",
-    "parent_recovery_head_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
+    "predecessor_candidate_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
+    "predecessor_candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
     "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
     "product_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
     "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
-    "promotable_candidate": true,
-    "promotion_status": "PENDING_INDEPENDENT_PROJECT_OS_REVIEW",
-    "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix01"
+    "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix03",
+    "resulting_candidate_sha": null,
+    "resulting_candidate_tree_oid": null,
+    "resulting_candidate_binding_owner": "Fabric native publisher post-execution evidence",
+    "promotable_candidate": false,
+    "promotion_status": "PENDING_NATIVE_PUBLICATION_AND_INDEPENDENT_PROJECT_OS_REVIEW",
+    "candidate_check_status": "PASS"
   },
   "work_item": "KSA-35 F35-01/F35-02",
-  "worktree_clean_before_audit_write": true
+  "worktree_clean_before_audit_write": true,
+  "request": "chg16-product-telemetry-01-fix03",
+  "predecessor_candidate_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
+  "predecessor_candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
+  "fabric_execution_identity": {
+    "fabric_job_id": null,
+    "owner": "Fabric native publisher",
+    "status": "PENDING_POST_EXECUTION_PUBLICATION"
+  },
+  "historical_invalid_surrogate": {
+    "value": "CF-58388dc2ed6a76e938309a56",
+    "classification": "INVALID_LOCAL_SURROGATE",
+    "source_fix_request": "chg16-product-telemetry-01-fix01",
+    "origin": "Locally derived in FIX01; not issued or verified by Fabric.",
+    "valid_as_current_fabric_job_id": false
+  }
 }
