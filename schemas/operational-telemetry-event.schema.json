@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://k-slide.invalid/schemas/operational-telemetry-event.schema.json",
+  "title": "K-Slide source-free operational telemetry event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event_type", "event_id", "occurred_at"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "event_type": { "enum": ["lifecycle", "error", "stage_timing", "resource", "retry", "runtime_binding", "issue_report"] },
+    "event_id": { "$ref": "#/$defs/event_ref" },
+    "occurred_at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$" },
+    "deployment_ref": { "$ref": "#/$defs/deployment_ref" },
+    "runtime_ref": { "$ref": "#/$defs/runtime_ref" },
+    "model_ref": { "$ref": "#/$defs/model_ref" },
+    "run_ref": { "$ref": "#/$defs/run_ref" },
+    "worker_ref": { "$ref": "#/$defs/worker_ref" },
+    "scope_ref": { "$ref": "#/$defs/scope_ref" },
+    "candidate_ref": { "$ref": "#/$defs/candidate_ref" },
+    "lifecycle": { "enum": ["QUEUED", "RUNNING", "RETRYING", "COMPLETED", "CANCELED", "PROCESSING_FAILED", "STARTED", "SUCCEEDED", "FAILED", "RESUMED", "CANCEL_REQUESTED"] },
+    "error_code": {
+      "enum": [
+        "KSLIDE_AUTHENTICATION_FAILED", "KSLIDE_CHART_INTERPRETATION_MISMATCH", "KSLIDE_CLAIM_UNSUPPORTED",
+        "KSLIDE_CLASSIFICATION_NOT_APPROVED", "KSLIDE_CLASSIFICATION_POLICY_IDENTITY_MISMATCH", "KSLIDE_CLASSIFICATION_POLICY_INVALID",
+        "KSLIDE_CLASSIFICATION_POLICY_ROUTE_MISMATCH", "KSLIDE_CLASSIFICATION_UNKNOWN", "KSLIDE_COMPLETION_BLOCKED",
+        "KSLIDE_CONFIG_INVALID", "KSLIDE_CONFLICT_INVALID", "KSLIDE_CONFLICT_REFERENCE_INVALID", "KSLIDE_DELETION_BLOCKED",
+        "KSLIDE_DELETION_INVALID", "KSLIDE_DELETION_PARTIAL", "KSLIDE_DELETION_TARGET_CHANGED", "KSLIDE_DELETION_TARGET_FAILED",
+        "KSLIDE_DUPLICATE_DOCUMENT_ID", "KSLIDE_DUPLICATE_SOURCE_ID", "KSLIDE_DUPLICATE_WORK_UNIT_ID",
+        "KSLIDE_EGRESS_CAPABILITY_DENIED", "KSLIDE_EGRESS_POLICY_INVALID", "KSLIDE_EGRESS_ROUTE_MISMATCH",
+        "KSLIDE_EVIDENCE_INCOMPLETE", "KSLIDE_EXECUTION_AUTHORIZATION_REQUIRED", "KSLIDE_EXECUTION_CONFLICT",
+        "KSLIDE_EXECUTION_ENVIRONMENT_MISMATCH", "KSLIDE_EXECUTION_INVALID", "KSLIDE_EXECUTION_NOT_FOUND",
+        "KSLIDE_EXECUTION_STALE", "KSLIDE_EXECUTION_UNSUPPORTED_VERSION", "KSLIDE_IMAGE_DECODE_FAILED",
+        "KSLIDE_INPUT_ARCHIVE_UNSAFE", "KSLIDE_INPUT_CORRUPT", "KSLIDE_INPUT_EMPTY", "KSLIDE_INPUT_NOT_FOUND",
+        "KSLIDE_INPUT_TOO_LARGE", "KSLIDE_INPUT_TYPE_MISMATCH", "KSLIDE_INPUT_UNSUPPORTED", "KSLIDE_INSTALL_COLLISION",
+        "KSLIDE_INSTALL_INVALID", "KSLIDE_INSTALL_LOCAL_MODIFICATION", "KSLIDE_INTERNAL", "KSLIDE_INVALID_STATE_TRANSITION",
+        "KSLIDE_LEGACY_TABLE_CELL_MIGRATION_REQUIRED", "KSLIDE_LEGAL_HOLD_BLOCKED", "KSLIDE_LEGAL_HOLD_UNKNOWN",
+        "KSLIDE_MODALITY_MISMATCH", "KSLIDE_MODEL_UNKNOWN", "KSLIDE_NORMALIZATION_FAILED", "KSLIDE_NUMERIC_MISMATCH",
+        "KSLIDE_OCR_PROVIDER_UNAVAILABLE", "KSLIDE_OCR_UNAVAILABLE", "KSLIDE_OPENCODE_BOOTSTRAP_INVALID",
+        "KSLIDE_PATH_OUTSIDE_ALLOWED_ROOT", "KSLIDE_PDF_ENCRYPTED", "KSLIDE_PDF_RENDER_UNAVAILABLE",
+        "KSLIDE_PPTX_CONVERSION_TIMEOUT", "KSLIDE_PPTX_RENDER_UNAVAILABLE", "KSLIDE_PRODUCTION_PROFILE_INVALID",
+        "KSLIDE_RENDER_COUNT_MISMATCH", "KSLIDE_REQUIRED_ENGLISH", "KSLIDE_RESOURCE_LIMIT", "KSLIDE_RETENTION_INVALID",
+        "KSLIDE_RETENTION_REFUSED", "KSLIDE_RUNTIME_UNKNOWN", "KSLIDE_RUN_NOT_FOUND", "KSLIDE_SCHEMA_INVALID",
+        "KSLIDE_STALE_EVIDENCE", "KSLIDE_STATE_CORRUPT", "KSLIDE_SUPERSESSION_INVALID", "KSLIDE_SUPPORT_AUDIT_FAILED",
+        "KSLIDE_SUPPORT_AUTHORITY_UNAVAILABLE", "KSLIDE_SUPPORT_AUTHORIZATION_DENIED", "KSLIDE_SUPPORT_AUTHORIZATION_EXPIRED",
+        "KSLIDE_SUPPORT_AUTHORIZATION_INVALID", "KSLIDE_SUPPORT_AUTHORIZATION_REVOKED", "KSLIDE_SUPPORT_BUNDLE_INVALID",
+        "KSLIDE_SUPPORT_CONTENT_UNAVAILABLE", "KSLIDE_TABLE_STRUCTURE_MISMATCH", "KSLIDE_UNKNOWN_REGION",
+        "KSLIDE_UNKNOWN_SOURCE_ELEMENT", "KSLIDE_UNKNOWN_TABLE", "KSLIDE_UNKNOWN_TABLE_CELL", "KSLIDE_UNKNOWN_WORK_UNIT",
+        "KSLIDE_VERIFICATION_FAILED", "KSLIDE_VISUAL_RELATION_MISMATCH", "KSLIDE_WORK_UNIT_ALREADY_COMPLETE",
+        "KSLIDE_WORK_UNIT_CONFLICT"
+      ]
+    },
+    "stage": { "enum": ["PREPARING", "ADMISSION", "NORMALIZING", "EXTRACTING", "TRANSLATING", "VERIFYING", "FINALIZING", "RUNTIME_BINDING", "RETRYING", "ISSUE_REPORT"] },
+    "duration_ms": { "$ref": "#/$defs/bounded_integer" },
+    "count": { "$ref": "#/$defs/bounded_integer" },
+    "resource_units": { "$ref": "#/$defs/bounded_integer" },
+    "retry_attempt": { "$ref": "#/$defs/bounded_integer" },
+    "host": { "enum": ["cloud_vscode", "opencode", "local_cli", "paas_worker"] },
+    "artifact_class": { "enum": ["presentation", "pdf", "image", "mixed", "unknown"] },
+    "semantic_outcome": { "enum": ["PENDING", "DONE", "NEEDS_REVIEW"] },
+    "review_category": { "enum": ["NONE", "SOURCE_EVIDENCE", "WORK_UNIT_INCOMPLETE", "VERIFICATION_FAILURE", "UNRESOLVED_CONFLICT", "REQUIRED_ARTIFACT_MISSING"] },
+    "issue_category": { "enum": ["meaning_error", "number_error", "omission", "false_done", "unnecessary_review"] },
+    "issue_report_status": { "const": "ALLEGATION" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "event_type": { "const": "issue_report" } }, "required": ["event_type"] },
+      "then": { "required": ["run_ref", "host", "semantic_outcome", "review_category", "issue_category", "issue_report_status"] },
+      "else": { "not": { "anyOf": [{ "required": ["issue_category"] }, { "required": ["issue_report_status"] }] } }
+    },
+    {
+      "if": { "properties": { "semantic_outcome": { "const": "DONE" } }, "required": ["semantic_outcome"] },
+      "then": { "properties": { "review_category": { "const": "NONE" } } }
+    },
+    {
+      "if": { "properties": { "semantic_outcome": { "const": "NEEDS_REVIEW" } }, "required": ["semantic_outcome"] },
+      "then": { "properties": { "review_category": { "enum": ["SOURCE_EVIDENCE", "WORK_UNIT_INCOMPLETE", "VERIFICATION_FAILURE", "UNRESOLVED_CONFLICT", "REQUIRED_ARTIFACT_MISSING"] } }, "required": ["review_category"] }
+    }
+  ],
+  "$defs": {
+    "bounded_integer": { "type": "integer", "minimum": 0, "maximum": 100000000000 },
+    "event_ref": { "type": "string", "pattern": "^kslide-ref-v1\\.event\\.[0-9a-f]{64}$" },
+    "deployment_ref": { "type": "string", "pattern": "^kslide-ref-v1\\.deployment\\.[0-9a-f]{64}$" },
+    "runtime_ref": { "type": "string", "pattern": "^kslide-ref-v1\\.runtime\\.[0-9a-f]{64}$" },
+    "model_ref": { "type": "string", "pattern": "^kslide-ref-v1\\.model\\.[0-9a-f]{64}$" },
+    "run_ref": { "type": "string", "pattern": "^kslide-ref-v1\\.run\\.[0-9a-f]{64}$" },
+    "worker_ref": { "type": "string", "pattern": "^kslide-ref-v1\\.worker\\.[0-9a-f]{64}$" },
+    "scope_ref": { "type": "string", "pattern": "^kslide-ref-v1\\.scope\\.[0-9a-f]{64}$" },
+    "candidate_ref": { "type": "string", "pattern": "^kslide-ref-v1\\.candidate\\.[0-9a-f]{64}$" }
+  }
+}

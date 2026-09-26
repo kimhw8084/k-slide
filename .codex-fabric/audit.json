@@ -1,260 +1,342 @@
 {
   "artifact_bridge": {
     "published": false,
-    "reason": "No Project OS Artifact Bridge tool is exposed in this session; deterministic FIX01 evidence is committed locally for independent audit.",
+    "reason": "No Project OS Artifact Bridge tool was available in this session; deterministic Git evidence is prepared for independent Project OS promotion.",
     "requested_bridge": "Project OS Artifact Bridge",
     "tool_available_in_active_session": false
   },
   "artifact_path": ".codex-fabric/audit.json",
-  "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
-  "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
-  "candidate": {
-    "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
-    "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
-    "branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
-    "candidate_changes_committed": true,
-    "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
-    "candidate_source_content_manifest": [
-      {
-        "path": "IMPLEMENTATION_STATUS.md",
-        "sha256": "e7f4a02f65a17fa61189a82a211b87e888ef4f16309868c99a4cf52c69d9f41a"
-      },
-      {
-        "path": "README.md",
-        "sha256": "325faadde2da37ec9d2df7707e4d5d90b1c03e4cd2258c5f00b31cee05bbe748"
-      },
-      {
-        "path": "deploy/README.md",
-        "sha256": "9d7d795580a75b745ebbdd38014d1096e01f64a3edc20df76105277434343c3a"
-      },
-      {
-        "path": "docs/adr/0045-candidate-bound-rollout-controls.md",
-        "sha256": "1fb275ece0ef96c05aca16277cc09daee22d21e69b96f1e56319edc2c1702d5f"
-      },
-      {
-        "path": "docs/ksa34-rollout-controls.md",
-        "sha256": "80fc0e40784b5543f0ef03b705ed42f25a97178cc65483032081a0d762e0dd43"
-      },
-      {
-        "path": "schemas/rollout-control.schema.json",
-        "sha256": "26b9114fc256f64b3a7c88c1d0af00739ee5e38df14369f30171a05824ac258e"
-      },
-      {
-        "path": "src/k_slide/ingest.py",
-        "sha256": "5e91ffe1ecdab5802fed52e37d45a3f952ff5dc1e5bb841ee4864fb2ee033e60"
-      },
-      {
-        "path": "src/k_slide/rollout.py",
-        "sha256": "a33a603652764b56dd1b5df667f6317eddac492e4b7e183d5be75b41da09dec5"
-      },
-      {
-        "path": "tests/rollout_fixtures.py",
-        "sha256": "06f86cbd5b44154cc796586c7abd7e16fa1457d543d0d05481aeece4e8bb9bd2"
-      },
-      {
-        "path": "tests/test_chg16_environment_binding.py",
-        "sha256": "68c4011c5be52749f63d32c84aebdc298d2d07ec7d41e116f3d7b6cf599252cf"
-      },
-      {
-        "path": "tests/test_ksa19_employee_path.py",
-        "sha256": "b5339256211fc0e0e6d3f01839f5a1a3f68d350e8f12e582d252f44ba054dbae"
-      },
-      {
-        "path": "tests/test_ksa34_rollout.py",
-        "sha256": "50f4fcaef3e5eff4955fecab0b0df664c61a8dfd5799b3bbc730ab2a21bc9cc1"
-      }
-    ],
-    "candidate_source_content_manifest_sha256": "9da57ab7186bbf84ba3fbff1dfb40f35318d2807bd243f16852ff14b58089594",
-    "candidate_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
-    "working_tree_clean_before_audit_write": true,
-    "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
-    "product_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
-    "product_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
-    "candidate_identity": {
-      "project_id": "k-slide",
-      "logical_request": "chg16-rollout-controls-01",
-      "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
-      "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
-      "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
-      "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
-      "candidate_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
-      "product_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
-      "product_tree_oid": "64f26880f147b3ade4a652f8068d10a23565a17c",
-      "candidate_source_content_manifest_sha256": "9da57ab7186bbf84ba3fbff1dfb40f35318d2807bd243f16852ff14b58089594"
-    },
-    "candidate_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
-    "candidate_identity_sha256": "223a07c3dde460d4e6423470b75a16e848c65f4a83c00b75976b8362e330915c"
-  },
   "checks": [
     {
-      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m unittest tests.test_ksa34_rollout -q",
-      "exit_code": 0,
-      "name": "Focused KSA-34 rollout state-machine and host integration, Python 3.11",
-      "result": "17 tests passed"
+      "name": "Focused KSA-35 product telemetry tests, Python 3.11",
+      "status": "PASS",
+      "tests": 13
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m unittest tests.test_ksa34_rollout -q",
-      "exit_code": 0,
-      "name": "Focused KSA-34 rollout state-machine and host integration, Python 3.12",
-      "result": "17 tests passed"
+      "name": "Focused KSA-35 product telemetry tests, Python 3.12",
+      "status": "PASS",
+      "tests": 13
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m unittest discover -s tests -q",
-      "exit_code": 0,
-      "name": "Full repository unittest suite, Python 3.11",
-      "result": "687 tests passed; 4 optional skips"
+      "name": "Full repository Python unittest suite, Python 3.11",
+      "status": "PASS",
+      "tests": 700,
+      "optional_skips": 4
     },
     {
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa34-py312/bin/python -m unittest discover -s tests -q",
-      "exit_code": 0,
-      "name": "Full repository unittest suite, Python 3.12",
-      "result": "687 tests passed"
+      "name": "Full repository Python unittest suite, Python 3.12",
+      "status": "PASS",
+      "tests": 700
     },
     {
-      "exit_code": 0,
-      "name": "Repository JSON schemas, Python 3.11 and 3.12",
-      "result": "All 7 schemas passed Draft 2020-12 schema validation on each version"
+      "name": "Related telemetry/privacy/security/authorization/retention/host regressions, Python 3.11",
+      "status": "PASS",
+      "tests": 194,
+      "optional_skips": 1,
+      "module_patterns": [
+        "test_ksa35_product_telemetry.py",
+        "test_chg16_*.py",
+        "test_chg17_*.py",
+        "test_chg18_*.py"
+      ]
     },
     {
-      "exit_code": 0,
-      "name": "Workflow YAML and embedded shell syntax",
-      "result": "All 6 workflow YAML files parsed; all 49 embedded shell steps passed bash -n"
+      "name": "Related telemetry/privacy/security/authorization/retention/host regressions, Python 3.12",
+      "status": "PASS",
+      "tests": 194,
+      "module_patterns": [
+        "test_ksa35_product_telemetry.py",
+        "test_chg16_*.py",
+        "test_chg17_*.py",
+        "test_chg18_*.py"
+      ]
     },
     {
-      "exit_code": 0,
-      "name": "Compileall, Python 3.11 and 3.12",
-      "result": "Passed on both versions"
+      "name": "OpenCode issue-report host regression, Python 3.11",
+      "status": "PASS",
+      "runner": "Bun 1.4.2",
+      "test_file": "tests/test_chg16_opencode_plugin.ts"
     },
     {
-      "exit_code": 0,
-      "name": "Candidate, operation, predecessor, manifest, and Fabric evidence identities",
-      "result": "All provenance identities independently rederived from Git objects and canonical JSON"
+      "name": "OpenCode issue-report host regression, Python 3.12",
+      "status": "PASS",
+      "runner": "Bun 1.4.2",
+      "test_file": "tests/test_chg16_opencode_plugin.ts"
     },
     {
-      "command": "rtk git diff --check",
-      "exit_code": 0,
-      "name": "Whitespace and patch validation",
-      "result": "Passed"
+      "name": "JSON-schema validation and ErrorCode enum parity, Python 3.11",
+      "status": "PASS",
+      "schemas": 8,
+      "error_enum_members": 89
+    },
+    {
+      "name": "JSON-schema validation and ErrorCode enum parity, Python 3.12",
+      "status": "PASS",
+      "schemas": 8,
+      "error_enum_members": 89
+    },
+    {
+      "name": "Workflow YAML parsing and embedded shell syntax",
+      "status": "PASS",
+      "python_versions": [
+        "3.11",
+        "3.12"
+      ],
+      "workflows": 6,
+      "shell_steps": 49
+    },
+    {
+      "name": "Python compileall for src, evals, and tests",
+      "status": "PASS",
+      "python_versions": [
+        "3.11",
+        "3.12"
+      ]
+    },
+    {
+      "name": "git diff --check",
+      "status": "PASS"
     }
   ],
-  "company_environment": {
-    "authenticated_cohort_resolution": "UNQUALIFIED",
-    "deployed_runtime_identity": "UNQUALIFIED",
-    "live_company_approval": "NOT_CLAIMED",
-    "live_paas_or_feature_flags": "NOT_MUTATED",
-    "rollout_control_plane_persistence": "UNQUALIFIED"
+  "employee_pilot_or_canary": false,
+  "fix_binding_identity": {
+    "base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
+    "base_tree_oid": "b546ad8f1abbd0dea4124c6c3d91ac4103e4de8a",
+    "fix_request": "chg16-product-telemetry-01-fix03",
+    "issue_id": "CHG-16",
+    "logical_build_request": "chg16-product-telemetry-01",
+    "operation": "FIX",
+    "predecessor_candidate_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
+    "predecessor_candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
+    "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
+    "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
+    "product_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
+    "project_id": "k-slide",
+    "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix03",
+    "work_item": "KSA-35 F35-01/F35-02"
   },
-  "fabric_evidence_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators, excluding fabric_evidence_identity_sha256 itself",
-  "fabric_job_id": "CF-972811ab7d024a50b1eb98d0",
+  "fix_binding_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
+  "fix_binding_identity_sha256": "bb94b9409136a1e70f429e7614ba35616b5e26d110de2ce5839a9e9e7b5be36a",
+  "fix_request": "chg16-product-telemetry-01-fix03",
   "generated_at": "2026-09-25",
-  "issue_id": "CHG-16",
-  "job_id": "CF-972811ab7d024a50b1eb98d0",
-  "kind": "codex-fabric-audit-evidence",
-  "operation": "BUILD",
-  "predecessor_audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
-  "project_id": "k-slide",
-  "qualification_status": "NOT_QUALIFIED",
-  "release_or_production_claim": false,
-  "request": "chg16-rollout-controls-01",
-  "rollout_evidence": {
-    "durable_admission_and_transition_evidence_source_free": true,
-    "durable_source_document_content": false,
-    "employee_pilot_or_canary_run": "NOT_RUN",
-    "live_cohort_or_rollout_state": "NOT_CREATED",
-    "reference_file_adapter": "TEST_AND_LOCAL_QUALIFICATION_ONLY",
-    "rollout_controls_change_release_or_certification_state": false,
-    "scenario_coverage": [
-      "named cohort inclusion and exclusion",
-      "explicit staged expansion and contraction",
-      "immediate disable and re-enable",
-      "authorized rollback and restoration",
-      "restart and reload",
-      "stale and malformed policy",
-      "unauthorized policy/state/history mutation",
-      "exact candidate mismatch and policy drift",
-      "replay and monotonic history",
-      "rollback target mismatch",
-      "in-flight run identity preservation",
-      "shared CLI and OpenCode host boundary"
-    ],
-    "versioned_inflight_rule": "BOUND_RUNS_COMPLETE_OR_STOP_ON_IDENTITY_MISMATCH_V1"
+  "historical_build_evidence": {
+    "commit_parent_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
+    "error_code": "CODEX_EXIT_NONZERO",
+    "evidence_audit_sha256": "4eb0fcffb8508254d07a2571b847448b1ee3b9ef8d6a630ea041a40222cd0a87",
+    "evidence_commit_sha": "c8185e0aeb776038cd80bfcd72a054dcfd308f46",
+    "evidence_identity_sha256": "b2c3eb633ed68bef65500a9da7cb7c14926dc156a0fba13a4479e62c98d5fa2f",
+    "evidence_manifest_count": 0,
+    "evidence_ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-product-telemetry-01",
+    "failure_class": "CODEX_EXECUTION",
+    "implementation_commits": [],
+    "job_id": "CF-ab2fb520eae8329f1d87bef3",
+    "operation": "BUILD",
+    "pinned_base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
+    "project_id": "k-slide",
+    "request": "chg16-product-telemetry-01",
+    "result": "FAILED_BEFORE_IMPLEMENTATION",
+    "status": "FAILED_MODEL"
   },
+  "historical_recovery_evidence": {
+    "corrected_in_fix01": [
+      "The recovery request remains historical evidence and is not relabeled as the canonically bound FIX request.",
+      "The original pinned base is not reused as the recovery work head.",
+      "The recovery evidence ref remains a historical alias of its work/audit head and is not reused as the FIX evidence publication."
+    ],
+    "evidence_audit_sha256": "48c32b4376fb33e3ee409e3ebcd00f8e75cb86042d4a25551471848903306470",
+    "evidence_commit_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
+    "evidence_identity_sha256": "808adabcad874d8e130f2020fb64815d886bfc9138d5d3cb3e31561a7f42418f",
+    "evidence_ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-product-telemetry-01-resume1",
+    "evidence_ref_equals_work_head": true,
+    "job_id": "CF-e009b0f332b3f5fba1e37419",
+    "logical_build_request": "chg16-product-telemetry-01",
+    "operation": "BUILD",
+    "prebound_in_project_os": false,
+    "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
+    "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
+    "project_id": "k-slide",
+    "request": "chg16-product-telemetry-01-resume1",
+    "status": "EXECUTED_CHANGE",
+    "work_branch": "codex/k-slide-chg16-product-telemetry-01-resume1",
+    "work_head_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
+    "work_ref": "refs/heads/codex/k-slide-chg16-product-telemetry-01-resume1"
+  },
+  "issue_id": "CHG-16",
+  "kind": "codex-fabric-audit-evidence",
+  "logical_request": "chg16-product-telemetry-01",
+  "operation": "FIX",
+  "operation_identity": {
+    "base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
+    "base_tree_oid": "b546ad8f1abbd0dea4124c6c3d91ac4103e4de8a",
+    "fix_request": "chg16-product-telemetry-01-fix03",
+    "issue_id": "CHG-16",
+    "logical_build_request": "chg16-product-telemetry-01",
+    "operation": "FIX",
+    "predecessor_candidate_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
+    "predecessor_candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
+    "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
+    "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
+    "product_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
+    "project_id": "k-slide",
+    "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix03",
+    "work_item": "KSA-35 F35-01/F35-02"
+  },
+  "operation_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
+  "operation_identity_sha256": "bb94b9409136a1e70f429e7614ba35616b5e26d110de2ce5839a9e9e7b5be36a",
+  "operational_service_enabled": false,
+  "predecessor_recovery_audit_sha256": "48c32b4376fb33e3ee409e3ebcd00f8e75cb86042d4a25551471848903306470",
+  "predecessor_recovery_evidence_identity_sha256": "808adabcad874d8e130f2020fb64815d886bfc9138d5d3cb3e31561a7f42418f",
+  "predecessor_recovery_head_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
+  "predecessor_recovery_tree_oid": "603a9bdca64a1a9e339ca6d6e9ce9ddad7e04ec7",
+  "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
+  "product_source_content_manifest": [
+    {
+      "path": ".opencode/agents/k-slide.md",
+      "sha256": "7964e807477936f6564e9c0e90e952b1a7adf79da09c4a4e973423e247a0d0d3"
+    },
+    {
+      "path": ".opencode/tools/kslide.ts",
+      "sha256": "2061077db8adde9baf49c431bfdbb4fb59775f103b9f0242d15955700ae5ea1e"
+    },
+    {
+      "path": "IMPLEMENTATION_STATUS.md",
+      "sha256": "bb71208f95af07f5289c011c81f1aba0678d5c3eade30d4a52e8e8faa0500fd7"
+    },
+    {
+      "path": "docs/ksa35-product-telemetry.md",
+      "sha256": "b83127bacd4ca39a2e6d0e8a6e34658becdaa76acb97941b49a852c8f188a42e"
+    },
+    {
+      "path": "schemas/operational-telemetry-event.schema.json",
+      "sha256": "4da0dc3ed702b0f7809bcef5094771b1b32ddf5645e4e0788d786469ed38468f"
+    },
+    {
+      "path": "src/k_slide/cli.py",
+      "sha256": "cf6844ec24fecad0c29d0787244625db5c602e04bc4e5a6c4ec5c00ac652a52d"
+    },
+    {
+      "path": "src/k_slide/deletion.py",
+      "sha256": "0b273f6d5bfdb5ec995f8f2f404230da20567f4d07771440fad47badbc3c64d6"
+    },
+    {
+      "path": "src/k_slide/run_store.py",
+      "sha256": "6c2e020183f4238c400fb3e58b46c394eef434ca15e6f81be17d35019b3602b5"
+    },
+    {
+      "path": "src/k_slide/telemetry.py",
+      "sha256": "de482890890393e3a17579287680eefcd1d84295c3425238ca091a4e49459273"
+    },
+    {
+      "path": "tests/test_chg16_deletion.py",
+      "sha256": "9eab29ad9c6738a8b9535d2020020efcf2bc4b2fdfb888d8a71d0e91fd1ca476"
+    },
+    {
+      "path": "tests/test_chg16_opencode_plugin.ts",
+      "sha256": "02f155fdb06d58812f18f8cc1f7c49660ce74597f8d0a4ebeb350658bc56378c"
+    },
+    {
+      "path": "tests/test_chg16_storage_planes.py",
+      "sha256": "a56fb5bc82fd3646588fc705192d2d7658a386f0a11e0c6d10dcdad9228484cb"
+    },
+    {
+      "path": "tests/test_ksa35_product_telemetry.py",
+      "sha256": "4b8f4767cbec0c87ecef70768cc028a62ecb9dbed452102a1abd763faef40e19"
+    }
+  ],
+  "product_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
+  "product_source_parent_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
+  "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
+  "project_id": "k-slide",
+  "qualification_status": "CANDIDATE_CHECKS_PASS_PENDING_NATIVE_PUBLICATION_AND_INDEPENDENT_PROJECT_OS_REVIEW",
+  "release_or_production_claim": false,
   "schema_version": 1,
   "scope": {
     "excluded": [
-      "KSA-35 and later",
-      "Live company PaaS or feature-flag mutation",
-      "Real employee pilot or canary",
-      "Moving or merging main",
-      "Release, BUILD COMPLETE, champion promotion, or production certification"
+      "KSA-36 and later work.",
+      "Live telemetry service provisioning.",
+      "Company policy changes.",
+      "Merge or movement of main.",
+      "Real pilot or canary.",
+      "Release, BUILD COMPLETE, or production certification."
     ],
     "implemented": [
-      "KSA-34 repository-owned candidate-bound rollout admission controls only"
+      "KSA-35 FIX03 candidate-side provenance correction only."
     ],
     "preserved": [
-      "Accepted KSA-01 through KSA-33 behavior",
-      "Existing evidence-derived release/certification machinery",
-      "KSA-31 champion/change-impact, KSA-32 governance, and KSA-33 candidate/security authority"
+      "Typed allowlisted source-free telemetry.",
+      "Engine-derived semantic outcome and review category.",
+      "Closed employee issue taxonomy meaning_error, number_error, omission, false_done, unnecessary_review; ALLEGATION status only.",
+      "Session/run-scoped authorization and idempotent duplicate/restart handling.",
+      "Truthful NOT_DELIVERED behavior for optional sink failures.",
+      "Operational-metadata retention and legal-hold reuse.",
+      "AccessKey and content non-leakage.",
+      "Shared Cloud VS Code/CLI and OpenCode host semantics.",
+      "No mutation of EvidenceIR, completion, or certification state."
     ]
   },
-  "status": "EXECUTED_CHANGE",
-  "fix_request": "chg16-rollout-controls-01-fix01",
-  "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
-  "upstream_predecessor_audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
-  "predecessor_work_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
-  "predecessor_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5",
-  "predecessor_evidence": {
-    "commit_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
-    "audit_path": ".codex-fabric/audit.json",
-    "audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
-    "fabric_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5",
-    "identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators, excluding fabric_evidence_identity_sha256 itself"
-  },
-  "historical_build_evidence": {
-    "project_id": "k-slide",
-    "request": "chg16-rollout-controls-01",
-    "operation": "BUILD",
-    "job_id": "CF-972811ab7d024a50b1eb98d0",
-    "evidence_commit_sha": "4f98ec924309337db2de985d7e913a9c28f8cf1f",
-    "evidence_audit_sha256": "8829b9fa93cd58afd236c20ccc97d4d4bbef6f588b43d73c92f5b0abd2f8ca02",
-    "original_work_branch": "codex/k-slide-chg16-rollout-controls-01",
-    "candidate_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
-    "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
-    "candidate_audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
-    "evidence_manifest_candidate_audit_sha256": "340eea7b9a3ce089890f3b10ad0bd590a9b22282f24c829d45e1a8be0c2d6302",
-    "locator_ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-rollout-controls-01"
-  },
-  "operation_identity": {
-    "project_id": "k-slide",
-    "logical_request": "chg16-rollout-controls-01",
-    "operation": "BUILD",
-    "build_job_id": "CF-972811ab7d024a50b1eb98d0",
-    "fix_request": "chg16-rollout-controls-01-fix01",
-    "work_item": "KSA-34 F34-01",
-    "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
-    "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
-    "candidate_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
-    "product_commit_sha": "01a2c87caa92bb392fa0762abcdf521e04538df5",
-    "predecessor_work_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
-    "predecessor_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5"
-  },
-  "operation_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
-  "operation_identity_sha256": "36a262c507dbe7bd33f666d961619877f16e5d9aaff6b3dcde2072200497e411",
-  "fix01": {
-    "request": "chg16-rollout-controls-01-fix01",
-    "work_item": "KSA-34 F34-01",
-    "work_branch": "codex/k-slide-chg16-rollout-controls-01-fix01",
-    "base_commit_sha": "0d745ae9edecea33ea4dfa0d0a7cd1143b19fb2a",
-    "base_tree_oid": "317ca774598820ccd6c8d0bcb82c9cc1dbfc1670",
-    "predecessor_work_head_sha": "697e6af6d48db777a6b735e6a666a46dda0d329c",
-    "predecessor_evidence_identity_sha256": "2f6c1f713874868823a86675dd91a875e565da25975583476a48c32206e40df5",
-    "scope": "Candidate-side audit/evidence provenance correction only.",
-    "changed_paths": [
+  "source_tree_preservation": {
+    "code_or_test_changes_after_predecessor": false,
+    "fix_candidate_changed_paths": [
       ".codex-fabric/audit.json"
     ],
-    "rollout_source_tree_changed": false,
-    "live_company_approval_or_release_claimed": false,
-    "status": "EXECUTED_CHANGE"
+    "predecessor_candidate_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
+    "predecessor_candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
+    "product_changed_paths_from_base": [
+      ".opencode/agents/k-slide.md",
+      ".opencode/tools/kslide.ts",
+      "IMPLEMENTATION_STATUS.md",
+      "docs/ksa35-product-telemetry.md",
+      "schemas/operational-telemetry-event.schema.json",
+      "src/k_slide/cli.py",
+      "src/k_slide/deletion.py",
+      "src/k_slide/run_store.py",
+      "src/k_slide/telemetry.py",
+      "tests/test_chg16_deletion.py",
+      "tests/test_chg16_opencode_plugin.ts",
+      "tests/test_chg16_storage_planes.py",
+      "tests/test_ksa35_product_telemetry.py"
+    ],
+    "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
+    "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
+    "product_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
+    "relative_to_predecessor_candidate": true
   },
-  "fabric_evidence_identity_sha256": "e845136108d88710fa241e2d347eb3e0a089b3151ebd0cd0693ed513047570cb"
+  "status": "EXECUTED_CHANGE",
+  "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix03",
+  "work_candidate": {
+    "project_id": "k-slide",
+    "operation": "FIX",
+    "request": "chg16-product-telemetry-01-fix03",
+    "base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
+    "base_tree_oid": "b546ad8f1abbd0dea4124c6c3d91ac4103e4de8a",
+    "predecessor_candidate_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
+    "predecessor_candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
+    "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
+    "product_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
+    "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
+    "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix03",
+    "resulting_candidate_sha": null,
+    "resulting_candidate_tree_oid": null,
+    "resulting_candidate_binding_owner": "Fabric native publisher post-execution evidence",
+    "promotable_candidate": false,
+    "promotion_status": "PENDING_NATIVE_PUBLICATION_AND_INDEPENDENT_PROJECT_OS_REVIEW",
+    "candidate_check_status": "PASS"
+  },
+  "work_item": "KSA-35 F35-01/F35-02",
+  "worktree_clean_before_audit_write": true,
+  "request": "chg16-product-telemetry-01-fix03",
+  "predecessor_candidate_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
+  "predecessor_candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
+  "fabric_execution_identity": {
+    "fabric_job_id": null,
+    "owner": "Fabric native publisher",
+    "status": "PENDING_POST_EXECUTION_PUBLICATION"
+  },
+  "historical_invalid_surrogate": {
+    "value": "CF-58388dc2ed6a76e938309a56",
+    "classification": "INVALID_LOCAL_SURROGATE",
+    "source_fix_request": "chg16-product-telemetry-01-fix01",
+    "origin": "Locally derived in FIX01; not issued or verified by Fabric.",
+    "valid_as_current_fabric_job_id": false
+  }
 }

@@ -1,11 +1,12 @@
 import assert from "node:assert/strict"
-import { createHash } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import { spawnSync } from "node:child_process"
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import KSlideHostPlugin, { deploymentBoundRouteIdentity, opencodeRouteIdentity } from "../.opencode/plugin/k-slide-host.ts"
+import { issue_status, report_issue } from "../.opencode/tools/kslide.ts"
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64")
@@ -173,6 +174,62 @@ async function assertPrivateFile(locator: string): Promise<void> {
   assert.ok(locator.startsWith(path.resolve(tmpdir()) + path.sep))
   const details = await stat(locator)
   assert.equal(details.mode & 0o777, 0o600)
+}
+
+async function employeeIssueReportHostPath(): Promise<void> {
+  const hostRoot = await mkdtemp(path.join(path.resolve(tmpdir()), "k-slide-opencode-issue-host-"))
+  const serviceRoot = await mkdtemp(path.join(path.resolve(tmpdir()), "k-slide-opencode-issue-service-"))
+  const sessionID = `opencode-issue-${randomUUID()}`
+  const sourcePath = path.join(hostRoot, "employee-report-fixture.png")
+  await mkdir(path.join(hostRoot, "src"), { recursive: true })
+  await symlink(path.join(ROOT, "src", "k_slide"), path.join(hostRoot, "src", "k_slide"), "dir")
+  await writeFile(sourcePath, PNG)
+  const prepareScript = [
+    "import sys",
+    "from pathlib import Path",
+    "from tests.reference_fixtures import reference_environment",
+    "from k_slide.ingest import prepare_run",
+    "root = Path(sys.argv[1])",
+    "run = prepare_run(root, explicit_paths=[str(root / 'employee-report-fixture.png')], session_id=sys.argv[2], environment_identity=reference_environment('ksa35-opencode-e2e'))",
+    "print(run.name)",
+  ].join("\n")
+  const prepared = spawnSync(
+    "python3",
+    ["-c", prepareScript, hostRoot, sessionID],
+    { cwd: ROOT, env: { ...process.env, PYTHONPATH: `${path.join(ROOT, "src")}${path.delimiter}${ROOT}` }, encoding: "utf8" },
+  )
+  assert.equal(prepared.status, 0, prepared.stderr)
+  const runID = prepared.stdout.trim()
+  assert.match(runID, /^k-slide-/)
+
+  const previousServiceRoot = process.env.KSLIDE_OPERATIONAL_SERVICE_ROOT
+  process.env.KSLIDE_OPERATIONAL_SERVICE_ROOT = serviceRoot
+  const context = { sessionID, directory: hostRoot, worktree: hostRoot } as never
+  try {
+    const submitted = JSON.parse(await (report_issue as unknown as { execute(args: Record<string, unknown>, context: unknown): Promise<string> }).execute(
+      { run_id: runID, category: "omission", submission_id: randomUUID() },
+      context,
+    ))
+    assert.equal(submitted.status, "RECORDED")
+    assert.equal(submitted.report_status, "ALLEGATION")
+    assert.equal(submitted.issue_category, "omission")
+    const confirmed = JSON.parse(await (issue_status as unknown as { execute(args: Record<string, unknown>, context: unknown): Promise<string> }).execute(
+      { run_id: runID, report_id: submitted.report_id },
+      context,
+    ))
+    assert.equal(confirmed.status, "RECORDED")
+    assert.equal(confirmed.report_status, "ALLEGATION")
+    assert.equal(confirmed.issue_category, "omission")
+    const records = await readFile(path.join(serviceRoot, "telemetry", "events.jsonl"), "utf8")
+    assert.equal(records.trim().split("\n").length, 1)
+    assert.match(records, /"host":"opencode"/)
+    assert.doesNotMatch(records, /employee-report-fixture|employee-report-fixture\.png|source_text|translation|screenshot/)
+  } finally {
+    if (previousServiceRoot === undefined) delete process.env.KSLIDE_OPERATIONAL_SERVICE_ROOT
+    else process.env.KSLIDE_OPERATIONAL_SERVICE_ROOT = previousServiceRoot
+    await rm(hostRoot, { recursive: true, force: true })
+    await rm(serviceRoot, { recursive: true, force: true })
+  }
 }
 
 async function successBoundary(): Promise<void> {
@@ -646,10 +703,26 @@ export async function openCodeV139PluginLoaderCompatibilityBoundary(): Promise<v
   assert.doesNotMatch(toolSource, /classification: tool\.schema/)
   assert.match(toolSource, /export const conflict_resolve = tool\(/)
   assert.match(toolSource, /authority_evidence: tool\.schema\.array\(authorityEvidenceInput\)\.optional\(\)/)
+  const reportTool = toolSource.match(/export const report_issue = tool\(([\s\S]*?)\n\}\)\n\nexport const issue_status/)
+  assert.ok(reportTool, "OpenCode exposes the bounded employee issue-report tool")
+  const reportArgs = reportTool[1].match(/args:\s*\{([\s\S]*?)\n\s*\},\n\s*async execute/)
+  assert.ok(reportArgs)
+  assert.match(reportArgs[1], /run_id:\s*tool\.schema\.string\(\)/)
+  assert.match(reportArgs[1], /category:\s*tool\.schema\.enum\(\["meaning_error", "number_error", "omission", "false_done", "unnecessary_review"\]\)/)
+  assert.match(reportArgs[1], /submission_id:\s*tool\.schema\.string\(\)/)
+  assert.doesNotMatch(reportArgs[1], /narrative|source_text|filename|screenshot|translation|semantic_outcome/)
+  const lookupTool = toolSource.match(/export const issue_status = tool\(([\s\S]*?)\n\}\)\n\nexport const doctor/)
+  assert.ok(lookupTool, "OpenCode exposes run-scoped issue confirmation")
+  const lookupArgs = lookupTool[1].match(/args:\s*\{([\s\S]*?)\n\s*\},\n\s*async execute/)
+  assert.ok(lookupArgs)
+  assert.match(lookupArgs[1], /run_id:\s*tool\.schema\.string\(\)/)
+  assert.match(lookupArgs[1], /report_id:\s*tool\.schema\.string\(\)/)
+  assert.doesNotMatch(lookupArgs[1], /list|search|tenant|workspace|query/)
 }
 
 async function main(): Promise<void> {
   await openCodeV139PluginLoaderCompatibilityBoundary()
+  await employeeIssueReportHostPath()
   await routingBoundary()
   await replacementBoundary()
   await successBoundary()
