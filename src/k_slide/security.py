@@ -377,6 +377,7 @@ def validate_input(
     allowed_root: Path | None = None,
     logical_name: str | None = None,
     classification: str | None = None,
+    max_file_bytes: int | None = None,
 ) -> InputArtifact:
     """Validate a supported source without trusting its filename."""
 
@@ -402,8 +403,12 @@ def validate_input(
     size = resolved.stat().st_size
     if size == 0:
         raise KSlideError(ErrorCode.INPUT_EMPTY, "Input file is empty.")
-    if size > MAX_INPUT_BYTES:
-        raise KSlideError(ErrorCode.INPUT_TOO_LARGE, "Input file exceeds the safety limit.", {"limit_bytes": MAX_INPUT_BYTES})
+    if max_file_bytes is None:
+        max_file_bytes = MAX_INPUT_BYTES
+    if isinstance(max_file_bytes, bool) or not isinstance(max_file_bytes, int) or max_file_bytes < 1 or max_file_bytes > MAX_INPUT_BYTES:
+        raise KSlideError(ErrorCode.CONFIG_INVALID, "Input byte budget is invalid.")
+    if size > max_file_bytes:
+        raise KSlideError(ErrorCode.INPUT_TOO_LARGE, "Input file exceeds the configured resource budget.", {"limit_bytes": max_file_bytes})
 
     display_name = logical_name or resolved.name
     if "\x00" in display_name or "/" in display_name or "\\" in display_name or display_name in {"", ".", ".."}:

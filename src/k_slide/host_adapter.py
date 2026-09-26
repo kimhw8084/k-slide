@@ -109,6 +109,7 @@ class HostInputReference:
     logical_name: str
     locator: str
     classification: str | None = DEFAULT_CLASSIFICATION
+    rejection_code: str | None = None
 
     def __post_init__(self) -> None:
         if self.classification is None:
@@ -120,7 +121,7 @@ class HostInputReference:
     def from_mapping(cls, value: Any) -> "HostInputReference":
         if not isinstance(value, dict):
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "Host input reference must be an object.")
-        allowed = {"source_kind", "logical_name", "locator", "classification"}
+        allowed = {"source_kind", "logical_name", "locator", "classification", "rejection_code"}
         if set(value) - allowed:
             raise KSlideError(ErrorCode.SCHEMA_INVALID, "Host input reference contains unsupported fields.")
         source_kind = value.get("source_kind")
@@ -138,7 +139,16 @@ class HostInputReference:
         if not isinstance(locator, str) or not locator.strip() or "\x00" in locator:
             raise KSlideError(ErrorCode.INPUT_NOT_FOUND, "Host input reference is empty.")
         classification = validate_classification_label(value.get("classification")) or DEFAULT_CLASSIFICATION
-        return cls(source_kind, logical_name, locator, classification)
+        rejection_code = value.get("rejection_code")
+        if rejection_code not in {
+            None,
+            ErrorCode.INPUT_TOO_LARGE.value,
+            ErrorCode.RESOURCE_LIMIT.value,
+            ErrorCode.RESOURCE_BUDGET_INVALID.value,
+            ErrorCode.RESOURCE_BUDGET_UNAVAILABLE.value,
+        }:
+            raise KSlideError(ErrorCode.SCHEMA_INVALID, "Host input rejection code is unsupported.")
+        return cls(source_kind, logical_name, locator, classification, rejection_code)
 
 
 @dataclass(frozen=True)
@@ -185,12 +195,14 @@ def _local_path(reference: HostInputReference, *, approved_root: Path) -> Path:
     return candidate
 
 
-def validate_host_inputs(references: Iterable[HostInputReference], *, approved_root: Path) -> list[InputArtifact]:
+def validate_host_inputs(references: Iterable[HostInputReference], *, approved_root: Path, max_file_bytes: int | None = None) -> list[InputArtifact]:
     """Resolve and validate host references without fetching or persisting them."""
 
     root = approved_root.expanduser().resolve()
     artifacts: list[InputArtifact] = []
     for reference in references:
+        if reference.rejection_code is not None:
+            raise KSlideError(ErrorCode(reference.rejection_code), "Host attachment was rejected by resource-budget admission.")
         candidate = _local_path(reference, approved_root=root)
         allowed_root = root if reference.source_kind == "workspace_file" else None
         artifacts.append(
@@ -199,6 +211,7 @@ def validate_host_inputs(references: Iterable[HostInputReference], *, approved_r
                 allowed_root=allowed_root,
                 logical_name=reference.logical_name,
                 classification=reference.classification if reference.classification is not None else DEFAULT_CLASSIFICATION,
+                **({"max_file_bytes": max_file_bytes} if max_file_bytes is not None else {}),
             )
         )
     return artifacts

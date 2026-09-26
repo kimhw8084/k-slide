@@ -96,7 +96,7 @@ def _representative_pptx(path: Path) -> None:
     presentation.save(path)
 
 
-def _fixture_render(_source: Path, run_dir: Path, document_id: str) -> list[Path]:
+def _fixture_render(_source: Path, run_dir: Path, document_id: str, _budget: object = None) -> list[Path]:
     # The fixture is parsed by python-pptx and the normal extractor; this only
     # replaces the optional office renderer, which is unavailable in CI.
     from PIL import Image

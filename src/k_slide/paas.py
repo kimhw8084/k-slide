@@ -170,13 +170,33 @@ ScopeAuthorization = AuthorizedScopeContext
 
 @dataclass(frozen=True)
 class ScopedAdmissionPolicy:
-    """Durable admission policy; the production default is one heavy run."""
+    """Durable admission policy projected from the shared resource budget.
+
+    The default values are reference-only. Managed deployments must supply the
+    production profile's limits to the approved PaaS adapter.
+    """
 
     max_active_heavy_runs_per_scope: int = 1
+    max_queued_runs_per_scope: int = 16
 
     def __post_init__(self) -> None:
         if self.max_active_heavy_runs_per_scope != 1:
             raise _invalid("The KSA-09 reference policy supports exactly one active heavy run per scope.")
+        if isinstance(self.max_queued_runs_per_scope, bool) or not isinstance(self.max_queued_runs_per_scope, int) or not 1 <= self.max_queued_runs_per_scope <= 100_000:
+            raise _invalid("The scoped queue capacity is outside the bounded admission range.")
+
+    @classmethod
+    def from_resource_budget(cls, budget: Any) -> "ScopedAdmissionPolicy":
+        """Project the shared budget contract into the existing scoped queue owner."""
+
+        from .resource_budget import ResourceBudget
+
+        if not isinstance(budget, ResourceBudget):
+            raise _invalid("Scoped admission requires the versioned resource budget.")
+        return cls(
+            max_active_heavy_runs_per_scope=budget.limit("max_concurrent_runs_per_scope"),
+            max_queued_runs_per_scope=budget.limit("max_queued_runs_per_scope"),
+        )
 
 
 @dataclass(frozen=True)
@@ -1561,6 +1581,25 @@ class ReferencePaaSJobService(RunStoreResolver):
                 if not self._same_scoped_submission(existing, job, record, runtime_identity):
                     return PaaSSubmissionReceipt(StoreWriteStatus.CONFLICT, record.identity, record.references)
                 return PaaSSubmissionReceipt(StoreWriteStatus.IDEMPOTENT, record.identity, record.references)
+            queued_count = 0
+            for entry in state.entries:
+                if entry.identity.job_id == state.active_job_id:
+                    continue
+                try:
+                    queued_job = backend.load(entry.identity.job_id)
+                except KSlideError as exc:
+                    if exc.code is not ErrorCode.EXECUTION_NOT_FOUND:
+                        raise
+                    queued_count += 1
+                else:
+                    if not self._terminal_for_admission(queued_job):
+                        queued_count += 1
+            if queued_count >= self.admission_policy.max_queued_runs_per_scope:
+                raise KSlideError(
+                    ErrorCode.CAPACITY_LIMIT,
+                    "The authorized scope queue is at its configured capacity.",
+                    {"queued": queued_count, "max_queued": self.admission_policy.max_queued_runs_per_scope},
+                )
             sequence = state.next_sequence
             record = _ScopedJobRecord(
                 identity,

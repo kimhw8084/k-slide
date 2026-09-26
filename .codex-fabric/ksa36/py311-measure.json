@@ -1,0 +1,1803 @@
+{
+  "base_sha": "71d3b0a56eee84716a37712440dd1763fd078c66",
+  "branch": "codex/k-slide-chg16-performance-load-budget-01-fix01",
+  "candidate_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
+  "candidate_tree": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90",
+  "changed_paths": [
+    ".opencode/agents/k-slide.md",
+    ".opencode/plugin/k-slide-host.ts",
+    ".opencode/tools/kslide.ts",
+    "deploy/README.md",
+    "docs/ksa36-performance-load-budget.md",
+    "evals/performance_load.py",
+    "schemas/operational-telemetry-event.schema.json",
+    "schemas/resource-budget.schema.json",
+    "src/k_slide/certification.py",
+    "src/k_slide/cli.py",
+    "src/k_slide/errors.py",
+    "src/k_slide/host_adapter.py",
+    "src/k_slide/ingest.py",
+    "src/k_slide/normalization.py",
+    "src/k_slide/paas.py",
+    "src/k_slide/production.py",
+    "src/k_slide/resource_budget.py",
+    "src/k_slide/security.py",
+    "tests/test_certification_closure.py",
+    "tests/test_chg16_opencode_plugin.ts",
+    "tests/test_chg16_resource_budget.py",
+    "tests/test_ksa21_adversarial_security.py",
+    "tests/test_ksa24_f24_real_path.py"
+  ],
+  "external_stage_qualification": {
+    "actual_opencode_provider_lifecycle": "NOT_MEASURED_REFERENCE_HARNESS_EXCLUDES_PLUGIN_LIFECYCLE_AND_PROVIDER_CALL",
+    "company_paas_slide_processing": "NOT_MEASURED_COMPANY_SERVICE_UNAVAILABLE_REFERENCE_ADMISSION_ONLY",
+    "external_cloud_vscode_adapter": "NOT_MEASURED_ADAPTER_NOT_PRESENT_IN_REPOSITORY",
+    "office_conversion": "NOT_MEASURED_CONVERTER_UNAVAILABLE",
+    "production_slo": "NOT_SET_BY_THIS_REPORT",
+    "target_gemma_provider": "NOT_MEASURED_ENDPOINT_NOT_INVOKED"
+  },
+  "fix_binding": {
+    "base_commit_sha": "71d3b0a56eee84716a37712440dd1763fd078c66",
+    "base_tree_oid": "06dac27cfb580028c143929b5f947b612e698fd9",
+    "issue_id": "CHG-16",
+    "logical_build_request": "chg16-performance-load-budget-01",
+    "operation": "FIX",
+    "request": "chg16-performance-load-budget-01-fix01",
+    "work_branch": "codex/k-slide-chg16-performance-load-budget-01-fix01",
+    "work_item": "KSA-36 F36-01/F36-02/F36-03"
+  },
+  "kslide_reference_run_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+  "measurement_environment": {
+    "company_paas_status": "NOT_MEASURED_EXTERNAL_JOB_SERVICE_UNAVAILABLE",
+    "cpu_count": 12,
+    "libraries": {
+      "Pillow": "12.3.0",
+      "PyMuPDF": "1.28.2",
+      "paddleocr": "NOT_INSTALLED",
+      "paddlepaddle": "NOT_INSTALLED",
+      "python-pptx": "1.0.2"
+    },
+    "machine": "arm64",
+    "opencode_path_present": true,
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "processor": "arm",
+    "python_implementation": "CPython",
+    "python_version": "3.11.7",
+    "soffice_path_present": false,
+    "system": "Darwin",
+    "target_model": "google/gemma-4-31b-it",
+    "target_model_status": "NOT_MEASURED_EXTERNAL_PROVIDER_UNAVAILABLE"
+  },
+  "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+  "measurement_policy": {
+    "core_concurrency": 1,
+    "fixture_policy": "deterministic_synthetic_inputs_deleted_after_run",
+    "maximum_repetitions": 5,
+    "measurement_order": "scenario_then_topology",
+    "operational_telemetry_source_content": "NOT_WRITTEN",
+    "repetitions": 2,
+    "warmups": 1
+  },
+  "measurement_subject": {
+    "commit_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
+    "role": "preserved_KSA-36_product_subject",
+    "tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90"
+  },
+  "operation": "BUILD",
+  "overall_qualification": "UNQUALIFIED_EXTERNAL_MODEL_CLOUD_HOST_AND_COMPANY_PAAS_STAGES_NOT_MEASURED",
+  "production_slo": "NOT_SET_BY_THIS_REPORT",
+  "project": "k-slide",
+  "report_type": "k-slide-performance-load-measurement",
+  "request_id": "chg16-performance-load-budget-01",
+  "resource_budget": {
+    "environment": "reference_non_production",
+    "limits": {
+      "max_concurrent_runs_per_scope": 1,
+      "max_concurrent_work_units_per_run": 1,
+      "max_documents_per_run": 32,
+      "max_file_bytes": 536870912,
+      "max_image_dimension": 20000,
+      "max_media_duration_seconds": null,
+      "max_media_items_per_work_unit": 256,
+      "max_model_input_tokens_per_work_unit": 2000000,
+      "max_model_output_tokens_per_work_unit": 2000000,
+      "max_model_tokens_per_run": 100000000,
+      "max_normalized_bytes_per_run": 2000000000,
+      "max_pdf_pages_per_document": 200,
+      "max_pixels_per_image": 120000000,
+      "max_pptx_slides_per_deck": 200,
+      "max_queued_runs_per_scope": 16,
+      "max_total_decoded_pixels_per_run": 500000000,
+      "max_total_file_bytes_per_run": 2000000000,
+      "max_work_units_per_run": 500,
+      "model_media_token_reserve_per_item": 1024
+    },
+    "schema_version": "1.0"
+  },
+  "resource_budget_sha256": "dd9f876a244bfb08ebdd6581c376951da0dfff2901c5fe2abd8e871e83d9bfdf",
+  "scenario_results": [
+    {
+      "concurrency": 1,
+      "host_path": "k_slide.cli.main prepare with explicit input paths",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "MEASURED_REFERENCE_PRODUCT_PATH",
+      "observed_latency_ms": {
+        "p50": 2041.178417,
+        "p95": 2188.965041
+      },
+      "provider_model_invocation": "NOT_MEASURED",
+      "qualification": "UNQUALIFIED_FULL_PATH_EXTERNAL_MODEL_AND_HOST_STAGES_NOT_MEASURED",
+      "runtime_identity": {
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 1,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 1,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 2041.178417
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 1
+        },
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 1,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 2,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 2188.965041
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 1
+        }
+      ],
+      "scenario": {
+        "input_bytes": 21013,
+        "input_shape": {
+          "canvas_size_px": {
+            "height": 900,
+            "width": 1600
+          },
+          "expected_render_pixels_total": 1440000,
+          "format": "png",
+          "page_or_slide_count": 1
+        },
+        "scenario_class": "screenshot",
+        "scenario_id": "screenshot-1"
+      },
+      "shared_engine_path": "prepare_run -> normalize_run -> extract_run; CLI telemetry and product error/state semantics enabled",
+      "throughput_slides_per_second": 0.4727972041273499,
+      "topology": "local_cli_reference",
+      "warmup_policy": {
+        "fresh_product_run_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "concurrency": 1,
+      "host_path": "OpenCode host-input reference contract through k_slide.cli.main prepare; plugin lifecycle and model call excluded",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "MEASURED_REFERENCE_PRODUCT_PATH",
+      "observed_latency_ms": {
+        "p50": 2121.573334,
+        "p95": 2245.576958
+      },
+      "provider_model_invocation": "NOT_MEASURED",
+      "qualification": "UNQUALIFIED_FULL_PATH_EXTERNAL_MODEL_AND_HOST_STAGES_NOT_MEASURED",
+      "runtime_identity": {
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 1,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 1,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 2245.576958
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 1
+        },
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 1,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 2,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 2121.573334
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 1
+        }
+      ],
+      "scenario": {
+        "input_bytes": 21013,
+        "input_shape": {
+          "canvas_size_px": {
+            "height": 900,
+            "width": 1600
+          },
+          "expected_render_pixels_total": 1440000,
+          "format": "png",
+          "page_or_slide_count": 1
+        },
+        "scenario_class": "screenshot",
+        "scenario_id": "screenshot-1"
+      },
+      "shared_engine_path": "prepare_run -> normalize_run -> extract_run; CLI telemetry and product error/state semantics enabled",
+      "throughput_slides_per_second": 0.45796454581920765,
+      "topology": "opencode_shared_core_reference",
+      "warmup_policy": {
+        "fresh_product_run_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "concurrency": 1,
+      "host_path": "Cloud VS Code shared-CLI host-input contract through k_slide.cli.main prepare; external adapter excluded",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "MEASURED_REFERENCE_PRODUCT_PATH",
+      "observed_latency_ms": {
+        "p50": 1876.598541,
+        "p95": 2007.256625
+      },
+      "provider_model_invocation": "NOT_MEASURED",
+      "qualification": "UNQUALIFIED_FULL_PATH_EXTERNAL_MODEL_AND_HOST_STAGES_NOT_MEASURED",
+      "runtime_identity": {
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 1,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 1,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 2007.256625
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 1
+        },
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 1,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 2,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 1876.598541
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 1
+        }
+      ],
+      "scenario": {
+        "input_bytes": 21013,
+        "input_shape": {
+          "canvas_size_px": {
+            "height": 900,
+            "width": 1600
+          },
+          "expected_render_pixels_total": 1440000,
+          "format": "png",
+          "page_or_slide_count": 1
+        },
+        "scenario_class": "screenshot",
+        "scenario_id": "screenshot-1"
+      },
+      "shared_engine_path": "prepare_run -> normalize_run -> extract_run; CLI telemetry and product error/state semantics enabled",
+      "throughput_slides_per_second": 0.5149522612244598,
+      "topology": "cloud_vscode_shared_cli_reference",
+      "warmup_policy": {
+        "fresh_product_run_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "capacity_outcome": {
+        "configured_active_runs_per_scope": 1,
+        "configured_queue_depth_per_scope": 16,
+        "observed_active_and_queue": {
+          "accepted": 4,
+          "active_runs": 1,
+          "batch_duration_ms": 30.319416,
+          "queued_runs": 3,
+          "repetition": 2,
+          "requests": 4
+        }
+      },
+      "concurrency": 4,
+      "excluded_stages": [
+        "company PaaS transport",
+        "source intake and immutable snapshot",
+        "normalization",
+        "evidence extraction",
+        "worker slide engine",
+        "Gemma invocation",
+        "verification",
+        "finalization"
+      ],
+      "host_path": "PaaSController.submit -> ReferencePaaSJobService scoped admission",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "MEASURED_REFERENCE_ADMISSION_ONLY",
+      "observed_latency_ms": {
+        "per_submission_p50": 13.941875,
+        "per_submission_p95": 30.064042
+      },
+      "qualification": "UNQUALIFIED_ADMISSION_ONLY_REFERENCE_SERVICE_IS_NOT_COMPANY_PAAS_OR_SLIDE_PROCESSOR",
+      "runtime_identity": {
+        "engine_contract_version": "1.0",
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "accepted": 4,
+          "active_runs": 1,
+          "batch_duration_ms": 30.812416,
+          "queued_runs": 3,
+          "repetition": 1,
+          "requests": 4
+        },
+        {
+          "accepted": 4,
+          "active_runs": 1,
+          "batch_duration_ms": 30.319416,
+          "queued_runs": 3,
+          "repetition": 2,
+          "requests": 4
+        }
+      ],
+      "scenario": {
+        "input_bytes": null,
+        "input_bytes_unavailable_reason": "The authoritative PaaS controller request carries work-unit count and opaque references, not source bytes.",
+        "input_shape": {
+          "authoritative_request_fields": [
+            "total_work_units",
+            "run_ref",
+            "store_ref",
+            "runtime_identity",
+            "authorized_scope"
+          ],
+          "format": "png",
+          "page_or_slide_count": 1,
+          "source_payload": "not_carried_by_the_PaaS_admission_request"
+        },
+        "scenario_class": "screenshot",
+        "scenario_id": "screenshot-1"
+      },
+      "throughput_submissions_per_second": 130.86471872787976,
+      "topology": "reference_paas_scoped_admission",
+      "warmup_policy": {
+        "fresh_admission_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "concurrency": 1,
+      "host_path": "k_slide.cli.main prepare with explicit input paths",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "MEASURED_REFERENCE_PRODUCT_PATH",
+      "observed_latency_ms": {
+        "p50": 3684.987875,
+        "p95": 4000.631459
+      },
+      "provider_model_invocation": "NOT_MEASURED",
+      "qualification": "UNQUALIFIED_FULL_PATH_EXTERNAL_MODEL_AND_HOST_STAGES_NOT_MEASURED",
+      "runtime_identity": {
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 16,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 1,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 3684.987875
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 16
+        },
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 16,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 2,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 4000.631459
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 16
+        }
+      ],
+      "scenario": {
+        "input_bytes": 10944,
+        "input_shape": {
+          "expected_render_pixels_total": 77457600,
+          "expected_render_size_px_per_page": {
+            "height": 1650,
+            "width": 2934
+          },
+          "format": "pdf",
+          "normalizer_render_dpi": 220,
+          "page_or_slide_count": 16,
+          "page_size_points": {
+            "height": 540,
+            "width": 960
+          }
+        },
+        "scenario_class": "presentation_10_20_slides",
+        "scenario_id": "presentation-16-pdf"
+      },
+      "shared_engine_path": "prepare_run -> normalize_run -> extract_run; CLI telemetry and product error/state semantics enabled",
+      "throughput_slides_per_second": 4.163620211898462,
+      "topology": "local_cli_reference",
+      "warmup_policy": {
+        "fresh_product_run_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "concurrency": 1,
+      "host_path": "OpenCode host-input reference contract through k_slide.cli.main prepare; plugin lifecycle and model call excluded",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "MEASURED_REFERENCE_PRODUCT_PATH",
+      "observed_latency_ms": {
+        "p50": 4232.95425,
+        "p95": 4570.37575
+      },
+      "provider_model_invocation": "NOT_MEASURED",
+      "qualification": "UNQUALIFIED_FULL_PATH_EXTERNAL_MODEL_AND_HOST_STAGES_NOT_MEASURED",
+      "runtime_identity": {
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 16,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 1,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 4570.37575
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 16
+        },
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 16,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 2,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 4232.95425
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 16
+        }
+      ],
+      "scenario": {
+        "input_bytes": 10944,
+        "input_shape": {
+          "expected_render_pixels_total": 77457600,
+          "expected_render_size_px_per_page": {
+            "height": 1650,
+            "width": 2934
+          },
+          "format": "pdf",
+          "normalizer_render_dpi": 220,
+          "page_or_slide_count": 16,
+          "page_size_points": {
+            "height": 540,
+            "width": 960
+          }
+        },
+        "scenario_class": "presentation_10_20_slides",
+        "scenario_id": "presentation-16-pdf"
+      },
+      "shared_engine_path": "prepare_run -> normalize_run -> extract_run; CLI telemetry and product error/state semantics enabled",
+      "throughput_slides_per_second": 3.634988123812239,
+      "topology": "opencode_shared_core_reference",
+      "warmup_policy": {
+        "fresh_product_run_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "concurrency": 1,
+      "host_path": "Cloud VS Code shared-CLI host-input contract through k_slide.cli.main prepare; external adapter excluded",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "MEASURED_REFERENCE_PRODUCT_PATH",
+      "observed_latency_ms": {
+        "p50": 3488.456042,
+        "p95": 3653.431666
+      },
+      "provider_model_invocation": "NOT_MEASURED",
+      "qualification": "UNQUALIFIED_FULL_PATH_EXTERNAL_MODEL_AND_HOST_STAGES_NOT_MEASURED",
+      "runtime_identity": {
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 16,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 1,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 3653.431666
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 16
+        },
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 16,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 2,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 3488.456042
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 16
+        }
+      ],
+      "scenario": {
+        "input_bytes": 10944,
+        "input_shape": {
+          "expected_render_pixels_total": 77457600,
+          "expected_render_size_px_per_page": {
+            "height": 1650,
+            "width": 2934
+          },
+          "format": "pdf",
+          "normalizer_render_dpi": 220,
+          "page_or_slide_count": 16,
+          "page_size_points": {
+            "height": 540,
+            "width": 960
+          }
+        },
+        "scenario_class": "presentation_10_20_slides",
+        "scenario_id": "presentation-16-pdf"
+      },
+      "shared_engine_path": "prepare_run -> normalize_run -> extract_run; CLI telemetry and product error/state semantics enabled",
+      "throughput_slides_per_second": 4.480608112075906,
+      "topology": "cloud_vscode_shared_cli_reference",
+      "warmup_policy": {
+        "fresh_product_run_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "capacity_outcome": {
+        "configured_active_runs_per_scope": 1,
+        "configured_queue_depth_per_scope": 16,
+        "observed_active_and_queue": {
+          "accepted": 4,
+          "active_runs": 1,
+          "batch_duration_ms": 30.219291,
+          "queued_runs": 3,
+          "repetition": 2,
+          "requests": 4
+        }
+      },
+      "concurrency": 4,
+      "excluded_stages": [
+        "company PaaS transport",
+        "source intake and immutable snapshot",
+        "normalization",
+        "evidence extraction",
+        "worker slide engine",
+        "Gemma invocation",
+        "verification",
+        "finalization"
+      ],
+      "host_path": "PaaSController.submit -> ReferencePaaSJobService scoped admission",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "MEASURED_REFERENCE_ADMISSION_ONLY",
+      "observed_latency_ms": {
+        "per_submission_p50": 15.713625,
+        "per_submission_p95": 32.581666
+      },
+      "qualification": "UNQUALIFIED_ADMISSION_ONLY_REFERENCE_SERVICE_IS_NOT_COMPANY_PAAS_OR_SLIDE_PROCESSOR",
+      "runtime_identity": {
+        "engine_contract_version": "1.0",
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "accepted": 4,
+          "active_runs": 1,
+          "batch_duration_ms": 34.07775,
+          "queued_runs": 3,
+          "repetition": 1,
+          "requests": 4
+        },
+        {
+          "accepted": 4,
+          "active_runs": 1,
+          "batch_duration_ms": 30.219291,
+          "queued_runs": 3,
+          "repetition": 2,
+          "requests": 4
+        }
+      ],
+      "scenario": {
+        "input_bytes": null,
+        "input_bytes_unavailable_reason": "The authoritative PaaS controller request carries work-unit count and opaque references, not source bytes.",
+        "input_shape": {
+          "authoritative_request_fields": [
+            "total_work_units",
+            "run_ref",
+            "store_ref",
+            "runtime_identity",
+            "authorized_scope"
+          ],
+          "format": "pdf",
+          "page_or_slide_count": 16,
+          "source_payload": "not_carried_by_the_PaaS_admission_request"
+        },
+        "scenario_class": "presentation_10_20_slides",
+        "scenario_id": "presentation-16-pdf"
+      },
+      "throughput_submissions_per_second": 124.422522025547,
+      "topology": "reference_paas_scoped_admission",
+      "warmup_policy": {
+        "fresh_admission_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "concurrency": 1,
+      "host_path": "k_slide.cli.main prepare with explicit input paths",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "MEASURED_REFERENCE_PRODUCT_PATH",
+      "observed_latency_ms": {
+        "p50": 7466.934208,
+        "p95": 7557.0025
+      },
+      "provider_model_invocation": "NOT_MEASURED",
+      "qualification": "UNQUALIFIED_FULL_PATH_EXTERNAL_MODEL_AND_HOST_STAGES_NOT_MEASURED",
+      "runtime_identity": {
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 55,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 1,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 7466.934208
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 55
+        },
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 55,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 2,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 7557.0025
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 55
+        }
+      ],
+      "scenario": {
+        "input_bytes": 28647,
+        "input_shape": {
+          "expected_render_pixels_total": 266260500,
+          "expected_render_size_px_per_page": {
+            "height": 1650,
+            "width": 2934
+          },
+          "format": "pdf",
+          "normalizer_render_dpi": 220,
+          "page_or_slide_count": 55,
+          "page_size_points": {
+            "height": 540,
+            "width": 960
+          }
+        },
+        "scenario_class": "presentation_50_plus_slides",
+        "scenario_id": "presentation-55-pdf"
+      },
+      "shared_engine_path": "prepare_run -> normalize_run -> extract_run; CLI telemetry and product error/state semantics enabled",
+      "throughput_slides_per_second": 7.3216495874497936,
+      "topology": "local_cli_reference",
+      "warmup_policy": {
+        "fresh_product_run_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "concurrency": 1,
+      "host_path": "OpenCode host-input reference contract through k_slide.cli.main prepare; plugin lifecycle and model call excluded",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "MEASURED_REFERENCE_PRODUCT_PATH",
+      "observed_latency_ms": {
+        "p50": 7932.3295,
+        "p95": 8377.792083
+      },
+      "provider_model_invocation": "NOT_MEASURED",
+      "qualification": "UNQUALIFIED_FULL_PATH_EXTERNAL_MODEL_AND_HOST_STAGES_NOT_MEASURED",
+      "runtime_identity": {
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 55,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 1,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 7932.3295
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 55
+        },
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 55,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 2,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 8377.792083
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 55
+        }
+      ],
+      "scenario": {
+        "input_bytes": 28647,
+        "input_shape": {
+          "expected_render_pixels_total": 266260500,
+          "expected_render_size_px_per_page": {
+            "height": 1650,
+            "width": 2934
+          },
+          "format": "pdf",
+          "normalizer_render_dpi": 220,
+          "page_or_slide_count": 55,
+          "page_size_points": {
+            "height": 540,
+            "width": 960
+          }
+        },
+        "scenario_class": "presentation_50_plus_slides",
+        "scenario_id": "presentation-55-pdf"
+      },
+      "shared_engine_path": "prepare_run -> normalize_run -> extract_run; CLI telemetry and product error/state semantics enabled",
+      "throughput_slides_per_second": 6.744278357474216,
+      "topology": "opencode_shared_core_reference",
+      "warmup_policy": {
+        "fresh_product_run_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "concurrency": 1,
+      "host_path": "Cloud VS Code shared-CLI host-input contract through k_slide.cli.main prepare; external adapter excluded",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "MEASURED_REFERENCE_PRODUCT_PATH",
+      "observed_latency_ms": {
+        "p50": 8122.442834,
+        "p95": 8756.668334
+      },
+      "provider_model_invocation": "NOT_MEASURED",
+      "qualification": "UNQUALIFIED_FULL_PATH_EXTERNAL_MODEL_AND_HOST_STAGES_NOT_MEASURED",
+      "runtime_identity": {
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 55,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 1,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 8122.442834
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 55
+        },
+        {
+          "error_code": null,
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": 55,
+          "phase": "EXTRACTED",
+          "process_exit_code": 0,
+          "repetition": 2,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 8756.668334
+          },
+          "status": "MEASURED_REFERENCE_PRODUCT_PATH",
+          "work_units": 55
+        }
+      ],
+      "scenario": {
+        "input_bytes": 28647,
+        "input_shape": {
+          "expected_render_pixels_total": 266260500,
+          "expected_render_size_px_per_page": {
+            "height": 1650,
+            "width": 2934
+          },
+          "format": "pdf",
+          "normalizer_render_dpi": 220,
+          "page_or_slide_count": 55,
+          "page_size_points": {
+            "height": 540,
+            "width": 960
+          }
+        },
+        "scenario_class": "presentation_50_plus_slides",
+        "scenario_id": "presentation-55-pdf"
+      },
+      "shared_engine_path": "prepare_run -> normalize_run -> extract_run; CLI telemetry and product error/state semantics enabled",
+      "throughput_slides_per_second": 6.516930832740873,
+      "topology": "cloud_vscode_shared_cli_reference",
+      "warmup_policy": {
+        "fresh_product_run_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "capacity_outcome": {
+        "configured_active_runs_per_scope": 1,
+        "configured_queue_depth_per_scope": 16,
+        "observed_active_and_queue": {
+          "accepted": 4,
+          "active_runs": 1,
+          "batch_duration_ms": 33.748125,
+          "queued_runs": 3,
+          "repetition": 2,
+          "requests": 4
+        }
+      },
+      "concurrency": 4,
+      "excluded_stages": [
+        "company PaaS transport",
+        "source intake and immutable snapshot",
+        "normalization",
+        "evidence extraction",
+        "worker slide engine",
+        "Gemma invocation",
+        "verification",
+        "finalization"
+      ],
+      "host_path": "PaaSController.submit -> ReferencePaaSJobService scoped admission",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "MEASURED_REFERENCE_ADMISSION_ONLY",
+      "observed_latency_ms": {
+        "per_submission_p50": 15.039,
+        "per_submission_p95": 33.682791
+      },
+      "qualification": "UNQUALIFIED_ADMISSION_ONLY_REFERENCE_SERVICE_IS_NOT_COMPANY_PAAS_OR_SLIDE_PROCESSOR",
+      "runtime_identity": {
+        "engine_contract_version": "1.0",
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "accepted": 4,
+          "active_runs": 1,
+          "batch_duration_ms": 34.564459,
+          "queued_runs": 3,
+          "repetition": 1,
+          "requests": 4
+        },
+        {
+          "accepted": 4,
+          "active_runs": 1,
+          "batch_duration_ms": 33.748125,
+          "queued_runs": 3,
+          "repetition": 2,
+          "requests": 4
+        }
+      ],
+      "scenario": {
+        "input_bytes": null,
+        "input_bytes_unavailable_reason": "The authoritative PaaS controller request carries work-unit count and opaque references, not source bytes.",
+        "input_shape": {
+          "authoritative_request_fields": [
+            "total_work_units",
+            "run_ref",
+            "store_ref",
+            "runtime_identity",
+            "authorized_scope"
+          ],
+          "format": "pdf",
+          "page_or_slide_count": 55,
+          "source_payload": "not_carried_by_the_PaaS_admission_request"
+        },
+        "scenario_class": "presentation_50_plus_slides",
+        "scenario_id": "presentation-55-pdf"
+      },
+      "throughput_submissions_per_second": 117.10873065495518,
+      "topology": "reference_paas_scoped_admission",
+      "warmup_policy": {
+        "fresh_admission_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "concurrency": 1,
+      "host_path": "k_slide.cli.main prepare with explicit input paths",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "NOT_MEASURED",
+      "observed_latency_ms": {
+        "p50": null,
+        "p95": null
+      },
+      "provider_model_invocation": "NOT_MEASURED",
+      "qualification": "NOT_MEASURED_REFERENCE_PATH_PREREQUISITE_UNAVAILABLE",
+      "runtime_identity": {
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "error_code": "KSLIDE_PPTX_RENDER_UNAVAILABLE",
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": null,
+          "phase": "FAILED",
+          "process_exit_code": 1,
+          "repetition": 1,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 2091.963959
+          },
+          "status": "NOT_MEASURED",
+          "work_units": null
+        },
+        {
+          "error_code": "KSLIDE_PPTX_RENDER_UNAVAILABLE",
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": null,
+          "phase": "FAILED",
+          "process_exit_code": 1,
+          "repetition": 2,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 2142.157958
+          },
+          "status": "NOT_MEASURED",
+          "work_units": null
+        }
+      ],
+      "scenario": {
+        "input_bytes": 48038,
+        "input_shape": {
+          "expected_render_pixels_total": 77457600,
+          "expected_render_size_px_per_page": {
+            "height": 1650,
+            "width": 2934
+          },
+          "format": "pptx",
+          "normalizer_render_dpi": 220,
+          "page_or_slide_count": 16,
+          "page_size_points": {
+            "height": 540,
+            "width": 960
+          }
+        },
+        "scenario_class": "presentation_10_20_slides",
+        "scenario_id": "presentation-16-pptx"
+      },
+      "shared_engine_path": "prepare_run -> normalize_run -> extract_run; CLI telemetry and product error/state semantics enabled",
+      "throughput_slides_per_second": null,
+      "topology": "local_cli_reference",
+      "warmup_policy": {
+        "fresh_product_run_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "concurrency": 1,
+      "host_path": "OpenCode host-input reference contract through k_slide.cli.main prepare; plugin lifecycle and model call excluded",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "NOT_MEASURED",
+      "observed_latency_ms": {
+        "p50": null,
+        "p95": null
+      },
+      "provider_model_invocation": "NOT_MEASURED",
+      "qualification": "NOT_MEASURED_REFERENCE_PATH_PREREQUISITE_UNAVAILABLE",
+      "runtime_identity": {
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "error_code": "KSLIDE_PPTX_RENDER_UNAVAILABLE",
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": null,
+          "phase": "FAILED",
+          "process_exit_code": 1,
+          "repetition": 1,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 2340.147458
+          },
+          "status": "NOT_MEASURED",
+          "work_units": null
+        },
+        {
+          "error_code": "KSLIDE_PPTX_RENDER_UNAVAILABLE",
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": null,
+          "phase": "FAILED",
+          "process_exit_code": 1,
+          "repetition": 2,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 3026.9945
+          },
+          "status": "NOT_MEASURED",
+          "work_units": null
+        }
+      ],
+      "scenario": {
+        "input_bytes": 48038,
+        "input_shape": {
+          "expected_render_pixels_total": 77457600,
+          "expected_render_size_px_per_page": {
+            "height": 1650,
+            "width": 2934
+          },
+          "format": "pptx",
+          "normalizer_render_dpi": 220,
+          "page_or_slide_count": 16,
+          "page_size_points": {
+            "height": 540,
+            "width": 960
+          }
+        },
+        "scenario_class": "presentation_10_20_slides",
+        "scenario_id": "presentation-16-pptx"
+      },
+      "shared_engine_path": "prepare_run -> normalize_run -> extract_run; CLI telemetry and product error/state semantics enabled",
+      "throughput_slides_per_second": null,
+      "topology": "opencode_shared_core_reference",
+      "warmup_policy": {
+        "fresh_product_run_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "concurrency": 1,
+      "host_path": "Cloud VS Code shared-CLI host-input contract through k_slide.cli.main prepare; external adapter excluded",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "NOT_MEASURED",
+      "observed_latency_ms": {
+        "p50": null,
+        "p95": null
+      },
+      "provider_model_invocation": "NOT_MEASURED",
+      "qualification": "NOT_MEASURED_REFERENCE_PATH_PREREQUISITE_UNAVAILABLE",
+      "runtime_identity": {
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "error_code": "KSLIDE_PPTX_RENDER_UNAVAILABLE",
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": null,
+          "phase": "FAILED",
+          "process_exit_code": 1,
+          "repetition": 1,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 2187.644917
+          },
+          "status": "NOT_MEASURED",
+          "work_units": null
+        },
+        {
+          "error_code": "KSLIDE_PPTX_RENDER_UNAVAILABLE",
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": null,
+          "phase": "FAILED",
+          "process_exit_code": 1,
+          "repetition": 2,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 2505.3865
+          },
+          "status": "NOT_MEASURED",
+          "work_units": null
+        }
+      ],
+      "scenario": {
+        "input_bytes": 48038,
+        "input_shape": {
+          "expected_render_pixels_total": 77457600,
+          "expected_render_size_px_per_page": {
+            "height": 1650,
+            "width": 2934
+          },
+          "format": "pptx",
+          "normalizer_render_dpi": 220,
+          "page_or_slide_count": 16,
+          "page_size_points": {
+            "height": 540,
+            "width": 960
+          }
+        },
+        "scenario_class": "presentation_10_20_slides",
+        "scenario_id": "presentation-16-pptx"
+      },
+      "shared_engine_path": "prepare_run -> normalize_run -> extract_run; CLI telemetry and product error/state semantics enabled",
+      "throughput_slides_per_second": null,
+      "topology": "cloud_vscode_shared_cli_reference",
+      "warmup_policy": {
+        "fresh_product_run_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "capacity_outcome": {
+        "configured_active_runs_per_scope": 1,
+        "configured_queue_depth_per_scope": 16,
+        "observed_active_and_queue": {
+          "accepted": 4,
+          "active_runs": 1,
+          "batch_duration_ms": 32.402333,
+          "queued_runs": 3,
+          "repetition": 2,
+          "requests": 4
+        }
+      },
+      "concurrency": 4,
+      "excluded_stages": [
+        "company PaaS transport",
+        "source intake and immutable snapshot",
+        "normalization",
+        "evidence extraction",
+        "worker slide engine",
+        "Gemma invocation",
+        "verification",
+        "finalization"
+      ],
+      "host_path": "PaaSController.submit -> ReferencePaaSJobService scoped admission",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "MEASURED_REFERENCE_ADMISSION_ONLY",
+      "observed_latency_ms": {
+        "per_submission_p50": 14.906333,
+        "per_submission_p95": 33.227875
+      },
+      "qualification": "UNQUALIFIED_ADMISSION_ONLY_REFERENCE_SERVICE_IS_NOT_COMPANY_PAAS_OR_SLIDE_PROCESSOR",
+      "runtime_identity": {
+        "engine_contract_version": "1.0",
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "accepted": 4,
+          "active_runs": 1,
+          "batch_duration_ms": 34.305583,
+          "queued_runs": 3,
+          "repetition": 1,
+          "requests": 4
+        },
+        {
+          "accepted": 4,
+          "active_runs": 1,
+          "batch_duration_ms": 32.402333,
+          "queued_runs": 3,
+          "repetition": 2,
+          "requests": 4
+        }
+      ],
+      "scenario": {
+        "input_bytes": null,
+        "input_bytes_unavailable_reason": "The authoritative PaaS controller request carries work-unit count and opaque references, not source bytes.",
+        "input_shape": {
+          "authoritative_request_fields": [
+            "total_work_units",
+            "run_ref",
+            "store_ref",
+            "runtime_identity",
+            "authorized_scope"
+          ],
+          "format": "pptx",
+          "page_or_slide_count": 16,
+          "source_payload": "not_carried_by_the_PaaS_admission_request"
+        },
+        "scenario_class": "presentation_10_20_slides",
+        "scenario_id": "presentation-16-pptx"
+      },
+      "throughput_submissions_per_second": 119.92579711229476,
+      "topology": "reference_paas_scoped_admission",
+      "warmup_policy": {
+        "fresh_admission_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "concurrency": 1,
+      "host_path": "k_slide.cli.main prepare with explicit input paths",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "NOT_MEASURED",
+      "observed_latency_ms": {
+        "p50": null,
+        "p95": null
+      },
+      "provider_model_invocation": "NOT_MEASURED",
+      "qualification": "NOT_MEASURED_REFERENCE_PATH_PREREQUISITE_UNAVAILABLE",
+      "runtime_identity": {
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "error_code": "KSLIDE_PPTX_RENDER_UNAVAILABLE",
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": null,
+          "phase": "FAILED",
+          "process_exit_code": 1,
+          "repetition": 1,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 3091.034792
+          },
+          "status": "NOT_MEASURED",
+          "work_units": null
+        },
+        {
+          "error_code": "KSLIDE_PPTX_RENDER_UNAVAILABLE",
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": null,
+          "phase": "FAILED",
+          "process_exit_code": 1,
+          "repetition": 2,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 2548.5905
+          },
+          "status": "NOT_MEASURED",
+          "work_units": null
+        }
+      ],
+      "scenario": {
+        "input_bytes": 98350,
+        "input_shape": {
+          "expected_render_pixels_total": 266260500,
+          "expected_render_size_px_per_page": {
+            "height": 1650,
+            "width": 2934
+          },
+          "format": "pptx",
+          "normalizer_render_dpi": 220,
+          "page_or_slide_count": 55,
+          "page_size_points": {
+            "height": 540,
+            "width": 960
+          }
+        },
+        "scenario_class": "presentation_50_plus_slides",
+        "scenario_id": "presentation-55-pptx"
+      },
+      "shared_engine_path": "prepare_run -> normalize_run -> extract_run; CLI telemetry and product error/state semantics enabled",
+      "throughput_slides_per_second": null,
+      "topology": "local_cli_reference",
+      "warmup_policy": {
+        "fresh_product_run_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "concurrency": 1,
+      "host_path": "OpenCode host-input reference contract through k_slide.cli.main prepare; plugin lifecycle and model call excluded",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "NOT_MEASURED",
+      "observed_latency_ms": {
+        "p50": null,
+        "p95": null
+      },
+      "provider_model_invocation": "NOT_MEASURED",
+      "qualification": "NOT_MEASURED_REFERENCE_PATH_PREREQUISITE_UNAVAILABLE",
+      "runtime_identity": {
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "error_code": "KSLIDE_PPTX_RENDER_UNAVAILABLE",
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": null,
+          "phase": "FAILED",
+          "process_exit_code": 1,
+          "repetition": 1,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 2439.972875
+          },
+          "status": "NOT_MEASURED",
+          "work_units": null
+        },
+        {
+          "error_code": "KSLIDE_PPTX_RENDER_UNAVAILABLE",
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": null,
+          "phase": "FAILED",
+          "process_exit_code": 1,
+          "repetition": 2,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 5250.18825
+          },
+          "status": "NOT_MEASURED",
+          "work_units": null
+        }
+      ],
+      "scenario": {
+        "input_bytes": 98350,
+        "input_shape": {
+          "expected_render_pixels_total": 266260500,
+          "expected_render_size_px_per_page": {
+            "height": 1650,
+            "width": 2934
+          },
+          "format": "pptx",
+          "normalizer_render_dpi": 220,
+          "page_or_slide_count": 55,
+          "page_size_points": {
+            "height": 540,
+            "width": 960
+          }
+        },
+        "scenario_class": "presentation_50_plus_slides",
+        "scenario_id": "presentation-55-pptx"
+      },
+      "shared_engine_path": "prepare_run -> normalize_run -> extract_run; CLI telemetry and product error/state semantics enabled",
+      "throughput_slides_per_second": null,
+      "topology": "opencode_shared_core_reference",
+      "warmup_policy": {
+        "fresh_product_run_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "concurrency": 1,
+      "host_path": "Cloud VS Code shared-CLI host-input contract through k_slide.cli.main prepare; external adapter excluded",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "NOT_MEASURED",
+      "observed_latency_ms": {
+        "p50": null,
+        "p95": null
+      },
+      "provider_model_invocation": "NOT_MEASURED",
+      "qualification": "NOT_MEASURED_REFERENCE_PATH_PREREQUISITE_UNAVAILABLE",
+      "runtime_identity": {
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "error_code": "KSLIDE_PPTX_RENDER_UNAVAILABLE",
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": null,
+          "phase": "FAILED",
+          "process_exit_code": 1,
+          "repetition": 1,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 2359.828042
+          },
+          "status": "NOT_MEASURED",
+          "work_units": null
+        },
+        {
+          "error_code": "KSLIDE_PPTX_RENDER_UNAVAILABLE",
+          "excluded_stages": [
+            "OpenCode plugin lifecycle and actual provider call",
+            "Gemma invocation and provider usage",
+            "TranslationPatch generation",
+            "deterministic verification",
+            "finalization"
+          ],
+          "input_count": null,
+          "phase": "FAILED",
+          "process_exit_code": 1,
+          "repetition": 2,
+          "stage_timings_ms": {
+            "product_cli_prepare_end_to_end": 2209.672375
+          },
+          "status": "NOT_MEASURED",
+          "work_units": null
+        }
+      ],
+      "scenario": {
+        "input_bytes": 98350,
+        "input_shape": {
+          "expected_render_pixels_total": 266260500,
+          "expected_render_size_px_per_page": {
+            "height": 1650,
+            "width": 2934
+          },
+          "format": "pptx",
+          "normalizer_render_dpi": 220,
+          "page_or_slide_count": 55,
+          "page_size_points": {
+            "height": 540,
+            "width": 960
+          }
+        },
+        "scenario_class": "presentation_50_plus_slides",
+        "scenario_id": "presentation-55-pptx"
+      },
+      "shared_engine_path": "prepare_run -> normalize_run -> extract_run; CLI telemetry and product error/state semantics enabled",
+      "throughput_slides_per_second": null,
+      "topology": "cloud_vscode_shared_cli_reference",
+      "warmup_policy": {
+        "fresh_product_run_discarded": 1,
+        "repetitions": 2
+      }
+    },
+    {
+      "capacity_outcome": {
+        "configured_active_runs_per_scope": 1,
+        "configured_queue_depth_per_scope": 16,
+        "observed_active_and_queue": {
+          "accepted": 4,
+          "active_runs": 1,
+          "batch_duration_ms": 35.564,
+          "queued_runs": 3,
+          "repetition": 2,
+          "requests": 4
+        }
+      },
+      "concurrency": 4,
+      "excluded_stages": [
+        "company PaaS transport",
+        "source intake and immutable snapshot",
+        "normalization",
+        "evidence extraction",
+        "worker slide engine",
+        "Gemma invocation",
+        "verification",
+        "finalization"
+      ],
+      "host_path": "PaaSController.submit -> ReferencePaaSJobService scoped admission",
+      "kslide_runtime_environment_identity_sha256": "badf66fc72087c7878e1b52df6e7e5ed6a271f4f2cfbd82f8b76d5cd35301045",
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "measurement_status": "MEASURED_REFERENCE_ADMISSION_ONLY",
+      "observed_latency_ms": {
+        "per_submission_p50": 16.865958,
+        "per_submission_p95": 34.39625
+      },
+      "qualification": "UNQUALIFIED_ADMISSION_ONLY_REFERENCE_SERVICE_IS_NOT_COMPANY_PAAS_OR_SLIDE_PROCESSOR",
+      "runtime_identity": {
+        "engine_contract_version": "1.0",
+        "model_identity": "NOT_INVOKED",
+        "ocr_identity": "native-extraction-only",
+        "runtime_ref": "ksa36-local-reference-runtime",
+        "termbase_identity": "core-reference-termbase"
+      },
+      "samples": [
+        {
+          "accepted": 4,
+          "active_runs": 1,
+          "batch_duration_ms": 33.36125,
+          "queued_runs": 3,
+          "repetition": 1,
+          "requests": 4
+        },
+        {
+          "accepted": 4,
+          "active_runs": 1,
+          "batch_duration_ms": 35.564,
+          "queued_runs": 3,
+          "repetition": 2,
+          "requests": 4
+        }
+      ],
+      "scenario": {
+        "input_bytes": null,
+        "input_bytes_unavailable_reason": "The authoritative PaaS controller request carries work-unit count and opaque references, not source bytes.",
+        "input_shape": {
+          "authoritative_request_fields": [
+            "total_work_units",
+            "run_ref",
+            "store_ref",
+            "runtime_identity",
+            "authorized_scope"
+          ],
+          "format": "pptx",
+          "page_or_slide_count": 55,
+          "source_payload": "not_carried_by_the_PaaS_admission_request"
+        },
+        "scenario_class": "presentation_50_plus_slides",
+        "scenario_id": "presentation-55-pptx"
+      },
+      "throughput_submissions_per_second": 116.06776906866496,
+      "topology": "reference_paas_scoped_admission",
+      "warmup_policy": {
+        "fresh_admission_discarded": 1,
+        "repetitions": 2
+      }
+    }
+  ],
+  "schema_version": "1.0",
+  "topology_prerequisites": {
+    "cloud_vscode": "SHARED_CLI_CORE_MEASURED; external Cloud VS Code adapter is not present in this repository",
+    "company_paas": "NOT_MEASURED; reference scoped admission is measured and reference worker is not a slide engine",
+    "local_cli_reference": "REFERENCE_CORE_MEASURED; target model and provider stages NOT_MEASURED",
+    "opencode": "SHARED_CORE_MEASURED; actual OpenCode lifecycle, Gemma provider, and provider token usage NOT_MEASURED",
+    "pptx_office_converter": "PPTX pipeline is NOT_MEASURED when soffice or libreoffice is absent; no substitute converter is used"
+  }
+}

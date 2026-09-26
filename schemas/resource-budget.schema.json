@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://k-slide.example/schemas/resource-budget.schema.json",
+  "title": "K-Slide resource budget",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "environment", "limits"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "environment": { "enum": ["production", "reference_non_production"] },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_file_bytes", "max_total_file_bytes_per_run", "max_documents_per_run",
+        "max_pdf_pages_per_document", "max_pptx_slides_per_deck", "max_work_units_per_run",
+        "max_pixels_per_image", "max_total_decoded_pixels_per_run", "max_normalized_bytes_per_run",
+        "max_image_dimension", "max_media_items_per_work_unit", "model_media_token_reserve_per_item",
+        "max_model_input_tokens_per_work_unit", "max_model_output_tokens_per_work_unit",
+        "max_model_tokens_per_run", "max_concurrent_runs_per_scope", "max_queued_runs_per_scope",
+        "max_concurrent_work_units_per_run", "max_media_duration_seconds"
+      ],
+      "properties": {
+        "max_file_bytes": { "type": "integer", "minimum": 1, "maximum": 536870912 },
+        "max_total_file_bytes_per_run": { "type": "integer", "minimum": 1, "maximum": 2000000000 },
+        "max_documents_per_run": { "type": "integer", "minimum": 1, "maximum": 32 },
+        "max_pdf_pages_per_document": { "type": "integer", "minimum": 1, "maximum": 200 },
+        "max_pptx_slides_per_deck": { "type": "integer", "minimum": 1, "maximum": 200 },
+        "max_work_units_per_run": { "type": "integer", "minimum": 1, "maximum": 500 },
+        "max_pixels_per_image": { "type": "integer", "minimum": 1, "maximum": 120000000 },
+        "max_total_decoded_pixels_per_run": { "type": "integer", "minimum": 1, "maximum": 500000000 },
+        "max_normalized_bytes_per_run": { "type": "integer", "minimum": 1, "maximum": 2000000000 },
+        "max_image_dimension": { "type": "integer", "minimum": 1, "maximum": 20000 },
+        "max_media_items_per_work_unit": { "type": "integer", "minimum": 1, "maximum": 256 },
+        "model_media_token_reserve_per_item": { "type": "integer", "minimum": 1, "maximum": 1024 },
+        "max_model_input_tokens_per_work_unit": { "type": "integer", "minimum": 1, "maximum": 2000000 },
+        "max_model_output_tokens_per_work_unit": { "type": "integer", "minimum": 1, "maximum": 2000000 },
+        "max_model_tokens_per_run": { "type": "integer", "minimum": 1, "maximum": 100000000 },
+        "max_concurrent_runs_per_scope": { "const": 1 },
+        "max_queued_runs_per_scope": { "type": "integer", "minimum": 1, "maximum": 100000 },
+        "max_concurrent_work_units_per_run": { "const": 1 },
+        "max_media_duration_seconds": { "type": "null", "description": "No duration-bearing input format is currently supported." }
+      }
+    }
+  }
+}

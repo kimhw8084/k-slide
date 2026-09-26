@@ -18,6 +18,8 @@ import uuid
 from pathlib import Path
 from typing import Any, Iterable
 
+from .errors import KSlideError
+from .resource_budget import ResourceBudget
 from .retention_policy import RetentionPolicy, RETENTION_POLICY_FIELD
 from .bilingual_adjudication import (
     BilingualAdjudicationError,
@@ -124,6 +126,7 @@ CANDIDATE_INPUT_FIELDS = (
     "egress_policy_identity",
     "schema_versions",
     RETENTION_POLICY_FIELD,
+    "resource_budget",
     "tenant_isolation",
     "network_egress",
     "corpus_identity",
@@ -237,7 +240,7 @@ _PRODUCTION_COMPLETENESS_FIELDS = (
     "ocr_asset_manifest_sha256", "normalization_behavior", "repair_policy", "python_version", "paddle_version",
     "paddleocr_version", "libreoffice_version", "termbase_identity", "termbase_version", "termbase_hash", "model_policy",
     "schema_versions", RETENTION_POLICY_FIELD, "tenant_isolation", "network_egress", "corpus_identity", "constraints_sha256",
-    "resolved_dependency_set_sha256", "behavior_configuration",
+    "resolved_dependency_set_sha256", "behavior_configuration", "resource_budget",
 )
 _OPTIONAL_PROVIDER_METADATA = frozenset({"provider_backend", "model_revision", "quantization_or_dtype"})
 _NOT_EXPOSED_SOURCES = frozenset({"not_exposed_by_runtime", "not_exposed"})
@@ -514,18 +517,7 @@ def repository_execution_configuration(root: Path) -> dict[str, Any]:
     """Describe behavior fixed by the checked-in production execution path."""
 
     root = root.expanduser().resolve()
-    from .normalization import (
-        MAX_DOCUMENTS_PER_RUN,
-        MAX_IMAGE_HEIGHT,
-        MAX_IMAGE_PIXELS,
-        MAX_IMAGE_WIDTH,
-        MAX_NORMALIZED_BYTES,
-        MAX_PAGES_PER_PDF,
-        MAX_SLIDES_PER_PPTX,
-        MAX_TOTAL_RENDER_PIXELS,
-        MAX_UNITS_PER_RUN,
-        RENDER_DPI,
-    )
+    from .normalization import RENDER_DPI
     from .policy import MAX_AUTO_REPAIRS_PER_UNIT
     from .extraction import CROP_PADDING, MODEL_CROP_MIN_DIMENSION
 
@@ -565,15 +557,6 @@ def repository_execution_configuration(root: Path) -> dict[str, Any]:
         },
         "normalization_behavior": {
             "render_dpi": float(RENDER_DPI),
-            "max_image_pixels": MAX_IMAGE_PIXELS,
-            "max_image_width": MAX_IMAGE_WIDTH,
-            "max_image_height": MAX_IMAGE_HEIGHT,
-            "max_documents": MAX_DOCUMENTS_PER_RUN,
-            "max_units": MAX_UNITS_PER_RUN,
-            "max_pages_per_pdf": MAX_PAGES_PER_PDF,
-            "max_slides_per_pptx": MAX_SLIDES_PER_PPTX,
-            "max_total_render_pixels": MAX_TOTAL_RENDER_PIXELS,
-            "max_normalized_bytes": MAX_NORMALIZED_BYTES,
         },
         "repair_policy": {"max_auto_repairs_per_unit": MAX_AUTO_REPAIRS_PER_UNIT},
     }
@@ -1226,6 +1209,15 @@ def candidate_completeness(candidate_spec: dict[str, Any], state: str) -> list[s
         allow_not_exposed = field in _OPTIONAL_PROVIDER_METADATA
         if field == RETENTION_POLICY_FIELD:
             missing.extend(_retention_policy_missing(candidate_spec))
+            continue
+        if field == "resource_budget":
+            try:
+                budget = ResourceBudget.from_dict(candidate_spec.get(field))
+                valid = budget.environment == "production"
+            except KSlideError:
+                valid = False
+            if not valid:
+                missing.append(field)
             continue
         if field == "subject_git_sha":
             raw_subject = str(candidate_spec.get(field) or "")

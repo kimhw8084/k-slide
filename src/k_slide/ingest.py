@@ -22,11 +22,13 @@ from .errors import ErrorCode, KSlideError
 from .environment import RunEnvironmentIdentity, resolve_effective_environment
 from .execution import ExecutionProfile, WorkspaceRunStore, new_execution_job, sync_workspace_execution
 from .host_adapter import HostInputReference, validate_host_inputs
-from .io import atomic_write_json, atomic_write_text
+from .io import atomic_write_json, atomic_write_text, read_json
+from .locking import filesystem_lock
 from .queue import create_queue, save_queue
 from .policy import COMPLETION_POLICY
 from .runtime import discover_runtime
 from .redaction import safe_diagnostic_text_or_placeholder, sanitize_operational
+from .resource_budget import ResourceBudget
 from .rollout import (
     RolloutAdmission,
     RolloutAdmissionProvider,
@@ -39,7 +41,7 @@ from .rollout import (
 from .security import InputArtifact, SUPPORTED_EXTENSIONS, sha256_file, validate_input
 from .session import bind_session
 from .storage import StorageArtifact, StorageLayout, StoragePlane, storage_path
-from .state import RunPhase, RunState, save_state
+from .state import RunPhase, RunState, load_state, save_state
 
 
 def _utc_stamp() -> str:
@@ -77,7 +79,8 @@ def _input_candidates(root: Path, explicit_paths: Iterable[str]) -> list[Path]:
     )
 
 
-def _artifact_manifest(artifacts: list[InputArtifact], *, classification_admission: ClassificationAdmission | None = None) -> dict[str, Any]:
+def _artifact_manifest(artifacts: list[InputArtifact], *, classification_admission: ClassificationAdmission | None = None, resource_budget: ResourceBudget | None = None) -> dict[str, Any]:
+    budget = resource_budget or ResourceBudget.reference()
     value = {
         "schema_version": SCHEMA_VERSION,
         "input_count": len(artifacts),
@@ -86,6 +89,8 @@ def _artifact_manifest(artifacts: list[InputArtifact], *, classification_admissi
         "conflict_registry_contract": {"schema_version": "1.0", "assessment_required": True},
         "conflict_authority": {"schema_version": "1.0", "rules": []},
         "conflict_assessment": {"schema_version": "1.0", "status": "NOT_ASSESSED"},
+        "resource_budget": budget.as_dict(),
+        "resource_budget_sha256": budget.sha256,
     }
     if classification_admission is not None:
         value["classification_admission"] = classification_admission.as_dict()
@@ -103,6 +108,104 @@ def _write_recovery(run_dir: Path, run_id: str) -> None:
     )
 
 
+def _active_workspace_run_count(run_root: Path, *, excluding_run_id: str) -> int:
+    """Count capacity reservations and legacy active runs under the admission lock."""
+
+    active = 0
+    for candidate in run_root.iterdir():
+        if candidate.name == excluding_run_id or not candidate.is_dir() or candidate.is_symlink():
+            continue
+        state_path = candidate / "RUN_STATE.json"
+        if state_path.is_file():
+            state = load_state(candidate)
+            if state.terminal:
+                continue
+            reservation = candidate / "admission" / "WORKSPACE_CAPACITY.json"
+            if reservation.is_file():
+                try:
+                    value = read_json(reservation)
+                except KSlideError:
+                    # An unreadable reservation makes shared capacity uncertain.
+                    raise
+                if not isinstance(value, dict) or value.get("status") != "admitted" or value.get("run_id") != state.run_id:
+                    raise KSlideError(ErrorCode.CAPACITY_LIMIT, "Workspace run capacity state is incomplete.")
+                active += 1
+            elif state.phase is not RunPhase.CREATED:
+                # Runs accepted before this reservation record was introduced
+                # continue to consume their workspace slot.
+                active += 1
+    return active
+
+
+def _workspace_capacity_failure(
+    run_dir: Path,
+    run_root: Path,
+    state: RunState,
+    budget: ResourceBudget,
+    *,
+    environment: RunEnvironmentIdentity,
+) -> bool:
+    """Fail a new local/shared-host run when the workspace slot is occupied.
+
+    The local CLI, OpenCode shared-core path, and Cloud VS Code shared-CLI path
+    have no queue owner. They therefore use the existing run-state and
+    admission-control storage owners to fail closed instead of queueing.
+    """
+
+    admission_layout = StorageLayout.for_workspace_root(run_root.parent)
+    lock_path = admission_layout.path(
+        StorageArtifact.ADMISSION_CONTROL,
+        "admission/resource-capacity.lock",
+        create_parent=True,
+    )
+    try:
+        with filesystem_lock(lock_path, require_shared=True, reject_symlink=True):
+            active = _active_workspace_run_count(run_root, excluding_run_id=state.run_id)
+            if active < budget.limit("max_concurrent_runs_per_scope"):
+                atomic_write_json(
+                    storage_path(run_dir, StorageArtifact.ADMISSION_RECORD, "admission/WORKSPACE_CAPACITY.json", create_parent=True),
+                    {
+                        "schema_version": "1.0",
+                        "status": "admitted",
+                        "run_id": state.run_id,
+                        "resource_budget_sha256": budget.sha256,
+                    },
+                    mode=0o600,
+                )
+                return False
+    except KSlideError as exc:
+        failure = KSlideError(
+            ErrorCode.CAPACITY_LIMIT,
+            "Workspace run capacity could not be established safely; check active runs and retry.",
+            {"prerequisite_error_code": exc.code.value},
+        )
+    else:
+        failure = KSlideError(
+            ErrorCode.CAPACITY_LIMIT,
+            "The workspace has no available run capacity; check active runs and retry when capacity is available.",
+            {"active_runs": active, "max_active_runs": budget.limit("max_concurrent_runs_per_scope")},
+        )
+
+    state.transition(
+        RunPhase.FAILED_INPUT,
+        next_action="Check /k-slide-status and retry after any active workspace run reaches a terminal state.",
+        error_code=failure.code.value,
+        error_message=failure.message,
+    )
+    save_state(run_dir, state)
+    sync_workspace_execution(run_dir, environment_identity=environment)
+    atomic_write_json(
+        storage_path(run_dir, StorageArtifact.INPUT_INVENTORY, "00_input_inventory.json", create_parent=True),
+        {"schema_version": SCHEMA_VERSION, "status": "capacity_limited", "error": failure.as_dict()},
+        mode=0o600,
+    )
+    atomic_write_text(
+        storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True),
+        f"# FAILED\n\n{failure.message}\n\nError code: `{failure.code.value}`\n",
+    )
+    return True
+
+
 def _write_compatibility_artifacts(
     run_dir: Path,
     run_id: str,
@@ -110,8 +213,9 @@ def _write_compatibility_artifacts(
     *,
     host_inputs: bool = False,
     classification_admission: ClassificationAdmission | None = None,
+    resource_budget: ResourceBudget | None = None,
 ) -> None:
-    atomic_write_json(storage_path(run_dir, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json", create_parent=True), _artifact_manifest(artifacts, classification_admission=classification_admission), mode=0o600)
+    atomic_write_json(storage_path(run_dir, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json", create_parent=True), _artifact_manifest(artifacts, classification_admission=classification_admission, resource_budget=resource_budget), mode=0o600)
     inventory = {
         "schema_version": SCHEMA_VERSION,
         "status": "validated",
@@ -242,6 +346,31 @@ def prepare_run(
             return run_dir
 
     try:
+        resource_budget = ResourceBudget.load_for_workspace(
+            root,
+            production_required=ResourceBudget.production_required_for_workspace(root),
+        )
+    except KSlideError as exc:
+        state.transition(
+            RunPhase.FAILED_INPUT,
+            next_action="Ask the deployment administrator to configure the versioned production resource budget, then start a fresh run.",
+            error_code=exc.code.value,
+            error_message=exc.message,
+        )
+        save_state(run_dir, state)
+        sync_workspace_execution(run_dir, environment_identity=bound_environment)
+        atomic_write_json(
+            storage_path(run_dir, StorageArtifact.INPUT_INVENTORY, "00_input_inventory.json", create_parent=True),
+            {"schema_version": SCHEMA_VERSION, "status": "resource_budget_unavailable", "error": sanitize_operational(exc.as_dict(), roots=(root,))},
+            mode=0o600,
+        )
+        atomic_write_text(
+            storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True),
+            f"# FAILED\n\n{safe_diagnostic_text_or_placeholder(exc.message)}\n\nError code: `{exc.code.value}`\n",
+        )
+        return run_dir
+
+    try:
         raw_host_refs = tuple(
             reference if isinstance(reference, HostInputReference) else HostInputReference.from_mapping(reference)
             for reference in host_input_refs
@@ -261,6 +390,20 @@ def prepare_run(
         sync_workspace_execution(run_dir, environment_identity=bound_environment)
         atomic_write_json(storage_path(run_dir, StorageArtifact.INPUT_INVENTORY, "00_input_inventory.json", create_parent=True), {"schema_version": SCHEMA_VERSION, "status": "failed_no_input", "input_count": 0, "supported_extensions": sorted(SUPPORTED_EXTENSIONS)}, mode=0o600)
         atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), "# FAILED\n\nNo supported input files were found. Add a slide image, PDF, or PPTX and run `/k-slide` again.\n")
+        return run_dir
+
+    document_count = len(raw_host_refs) if raw_host_refs else len(candidates)
+    if document_count > resource_budget.limit("max_documents_per_run"):
+        exc = KSlideError(
+            ErrorCode.RESOURCE_LIMIT,
+            "Input count exceeds the configured resource budget.",
+            {"documents": document_count, "max_documents": resource_budget.limit("max_documents_per_run")},
+        )
+        state.transition(RunPhase.FAILED_INPUT, next_action="Split the input set into separate runs within the configured resource budget.", error_code=exc.code.value, error_message=exc.message)
+        save_state(run_dir, state)
+        sync_workspace_execution(run_dir, environment_identity=bound_environment)
+        atomic_write_json(storage_path(run_dir, StorageArtifact.INPUT_INVENTORY, "00_input_inventory.json", create_parent=True), {"schema_version": SCHEMA_VERSION, "status": "resource_limit", "error": exc.as_dict()}, mode=0o600)
+        atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{exc.message}\n\nError code: `{exc.code.value}`\n")
         return run_dir
 
     # Classification admission is intentionally before source validation and
@@ -336,11 +479,11 @@ def prepare_run(
     artifacts: list[InputArtifact] = []
     try:
         if raw_host_refs:
-            artifacts = validate_host_inputs(raw_host_refs, approved_root=approved_root or root)
+            artifacts = validate_host_inputs(raw_host_refs, approved_root=approved_root or root, max_file_bytes=resource_budget.limit("max_file_bytes"))
         else:
             for candidate in candidates:
                 # Explicit paths may be outside the worktree; they are read once and copied into the run.
-                artifacts.append(validate_input(candidate))
+                artifacts.append(validate_input(candidate, max_file_bytes=resource_budget.limit("max_file_bytes")))
     except KSlideError as exc:
         state.transition(RunPhase.FAILED_INPUT, next_action="Correct the input and retry /k-slide.", error_code=exc.code.value, error_message=exc.message)
         save_state(run_dir, state)
@@ -349,10 +492,48 @@ def prepare_run(
         atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{safe_diagnostic_text_or_placeholder(exc.message)}\n\nError code: `{exc.code.value}`\n")
         return run_dir
 
+    total_input_bytes = sum(artifact.size_bytes for artifact in artifacts)
+    if total_input_bytes > resource_budget.limit("max_total_file_bytes_per_run"):
+        exc = KSlideError(
+            ErrorCode.RESOURCE_LIMIT,
+            "Combined input bytes exceed the configured resource budget.",
+            {"total_bytes": total_input_bytes, "max_bytes": resource_budget.limit("max_total_file_bytes_per_run")},
+        )
+        state.transition(RunPhase.FAILED_INPUT, next_action="Split the input set into separate runs within the configured resource budget.", error_code=exc.code.value, error_message=exc.message)
+        save_state(run_dir, state)
+        sync_workspace_execution(run_dir, environment_identity=bound_environment)
+        atomic_write_json(storage_path(run_dir, StorageArtifact.INPUT_INVENTORY, "00_input_inventory.json", create_parent=True), {"schema_version": SCHEMA_VERSION, "status": "resource_limit", "error": exc.as_dict()}, mode=0o600)
+        atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{exc.message}\n\nError code: `{exc.code.value}`\n")
+        return run_dir
+
+    # Input authority, type, and byte budgets take precedence over capacity
+    # reporting. Acquire the slot after bounded intake validation and before
+    # immutable snapshot writes or normalization/model work.
+    if _workspace_capacity_failure(
+        run_dir,
+        run_root,
+        state,
+        resource_budget,
+        environment=bound_environment,
+    ):
+        return run_dir
+
+    copied_input_bytes = 0
     for index, artifact in enumerate(artifacts, start=1):
         destination = storage_path(run_dir, StorageArtifact.SOURCE_SNAPSHOT, f"inputs/source-{index:03d}{artifact.extension}", create_parent=True)
         shutil.copyfile(artifact.source_path, destination)
         destination.chmod(0o600)
+        copied_size = destination.stat().st_size
+        if copied_size > resource_budget.limit("max_file_bytes") or copied_input_bytes + copied_size > resource_budget.limit("max_total_file_bytes_per_run"):
+            destination.unlink(missing_ok=True)
+            exc = KSlideError(ErrorCode.RESOURCE_LIMIT, "Input changed beyond the configured resource budget during immutable snapshot creation.")
+            state.transition(RunPhase.FAILED_INPUT, next_action="Retry with stable inputs that fit the configured resource budget.", error_code=exc.code.value, error_message=exc.message)
+            save_state(run_dir, state)
+            sync_workspace_execution(run_dir, environment_identity=bound_environment)
+            atomic_write_json(storage_path(run_dir, StorageArtifact.INPUT_INVENTORY, "00_input_inventory.json", create_parent=True), {"schema_version": SCHEMA_VERSION, "status": "resource_limit", "error": exc.as_dict()}, mode=0o600)
+            atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), f"# FAILED\n\n{exc.message}\n\nError code: `{exc.code.value}`\n")
+            return run_dir
+        copied_input_bytes += copied_size
         if sha256_file(destination) != artifact.sha256:
             state.transition(RunPhase.FAILED_RUNTIME, next_action="Retry after checking local storage.", error_code="KSLIDE_SNAPSHOT_HASH_MISMATCH", error_message="Immutable input copy failed hash verification.")
             save_state(run_dir, state)
@@ -360,8 +541,8 @@ def prepare_run(
             atomic_write_text(storage_path(run_dir, StorageArtifact.FAILURE_MARKER, "RUN_FAILED.md", create_parent=True), "# FAILED\n\nImmutable input snapshot hash verification failed.\n")
             return run_dir
 
-    atomic_write_json(storage_path(run_dir, StorageArtifact.SOURCE_MANIFEST, "inputs/checksums.json", create_parent=True), _artifact_manifest(artifacts, classification_admission=admission), mode=0o600)
-    _write_compatibility_artifacts(run_dir, run_id, artifacts, host_inputs=host_inputs, classification_admission=admission)
+    atomic_write_json(storage_path(run_dir, StorageArtifact.SOURCE_MANIFEST, "inputs/checksums.json", create_parent=True), _artifact_manifest(artifacts, classification_admission=admission, resource_budget=resource_budget), mode=0o600)
+    _write_compatibility_artifacts(run_dir, run_id, artifacts, host_inputs=host_inputs, classification_admission=admission, resource_budget=resource_budget)
     runtime = discover_runtime()
     atomic_write_json(storage_path(run_dir, StorageArtifact.RUNTIME_METADATA, "RUNTIME_METADATA.json", create_parent=True), runtime.as_dict(), mode=0o600)
     state.input_count = len(artifacts)

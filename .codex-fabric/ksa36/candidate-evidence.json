@@ -1,0 +1,367 @@
+{
+  "employee_pilot_or_canary": false,
+  "evidence_type": "k-slide-fix-candidate-evidence",
+  "exact_base": {
+    "commit_sha": "71d3b0a56eee84716a37712440dd1763fd078c66",
+    "tree_oid": "06dac27cfb580028c143929b5f947b612e698fd9"
+  },
+  "external_stage_qualification": {
+    "actual_opencode_provider_lifecycle": "NOT_MEASURED_REFERENCE_HARNESS_EXCLUDES_PLUGIN_LIFECYCLE_AND_PROVIDER_CALL",
+    "company_paas_slide_processing": "NOT_MEASURED_COMPANY_SERVICE_UNAVAILABLE_REFERENCE_ADMISSION_ONLY",
+    "external_cloud_vscode_adapter": "NOT_MEASURED_ADAPTER_NOT_PRESENT_IN_REPOSITORY",
+    "office_conversion": "NOT_MEASURED_CONVERTER_UNAVAILABLE",
+    "production_performance_qualification": false,
+    "production_slo": "NOT_SET",
+    "target_gemma_provider": "NOT_MEASURED_ENDPOINT_NOT_INVOKED"
+  },
+  "fabric_execution_identity": {
+    "fabric_job_id": null,
+    "owner": "Fabric native publisher post-execution evidence",
+    "status": "PENDING_POST_EXECUTION_PUBLICATION"
+  },
+  "final_candidate_binding": {
+    "base_commit_sha": "71d3b0a56eee84716a37712440dd1763fd078c66",
+    "base_tree_oid": "06dac27cfb580028c143929b5f947b612e698fd9",
+    "changed_paths_after_product_subject": [
+      ".codex-fabric/audit.json",
+      ".codex-fabric/ksa36/candidate-evidence.json",
+      ".codex-fabric/ksa36/py311-measure.json",
+      ".codex-fabric/ksa36/py312-measure.json"
+    ],
+    "fix_work_head_parent_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
+    "fix_work_head_sha": "92b60cdce4465ac543940b8d532eda451df6a3fd",
+    "fix_work_head_tree_oid": "9e7e86f7533b093ac1e2606d819ee4da8e73c338",
+    "issue_id": "CHG-16",
+    "logical_build_request": "chg16-performance-load-budget-01",
+    "measurement_reports": [
+      {
+        "path": ".codex-fabric/ksa36/py311-measure.json",
+        "sha256": "1b4082b7abf3defde857951661d2fecddb53ff73e8ab284ed8796557e013c532"
+      },
+      {
+        "path": ".codex-fabric/ksa36/py312-measure.json",
+        "sha256": "f469b7cc57b13e519a9f6ac887ba8c22fd5ea4ecfe8b2b1cd4004352b852dcad"
+      }
+    ],
+    "operation": "FIX",
+    "product_subject_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
+    "product_subject_tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90",
+    "project_id": "k-slide",
+    "request": "chg16-performance-load-budget-01-fix01",
+    "sha256": "34ed507ab655a82c4f0eba4652e2ae9b06e644b89c643d35848e362ffe50bbad",
+    "work_branch": "codex/k-slide-chg16-performance-load-budget-01-fix01",
+    "work_item": "KSA-36 F36-01/F36-02/F36-03"
+  },
+  "host_overlap_investigation": {
+    "classification": "PRIOR_ANOMALY_NOT_REPRODUCED_IN_ISOLATED_OVERLAP; ROOT_CAUSE_NOT_ESTABLISHED; NO_PRODUCT_CONCURRENCY_DEFECT_DEMONSTRATED",
+    "isolated_overlapping_reproduction": {
+      "python_3_11": {
+        "exit_code": 0,
+        "python_version": "3.11.7",
+        "status": "PASS",
+        "tmpdir": "/tmp/k-slide-ksa36-host-py311.lfLlub"
+      },
+      "python_3_12": {
+        "exit_code": 0,
+        "python_version": "3.12.9",
+        "status": "PASS",
+        "tmpdir": "/tmp/k-slide-ksa36-host-py312.nNrYnW"
+      },
+      "runner": "Bun 1.4.2",
+      "started_concurrently": true,
+      "test_file": "tests/test_chg16_opencode_plugin.ts",
+      "workspace_input_isolation": "The test creates per-case mkdtemp workspace/input roots under these distinct TMPDIR roots; the Python environments are distinct and pinned."
+    },
+    "isolated_sequential_rerun": {
+      "python_3_11": {
+        "exit_code": 0,
+        "python_version": "3.11.7",
+        "status": "PASS",
+        "tmpdir": "/tmp/k-slide-ksa36-host-seq-py311.crLEoj"
+      },
+      "python_3_12": {
+        "exit_code": 0,
+        "python_version": "3.12.9",
+        "status": "PASS",
+        "tmpdir": "/tmp/k-slide-ksa36-host-seq-py312.sDicOI"
+      },
+      "runner": "Bun 1.4.2"
+    },
+    "predecessor_observation": {
+      "python_3_11_initial_overlapping_run": {
+        "error_code": "KSLIDE_INPUT_NOT_FOUND",
+        "exit_code": 1,
+        "status": "FAIL_OBSERVED"
+      },
+      "python_3_11_sequential_rerun": {
+        "exit_code": 0,
+        "status": "PASS"
+      },
+      "python_3_12_initial_overlapping_run": {
+        "exit_code": 0,
+        "status": "PASS"
+      },
+      "source_execution": {
+        "historical_fabric_job_id": "CF-f22fdb5fd16b97bc4cd098f7",
+        "native_evidence_commit_sha": "eafb6643813206034f410cb399b32ff29e899643"
+      }
+    },
+    "product_or_test_fix_made": false
+  },
+  "issue_id": "CHG-16",
+  "live_company_paas_or_provider_settings_changed": false,
+  "logical_build_request": "chg16-performance-load-budget-01",
+  "main_branch_changed": false,
+  "measurement_artifacts": [
+    {
+      "bytes": 65958,
+      "measurement_environment_identity_sha256": "2553a2855164b421caab582465737f4fc4552411b658847bc66ba1f5ed76b9d1",
+      "overall_qualification": "UNQUALIFIED_EXTERNAL_MODEL_CLOUD_HOST_AND_COMPANY_PAAS_STAGES_NOT_MEASURED",
+      "path": ".codex-fabric/ksa36/py311-measure.json",
+      "python_version": "3.11.7",
+      "resource_budget_sha256": "dd9f876a244bfb08ebdd6581c376951da0dfff2901c5fe2abd8e871e83d9bfdf",
+      "scenario_record_count": 20,
+      "sha256": "1b4082b7abf3defde857951661d2fecddb53ff73e8ab284ed8796557e013c532",
+      "topology_status_counts": {
+        "cloud_vscode_shared_cli_reference": {
+          "MEASURED_REFERENCE_PRODUCT_PATH": 3,
+          "NOT_MEASURED": 2
+        },
+        "local_cli_reference": {
+          "MEASURED_REFERENCE_PRODUCT_PATH": 3,
+          "NOT_MEASURED": 2
+        },
+        "opencode_shared_core_reference": {
+          "MEASURED_REFERENCE_PRODUCT_PATH": 3,
+          "NOT_MEASURED": 2
+        },
+        "reference_paas_scoped_admission": {
+          "MEASURED_REFERENCE_ADMISSION_ONLY": 5
+        }
+      }
+    },
+    {
+      "bytes": 65977,
+      "measurement_environment_identity_sha256": "59dbd1e9c55064ff640f4552b2c004d5602958cdf9cb843f7f708592fc39f3b4",
+      "overall_qualification": "UNQUALIFIED_EXTERNAL_MODEL_CLOUD_HOST_AND_COMPANY_PAAS_STAGES_NOT_MEASURED",
+      "path": ".codex-fabric/ksa36/py312-measure.json",
+      "python_version": "3.12.9",
+      "resource_budget_sha256": "dd9f876a244bfb08ebdd6581c376951da0dfff2901c5fe2abd8e871e83d9bfdf",
+      "scenario_record_count": 20,
+      "sha256": "f469b7cc57b13e519a9f6ac887ba8c22fd5ea4ecfe8b2b1cd4004352b852dcad",
+      "topology_status_counts": {
+        "cloud_vscode_shared_cli_reference": {
+          "MEASURED_REFERENCE_PRODUCT_PATH": 3,
+          "NOT_MEASURED": 2
+        },
+        "local_cli_reference": {
+          "MEASURED_REFERENCE_PRODUCT_PATH": 3,
+          "NOT_MEASURED": 2
+        },
+        "opencode_shared_core_reference": {
+          "MEASURED_REFERENCE_PRODUCT_PATH": 3,
+          "NOT_MEASURED": 2
+        },
+        "reference_paas_scoped_admission": {
+          "MEASURED_REFERENCE_ADMISSION_ONLY": 5
+        }
+      }
+    }
+  ],
+  "measurement_policy": {
+    "bounded_harness_max_repetitions": 5,
+    "fixture_inputs": "synthetic_only_and_deleted_after_run",
+    "production_slo": "NOT_SET",
+    "repetitions": 2,
+    "scenario_records_per_runtime": 20,
+    "source_content_written": false,
+    "warmups": 1
+  },
+  "notion_mutated": false,
+  "observed_checks": [
+    {
+      "name": "focused_ksa36_resource_budget",
+      "python": "3.11.7",
+      "status": "PASS",
+      "tests": 17
+    },
+    {
+      "name": "focused_ksa36_resource_budget",
+      "python": "3.12.9",
+      "status": "PASS",
+      "tests": 17
+    },
+    {
+      "elapsed_seconds": 109.868,
+      "name": "full_repository_unittest_discovery",
+      "python": "3.11.7",
+      "status": "PASS",
+      "tests": 717
+    },
+    {
+      "elapsed_seconds": 212.551,
+      "name": "full_repository_unittest_discovery",
+      "python": "3.12.9",
+      "status": "PASS",
+      "tests": 717
+    },
+    {
+      "name": "related_ingestion_runtime_storage_security_privacy_authorization_retention_telemetry_host_regressions",
+      "python": "3.11.7",
+      "runner": "pytest",
+      "selected_patterns": [
+        "test_ksa35_product_telemetry.py",
+        "test_chg16_*.py",
+        "test_chg17_*.py",
+        "test_chg18_*.py"
+      ],
+      "status": "PASS",
+      "tests": 211
+    },
+    {
+      "name": "related_ingestion_runtime_storage_security_privacy_authorization_retention_telemetry_host_regressions",
+      "python": "3.12.9",
+      "runner": "pytest",
+      "selected_patterns": [
+        "test_ksa35_product_telemetry.py",
+        "test_chg16_*.py",
+        "test_chg17_*.py",
+        "test_chg18_*.py"
+      ],
+      "status": "PASS",
+      "tests": 211
+    },
+    {
+      "name": "opencode_host_attachment_regression_overlapping_isolated",
+      "parallel": true,
+      "python_3_11": "PASS",
+      "python_3_12": "PASS",
+      "runner": "Bun 1.4.2",
+      "status": "PASS"
+    },
+    {
+      "name": "opencode_host_attachment_regression_sequential_isolated",
+      "python_3_11": "PASS",
+      "python_3_12": "PASS",
+      "runner": "Bun 1.4.2",
+      "status": "PASS"
+    },
+    {
+      "name": "json_schema_validation_and_runtime_error_code_parity",
+      "python": "3.11.7",
+      "runtime_error_code_values": 92,
+      "schema_error_code_values": 92,
+      "schemas": 9,
+      "status": "PASS"
+    },
+    {
+      "name": "json_schema_validation_and_runtime_error_code_parity",
+      "python": "3.12.9",
+      "runtime_error_code_values": 92,
+      "schema_error_code_values": 92,
+      "schemas": 9,
+      "status": "PASS"
+    },
+    {
+      "embedded_shell_steps": 49,
+      "embedded_shell_steps_validated_with_bash_n": 49,
+      "name": "workflow_yaml_and_embedded_shell_validation",
+      "runtime": "Python 3.11.7 with PyYAML 6.0.1",
+      "status": "PASS",
+      "workflows": 6
+    },
+    {
+      "name": "python_compileall_src_evals_tests",
+      "python": "3.11.7",
+      "python_source_files": 164,
+      "status": "PASS"
+    },
+    {
+      "name": "python_compileall_src_evals_tests",
+      "python": "3.12.9",
+      "python_source_files": 164,
+      "status": "PASS"
+    },
+    {
+      "command": "rtk git diff --check",
+      "name": "git_diff_check",
+      "status": "PASS"
+    }
+  ],
+  "operation": "FIX",
+  "predecessor_build_execution_identity": {
+    "historical_fabric_job_id": "CF-f22fdb5fd16b97bc4cd098f7",
+    "native_evidence_commit_sha": "eafb6643813206034f410cb399b32ff29e899643",
+    "operation": "BUILD",
+    "request": "chg16-performance-load-budget-01",
+    "verified_from_native_evidence_audit": true
+  },
+  "preserved_product_subject": {
+    "branch_parent": "71d3b0a56eee84716a37712440dd1763fd078c66",
+    "commit_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
+    "tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90"
+  },
+  "project": "k-slide",
+  "qualification_status": "CANDIDATE_CHECKS_PASS_PENDING_NATIVE_PUBLICATION_AND_INDEPENDENT_PROJECT_OS_REVIEW",
+  "qualification_subject": {
+    "product_commit_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
+    "product_tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90",
+    "test_and_compile_results_run_against": "the preserved product subject; the FIX01 work head changes only audit and measurement evidence"
+  },
+  "reference_capacity_observation": {
+    "configured_active_runs_per_scope": 1,
+    "configured_queue_depth_per_scope": 16,
+    "observed_each_batch": {
+      "accepted": 4,
+      "active_runs": 1,
+      "queued_runs": 3
+    },
+    "per_scenario_batch_requests": 4,
+    "per_scenario_repetitions": 2,
+    "qualification": "UNQUALIFIED_REFERENCE_ADMISSION_ONLY_NOT_COMPANY_PAAS_OR_SLIDE_PROCESSING",
+    "service": "ReferencePaaSJobService scoped admission only"
+  },
+  "release_or_production_claim": false,
+  "repair_candidate_identity": {
+    "commit_sha": "92b60cdce4465ac543940b8d532eda451df6a3fd",
+    "measurement_report_hashes": [
+      {
+        "path": ".codex-fabric/ksa36/py311-measure.json",
+        "sha256": "1b4082b7abf3defde857951661d2fecddb53ff73e8ab284ed8796557e013c532"
+      },
+      {
+        "path": ".codex-fabric/ksa36/py312-measure.json",
+        "sha256": "f469b7cc57b13e519a9f6ac887ba8c22fd5ea4ecfe8b2b1cd4004352b852dcad"
+      }
+    ],
+    "parent_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
+    "parent_tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90",
+    "status": "BOUND_TO_FIX01_WORK_HEAD",
+    "tree_oid": "9e7e86f7533b093ac1e2606d819ee4da8e73c338",
+    "work_branch": "codex/k-slide-chg16-performance-load-budget-01-fix01"
+  },
+  "request": "chg16-performance-load-budget-01-fix01",
+  "resource_budget_semantics_preserved": [
+    "versioned_centralized_budget_contract",
+    "non_production_reference_defaults",
+    "explicit_production_budget_requirement",
+    "file_page_slide_pixel_normalized_byte_media_token_and_concurrency_enforcement",
+    "no_silent_truncation_skipped_verification_provider_fallback_or_false_DONE",
+    "existing_scoped_PaaS_admission_and_queue_owner",
+    "typed_capacity_and_prerequisite_results_when_queue_owner_or_external_production_prerequisite_is_unavailable"
+  ],
+  "schema_version": "1.0",
+  "source_tree_preservation": {
+    "evidence_paths_after_product_subject": [
+      ".codex-fabric/audit.json",
+      ".codex-fabric/ksa36/candidate-evidence.json",
+      ".codex-fabric/ksa36/py311-measure.json",
+      ".codex-fabric/ksa36/py312-measure.json"
+    ],
+    "product_or_test_changes_after_product_subject": false,
+    "product_subject_commit_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
+    "product_subject_tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90"
+  },
+  "work_branch": "codex/k-slide-chg16-performance-load-budget-01-fix01",
+  "work_item": "KSA-36 F36-01/F36-02/F36-03"
+}

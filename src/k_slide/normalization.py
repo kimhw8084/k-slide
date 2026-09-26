@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import math
 import os
 import re
 import shutil
@@ -24,6 +25,7 @@ from .security import sha256_file
 from .storage import StorageArtifact, StorageLayout, storage_path
 from .state import RunPhase, load_state, save_state
 from .redaction import safe_diagnostic_text_or_placeholder
+from .resource_budget import ResourceBudget
 def _terminate_subprocess_group(process: subprocess.Popen[str], grace_seconds: float = 5.0) -> None:
     """Keep document conversion cleanup local to the core runtime."""
 
@@ -52,15 +54,6 @@ def _terminate_subprocess_group(process: subprocess.Popen[str], grace_seconds: f
             pass
 
 RENDER_DPI = 220.0
-MAX_IMAGE_PIXELS = 120_000_000
-MAX_IMAGE_WIDTH = 20_000
-MAX_IMAGE_HEIGHT = 20_000
-MAX_DOCUMENTS_PER_RUN = 32
-MAX_UNITS_PER_RUN = 500
-MAX_PAGES_PER_PDF = 200
-MAX_SLIDES_PER_PPTX = 200
-MAX_TOTAL_RENDER_PIXELS = 500_000_000
-MAX_NORMALIZED_BYTES = 2_000_000_000
 
 
 def _json_safe(value: Any) -> Any:
@@ -105,7 +98,95 @@ def _pptx_slide_count(source: Path) -> int:
     return sum(1 for item in root.iter() if item.tag.rsplit("}", 1)[-1].casefold() == "sldid")
 
 
-def _normalize_image(run_dir: Path, input_id: str, source: Path, index: int, document_id: str) -> list[DocumentUnit]:
+def _preflight_resources(snapshots: list[tuple[str, Path, dict[str, Any]]], budget: ResourceBudget) -> None:
+    """Check input cardinality and decoded-pixel estimates before render/decode."""
+
+    if len(snapshots) > budget.limit("max_documents_per_run"):
+        raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Input count exceeds the configured resource budget.", {"documents": len(snapshots), "max_documents": budget.limit("max_documents_per_run")})
+    file_bytes = 0
+    work_units = 0
+    estimated_pixels = 0
+    scale = RENDER_DPI / 72.0
+    for _input_id, source, metadata in snapshots:
+        size_bytes = source.stat().st_size
+        if size_bytes > budget.limit("max_file_bytes"):
+            raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Immutable input exceeds the configured file-byte budget.", {"limit_bytes": budget.limit("max_file_bytes")})
+        file_bytes += size_bytes
+        if file_bytes > budget.limit("max_total_file_bytes_per_run"):
+            raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Combined immutable inputs exceed the configured file-byte budget.", {"max_bytes": budget.limit("max_total_file_bytes_per_run")})
+        extension = str(metadata.get("extension", source.suffix)).lower()
+        if extension in {".png", ".jpg", ".jpeg", ".webp"}:
+            if importlib.util.find_spec("PIL") is None:
+                raise KSlideError(ErrorCode.IMAGE_DECODE_FAILED, "Pillow is required to decode and normalize image inputs.", {"extra": "pip install k-slide"})
+            from PIL import Image
+
+            try:
+                with Image.open(source) as image:
+                    width, height = image.size
+                    animated = bool(getattr(image, "is_animated", False)) or int(getattr(image, "n_frames", 1)) > 1
+            except getattr(Image, "DecompressionBombError", OSError) as exc:
+                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Image dimensions exceed the configured resource budget.") from exc
+            if animated:
+                raise KSlideError(ErrorCode.INPUT_UNSUPPORTED, "Animated images are unsupported; provide one static slide image per input.")
+            if width < 1 or height < 1 or width > budget.limit("max_image_dimension") or height > budget.limit("max_image_dimension") or width * height > budget.limit("max_pixels_per_image"):
+                raise KSlideError(ErrorCode.INPUT_TOO_LARGE, "Decoded image dimensions exceed the configured resource budget.", {"max_pixels": budget.limit("max_pixels_per_image"), "max_dimension": budget.limit("max_image_dimension")})
+            work_units += 1
+            estimated_pixels += width * height
+        elif extension == ".pdf":
+            if importlib.util.find_spec("fitz") is None:
+                raise KSlideError(ErrorCode.PDF_RENDER_UNAVAILABLE, "PyMuPDF is required to normalize PDF pages.", {"extra": "pip install k-slide[pdf]"})
+            import fitz
+
+            try:
+                document = fitz.open(source)
+            except Exception as exc:
+                raise KSlideError(ErrorCode.NORMALIZATION_FAILED, "PDF could not be opened.", {"reason": type(exc).__name__}) from exc
+            try:
+                pages = document.page_count
+                if pages > budget.limit("max_pdf_pages_per_document"):
+                    raise KSlideError(ErrorCode.RESOURCE_LIMIT, "PDF page count exceeds the configured resource budget.", {"pages": pages, "max_pages": budget.limit("max_pdf_pages_per_document")})
+                work_units += pages
+                for index in range(pages):
+                    rect = document.load_page(index).rect
+                    width_px = math.ceil(rect.width * scale)
+                    height_px = math.ceil(rect.height * scale)
+                    if width_px > budget.limit("max_image_dimension") or height_px > budget.limit("max_image_dimension") or width_px * height_px > budget.limit("max_pixels_per_image"):
+                        raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Rendered PDF page dimensions exceed the configured image budget.")
+                    estimated_pixels += width_px * height_px
+            finally:
+                document.close()
+        elif extension == ".pptx":
+            slides = _pptx_slide_count(source)
+            if slides > budget.limit("max_pptx_slides_per_deck"):
+                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "PPTX slide count exceeds the configured resource budget.", {"slides": slides, "max_slides": budget.limit("max_pptx_slides_per_deck")})
+            if importlib.util.find_spec("pptx") is None:
+                raise KSlideError(ErrorCode.NORMALIZATION_FAILED, "python-pptx is required to inspect PPTX page dimensions.", {"extra": "pip install k-slide[pptx]"})
+            from pptx import Presentation
+
+            presentation = Presentation(str(source))
+            width_px = math.ceil((int(presentation.slide_width) / 914400) * RENDER_DPI)
+            height_px = math.ceil((int(presentation.slide_height) / 914400) * RENDER_DPI)
+            if width_px > budget.limit("max_image_dimension") or height_px > budget.limit("max_image_dimension") or width_px * height_px > budget.limit("max_pixels_per_image"):
+                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Rendered PPTX slide dimensions exceed the configured image budget.")
+            work_units += slides
+            estimated_pixels += width_px * height_px * slides
+        else:
+            raise KSlideError(ErrorCode.INPUT_UNSUPPORTED, "Unsupported normalized input type.", {"extension": extension})
+        if work_units > budget.limit("max_work_units_per_run"):
+            raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Page/slide count exceeds the configured resource budget.", {"work_units": work_units, "max_work_units": budget.limit("max_work_units_per_run")})
+        if estimated_pixels > budget.limit("max_total_decoded_pixels_per_run"):
+            raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Estimated decoded pixels exceed the configured resource budget.", {"max_pixels": budget.limit("max_total_decoded_pixels_per_run")})
+
+
+def _enforce_normalized_render_byte_budget(run_dir: Path, budget: ResourceBudget) -> int:
+    normalized_dir = storage_path(run_dir, StorageArtifact.NORMALIZED_RENDER, "normalized")
+    total = sum(path.stat().st_size for path in normalized_dir.glob("*.png") if path.is_file()) if normalized_dir.is_dir() else 0
+    if total > budget.limit("max_normalized_bytes_per_run"):
+        raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Normalized render bytes exceed the configured resource budget.", {"bytes": total, "max_bytes": budget.limit("max_normalized_bytes_per_run")})
+    return total
+
+
+def _normalize_image(run_dir: Path, input_id: str, source: Path, index: int, document_id: str, budget: ResourceBudget) -> list[DocumentUnit]:
     if importlib.util.find_spec("PIL") is None:
         raise KSlideError(ErrorCode.IMAGE_DECODE_FAILED, "Pillow is required to decode and normalize image inputs.", {"input": source.name, "extra": "pip install k-slide"})
     from PIL import Image, ImageOps, UnidentifiedImageError
@@ -113,16 +194,19 @@ def _normalize_image(run_dir: Path, input_id: str, source: Path, index: int, doc
 
     try:
         with Image.open(source) as image:
-            image = ImageOps.exif_transpose(image)
             width, height = image.size
-            if width < 1 or height < 1 or width > MAX_IMAGE_WIDTH or height > MAX_IMAGE_HEIGHT or width * height > MAX_IMAGE_PIXELS:
-                raise KSlideError(ErrorCode.INPUT_TOO_LARGE, "Decoded image dimensions exceed K-Slide safety limits.", {"width": width, "height": height, "max_pixels": MAX_IMAGE_PIXELS})
+            max_dimension = budget.limit("max_image_dimension")
+            max_pixels = budget.limit("max_pixels_per_image")
+            if width < 1 or height < 1 or width > max_dimension or height > max_dimension or width * height > max_pixels:
+                raise KSlideError(ErrorCode.INPUT_TOO_LARGE, "Decoded image dimensions exceed the configured resource budget.", {"max_pixels": max_pixels, "max_dimension": max_dimension})
+            image = ImageOps.exif_transpose(image)
             if image.mode not in {"RGB", "RGBA"}:
                 image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
             work_unit_id = f"{document_id}-image-0001"
             render = storage_path(run_dir, StorageArtifact.NORMALIZED_RENDER, f"normalized/{work_unit_id}.png", create_parent=True)
             image.save(render, format="PNG", optimize=True)
             render.chmod(0o600)
+            _enforce_normalized_render_byte_budget(run_dir, budget)
     except KSlideError:
         raise
     except (OSError, UnidentifiedImageError, DecompressionBombError, ValueError) as exc:
@@ -133,7 +217,7 @@ def _normalize_image(run_dir: Path, input_id: str, source: Path, index: int, doc
     return [DocumentUnit(work_unit_id, document_id, input_id, index - 1, "image", width, height, str(render.resolve().relative_to(durable_root)), sha256_file(render), str(native_path.relative_to(durable_root)), ())]
 
 
-def _pdf_units(run_dir: Path, input_id: str, source: Path, document_id: str, source_index: int) -> list[DocumentUnit]:
+def _pdf_units(run_dir: Path, input_id: str, source: Path, document_id: str, source_index: int, budget: ResourceBudget) -> list[DocumentUnit]:
     if importlib.util.find_spec("fitz") is None:
         raise KSlideError(ErrorCode.PDF_RENDER_UNAVAILABLE, "PyMuPDF is required to normalize PDF pages.", {"input": source.name, "extra": "pip install k-slide[pdf]"})
     import fitz
@@ -148,10 +232,10 @@ def _pdf_units(run_dir: Path, input_id: str, source: Path, document_id: str, sou
     if document.page_count < 1:
         document.close()
         raise KSlideError(ErrorCode.NORMALIZATION_FAILED, "PDF contains no pages.", {"input": source.name})
-    if document.page_count > MAX_PAGES_PER_PDF:
+    if document.page_count > budget.limit("max_pdf_pages_per_document"):
         page_count = document.page_count
         document.close()
-        raise KSlideError(ErrorCode.RESOURCE_LIMIT, "PDF page count exceeds the configured safety limit.", {"input": source.name, "pages": page_count, "max_pages": MAX_PAGES_PER_PDF})
+        raise KSlideError(ErrorCode.RESOURCE_LIMIT, "PDF page count exceeds the configured resource budget.", {"pages": page_count, "max_pages": budget.limit("max_pdf_pages_per_document")})
     units: list[DocumentUnit] = []
     try:
         for page_index in range(document.page_count):
@@ -159,10 +243,13 @@ def _pdf_units(run_dir: Path, input_id: str, source: Path, document_id: str, sou
             rect = page.rect
             matrix = fitz.Matrix(RENDER_DPI / 72.0, RENDER_DPI / 72.0)
             pixmap = page.get_pixmap(matrix=matrix, alpha=False)
+            if pixmap.width > budget.limit("max_image_dimension") or pixmap.height > budget.limit("max_image_dimension") or pixmap.width * pixmap.height > budget.limit("max_pixels_per_image"):
+                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Rendered PDF page dimensions exceed the configured image budget.")
             work_unit_id = f"{document_id}-page-{page_index + 1:04d}"
             render = storage_path(run_dir, StorageArtifact.NORMALIZED_RENDER, f"normalized/{work_unit_id}.png", create_parent=True)
             pixmap.save(str(render))
             render.chmod(0o600)
+            _enforce_normalized_render_byte_budget(run_dir, budget)
             native = page.get_text("dict")
             native_path = storage_path(run_dir, StorageArtifact.NATIVE_EXTRACTION, f"native/{work_unit_id}.json", create_parent=True)
             safe_blocks = _json_safe(native.get("blocks", []))
@@ -386,11 +473,19 @@ def _connector_endpoints(shape: Any, source_ids_by_shape_id: dict[int, str]) -> 
         return None
 
 
-def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, rendered_pages: list[Path]) -> list[DocumentUnit]:
+def _pptx_native(
+    source: Path,
+    run_dir: Path,
+    input_id: str,
+    document_id: str,
+    rendered_pages: list[Path],
+    budget: ResourceBudget | None = None,
+) -> list[DocumentUnit]:
     if importlib.util.find_spec("pptx") is None:
         raise KSlideError(ErrorCode.NORMALIZATION_FAILED, "python-pptx is required to extract PPTX structure.", {"input": source.name, "extra": "pip install k-slide[pptx]"})
     from pptx import Presentation
 
+    budget = budget or ResourceBudget.reference()
     try:
         presentation = Presentation(str(source))
     except Exception as exc:
@@ -400,8 +495,8 @@ def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, r
     units: list[DocumentUnit] = []
     if len(rendered_pages) != len(presentation.slides):
         raise KSlideError(ErrorCode.RENDER_COUNT_MISMATCH, "PPTX render page count does not match slide count.", {"slides": len(presentation.slides), "renders": len(rendered_pages)})
-    if len(presentation.slides) > MAX_SLIDES_PER_PPTX:
-        raise KSlideError(ErrorCode.RESOURCE_LIMIT, "PPTX slide count exceeds the configured safety limit.", {"input": source.name, "slides": len(presentation.slides), "max_slides": MAX_SLIDES_PER_PPTX})
+    if len(presentation.slides) > budget.limit("max_pptx_slides_per_deck"):
+        raise KSlideError(ErrorCode.RESOURCE_LIMIT, "PPTX slide count exceeds the configured resource budget.", {"slides": len(presentation.slides), "max_slides": budget.limit("max_pptx_slides_per_deck")})
     for slide_index, slide in enumerate(presentation.slides):
         work_unit_id = f"{document_id}-slide-{slide_index + 1:04d}"
         render = rendered_pages[slide_index]
@@ -411,6 +506,11 @@ def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, r
             # The rendered PNG dimensions are authoritative for crop geometry.
             with Image.open(render) as rendered_image:
                 render_width, render_height = rendered_image.size
+            if render_width > budget.limit("max_image_dimension") or render_height > budget.limit("max_image_dimension") or render_width * render_height > budget.limit("max_pixels_per_image"):
+                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Rendered PPTX slide dimensions exceed the configured image budget.")
+            _enforce_normalized_render_byte_budget(run_dir, budget)
+        except KSlideError:
+            raise
         except (ImportError, OSError) as exc:
             raise KSlideError(ErrorCode.PPTX_RENDER_UNAVAILABLE, "Unable to inspect the canonical PPTX render dimensions.", {"input": source.name}) from exc
         objects: list[dict[str, Any]] = []
@@ -490,7 +590,8 @@ def _pptx_native(source: Path, run_dir: Path, input_id: str, document_id: str, r
     return units
 
 
-def _render_pptx(source: Path, run_dir: Path, document_id: str) -> list[Path]:
+def _render_pptx(source: Path, run_dir: Path, document_id: str, budget: ResourceBudget | None = None) -> list[Path]:
+    budget = budget or ResourceBudget.reference()
     binary = shutil.which("libreoffice") or shutil.which("soffice")
     if not binary:
         raise KSlideError(ErrorCode.PPTX_RENDER_UNAVAILABLE, "LibreOffice/soffice is required to render PPTX slides.", {"input": source.name})
@@ -524,8 +625,12 @@ def _render_pptx(source: Path, run_dir: Path, document_id: str) -> list[Path]:
             renders: list[Path] = []
             for index, page in enumerate(document):
                 render = storage_path(run_dir, StorageArtifact.NORMALIZED_RENDER, f"normalized/{document_id}-slide-{index + 1:04d}.png", create_parent=True)
-                page.get_pixmap(matrix=fitz.Matrix(RENDER_DPI / 72, RENDER_DPI / 72), alpha=False).save(str(render))
+                pixmap = page.get_pixmap(matrix=fitz.Matrix(RENDER_DPI / 72, RENDER_DPI / 72), alpha=False)
+                if pixmap.width > budget.limit("max_image_dimension") or pixmap.height > budget.limit("max_image_dimension") or pixmap.width * pixmap.height > budget.limit("max_pixels_per_image"):
+                    raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Rendered PPTX slide dimensions exceed the configured image budget.")
+                pixmap.save(str(render))
                 render.chmod(0o600)
+                _enforce_normalized_render_byte_budget(run_dir, budget)
                 renders.append(render)
             return renders
         finally:
@@ -550,21 +655,28 @@ def normalize_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity
         warnings: list[str] = []
         try:
             snapshots = _snapshot_inputs(run_dir)
-            if len(snapshots) > MAX_DOCUMENTS_PER_RUN:
-                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Input count exceeds the configured safety limit.", {"documents": len(snapshots), "max_documents": MAX_DOCUMENTS_PER_RUN})
+            manifest = read_json(storage_path(run_dir, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json"))
+            budget = ResourceBudget.from_run_manifest(
+                run_dir,
+                manifest,
+                production_required=ResourceBudget.production_required_for_workspace(
+                    StorageLayout.for_workspace(run_dir).durable_root.parent.parent
+                ),
+            )
+            _preflight_resources(snapshots, budget)
             for input_id, source, metadata in snapshots:
                 document_id = f"doc-{input_id.split('-')[-1]}"
                 extension = str(metadata.get("extension", source.suffix)).lower()
                 if extension in {".png", ".jpg", ".jpeg", ".webp"}:
-                    units = _normalize_image(run_dir, input_id, source, int(input_id.split("-")[-1]), document_id)
+                    units = _normalize_image(run_dir, input_id, source, int(input_id.split("-")[-1]), document_id, budget)
                 elif extension == ".pdf":
-                    units = _pdf_units(run_dir, input_id, source, document_id, int(input_id.split("-")[-1]))
+                    units = _pdf_units(run_dir, input_id, source, document_id, int(input_id.split("-")[-1]), budget)
                 elif extension == ".pptx":
                     slide_count = _pptx_slide_count(source)
-                    if slide_count > MAX_SLIDES_PER_PPTX:
-                        raise KSlideError(ErrorCode.RESOURCE_LIMIT, "PPTX slide count exceeds the configured safety limit.", {"max_slides": MAX_SLIDES_PER_PPTX})
-                    rendered = _render_pptx(source, run_dir, document_id)
-                    units = _pptx_native(source, run_dir, input_id, document_id, rendered)
+                    if slide_count > budget.limit("max_pptx_slides_per_deck"):
+                        raise KSlideError(ErrorCode.RESOURCE_LIMIT, "PPTX slide count exceeds the configured resource budget.", {"max_slides": budget.limit("max_pptx_slides_per_deck")})
+                    rendered = _render_pptx(source, run_dir, document_id, budget)
+                    units = _pptx_native(source, run_dir, input_id, document_id, rendered, budget)
                 else:
                     raise KSlideError(ErrorCode.INPUT_UNSUPPORTED, "Unsupported normalized input type.", {"extension": extension})
                 documents.append(NormalizedDocument(document_id, input_id, str(metadata.get("kind", "unknown")), str(metadata.get("sha256", "")), tuple(units)))
@@ -572,15 +684,15 @@ def normalize_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity
             document_ids = [document.document_id for document in documents]
             if len(document_ids) != len(set(document_ids)):
                 raise KSlideError(ErrorCode.DUPLICATE_DOCUMENT_ID, "Normalization generated duplicate document IDs.", {"document_ids": document_ids})
-            if len(units) > MAX_UNITS_PER_RUN:
-                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Page/slide count exceeds the configured safety limit.", {"units": len(units), "max_units": MAX_UNITS_PER_RUN})
+            if len(units) > budget.limit("max_work_units_per_run"):
+                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Page/slide count exceeds the configured resource budget.", {"units": len(units), "max_units": budget.limit("max_work_units_per_run")})
             total_pixels = sum(unit.width_px * unit.height_px for unit in units)
-            if total_pixels > MAX_TOTAL_RENDER_PIXELS:
-                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Total normalized render pixels exceed the configured safety limit.", {"pixels": total_pixels, "max_pixels": MAX_TOTAL_RENDER_PIXELS})
+            if total_pixels > budget.limit("max_total_decoded_pixels_per_run"):
+                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Total normalized render pixels exceed the configured resource budget.", {"pixels": total_pixels, "max_pixels": budget.limit("max_total_decoded_pixels_per_run")})
             normalized_bytes = sum(storage_path(run_dir, StorageArtifact.NORMALIZED_RENDER, unit.canonical_render_path).stat().st_size for unit in units if storage_path(run_dir, StorageArtifact.NORMALIZED_RENDER, unit.canonical_render_path).is_file())
-            if normalized_bytes > MAX_NORMALIZED_BYTES:
-                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Normalized render bytes exceed the configured safety limit.", {"bytes": normalized_bytes, "max_bytes": MAX_NORMALIZED_BYTES})
-            result = NormalizationResult(tuple(documents), tuple(warnings), {"render_dpi": RENDER_DPI, "max_image_pixels": MAX_IMAGE_PIXELS})
+            if normalized_bytes > budget.limit("max_normalized_bytes_per_run"):
+                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Normalized render bytes exceed the configured resource budget.", {"bytes": normalized_bytes, "max_bytes": budget.limit("max_normalized_bytes_per_run")})
+            result = NormalizationResult(tuple(documents), tuple(warnings), {"render_dpi": RENDER_DPI, "max_image_pixels": budget.limit("max_pixels_per_image"), "resource_budget_sha256": budget.sha256})
             atomic_write_json(storage_path(run_dir, StorageArtifact.NORMALIZATION_MANIFEST, "normalized/DOCUMENT_MANIFEST.json", create_parent=True), result.as_dict(), mode=0o600)
             now = state.updated_at
             queue = WorkQueue(run_id=state.run_id, work_units=[WorkUnit(unit.work_unit_id, unit.document_id, unit.input_id, unit.source_index, unit.kind, WorkUnitStatus.NORMALIZED, created_at=now, updated_at=now) for unit in units])
