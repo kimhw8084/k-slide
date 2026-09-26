@@ -6,6 +6,91 @@
     "tool_available_in_active_session": false
   },
   "artifact_path": ".codex-fabric/audit.json",
+  "candidate": {
+    "base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
+    "base_tree_oid": "b546ad8f1abbd0dea4124c6c3d91ac4103e4de8a",
+    "branch": "codex/k-slide-chg16-product-telemetry-01-fix01",
+    "candidate_changes_committed": true,
+    "candidate_commit_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
+    "candidate_identity": {
+      "base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
+      "base_tree_oid": "b546ad8f1abbd0dea4124c6c3d91ac4103e4de8a",
+      "candidate_commit_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
+      "candidate_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
+      "candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
+      "fix_request": "chg16-product-telemetry-01-fix01",
+      "logical_request": "chg16-product-telemetry-01",
+      "predecessor_recovery_head_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
+      "product_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
+      "product_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
+      "project_id": "k-slide",
+      "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix01"
+    },
+    "candidate_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
+    "candidate_identity_sha256": "487c03e5b18f7deb54612f981b7ce035988d34e1ab6a5e3962a9d35802f38d3d",
+    "candidate_source_content_manifest": [
+      {
+        "path": ".opencode/agents/k-slide.md",
+        "sha256": "7964e807477936f6564e9c0e90e952b1a7adf79da09c4a4e973423e247a0d0d3"
+      },
+      {
+        "path": ".opencode/tools/kslide.ts",
+        "sha256": "2061077db8adde9baf49c431bfdbb4fb59775f103b9f0242d15955700ae5ea1e"
+      },
+      {
+        "path": "IMPLEMENTATION_STATUS.md",
+        "sha256": "bb71208f95af07f5289c011c81f1aba0678d5c3eade30d4a52e8e8faa0500fd7"
+      },
+      {
+        "path": "docs/ksa35-product-telemetry.md",
+        "sha256": "b83127bacd4ca39a2e6d0e8a6e34658becdaa76acb97941b49a852c8f188a42e"
+      },
+      {
+        "path": "schemas/operational-telemetry-event.schema.json",
+        "sha256": "4da0dc3ed702b0f7809bcef5094771b1b32ddf5645e4e0788d786469ed38468f"
+      },
+      {
+        "path": "src/k_slide/cli.py",
+        "sha256": "cf6844ec24fecad0c29d0787244625db5c602e04bc4e5a6c4ec5c00ac652a52d"
+      },
+      {
+        "path": "src/k_slide/deletion.py",
+        "sha256": "0b273f6d5bfdb5ec995f8f2f404230da20567f4d07771440fad47badbc3c64d6"
+      },
+      {
+        "path": "src/k_slide/run_store.py",
+        "sha256": "6c2e020183f4238c400fb3e58b46c394eef434ca15e6f81be17d35019b3602b5"
+      },
+      {
+        "path": "src/k_slide/telemetry.py",
+        "sha256": "de482890890393e3a17579287680eefcd1d84295c3425238ca091a4e49459273"
+      },
+      {
+        "path": "tests/test_chg16_deletion.py",
+        "sha256": "9eab29ad9c6738a8b9535d2020020efcf2bc4b2fdfb888d8a71d0e91fd1ca476"
+      },
+      {
+        "path": "tests/test_chg16_opencode_plugin.ts",
+        "sha256": "02f155fdb06d58812f18f8cc1f7c49660ce74597f8d0a4ebeb350658bc56378c"
+      },
+      {
+        "path": "tests/test_chg16_storage_planes.py",
+        "sha256": "a56fb5bc82fd3646588fc705192d2d7658a386f0a11e0c6d10dcdad9228484cb"
+      },
+      {
+        "path": "tests/test_ksa35_product_telemetry.py",
+        "sha256": "4b8f4767cbec0c87ecef70768cc028a62ecb9dbed452102a1abd763faef40e19"
+      }
+    ],
+    "candidate_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
+    "candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
+    "product_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
+    "product_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
+    "promotable_candidate": true,
+    "promotion_status": "PENDING_INDEPENDENT_PROJECT_OS_REVIEW",
+    "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix01",
+    "working_tree_clean_before_audit_write": true
+  },
   "checks": [
     {
       "name": "Focused KSA-35 product telemetry tests, Python 3.11",
@@ -68,9 +153,57 @@
     {
       "name": "Python compileall, Python 3.11 and Python 3.12",
       "status": "PASS"
+    },
+    {
+      "changed_paths_from_predecessor": [
+        ".codex-fabric/audit.json"
+      ],
+      "name": "Source tree preserved relative to predecessor recovery implementation",
+      "status": "PASS"
+    },
+    {
+      "name": "Historical, candidate, operation, and Fabric evidence identities rederived from Git objects and canonical JSON",
+      "status": "PASS"
+    },
+    {
+      "name": "git diff --check for base-to-candidate and candidate-to-evidence publication",
+      "status": "PASS"
     }
   ],
   "employee_pilot_or_canary": false,
+  "evidence_publication": {
+    "artifact_path": ".codex-fabric/audit.json",
+    "branch": "codex-fabric/evidence/k-slide/chg16-product-telemetry-01-fix01",
+    "changed_paths_from_parent": [
+      ".codex-fabric/audit.json"
+    ],
+    "evidence_commit_sha_self_reference_omitted": true,
+    "parent_candidate_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-product-telemetry-01-fix01",
+    "sole_parent_is_exact_candidate": true
+  },
+  "fabric_evidence_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators, excluding fabric_evidence_identity_sha256 itself.",
+  "fabric_evidence_identity_sha256": "585d51d31b09d719a5b7ec0100a87bffb2583f8a81d4775a0b787d21f023026b",
+  "fix01": {
+    "base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
+    "base_tree_oid": "b546ad8f1abbd0dea4124c6c3d91ac4103e4de8a",
+    "candidate_commit_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
+    "candidate_identity_sha256": "487c03e5b18f7deb54612f981b7ce035988d34e1ab6a5e3962a9d35802f38d3d",
+    "candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
+    "changed_paths": [
+      ".codex-fabric/audit.json"
+    ],
+    "predecessor_evidence_identity_sha256": "808adabcad874d8e130f2020fb64815d886bfc9138d5d3cb3e31561a7f42418f",
+    "predecessor_work_head_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
+    "product_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
+    "product_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
+    "request": "chg16-product-telemetry-01-fix01",
+    "scope": "Candidate-side KSA-35 F35-01/F35-02 provenance correction; source implementation, tests, telemetry behavior, privacy, authorization, retention, and host behavior preserved.",
+    "source_tree_changed": false,
+    "status": "EXECUTED_CHANGE",
+    "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix01",
+    "work_item": "KSA-35 F35-01/F35-02"
+  },
   "fix_binding_identity": {
     "base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
     "base_tree_oid": "b546ad8f1abbd0dea4124c6c3d91ac4103e4de8a",
@@ -92,6 +225,12 @@
   },
   "fix_binding_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
   "fix_binding_identity_sha256": "037d69907f8abf19e3ac7f129f32d10e2b2a089cbb53189ced06e4f6c1da42e7",
+  "fix_prebinding": {
+    "binding_source": "User-supplied canonical FIX01 task identity.",
+    "canonical_continuation": true,
+    "fix_request": "chg16-product-telemetry-01-fix01",
+    "logical_build_identity": "chg16-product-telemetry-01"
+  },
   "fix_request": "chg16-product-telemetry-01-fix01",
   "generated_at": "2026-09-25",
   "historical_build_evidence": {
@@ -160,12 +299,16 @@
   "operation_identity": {
     "base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
     "base_tree_oid": "b546ad8f1abbd0dea4124c6c3d91ac4103e4de8a",
+    "candidate_commit_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
+    "candidate_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
+    "candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
     "fix_request": "chg16-product-telemetry-01-fix01",
     "issue_id": "CHG-16",
     "job_id": "CF-58388dc2ed6a76e938309a56",
     "logical_build_request": "chg16-product-telemetry-01",
     "operation": "FIX",
     "original_bound_build_job_id": "CF-ab2fb520eae8329f1d87bef3",
+    "predecessor_recovery_evidence_identity_sha256": "808adabcad874d8e130f2020fb64815d886bfc9138d5d3cb3e31561a7f42418f",
     "predecessor_recovery_head_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
     "predecessor_recovery_tree_oid": "603a9bdca64a1a9e339ca6d6e9ce9ddad7e04ec7",
     "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
@@ -177,12 +320,15 @@
     "work_item": "KSA-35 F35-01/F35-02"
   },
   "operation_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
-  "operation_identity_sha256": "037d69907f8abf19e3ac7f129f32d10e2b2a089cbb53189ced06e4f6c1da42e7",
+  "operation_identity_sha256": "824aa497c2d269c932a2a5ead49be3d7f5f33f50c84a05aa9c98cfe48333d9bf",
   "operational_service_enabled": false,
+  "predecessor_evidence_identity_sha256": "808adabcad874d8e130f2020fb64815d886bfc9138d5d3cb3e31561a7f42418f",
   "predecessor_recovery_audit_sha256": "48c32b4376fb33e3ee409e3ebcd00f8e75cb86042d4a25551471848903306470",
   "predecessor_recovery_evidence_identity_sha256": "808adabcad874d8e130f2020fb64815d886bfc9138d5d3cb3e31561a7f42418f",
   "predecessor_recovery_head_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
   "predecessor_recovery_tree_oid": "603a9bdca64a1a9e339ca6d6e9ce9ddad7e04ec7",
+  "predecessor_work_head_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
+  "product_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
   "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
   "product_source_content_manifest": [
     {
@@ -269,6 +415,8 @@
       "No mutation of EvidenceIR, completion, or certification state."
     ]
   },
+  "source_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
+  "source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
   "source_tree_preservation": {
     "code_or_test_changes_after_recovery_head": false,
     "fix_candidate_changed_paths": [
@@ -300,6 +448,9 @@
   "work_candidate": {
     "base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
     "base_tree_oid": "b546ad8f1abbd0dea4124c6c3d91ac4103e4de8a",
+    "candidate_commit_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
+    "candidate_identity_sha256": "487c03e5b18f7deb54612f981b7ce035988d34e1ab6a5e3962a9d35802f38d3d",
+    "candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
     "parent_recovery_head_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
     "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
     "product_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
