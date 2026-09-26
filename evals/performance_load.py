@@ -191,6 +191,17 @@ def _parse_product_cli_json(stdout: str) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
+def _product_error_code(output: dict[str, Any]) -> str | None:
+    code = output.get("error_code")
+    if isinstance(code, str):
+        return code
+    error = output.get("error")
+    if isinstance(error, dict):
+        nested = error.get("code") or error.get("error_code")
+        return nested if isinstance(nested, str) else None
+    return None
+
+
 def _reference_environment(source_revision: str) -> RunEnvironmentIdentity:
     return RunEnvironmentIdentity.legacy_reference(
         runtime_ref="ksa36-local-reference-runtime",
@@ -270,7 +281,7 @@ with patch.object(cli, "prepare_run", side_effect=prepare_with_reference):
         "status": "MEASURED_REFERENCE_PRODUCT_PATH" if measured else "NOT_MEASURED",
         "process_exit_code": completed.returncode,
         "phase": phase,
-        "error_code": output.get("error_code"),
+        "error_code": _product_error_code(output),
         "stage_timings_ms": {"product_cli_prepare_end_to_end": elapsed_ms},
         "work_units": queue.get("total", counts.get("total")),
         "input_count": output.get("input_count"),

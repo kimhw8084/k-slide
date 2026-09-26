@@ -11,7 +11,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from evals.performance_load import _KNOWN_STDOUT_LIBRARY_WARNING, _parse_product_cli_json
+from evals.performance_load import _KNOWN_STDOUT_LIBRARY_WARNING, _parse_product_cli_json, _product_error_code
 from k_slide.cli import _charge_model_output_budget, _reserve_model_input_budget
 from k_slide.certification import candidate_completeness
 from k_slide.errors import ErrorCode, KSlideError
@@ -78,6 +78,9 @@ class ResourceBudgetContractTests(unittest.TestCase):
         self.assertEqual(_parse_product_cli_json(f"{_KNOWN_STDOUT_LIBRARY_WARNING}\n{payload}"), json.loads(payload))
         self.assertIsNone(_parse_product_cli_json(f"unexpected diagnostic\n{payload}"))
         self.assertIsNone(_parse_product_cli_json(f"{_KNOWN_STDOUT_LIBRARY_WARNING}\nnot-json"))
+        self.assertEqual(_product_error_code({"error_code": "KSLIDE_RESOURCE_LIMIT"}), "KSLIDE_RESOURCE_LIMIT")
+        self.assertEqual(_product_error_code({"error": {"code": "KSLIDE_PPTX_RENDER_UNAVAILABLE"}}), "KSLIDE_PPTX_RENDER_UNAVAILABLE")
+        self.assertIsNone(_product_error_code({"status": "EXTRACTED"}))
 
     def test_resource_budget_and_telemetry_error_schemas_match_runtime_contract(self) -> None:
         import jsonschema
