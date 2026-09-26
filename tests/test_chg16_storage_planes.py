@@ -399,6 +399,11 @@ class TelemetryBoundaryTests(unittest.TestCase):
                     count=2,
                     resource_units=4,
                     retry_attempt=1,
+                    host="opencode" if event_type is TelemetryEventType.ISSUE_REPORT else None,
+                    semantic_outcome="PENDING" if event_type is TelemetryEventType.ISSUE_REPORT else None,
+                    review_category="NONE" if event_type is TelemetryEventType.ISSUE_REPORT else None,
+                    issue_category="omission" if event_type is TelemetryEventType.ISSUE_REPORT else None,
+                    issue_report_status="ALLEGATION" if event_type is TelemetryEventType.ISSUE_REPORT else None,
                 )))
             self.assertEqual(len(writer.records()), len(TelemetryEventType))
 
@@ -483,7 +488,7 @@ class TelemetryBoundaryTests(unittest.TestCase):
                 "2026-01-01T00:00:00Z",
                 lifecycle=TelemetryLifecycle.RUNNING,
             )
-            with patch.object(Path, "open", side_effect=OSError("central telemetry is unavailable")):
+            with patch("k_slide.telemetry.atomic_write_text", side_effect=OSError("central telemetry is unavailable")):
                 self.assertFalse(writer.write(event))
             self.assertFalse(writer.event_path.is_file())
 

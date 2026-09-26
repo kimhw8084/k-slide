@@ -149,7 +149,7 @@ async function runCore(context: ToolContext, command: string, args: string[] = [
   const environment: Record<string, string> = { ...process.env, PYTHONPATH: path.join(project.engine, "src") } as Record<string, string>
   if (trustedAccessKey !== undefined) environment.AccessKey = trustedAccessKey
   const child = Bun.spawn(
-    ["python3", "-m", "k_slide.cli", command, "--root", project.root, "--json", ...(command === "doctor" ? ["--engine-root", project.engine, "--opencode-root", project.opencodeRoot] : []), ...args],
+    ["python3", "-m", "k_slide.cli", command, "--root", project.root, "--json", "--host-adapter", "opencode", ...(command === "doctor" ? ["--engine-root", project.engine, "--opencode-root", project.opencodeRoot] : []), ...args],
     {
       cwd: project.root,
       env: environment,
@@ -259,6 +259,38 @@ export const status = tool({
   args: { run_id: tool.schema.string().optional() },
   async execute(args, context) {
     return runCore(context, "status", ["--session-id", context.sessionID, ...(args.run_id ? ["--run", args.run_id] : [])])
+  },
+})
+
+export const report_issue = tool({
+  description: "Submit an explicitly requested employee issue allegation for investigation. Call only when the employee asks to report an issue and selects one category. Do not attach narrative, source material, filenames, screenshots, or translations. The allegation never changes source evidence, completion, or certification.",
+  args: {
+    run_id: tool.schema.string(),
+    category: tool.schema.enum(["meaning_error", "number_error", "omission", "false_done", "unnecessary_review"]),
+    submission_id: tool.schema.string(),
+  },
+  async execute(args, context) {
+    return runCore(context, "report-issue", [
+      "--run", args.run_id,
+      "--session-id", context.sessionID,
+      "--category", args.category,
+      "--submission-id", args.submission_id,
+    ])
+  },
+})
+
+export const issue_status = tool({
+  description: "Check one issue report inside the current authorized K-Slide run and OpenCode session. Does not list or search reports across runs.",
+  args: {
+    run_id: tool.schema.string(),
+    report_id: tool.schema.string(),
+  },
+  async execute(args, context) {
+    return runCore(context, "issue-status", [
+      "--run", args.run_id,
+      "--session-id", context.sessionID,
+      "--report-id", args.report_id,
+    ])
   },
 })
 

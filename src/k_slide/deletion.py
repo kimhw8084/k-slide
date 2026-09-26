@@ -1529,33 +1529,42 @@ def _cleanup_operational_metadata_at_root(
         if not (telemetry_path.exists() or telemetry_path.is_symlink()):
             continue
         _safe_operational_path(telemetry_path, operational_root)
-        try:
-            lines = telemetry_path.read_text(encoding="utf-8").splitlines()
-        except (OSError, UnicodeError) as exc:
-            raise KSlideError(ErrorCode.STATE_CORRUPT, "Central telemetry records are unreadable.") from exc
-        from .telemetry import TelemetryEvent
-
-        kept_lines: list[str] = []
-        stream_expired = False
-        for line in lines:
-            if not line:
-                continue
+        with filesystem_lock(telemetry_path.parent / ".events.lock", require_shared=True, reject_symlink=True):
             try:
-                event = TelemetryEvent.from_mapping(json.loads(line))
-                occurred = datetime.fromisoformat(event.occurred_at.replace("Z", "+00:00")).astimezone(timezone.utc)
-            except (KSlideError, TypeError, ValueError, json.JSONDecodeError) as exc:
-                raise KSlideError(ErrorCode.STATE_CORRUPT, "Central telemetry record is malformed or has an invalid timestamp.") from exc
-            if occurred < cutoff:
-                telemetry_expired.append(str(event.event_id))
-                stream_expired = True
-                kept = False
-            else:
-                telemetry_retained.append(str(event.event_id))
-                kept = True
-            if kept:
-                kept_lines.append(json.dumps(event.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")))
-        if stream_expired and not dry_run:
-            atomic_write_text(telemetry_path, "\n".join(kept_lines) + ("\n" if kept_lines else ""), mode=0o600)
+                if telemetry_path.stat().st_size > 64 * 1024 * 1024:
+                    raise KSlideError(ErrorCode.STATE_CORRUPT, "Central telemetry stream exceeds its byte bound.")
+                lines = telemetry_path.read_text(encoding="utf-8").splitlines()
+            except (OSError, UnicodeError) as exc:
+                raise KSlideError(ErrorCode.STATE_CORRUPT, "Central telemetry records are unreadable.") from exc
+            from .telemetry import TelemetryEvent
+
+            kept_lines: list[str] = []
+            stream_expired = False
+            for line in lines:
+                if not line:
+                    continue
+                try:
+                    event = TelemetryEvent.from_mapping(json.loads(line))
+                    occurred = datetime.fromisoformat(event.occurred_at.replace("Z", "+00:00")).astimezone(timezone.utc)
+                except (KSlideError, TypeError, ValueError, json.JSONDecodeError) as exc:
+                    raise KSlideError(ErrorCode.STATE_CORRUPT, "Central telemetry record is malformed or has an invalid timestamp.") from exc
+                if occurred < cutoff:
+                    held_scope = event.scope_ref or scope_ref
+                    held_run = event.run_ref or event.event_id
+                    hold = _safe_hold(hold_provider, scope_ref=held_scope, run_ref=held_run)
+                    kept = hold.status is not LegalHoldStatus.RELEASE
+                    if kept:
+                        telemetry_retained.append(str(event.event_id))
+                    else:
+                        telemetry_expired.append(str(event.event_id))
+                        stream_expired = True
+                else:
+                    telemetry_retained.append(str(event.event_id))
+                    kept = True
+                if kept:
+                    kept_lines.append(json.dumps(event.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+            if stream_expired and not dry_run:
+                atomic_write_text(telemetry_path, "\n".join(kept_lines) + ("\n" if kept_lines else ""), mode=0o600)
     from .content_support import cleanup_support_access_audit
 
     support_audit = cleanup_support_access_audit(

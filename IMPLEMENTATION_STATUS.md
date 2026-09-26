@@ -774,6 +774,31 @@ deployment persistence, authenticated company cohort resolution, target-Gemma
 qualification, employee-study results, and production authority remain external
 qualification gates.
 
+## KSA-35 CHG-16 product telemetry continuation
+
+Continuation request `chg16-product-telemetry-01-resume1`, Fabric job
+`CF-e009b0f332b3f5fba1e37419`, branch
+`codex/k-slide-chg16-product-telemetry-01-resume1`, pinned to base
+`ad1d9acc67f78ede9de33efdca23a6d8e3fafdff`. The implementation extends the
+existing source-free telemetry writer and engine state, adds the closed
+employee allegation categories and run-scoped confirmation, and routes
+OpenCode through typed tools. Allegations cannot change evidence or completion.
+No telemetry service was enabled; the reference sink was a temporary local
+test directory. The Cloud VS Code core route was exercised with its host marker
+and current session/run binding. No Cloud VS Code host package was present in
+this repository/worktree to modify. No Project OS Artifact Bridge tool was
+available in the execution session, so the bound audit record is published
+through the continuation evidence ref in Git.
+
+Verification: focused KSA-35 and related storage, retention, authorization,
+host, AccessKey, runtime, and lifecycle tests passed; the full unittest suite
+passed under Python 3.11 and 3.12 (700 tests each); the OpenCode 1.3.9 host
+attachment and employee report/confirmation test passed under Bun; Python
+compileall passed on both versions; the Draft 2020-12 telemetry schema and all
+six workflow YAML files validated; `git diff --check` passed. This is a
+repository implementation result with qualification status `NOT_QUALIFIED`;
+it is not a production service, pilot, release, or certification claim.
+
 ## Architecture decisions
 
 - [ADR 0001 — Single visible agent](docs/adr/0001-single-visible-agent.md)

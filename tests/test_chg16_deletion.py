@@ -412,13 +412,15 @@ class CHG16DeletionTests(unittest.TestCase):
             root = Path(directory)
             operational_service = root.parent / f"central-{root.name}"
             writer = TelemetryWriter(operational_service)
-            run_ref = "metadata-run"
-            provider = self._provider(run_ref)
+            run_ref = TelemetryReference.from_internal(TelemetryReferenceKind.RUN, TelemetryMachineId.new(TelemetryReferenceKind.RUN))
+            provider = ReferenceLegalHoldProvider()
+            provider.set_release(scope_ref="workspace", run_ref=run_ref.canonical)
             def event(timestamp: str) -> TelemetryEvent:
                 return TelemetryEvent(
                     TelemetryEventType.LIFECYCLE,
                     TelemetryReference.from_internal(TelemetryReferenceKind.EVENT, TelemetryMachineId.new(TelemetryReferenceKind.EVENT)),
                     timestamp,
+                    run_ref=run_ref,
                     lifecycle=TelemetryLifecycle.COMPLETED,
                 )
             writer.write(event("2026-01-01T00:00:00Z"))

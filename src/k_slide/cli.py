@@ -5,12 +5,15 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
+from uuid import UUID
 from pathlib import Path
 from typing import Any
 
 from .errors import ErrorCode, KSlideError
 from .environment import RunEnvironmentIdentity, resolve_run_termbase
 from .execution import WorkspaceRunStore, ensure_workspace_environment_compatible, execution_metadata, sync_workspace_execution
+from .paas import DurableJobIdentity
 from .evidence_ir import load_evidence
 from .host_adapter import HostInvocation, add_host_contract
 from .ingest import prepare_run
@@ -29,12 +32,44 @@ from .queue import WorkUnitStatus, load_queue, save_queue
 from .runtime import discover_runtime
 from .security import sha256_file
 from .session import bind_session, incomplete_runs, resolve_run
-from .state import OPERATIONAL_FAILURE_PHASES, RunPhase, load_state, save_state
+from .state import OPERATIONAL_FAILURE_PHASES, RunPhase, load_state, now_utc, save_state
 from .translation import merge_evidence_patch, parse_translation_patch
 from .rendering import render_run
 from .terminology import load_effective_termbase
 from .verify import finalize_run, verify_run
-from .conflicts import assess_conflicts, conflict_assessment_status, conflict_registry_path, resolve_authoritative_conflict
+from .conflicts import assess_conflicts, conflict_assessment_status, conflict_registry_path, load_conflict_registry, resolve_authoritative_conflict
+from .telemetry import (
+    TelemetryArtifactClass,
+    TelemetryEvent,
+    TelemetryEventType,
+    TelemetryHost,
+    TelemetryIssueCategory,
+    TelemetryLifecycle,
+    TelemetryMachineId,
+    TelemetryReference,
+    TelemetryReferenceKind,
+    TelemetryReviewCategory,
+    TelemetrySemanticOutcome,
+    TelemetryStage,
+    TelemetryWriteStatus,
+    TelemetryWriter,
+    configured_telemetry_writer,
+)
+
+
+_HOST_STAGES = {
+    "prepare": TelemetryStage.PREPARING,
+    "normalize": TelemetryStage.NORMALIZING,
+    "extract": TelemetryStage.EXTRACTING,
+    "evidence": TelemetryStage.EXTRACTING,
+    "next": TelemetryStage.TRANSLATING,
+    "submit": TelemetryStage.TRANSLATING,
+    "conflict-assess": TelemetryStage.VERIFYING,
+    "conflict-resolve": TelemetryStage.VERIFYING,
+    "verify": TelemetryStage.VERIFYING,
+    "finalize": TelemetryStage.FINALIZING,
+}
+_ISSUE_CATEGORIES = tuple(item.value for item in TelemetryIssueCategory)
 
 
 def _run_root(root: Path) -> Path:
@@ -66,6 +101,394 @@ def _find_run(root: Path, run_id: str | None, session_id: str | None) -> Path:
             raise KSlideError(ErrorCode.RUN_NOT_FOUND, "Multiple incomplete K-Slide runs exist; pass an explicit run ID or continue from the original session.", {"choices": choices})
         raise KSlideError(ErrorCode.RUN_NOT_FOUND, "No K-Slide run could be resolved.")
     return run
+
+
+def _artifact_class_for_run(run: Path) -> TelemetryArtifactClass:
+    manifest_path = storage_path(run, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json")
+    try:
+        manifest = read_json(manifest_path)
+    except (KSlideError, OSError):
+        return TelemetryArtifactClass.UNKNOWN
+    inputs = manifest.get("inputs") if isinstance(manifest, dict) else None
+    if not isinstance(inputs, list) or not inputs:
+        return TelemetryArtifactClass.UNKNOWN
+    selected: set[TelemetryArtifactClass] = set()
+    for item in inputs:
+        extension = item.get("extension") if isinstance(item, dict) else None
+        if extension == ".pptx":
+            selected.add(TelemetryArtifactClass.PRESENTATION)
+        elif extension == ".pdf":
+            selected.add(TelemetryArtifactClass.PDF)
+        elif extension in {".png", ".jpg", ".jpeg", ".webp"}:
+            selected.add(TelemetryArtifactClass.IMAGE)
+        else:
+            return TelemetryArtifactClass.UNKNOWN
+    return next(iter(selected)) if len(selected) == 1 else TelemetryArtifactClass.MIXED
+
+
+def _read_only_semantic_snapshot(
+    run: Path,
+    state: Any,
+    environment: RunEnvironmentIdentity,
+    queue: Any,
+) -> tuple[TelemetrySemanticOutcome, TelemetryReviewCategory]:
+    if state.phase is RunPhase.COMPLETE:
+        marker = storage_path(run, StorageArtifact.COMPLETION_MARKER, "RUN_COMPLETE.md")
+        try:
+            marker_text = marker.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            return TelemetrySemanticOutcome.PENDING, TelemetryReviewCategory.REQUIRED_ARTIFACT_MISSING
+        from .verify import _verify_unlocked
+
+        termbase = resolve_run_termbase(run.parent.parent, environment_identity=environment)
+        result = _verify_unlocked(run, environment_identity=environment, termbase=termbase)
+        if marker_text == "# DONE\n\nK-Slide deterministic verification passed against the current artifacts.\n" and result.passed:
+            return TelemetrySemanticOutcome.DONE, TelemetryReviewCategory.NONE
+        if any(issue.code == "KSLIDE_REQUIRED_ARTIFACT_MISSING" for issue in result.issues):
+            return TelemetrySemanticOutcome.PENDING, TelemetryReviewCategory.REQUIRED_ARTIFACT_MISSING
+        return TelemetrySemanticOutcome.PENDING, TelemetryReviewCategory.VERIFICATION_FAILURE
+    if state.phase is RunPhase.NEEDS_REVIEW:
+        try:
+            if conflict_assessment_status(run) == "ASSESSED_CONFLICTS":
+                registry = load_conflict_registry(run)
+                if registry and any(item.resolution_state == "unresolved" for item in registry.conflicts):
+                    return TelemetrySemanticOutcome.NEEDS_REVIEW, TelemetryReviewCategory.UNRESOLVED_CONFLICT
+        except (KSlideError, OSError, TypeError, ValueError):
+            pass
+        if queue is None:
+            return TelemetrySemanticOutcome.NEEDS_REVIEW, TelemetryReviewCategory.WORK_UNIT_INCOMPLETE
+        statuses = {unit.status for unit in queue.work_units}
+        if WorkUnitStatus.NEEDS_REVIEW in statuses:
+            return TelemetrySemanticOutcome.NEEDS_REVIEW, TelemetryReviewCategory.SOURCE_EVIDENCE
+        if WorkUnitStatus.VERIFY_FAILED in statuses:
+            return TelemetrySemanticOutcome.NEEDS_REVIEW, TelemetryReviewCategory.VERIFICATION_FAILURE
+        return TelemetrySemanticOutcome.NEEDS_REVIEW, TelemetryReviewCategory.WORK_UNIT_INCOMPLETE
+    return TelemetrySemanticOutcome.PENDING, TelemetryReviewCategory.NONE
+
+
+def _telemetry_context(run: Path) -> tuple[dict[str, Any], Any, Any, Any] | None:
+    """Read a revision-consistent engine snapshot through the existing store."""
+
+    try:
+        first_state = load_state(run)
+        first_job = WorkspaceRunStore(run).load(f"job-{first_state.run_id}")
+        if not isinstance(first_job.environment_identity, RunEnvironmentIdentity):
+            return None
+        job, environment = ensure_workspace_environment_compatible(run, environment_identity=first_job.environment_identity)
+        state = load_state(run)
+        if first_state.revision != state.revision or first_job.revision != job.revision:
+            return None
+        try:
+            queue = load_queue(run)
+        except (KSlideError, OSError):
+            queue = None
+        identity = DurableJobIdentity.from_job(job)
+        context = {
+            "scope_ref": TelemetryReference.from_identity(TelemetryReferenceKind.SCOPE, identity),
+            "run_ref": TelemetryReference.from_identity(TelemetryReferenceKind.RUN, identity),
+            "deployment_ref": TelemetryReference.from_identity(TelemetryReferenceKind.DEPLOYMENT, environment),
+            "candidate_ref": TelemetryReference.from_identity(TelemetryReferenceKind.CANDIDATE, environment),
+            "runtime_ref": TelemetryReference.from_identity(TelemetryReferenceKind.RUNTIME, environment),
+            "model_ref": TelemetryReference.from_identity(TelemetryReferenceKind.MODEL, environment),
+            "artifact_class": _artifact_class_for_run(run),
+        }
+        return context, state, job, (environment, queue)
+    except Exception:
+        return None
+
+
+def _telemetry_lifecycle(state: Any, job: Any) -> TelemetryLifecycle:
+    if job.cancellation.requested and not job.cancellation.acknowledged:
+        return TelemetryLifecycle.CANCEL_REQUESTED
+    if job.cancellation.acknowledged:
+        return TelemetryLifecycle.CANCELED
+    if job.lifecycle.value == "RETRYING" and job.checkpoint.engine_phase == RunPhase.NEEDS_REVIEW.value:
+        return TelemetryLifecycle.RESUMED
+    if state.phase in {RunPhase.COMPLETE, RunPhase.NEEDS_REVIEW}:
+        return TelemetryLifecycle.COMPLETED
+    if state.phase in OPERATIONAL_FAILURE_PHASES:
+        return TelemetryLifecycle.PROCESSING_FAILED
+    if state.phase is RunPhase.CREATED:
+        return TelemetryLifecycle.QUEUED
+    if state.phase in {RunPhase.FAIL_REPAIRABLE, RunPhase.REPAIRING}:
+        return TelemetryLifecycle.RETRYING
+    return TelemetryLifecycle.RUNNING
+
+
+def _record_telemetry_event(writer: TelemetryWriter, event: TelemetryEvent) -> None:
+    try:
+        writer.record(event)
+    except Exception:
+        # Optional operational telemetry never changes product execution.
+        return
+
+
+def _record_operation_telemetry(
+    args: Any,
+    *,
+    started_ns: int,
+    error_code: ErrorCode | None = None,
+    result: dict[str, Any] | None = None,
+) -> None:
+    if args.command in {"report-issue", "issue-status"}:
+        return
+    writer = configured_telemetry_writer()
+    if writer is None:
+        return
+    duration_ms = max(0, (time.monotonic_ns() - started_ns) // 1_000_000)
+    run_id = (result or {}).get("run_id") or getattr(args, "run", None)
+    if not run_id:
+        return
+    run = resolve_run(_run_root(args.root), explicit=run_id, session_id=getattr(args, "session_id", None))
+    if run is None:
+        return
+    try:
+        prepared = _telemetry_context(run)
+        if prepared is None:
+            return
+        context, state, job, (environment, queue) = prepared
+        semantic_outcome, review_category = _read_only_semantic_snapshot(run, state, environment, queue)
+        revision = state.revision * 1_000_000 + job.revision
+        lifecycle = _telemetry_lifecycle(state, job)
+        event_id = TelemetryReference.for_transition(context["run_ref"], revision, TelemetryEventType.LIFECYCLE, host=args.host_adapter)
+        common = {
+            "run_ref": context["run_ref"],
+            "scope_ref": context["scope_ref"],
+            "deployment_ref": context["deployment_ref"],
+            "runtime_ref": context["runtime_ref"],
+            "model_ref": context["model_ref"],
+            "candidate_ref": context["candidate_ref"],
+            "host": args.host_adapter,
+            "artifact_class": context["artifact_class"],
+            "semantic_outcome": semantic_outcome,
+            "review_category": review_category,
+        }
+        _record_telemetry_event(
+            writer,
+            TelemetryEvent(
+                TelemetryEventType.LIFECYCLE,
+                event_id,
+                now_utc(),
+                lifecycle=lifecycle,
+                retry_attempt=job.retry.attempt,
+                **common,
+            ),
+        )
+        stage = _HOST_STAGES.get(args.command)
+        if stage is not None:
+            stage_id = TelemetryReference.for_transition(context["run_ref"], revision, TelemetryEventType.STAGE_TIMING, stage=stage, host=args.host_adapter)
+            _record_telemetry_event(
+                writer,
+                TelemetryEvent(
+                    TelemetryEventType.STAGE_TIMING,
+                    stage_id,
+                    now_utc(),
+                    stage=stage,
+                    duration_ms=duration_ms,
+                    **common,
+                ),
+            )
+        if queue is not None:
+            resource_id = TelemetryReference.for_transition(context["run_ref"], revision, TelemetryEventType.RESOURCE, host=args.host_adapter)
+            _record_telemetry_event(
+                writer,
+                TelemetryEvent(
+                    TelemetryEventType.RESOURCE,
+                    resource_id,
+                    now_utc(),
+                    count=len(queue.work_units),
+                    resource_units=state.input_count,
+                    **common,
+                ),
+            )
+        if error_code is None and state.phase in OPERATIONAL_FAILURE_PHASES and state.error_code:
+            try:
+                error_code = ErrorCode(state.error_code)
+            except ValueError:
+                error_code = None
+        if error_code is not None:
+            error_id = TelemetryReference.for_transition(
+                context["run_ref"], revision, TelemetryEventType.ERROR, stage=stage, error_code=error_code, host=args.host_adapter
+            )
+            _record_telemetry_event(
+                writer,
+                TelemetryEvent(
+                    TelemetryEventType.ERROR,
+                    error_id,
+                    now_utc(),
+                    error_code=error_code,
+                    stage=stage,
+                    **common,
+                ),
+            )
+    except Exception:
+        return
+
+
+def _issue_report(
+    root: Path,
+    run_id: str,
+    session_id: str | None,
+    *,
+    category: str,
+    submission_id: str,
+    host: TelemetryHost | str,
+) -> dict[str, Any]:
+    if not session_id:
+        raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Issue reporting requires the current host session binding.")
+    run = _find_run(root, run_id, session_id)
+    state = load_state(run)
+    bound_job = WorkspaceRunStore(run).load(f"job-{state.run_id}")
+    if not isinstance(bound_job.environment_identity, RunEnvironmentIdentity):
+        raise KSlideError(ErrorCode.EXECUTION_INVALID, "Issue reporting requires the run's typed environment binding.")
+    job, _ = ensure_workspace_environment_compatible(run, environment_identity=bound_job.environment_identity)
+    try:
+        selected_category = TelemetryIssueCategory(category)
+        parsed_id = UUID(submission_id)
+    except (ValueError, TypeError) as exc:
+        raise KSlideError(ErrorCode.EXECUTION_INVALID, "Issue category or submission identity is invalid.") from exc
+    if parsed_id.version != 4 or str(parsed_id) != submission_id:
+        raise KSlideError(ErrorCode.EXECUTION_INVALID, "Issue submission identity must be a canonical version-four UUID.")
+    writer = configured_telemetry_writer()
+    if writer is None:
+        return {
+            "status": "NOT_DELIVERED",
+            "reason_code": "OPERATIONAL_METADATA_UNAVAILABLE",
+            "submission_id": submission_id,
+            "next_action": "Ask the workspace administrator to configure the operational metadata destination, then retry with the same submission ID.",
+        }
+    identity = DurableJobIdentity.from_job(job)
+    run_ref = TelemetryReference.from_identity(TelemetryReferenceKind.RUN, identity)
+    event_id = TelemetryReference.from_internal(
+        TelemetryReferenceKind.EVENT,
+        TelemetryMachineId(TelemetryReferenceKind.EVENT, parsed_id),
+    )
+    try:
+        existing = writer.find(event_id, run_ref=run_ref)
+    except Exception:
+        existing = None
+        read_failed = True
+    else:
+        read_failed = False
+    if read_failed:
+        return {
+            "status": "NOT_DELIVERED",
+            "reason_code": "OPERATIONAL_METADATA_UNAVAILABLE",
+            "submission_id": submission_id,
+            "next_action": "Keep this submission ID and retry after the operational metadata destination is available.",
+        }
+    if existing is not None:
+        if existing.issue_category != selected_category.value:
+            return {
+                "status": "NOT_DELIVERED",
+                "reason_code": "SUBMISSION_ID_CONFLICT",
+                "submission_id": submission_id,
+                "next_action": "Use the original submission ID only for the original issue category; contact the workspace administrator if this is unexpected.",
+            }
+        return {
+            "status": "RECORDED",
+            "report_id": existing.event_id,
+            "issue_category": existing.issue_category,
+            "report_status": "ALLEGATION",
+            "semantic_outcome": existing.semantic_outcome,
+            "review_category": existing.review_category,
+            "already_recorded": True,
+            "next_action": "The report is available for investigation; it does not change run evidence or completion state.",
+        }
+    try:
+        prepared = _telemetry_context(run)
+        if prepared is None:
+            return {
+                "status": "NOT_DELIVERED",
+                "reason_code": "RUN_IDENTITY_UNAVAILABLE",
+                "submission_id": submission_id,
+                "next_action": "Reconnect the current K-Slide session and retry with the same submission ID.",
+            }
+        context, state, job, (environment, queue) = prepared
+        outcome, review = _read_only_semantic_snapshot(run, state, environment, queue)
+        event = TelemetryEvent(
+            TelemetryEventType.ISSUE_REPORT,
+            event_id,
+            now_utc(),
+            scope_ref=context["scope_ref"],
+            run_ref=context["run_ref"],
+            deployment_ref=context["deployment_ref"],
+            runtime_ref=context["runtime_ref"],
+            model_ref=context["model_ref"],
+            candidate_ref=context["candidate_ref"],
+            lifecycle=_telemetry_lifecycle(state, job),
+            host=host,
+            artifact_class=context["artifact_class"],
+            semantic_outcome=outcome,
+            review_category=review,
+            issue_category=selected_category,
+            issue_report_status="ALLEGATION",
+            retry_attempt=job.retry.attempt,
+        )
+    except Exception:
+        return {
+            "status": "NOT_DELIVERED",
+            "reason_code": "RUN_STATE_UNAVAILABLE",
+            "submission_id": submission_id,
+            "next_action": "Reconnect the current K-Slide session and retry with the same submission ID.",
+        }
+    try:
+        status = writer.record(event)
+    except Exception:
+        status = TelemetryWriteStatus.UNAVAILABLE
+    if status in {TelemetryWriteStatus.RECORDED, TelemetryWriteStatus.IDEMPOTENT}:
+        return {
+            "status": "RECORDED",
+            "report_id": event.event_id,
+            "issue_category": selected_category.value,
+            "report_status": "ALLEGATION",
+            "semantic_outcome": outcome.value,
+            "review_category": review.value,
+            "already_recorded": status is TelemetryWriteStatus.IDEMPOTENT,
+            "next_action": "The report is available for investigation; it does not change run evidence or completion state.",
+        }
+    reason = {
+        TelemetryWriteStatus.CONFLICT: "SUBMISSION_ID_CONFLICT",
+        TelemetryWriteStatus.CAPACITY_LIMIT: "OPERATIONAL_METADATA_CAPACITY",
+        TelemetryWriteStatus.CORRUPT: "OPERATIONAL_METADATA_UNREADABLE",
+    }.get(status, "OPERATIONAL_METADATA_UNAVAILABLE")
+    return {
+        "status": "NOT_DELIVERED",
+        "reason_code": reason,
+        "submission_id": submission_id,
+        "next_action": "Keep this submission ID and retry after the operational metadata destination is available; contact the workspace administrator if the issue continues.",
+    }
+
+
+def _issue_status(root: Path, run_id: str, session_id: str | None, report_id: str) -> dict[str, Any]:
+    if not session_id:
+        raise KSlideError(ErrorCode.EXECUTION_CONFLICT, "Issue-report lookup requires the current host session binding.")
+    run = _find_run(root, run_id, session_id)
+    state = load_state(run)
+    bound_job = WorkspaceRunStore(run).load(f"job-{state.run_id}")
+    if not isinstance(bound_job.environment_identity, RunEnvironmentIdentity):
+        raise KSlideError(ErrorCode.EXECUTION_INVALID, "Issue-report lookup requires the run's typed environment binding.")
+    job, _ = ensure_workspace_environment_compatible(run, environment_identity=bound_job.environment_identity)
+    run_ref = TelemetryReference.from_identity(TelemetryReferenceKind.RUN, DurableJobIdentity.from_job(job))
+    writer = configured_telemetry_writer()
+    if writer is None:
+        return {"status": "NOT_AVAILABLE", "next_action": "Reconnect later after the operational metadata destination is available."}
+    try:
+        selected_id = TelemetryReference.from_canonical(report_id, expected_kind=TelemetryReferenceKind.EVENT)
+        event = writer.find(selected_id, run_ref=run_ref)
+    except Exception:
+        return {"status": "NOT_AVAILABLE", "next_action": "Reconnect the current K-Slide session and retry the lookup."}
+    if event is None:
+        return {"status": "NOT_FOUND", "next_action": "Check the report ID and current K-Slide session."}
+    return {
+        "status": "RECORDED",
+        "report_id": event.event_id,
+        "issue_category": event.issue_category,
+        "report_status": event.issue_report_status,
+        "occurred_at": event.occurred_at,
+        "semantic_outcome": event.semantic_outcome,
+        "review_category": event.review_category,
+    }
 
 
 def _attach_run_contract(root: Path, value: dict[str, Any], run_id: str | None, session_id: str | None) -> dict[str, Any]:
@@ -547,11 +970,32 @@ def build_parser() -> argparse.ArgumentParser:
     verify_install_parser.add_argument("--target", type=Path, required=True)
     verify_install_parser.add_argument("--scope", choices=["project", "global"], default="project")
     verify_install_parser.add_argument("--json", action="store_true")
+    report = sub.add_parser("report-issue", help="Submit a source-free employee issue allegation for investigation")
+    report.add_argument("--root", type=Path, default=Path.cwd())
+    report.add_argument("--run", required=True)
+    report.add_argument("--session-id", required=True)
+    report.add_argument("--category", choices=_ISSUE_CATEGORIES, required=True)
+    report.add_argument("--submission-id", required=True)
+    report.add_argument("--json", action="store_true")
+    issue_status = sub.add_parser("issue-status", help="Look up one issue report in the authorized current run")
+    issue_status.add_argument("--root", type=Path, default=Path.cwd())
+    issue_status.add_argument("--run", required=True)
+    issue_status.add_argument("--session-id", required=True)
+    issue_status.add_argument("--report-id", required=True)
+    issue_status.add_argument("--json", action="store_true")
+    for command_parser in sub.choices.values():
+        command_parser.add_argument(
+            "--host-adapter",
+            choices=[item.value for item in TelemetryHost],
+            default=TelemetryHost.LOCAL_CLI.value,
+            help=argparse.SUPPRESS,
+        )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    started_ns = time.monotonic_ns()
     try:
         if args.command == "runtime":
             value = discover_runtime().as_dict()
@@ -586,6 +1030,17 @@ def main(argv: list[str] | None = None) -> int:
             value = verify_run(_find_run(args.root, args.run, args.session_id)).as_dict()
         elif args.command == "finalize":
             value = finalize_run(_find_run(args.root, args.run, args.session_id)).as_dict()
+        elif args.command == "report-issue":
+            value = _issue_report(
+                args.root,
+                args.run,
+                args.session_id,
+                category=args.category,
+                submission_id=args.submission_id,
+                host=args.host_adapter,
+            )
+        elif args.command == "issue-status":
+            value = _issue_status(args.root, args.run, args.session_id, args.report_id)
         elif args.command == "doctor":
             value = diagnose(args.root, engine_root=args.engine_root, opencode_root=args.opencode_root, production=args.production)
         elif args.command == "retention-cleanup":
@@ -605,6 +1060,7 @@ def main(argv: list[str] | None = None) -> int:
             if args.command in {"prepare", "normalize", "extract", "submit", "conflict-assess", "conflict-resolve", "verify", "finalize", "status", "next"}:
                 value = _attach_run_contract(getattr(args, "root", Path.cwd()), value, getattr(args, "run", None), getattr(args, "session_id", None))
             value = sanitize_operational(value, roots=_diagnostic_roots(getattr(args, "root", None)))
+        _record_operation_telemetry(args, started_ns=started_ns, result=value)
         print(_json(value) if getattr(args, "json", False) else _render_text_status(value))
         if args.command == "doctor" and value.get("overall") == "FAIL":
             return 1
@@ -616,8 +1072,11 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         if args.command == "next" and value.get("status") == "PROCESSING_FAILED":
             return 1
+        if args.command == "report-issue" and value.get("status") != "RECORDED":
+            return 1
         return 0
     except KSlideError as exc:
+        _record_operation_telemetry(args, started_ns=started_ns, error_code=exc.code)
         value = add_host_contract({"status": "FAILED", "error": exc.as_dict()}, phase=None)
         value["operational_state"] = "PROCESSING_FAILED"
         value["semantic_outcome"] = None
@@ -625,6 +1084,7 @@ def main(argv: list[str] | None = None) -> int:
         print(_json(value) if getattr(args, "json", False) else _render_text_status(value))
         return 1
     except Exception as exc:
+        _record_operation_telemetry(args, started_ns=started_ns, error_code=ErrorCode.INTERNAL)
         value = add_host_contract(
             {
                 "status": "FAILED",
