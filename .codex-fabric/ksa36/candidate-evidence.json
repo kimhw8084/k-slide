@@ -19,6 +19,39 @@
     "owner": "Fabric native publisher post-execution evidence",
     "status": "PENDING_POST_EXECUTION_PUBLICATION"
   },
+  "final_candidate_binding": {
+    "base_commit_sha": "71d3b0a56eee84716a37712440dd1763fd078c66",
+    "base_tree_oid": "06dac27cfb580028c143929b5f947b612e698fd9",
+    "changed_paths_after_product_subject": [
+      ".codex-fabric/audit.json",
+      ".codex-fabric/ksa36/candidate-evidence.json",
+      ".codex-fabric/ksa36/py311-measure.json",
+      ".codex-fabric/ksa36/py312-measure.json"
+    ],
+    "fix_work_head_parent_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
+    "fix_work_head_sha": "92b60cdce4465ac543940b8d532eda451df6a3fd",
+    "fix_work_head_tree_oid": "9e7e86f7533b093ac1e2606d819ee4da8e73c338",
+    "issue_id": "CHG-16",
+    "logical_build_request": "chg16-performance-load-budget-01",
+    "measurement_reports": [
+      {
+        "path": ".codex-fabric/ksa36/py311-measure.json",
+        "sha256": "1b4082b7abf3defde857951661d2fecddb53ff73e8ab284ed8796557e013c532"
+      },
+      {
+        "path": ".codex-fabric/ksa36/py312-measure.json",
+        "sha256": "f469b7cc57b13e519a9f6ac887ba8c22fd5ea4ecfe8b2b1cd4004352b852dcad"
+      }
+    ],
+    "operation": "FIX",
+    "product_subject_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
+    "product_subject_tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90",
+    "project_id": "k-slide",
+    "request": "chg16-performance-load-budget-01-fix01",
+    "sha256": "34ed507ab655a82c4f0eba4652e2ae9b06e644b89c643d35848e362ffe50bbad",
+    "work_branch": "codex/k-slide-chg16-performance-load-budget-01-fix01",
+    "work_item": "KSA-36 F36-01/F36-02/F36-03"
+  },
   "host_overlap_investigation": {
     "classification": "PRIOR_ANOMALY_NOT_REPRODUCED_IN_ISOLATED_OVERLAP; ROOT_CAUSE_NOT_ESTABLISHED; NO_PRODUCT_CONCURRENCY_DEFECT_DEMONSTRATED",
     "isolated_overlapping_reproduction": {
@@ -270,6 +303,11 @@
   },
   "project": "k-slide",
   "qualification_status": "CANDIDATE_CHECKS_PASS_PENDING_NATIVE_PUBLICATION_AND_INDEPENDENT_PROJECT_OS_REVIEW",
+  "qualification_subject": {
+    "product_commit_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
+    "product_tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90",
+    "test_and_compile_results_run_against": "the preserved product subject; the FIX01 work head changes only audit and measurement evidence"
+  },
   "reference_capacity_observation": {
     "configured_active_runs_per_scope": 1,
     "configured_queue_depth_per_scope": 16,
@@ -285,12 +323,22 @@
   },
   "release_or_production_claim": false,
   "repair_candidate_identity": {
-    "candidate_parent_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
-    "candidate_parent_tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90",
-    "commit_sha": null,
-    "owner": "Fabric native publisher post-execution evidence",
-    "status": "PENDING_NATIVE_PUBLISHER_BINDING",
-    "tree_oid": null
+    "commit_sha": "92b60cdce4465ac543940b8d532eda451df6a3fd",
+    "measurement_report_hashes": [
+      {
+        "path": ".codex-fabric/ksa36/py311-measure.json",
+        "sha256": "1b4082b7abf3defde857951661d2fecddb53ff73e8ab284ed8796557e013c532"
+      },
+      {
+        "path": ".codex-fabric/ksa36/py312-measure.json",
+        "sha256": "f469b7cc57b13e519a9f6ac887ba8c22fd5ea4ecfe8b2b1cd4004352b852dcad"
+      }
+    ],
+    "parent_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
+    "parent_tree_oid": "d8e21c0ee03e9fbcb92dd603506a3408003ffc90",
+    "status": "BOUND_TO_FIX01_WORK_HEAD",
+    "tree_oid": "9e7e86f7533b093ac1e2606d819ee4da8e73c338",
+    "work_branch": "codex/k-slide-chg16-performance-load-budget-01-fix01"
   },
   "request": "chg16-performance-load-budget-01-fix01",
   "resource_budget_semantics_preserved": [
