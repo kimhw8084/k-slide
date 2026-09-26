@@ -19,8 +19,8 @@ from .host_adapter import HostInvocation, add_host_contract
 from .ingest import prepare_run
 from .installer import install, verify_install
 from .io import atomic_write_json, atomic_write_text, read_json
-from .model import build_work_packet
-from .storage import StorageArtifact, storage_path
+from .model import build_translation_prompt, build_work_packet
+from .storage import StorageArtifact, StorageLayout, storage_path
 from .locking import run_lock
 from .normalization import normalize_run
 from .extraction import extract_run
@@ -31,6 +31,7 @@ from .support import build_support_bundle
 from .queue import WorkUnitStatus, load_queue, save_queue
 from .runtime import discover_runtime
 from .security import sha256_file
+from .resource_budget import ResourceBudget, estimate_model_input_tokens
 from .session import bind_session, incomplete_runs, resolve_run
 from .state import OPERATIONAL_FAILURE_PHASES, RunPhase, load_state, now_utc, save_state
 from .translation import merge_evidence_patch, parse_translation_patch
@@ -124,6 +125,83 @@ def _artifact_class_for_run(run: Path) -> TelemetryArtifactClass:
         else:
             return TelemetryArtifactClass.UNKNOWN
     return next(iter(selected)) if len(selected) == 1 else TelemetryArtifactClass.MIXED
+
+
+def _run_resource_budget(run: Path) -> ResourceBudget:
+    workspace_root = StorageLayout.for_workspace(run).durable_root.parent.parent
+    production_required = ResourceBudget.production_required_for_workspace(workspace_root)
+    manifest_path = storage_path(run, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json")
+    if not manifest_path.is_file():
+        if production_required:
+            raise KSlideError(ErrorCode.RESOURCE_BUDGET_UNAVAILABLE, "Production run has no immutable resource budget snapshot.")
+        return ResourceBudget.reference()
+    manifest = read_json(manifest_path)
+    return ResourceBudget.from_run_manifest(
+        run,
+        manifest,
+        production_required=production_required,
+    )
+
+
+def _reserve_model_input_budget(run: Path, *, work_unit_id: str, evidence_revision: str, packet: dict[str, Any], media_count: int, budget: ResourceBudget) -> dict[str, Any]:
+    estimated = estimate_model_input_tokens(packet, build_translation_prompt(), media_count, budget)
+    if media_count > budget.limit("max_media_items_per_work_unit"):
+        raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Required evidence media exceeds the configured per-work-unit budget.", {"media_items": media_count, "max_media_items": budget.limit("max_media_items_per_work_unit")})
+    if estimated > budget.limit("max_model_input_tokens_per_work_unit"):
+        raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Evidence packet exceeds the configured model input-token budget.", {"estimated_tokens": estimated, "max_tokens": budget.limit("max_model_input_tokens_per_work_unit")})
+    metrics_path = storage_path(run, StorageArtifact.METRICS, "metrics.json")
+    with run_lock(run):
+        metrics = read_json(metrics_path) if metrics_path.is_file() else {}
+        usage = metrics.setdefault("resource_budget_usage", {"model_input_tokens_reserved": 0, "model_output_tokens_committed": 0, "model_input_reservations": []})
+        if not isinstance(usage, dict):
+            raise KSlideError(ErrorCode.STATE_CORRUPT, "Persisted resource usage is malformed.")
+        reservations = usage.setdefault("model_input_reservations", [])
+        if not isinstance(reservations, list):
+            raise KSlideError(ErrorCode.STATE_CORRUPT, "Persisted model input reservations are malformed.")
+        existing = next((item for item in reservations if isinstance(item, dict) and item.get("work_unit_id") == work_unit_id and item.get("evidence_revision") == evidence_revision), None)
+        if existing is None:
+            reserved = usage.get("model_input_tokens_reserved", 0)
+            committed = usage.get("model_output_tokens_committed", 0)
+            if any(isinstance(item, bool) or not isinstance(item, int) or item < 0 for item in (reserved, committed)):
+                raise KSlideError(ErrorCode.STATE_CORRUPT, "Persisted model token usage is malformed.")
+            if reserved + committed + estimated > budget.limit("max_model_tokens_per_run"):
+                raise KSlideError(ErrorCode.RESOURCE_LIMIT, "Evidence packet exceeds the remaining run model-token budget.", {"estimated_tokens": estimated, "remaining_tokens": budget.limit("max_model_tokens_per_run") - reserved - committed})
+            usage["model_input_tokens_reserved"] = reserved + estimated
+            reservations.append({"work_unit_id": work_unit_id, "evidence_revision": evidence_revision, "estimated_tokens": estimated})
+            metrics["resource_budget_usage"] = usage
+            atomic_write_json(metrics_path, metrics, mode=0o600)
+            existing = reservations[-1]
+        return {
+            "input_tokens_estimated": existing["estimated_tokens"],
+            "output_tokens_max": min(
+                budget.limit("max_model_output_tokens_per_work_unit"),
+                max(0, budget.limit("max_model_tokens_per_run") - usage.get("model_input_tokens_reserved", 0) - usage.get("model_output_tokens_committed", 0)),
+            ),
+            "token_estimator": "utf8_bytes_plus_configured_media_reserve",
+            "provider_usage": "NOT_EXPOSED_BY_CURRENT_HOST_CONTRACT",
+        }
+
+
+def _charge_model_output_budget(run: Path, payload_json: str, budget: ResourceBudget) -> int:
+    observed = len(payload_json.encode("utf-8"))
+    metrics_path = storage_path(run, StorageArtifact.METRICS, "metrics.json")
+    with run_lock(run):
+        metrics = read_json(metrics_path) if metrics_path.is_file() else {}
+        usage = metrics.setdefault("resource_budget_usage", {"model_input_tokens_reserved": 0, "model_output_tokens_committed": 0, "model_input_reservations": []})
+        if not isinstance(usage, dict):
+            raise KSlideError(ErrorCode.STATE_CORRUPT, "Persisted resource usage is malformed.")
+        reserved = usage.get("model_input_tokens_reserved", 0)
+        committed = usage.get("model_output_tokens_committed", 0)
+        if any(isinstance(item, bool) or not isinstance(item, int) or item < 0 for item in (reserved, committed)):
+            raise KSlideError(ErrorCode.STATE_CORRUPT, "Persisted model token usage is malformed.")
+        usage["model_output_tokens_committed"] = committed + observed
+        metrics["resource_budget_usage"] = usage
+        atomic_write_json(metrics_path, metrics, mode=0o600)
+        if observed > budget.limit("max_model_output_tokens_per_work_unit"):
+            raise KSlideError(ErrorCode.RESOURCE_LIMIT, "TranslationPatch exceeds the configured model output-token budget.", {"observed_tokens": observed, "max_tokens": budget.limit("max_model_output_tokens_per_work_unit")})
+        if reserved + committed + observed > budget.limit("max_model_tokens_per_run"):
+            raise KSlideError(ErrorCode.RESOURCE_LIMIT, "TranslationPatch exceeds the remaining run model-token budget.", {"observed_tokens": observed, "remaining_tokens": budget.limit("max_model_tokens_per_run") - reserved - committed})
+    return observed
 
 
 def _read_only_semantic_snapshot(
@@ -514,6 +592,7 @@ def _submit(
 ) -> dict[str, Any]:
     run_dir = _find_run(root, run_id, session_id)
     ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
+    _charge_model_output_budget(run_dir, payload_json, _run_resource_budget(run_dir))
     try:
         value = json.loads(payload_json)
     except json.JSONDecodeError as exc:
@@ -682,7 +761,18 @@ def _status(
         conflict_assessment = "INVALID"
     return sanitize_operational(
         add_host_contract(
-            {"status": state.phase.value, "run_id": state.run_id, "input_count": state.input_count, "current_work_unit": state.current_work_unit, "next_action": state.next_action, "artifacts": artifacts, "work_queue": queue_info, "conflict_assessment": conflict_assessment, **({"environment_compatibility": "INCOMPATIBLE", "environment_error": environment_error} if environment_error is not None else {})},
+            {
+                "status": state.phase.value,
+                "run_id": state.run_id,
+                "input_count": state.input_count,
+                "current_work_unit": state.current_work_unit,
+                "next_action": state.next_action,
+                "artifacts": artifacts,
+                "work_queue": queue_info,
+                "conflict_assessment": conflict_assessment,
+                **({"error_code": state.error_code, "error_message": state.error_message} if state.error_code is not None else {}),
+                **({"environment_compatibility": "INCOMPATIBLE", "environment_error": environment_error} if environment_error is not None else {}),
+            },
             phase=state.phase,
             queue=queue if queue_info.get("status") != "INVALID" else None,
             input_count=state.input_count,
@@ -858,6 +948,17 @@ def _evidence(
         "required_crops": required_crops,
         "optional_crops": [],
     }
+    budget = _run_resource_budget(run)
+    model_media_count = 1 + len(required_crops)
+    packet["resource_budget_sha256"] = budget.sha256
+    packet["model_token_budget"] = _reserve_model_input_budget(
+        run,
+        work_unit_id=evidence.work_unit_id,
+        evidence_revision=evidence.evidence_revision,
+        packet=packet,
+        media_count=model_media_count,
+        budget=budget,
+    )
     return {
         "status": "EVIDENCE_READY",
         "run_id": state.run_id,

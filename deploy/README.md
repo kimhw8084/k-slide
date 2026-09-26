@@ -86,9 +86,13 @@ The certified profile must bind `subject_git_sha`,
 release manifest. These values are release outputs, not hand-edited readiness
 flags. Certifying evidence and that manifest must remain under the release
 root with relative paths so a deployed doctor can re-open and re-derive every
-machine envelope. Runtime-enforced limits are not stored as decorative profile fields;
-measured SLOs remain in `production-slo.yaml` until the deployment wires them
-to a managed timeout policy.
+machine envelope. The profile must carry the versioned `resource_budget`
+contract; admission and the production doctor fail closed when it is absent or
+invalid. The repository's reference budget is explicitly
+`reference_non_production` and cannot qualify a production deployment. Queue
+and concurrency values are projected into the existing scoped admission owner.
+`production-slo.yaml` is a provisional measurement worksheet; its example
+latencies do not supply or imply a production SLO.
 
 KSA-34 rollout admission is configured independently of the certified profile.
 Candidate-bound deployments must provide a process-level

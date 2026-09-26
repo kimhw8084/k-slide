@@ -9,6 +9,7 @@ import KSlideHostPlugin, { deploymentBoundRouteIdentity, opencodeRouteIdentity }
 import { issue_status, report_issue } from "../.opencode/tools/kslide.ts"
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
+const PYTHON = process.env.KSLIDE_TEST_PYTHON || process.env.PYTHON || "python3"
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64")
 
 function minimalPdf(): Buffer {
@@ -39,7 +40,7 @@ function safeMinimalPptx(): Buffer | undefined {
     "presentation.slides.add_slide(presentation.slide_layouts[6])",
     "presentation.save(sys.stdout.buffer)",
   ].join("; ")
-  const result = spawnSync("python3", ["-c", script], { cwd: ROOT, env: { ...process.env, PYTHONPATH: path.join(ROOT, "src") } })
+  const result = spawnSync(PYTHON, ["-c", script], { cwd: ROOT, env: { ...process.env, PYTHONPATH: path.join(ROOT, "src") } })
   return result.status === 0 && Buffer.isBuffer(result.stdout) ? result.stdout : undefined
 }
 
@@ -145,7 +146,7 @@ function runPrepare(root: string, sessionID: string, refs: unknown[]): { status:
     "    raise SystemExit(cli.main(sys.argv[2:]))",
   ].join("\n")
   const result = spawnSync(
-    "python3",
+    PYTHON,
     ["-c", script, "k-slide", "prepare", "--root", root, "--json", "--session-id", sessionID, "--host-inputs-json", hostInvocation(refs), "--host-worktree", root],
     { cwd: ROOT, env: { ...process.env, PYTHONPATH: `${path.join(ROOT, "src")}${path.delimiter}${ROOT}` }, encoding: "utf8" },
   )
@@ -162,7 +163,7 @@ async function runCoreSnapshot(root: string, sessionID: string, refs: unknown[])
     "print(run)",
   ].join("; ")
   const result = spawnSync(
-    "python3",
+    PYTHON,
     ["-c", script, root, sessionID, hostInvocation(refs)],
     { cwd: ROOT, env: { ...process.env, PYTHONPATH: `${path.join(ROOT, "src")}${path.delimiter}${ROOT}` }, encoding: "utf8" },
   )
@@ -194,7 +195,7 @@ async function employeeIssueReportHostPath(): Promise<void> {
     "print(run.name)",
   ].join("\n")
   const prepared = spawnSync(
-    "python3",
+    PYTHON,
     ["-c", prepareScript, hostRoot, sessionID],
     { cwd: ROOT, env: { ...process.env, PYTHONPATH: `${path.join(ROOT, "src")}${path.delimiter}${ROOT}` }, encoding: "utf8" },
   )
@@ -264,7 +265,7 @@ async function successBoundary(): Promise<void> {
   const cliRoot = await mkdtemp(path.join(path.resolve(tmpdir()), "k-slide-host-cli-"))
   try {
     const cliResult = runPrepare(cliRoot, "composer-cli-success", [args.host_input_refs[0]])
-    assert.equal(cliResult.status, 0, cliResult.stderr)
+    assert.equal(cliResult.status, 0, `${cliResult.stderr}\n${JSON.stringify(cliResult.output)}`)
     assert.notEqual(cliResult.output.status, "FAILED")
     assert.equal(cliResult.output.input_count, 1)
     assert.ok(!JSON.stringify(cliResult.output).includes(args.host_input_refs[0].locator))
@@ -284,7 +285,7 @@ async function successBoundary(): Promise<void> {
     const durable = JSON.stringify(manifest)
     for (const ref of args.host_input_refs) assert.ok(!durable.includes(ref.locator))
 
-    const status = spawnSync("python3", ["-m", "k_slide.cli", "status", "--root", snapshotRoot, "--run", path.basename(run), "--json"], {
+    const status = spawnSync(PYTHON, ["-m", "k_slide.cli", "status", "--root", snapshotRoot, "--run", path.basename(run), "--json"], {
       cwd: ROOT,
       env: { ...process.env, PYTHONPATH: path.join(ROOT, "src") },
       encoding: "utf8",
@@ -293,7 +294,7 @@ async function successBoundary(): Promise<void> {
     assert.ok(!args.host_input_refs.some((ref) => status.stdout.includes(ref.locator)))
     assert.ok(!encodedValues.some((encoded) => status.stdout.includes(encoded)))
     const supportPath = path.join(snapshotRoot, "support.zip")
-    const support = spawnSync("python3", ["-m", "k_slide.cli", "support-bundle", "--root", snapshotRoot, "--output", supportPath, "--json"], {
+    const support = spawnSync(PYTHON, ["-m", "k_slide.cli", "support-bundle", "--root", snapshotRoot, "--output", supportPath, "--json"], {
       cwd: ROOT,
       env: { ...process.env, PYTHONPATH: path.join(ROOT, "src") },
       encoding: "utf8",
@@ -310,6 +311,69 @@ async function successBoundary(): Promise<void> {
   await after({ tool: "kslide_prepare", sessionID, callID: "call-1" } as never, {} as never)
   for (const ref of args.host_input_refs) {
     await assert.rejects(stat(ref.locator))
+  }
+}
+
+async function configuredResourceBudgetBoundary(): Promise<void> {
+  const hostRoot = await mkdtemp(path.join(path.resolve(tmpdir()), "k-slide-opencode-budget-host-"))
+  const cliRoot = await mkdtemp(path.join(path.resolve(tmpdir()), "k-slide-opencode-budget-cli-"))
+  const sessionID = `budget-${randomUUID()}`
+  const limits = {
+    max_file_bytes: 32,
+    max_total_file_bytes_per_run: 2_000_000_000,
+    max_documents_per_run: 32,
+    max_pdf_pages_per_document: 200,
+    max_pptx_slides_per_deck: 200,
+    max_work_units_per_run: 500,
+    max_pixels_per_image: 120_000_000,
+    max_total_decoded_pixels_per_run: 500_000_000,
+    max_normalized_bytes_per_run: 2_000_000_000,
+    max_image_dimension: 20_000,
+    max_media_items_per_work_unit: 256,
+    model_media_token_reserve_per_item: 1_024,
+    max_model_input_tokens_per_work_unit: 2_000_000,
+    max_model_output_tokens_per_work_unit: 2_000_000,
+    max_model_tokens_per_run: 100_000_000,
+    max_concurrent_runs_per_scope: 1,
+    max_queued_runs_per_scope: 16,
+    max_concurrent_work_units_per_run: 1,
+    max_media_duration_seconds: null,
+  }
+  await mkdir(path.join(hostRoot, ".k-slide-config"), { recursive: true })
+  await writeFile(path.join(hostRoot, ".k-slide-config", "production-profile.json"), JSON.stringify({ resource_budget: { schema_version: "1.0", environment: "reference_non_production", limits } }))
+  try {
+    const { output, after } = await capture(hostRoot, sessionID, [dataPart("image/png", "bounded.png", PNG)])
+    const refs = (output.args as { host_input_refs: Array<{ rejection_code?: string; locator: string }> }).host_input_refs
+    assert.equal(refs.length, 1)
+    assert.equal(refs[0].rejection_code, "KSLIDE_INPUT_TOO_LARGE", JSON.stringify(refs[0]))
+    await assert.rejects(stat(refs[0].locator))
+    const cliResult = runPrepare(cliRoot, sessionID, refs)
+    assert.equal(cliResult.output.error_code, "KSLIDE_INPUT_TOO_LARGE")
+    await after({ tool: "kslide_prepare", sessionID, callID: "budget-call" } as never, {} as never)
+  } finally {
+    await rm(hostRoot, { recursive: true, force: true })
+    await rm(cliRoot, { recursive: true, force: true })
+  }
+}
+
+async function missingManagedResourceBudgetBlocksAttachmentDecoding(): Promise<void> {
+  const hostRoot = await mkdtemp(path.join(path.resolve(tmpdir()), "k-slide-opencode-budget-missing-host-"))
+  const cliRoot = await mkdtemp(path.join(path.resolve(tmpdir()), "k-slide-opencode-budget-missing-cli-"))
+  const sessionID = `budget-missing-${randomUUID()}`
+  const endpointIdentity = opencodeRouteIdentity({ providerID: "google", modelID: "gemma-4-31b-it", apiID: "gemma-4-31b-it", apiNpm: "@ai-sdk/google", apiURL: "https://generativelanguage.googleapis.com/v1beta" })
+  await writeRouteCandidate(hostRoot, endpointIdentity, ".k-slide-config/resolved-candidate.json")
+  try {
+    const { output, after } = await capture(hostRoot, sessionID, [dataPart("image/png", "unbudgeted.png", PNG)])
+    const refs = (output.args as { host_input_refs: Array<{ rejection_code?: string; locator: string }> }).host_input_refs
+    assert.equal(refs.length, 1)
+    assert.equal(refs[0].rejection_code, "KSLIDE_RESOURCE_BUDGET_UNAVAILABLE")
+    await assert.rejects(stat(refs[0].locator))
+    const cliResult = runPrepare(cliRoot, sessionID, refs)
+    assert.equal(cliResult.output.error_code, "KSLIDE_RESOURCE_BUDGET_UNAVAILABLE")
+    await after({ tool: "kslide_prepare", sessionID, callID: "budget-missing-call" } as never, {} as never)
+  } finally {
+    await rm(hostRoot, { recursive: true, force: true })
+    await rm(cliRoot, { recursive: true, force: true })
   }
 }
 
@@ -726,6 +790,8 @@ async function main(): Promise<void> {
   await routingBoundary()
   await replacementBoundary()
   await successBoundary()
+  await configuredResourceBudgetBoundary()
+  await missingManagedResourceBudgetBlocksAttachmentDecoding()
   await failureBoundary()
   await negativeBoundary()
   await v139ProviderOrderingBoundary()

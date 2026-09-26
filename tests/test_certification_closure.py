@@ -56,6 +56,7 @@ from k_slide.egress_policy import (
 )
 from k_slide.model_policy import load_model_policy
 from k_slide.quality_policy import QUALITY_POLICY_IDENTITY, policy_identity_record
+from k_slide.resource_budget import ResourceBudget
 from k_slide.security_release import SECURITY_RELEASE_POLICY, canonical_bytes as security_canonical_bytes, sha256 as security_sha256
 from k_slide.bilingual_adjudication import build_internal_bilingual_payload
 from tests.bilingual_review_fixtures import make_review_contract
@@ -70,6 +71,13 @@ def _sha(path: Path) -> str:
 
 
 PINNED_PRODUCTION_PYTHON_VERSION = "3.11.13"
+
+
+def _synthetic_production_resource_budget() -> dict[str, object]:
+    """A test-only explicit shape fixture; it is not a company budget."""
+
+    reference = ResourceBudget.reference()
+    return ResourceBudget(reference.values, "production").as_dict()
 
 
 def _write(path: Path, value: object) -> Path:
@@ -607,6 +615,7 @@ def _candidate_spec(subject: str, *, ocr_provider: str = "none", effective_model
         "model_policy": load_model_policy().as_dict(),
         "schema_versions": {"evidence_ir": "1.0", "translation_patch": "1.0", "slide_ir": "1.0"},
         "retention_policy": {"schema_version": "1.0", "content_retention_days": 30, "operational_metadata_retention_days": 60},
+        "resource_budget": _synthetic_production_resource_budget(),
         "tenant_isolation": "workspace_per_session",
         "network_egress": "default_deny",
         "corpus_identity": {"schema_version": "1.0", "sets": [manifest_identity(item) for item in _test_corpus_manifests("model_validation", [scenario.scenario_id for scenario in scenario_specs() if scenario.split == "validation"])[0]]},
@@ -2289,10 +2298,14 @@ class CertificationClosureTests(unittest.TestCase):
             with patch("k_slide.runtime.platform.python_version", return_value=PINNED_PRODUCTION_PYTHON_VERSION), patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"AccessKey": "synthetic-doctor-key", "KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1", **bootstrap_environment}):
                 runtime = discover_runtime(root)
                 doctor_result = diagnose(root, production=True)
-            self.assertEqual(doctor_result["overall"], "WARN", msg=json.dumps([item for item in doctor_result["checks"] if item["status"] != "PASS"], indent=2))
+            self.assertEqual(doctor_result["overall"], "FAIL", msg=json.dumps([item for item in doctor_result["checks"] if item["status"] != "PASS"], indent=2))
             self.assertEqual(
                 [item["label"] for item in doctor_result["checks"] if item["status"] == "WARN"],
                 ["Live deployment network enforcement"],
+            )
+            self.assertEqual(
+                [item["label"] for item in doctor_result["checks"] if item["status"] == "FAIL"],
+                ["Provider token accounting", "Company PaaS budget binding"],
             )
             alternate_config = asset_dir / "alternate.yaml"
             with patch("k_slide.runtime.platform.python_version", return_value=PINNED_PRODUCTION_PYTHON_VERSION), patch("k_slide.runtime.shutil.which", side_effect=lambda name: f"/usr/bin/{name}"), patch("k_slide.runtime._config_path", return_value=root / ".opencode" / "opencode.json"), patch("k_slide.runtime._effective_config", return_value={"model": target}), patch("k_slide.runtime._version", return_value="1.3.9"), patch("k_slide.runtime._command_product_version", return_value="25.2.3"), patch("k_slide.runtime._package_version", side_effect=lambda name: package_versions.get(name)), patch("k_slide.doctor.importlib.util.find_spec", return_value=object()), patch("k_slide.doctor.create_ocr_provider", return_value=SimpleNamespace(requested="paddle", effective="paddle", version="3.0.3", reason=None)), patch("k_slide.production.shutil.which", return_value="/usr/bin/libreoffice"), patch("k_slide.production.importlib.util.find_spec", return_value=object()), patch("k_slide.production.importlib.metadata.version", side_effect=lambda name: package_versions[name]), patch("k_slide.production._version_from_command", return_value="25.2.3"), patch("k_slide.production.create_ocr_provider", return_value=SimpleNamespace(effective="paddle", version="3.0.3")), patch.dict("os.environ", {"KSLIDE_PADDLE_REQUIRE_LOCAL_ASSETS": "1", "KSLIDE_PADDLEX_CONFIG": str(alternate_config)}):

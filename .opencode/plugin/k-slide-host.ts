@@ -12,6 +12,7 @@ type HostInputReference = {
   logical_name: string
   locator: string
   classification: string
+  rejection_code?: "KSLIDE_INPUT_TOO_LARGE" | "KSLIDE_RESOURCE_LIMIT" | "KSLIDE_RESOURCE_BUDGET_INVALID" | "KSLIDE_RESOURCE_BUDGET_UNAVAILABLE"
 }
 
 type FilePart = Extract<Part, { type: "file" }>
@@ -22,6 +23,27 @@ type SessionInputs = {
 }
 
 const MAX_INPUT_BYTES = 512 * 1024 * 1024
+const RESOURCE_BUDGET_CEILINGS: Record<string, number> = {
+  max_file_bytes: 512 * 1024 * 1024,
+  max_total_file_bytes_per_run: 2_000_000_000,
+  max_documents_per_run: 32,
+  max_pdf_pages_per_document: 200,
+  max_pptx_slides_per_deck: 200,
+  max_work_units_per_run: 500,
+  max_pixels_per_image: 120_000_000,
+  max_total_decoded_pixels_per_run: 500_000_000,
+  max_normalized_bytes_per_run: 2_000_000_000,
+  max_image_dimension: 20_000,
+  max_media_items_per_work_unit: 256,
+  model_media_token_reserve_per_item: 1_024,
+  max_model_input_tokens_per_work_unit: 2_000_000,
+  max_model_output_tokens_per_work_unit: 2_000_000,
+  max_model_tokens_per_run: 100_000_000,
+  max_concurrent_runs_per_scope: 1,
+  max_queued_runs_per_scope: 100_000,
+  max_concurrent_work_units_per_run: 1,
+}
+const RESOURCE_BUDGET_FIELDS = [...Object.keys(RESOURCE_BUDGET_CEILINGS), "max_media_duration_seconds"].sort()
 const STAGING_PREFIX = "k-slide-opencode-attachments-"
 const DEFAULT_CLASSIFICATION = "company_confidential"
 const K_SLIDE_AGENT = "k-slide"
@@ -581,7 +603,88 @@ function decodedDataByteLength(encodedLength: number, padding: number): number {
   return (encodedLength / 4) * 3 - padding
 }
 
-function decodedDataUrl(part: FilePart): { mime: string; bytes: Buffer } {
+class ResourceBudgetAttachmentError extends Error {
+  code: HostInputReference["rejection_code"]
+
+  constructor(code: NonNullable<HostInputReference["rejection_code"]>) {
+    super("K-Slide attachment was rejected by resource-budget admission.")
+    this.code = code
+  }
+}
+
+async function managedCandidateExists(worktree: string): Promise<boolean> {
+  for (const parts of CANDIDATE_SOURCES) {
+    try {
+      const details = await lstat(path.join(worktree, ...parts))
+      if (details.isSymbolicLink() || !details.isFile()) return true
+      try {
+        if (candidateRouteBinding(await readCandidate(path.join(worktree, ...parts))) !== undefined) return true
+      } catch {
+        return true
+      }
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") continue
+      return true
+    }
+  }
+  return false
+}
+
+function validateResourceBudget(raw: unknown): { maxInputBytes?: number; rejectionCode?: HostInputReference["rejection_code"] } {
+  if (!isRecord(raw) || Object.keys(raw).sort().join("\n") !== ["environment", "limits", "schema_version"].sort().join("\n")) {
+    return { rejectionCode: "KSLIDE_RESOURCE_BUDGET_INVALID" }
+  }
+  if (raw.schema_version !== "1.0" || !["production", "reference_non_production"].includes(String(raw.environment)) || !isRecord(raw.limits)) {
+    return { rejectionCode: "KSLIDE_RESOURCE_BUDGET_INVALID" }
+  }
+  const limits = raw.limits
+  if (Object.keys(limits).sort().join("\n") !== RESOURCE_BUDGET_FIELDS.join("\n") || limits.max_media_duration_seconds !== null) {
+    return { rejectionCode: "KSLIDE_RESOURCE_BUDGET_INVALID" }
+  }
+  for (const [field, ceiling] of Object.entries(RESOURCE_BUDGET_CEILINGS)) {
+    const value = limits[field]
+    if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) > ceiling) {
+      return { rejectionCode: "KSLIDE_RESOURCE_BUDGET_INVALID" }
+    }
+  }
+  return { maxInputBytes: Number(limits.max_file_bytes) }
+}
+
+async function configuredInputBudget(worktree: string): Promise<{ maxInputBytes?: number; rejectionCode?: HostInputReference["rejection_code"] }> {
+  try {
+    const handle = await open(path.join(worktree, ".k-slide-config", "production-profile.json"), "r")
+    let raw: string
+    try {
+      const details = await handle.stat()
+      if (!details.isFile() || details.size > 2 * 1024 * 1024) throw new Error("resource budget profile is invalid")
+      const contents = Buffer.alloc(details.size)
+      const { bytesRead } = await handle.read(contents, 0, contents.length, 0)
+      if (bytesRead !== contents.length) throw new Error("resource budget profile changed while being read")
+      raw = contents.toString("utf8")
+    } finally {
+      await handle.close()
+    }
+    const profile = JSON.parse(raw) as { resource_budget?: unknown; release_state?: unknown }
+    if (!profile || typeof profile !== "object" || Array.isArray(profile)) {
+      return { rejectionCode: "KSLIDE_RESOURCE_BUDGET_INVALID" }
+    }
+    if (!("resource_budget" in profile) || profile.resource_budget === null) {
+      return profile.release_state === "PRODUCTION_CERTIFIED" || await managedCandidateExists(worktree)
+        ? { rejectionCode: "KSLIDE_RESOURCE_BUDGET_UNAVAILABLE" }
+        : { maxInputBytes: MAX_INPUT_BYTES }
+    }
+    return validateResourceBudget(profile.resource_budget)
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+      return (await managedCandidateExists(worktree))
+        ? { rejectionCode: "KSLIDE_RESOURCE_BUDGET_UNAVAILABLE" }
+        : { maxInputBytes: MAX_INPUT_BYTES }
+    }
+    return { rejectionCode: "KSLIDE_RESOURCE_BUDGET_INVALID" }
+  }
+}
+
+function decodedDataUrl(part: FilePart, maxInputBytes: number): { mime: string; bytes: Buffer } {
   const mime = normalizedMime(part.mime)
   if (typeof part.url !== "string") throw new Error("K-Slide attachment was rejected.")
   const match = DATA_URL.exec(part.url)
@@ -590,7 +693,8 @@ function decodedDataUrl(part: FilePart): { mime: string; bytes: Buffer } {
   if (!encoded || encoded.length % 4 !== 0) throw new Error("K-Slide attachment was rejected.")
   const padding = encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0
   const decodedLength = decodedDataByteLength(encoded.length, padding)
-  if (decodedLength <= 0 || decodedLength > MAX_INPUT_BYTES) throw new Error("K-Slide attachment was rejected.")
+  if (decodedLength <= 0) throw new Error("K-Slide attachment was rejected.")
+  if (decodedLength > maxInputBytes || decodedLength > MAX_INPUT_BYTES) throw new ResourceBudgetAttachmentError("KSLIDE_INPUT_TOO_LARGE")
   const bytes = Buffer.from(encoded, "base64")
   if (bytes.length !== decodedLength || bytes.toString("base64") !== encoded) throw new Error("K-Slide attachment was rejected.")
   return { mime, bytes }
@@ -644,7 +748,7 @@ function unavailableLocator(sessionID: string): string {
   return path.join(path.resolve(tmpdir()), `${stagingPrefix(sessionID)}unmaterialized-${randomBytes(18).toString("hex")}.missing`)
 }
 
-function rejectedReference(sessionID: string, index: number, mime: unknown, stagingDirectory?: string): HostInputReference {
+function rejectedReference(sessionID: string, index: number, mime: unknown, stagingDirectory?: string, rejection_code?: HostInputReference["rejection_code"]): HostInputReference {
   const normalized = typeof mime === "string" ? mime.toLowerCase() : ""
   // Keep the rejection packet schema-valid even when the advertised MIME is
   // unsupported; the missing private locator makes prepare persist FAILED_INPUT.
@@ -657,11 +761,12 @@ function rejectedReference(sessionID: string, index: number, mime: unknown, stag
     logical_name: `attachment-${String(index).padStart(3, "0")}${extension}`,
     locator,
     classification: DEFAULT_CLASSIFICATION,
+    ...(rejection_code ? { rejection_code } : {}),
   }
 }
 
-async function materializeDataAttachment(part: FilePart, index: number, stagingDirectory: string): Promise<HostInputReference> {
-  const { mime, bytes } = decodedDataUrl(part)
+async function materializeDataAttachment(part: FilePart, index: number, stagingDirectory: string, maxInputBytes: number): Promise<HostInputReference> {
+  const { mime, bytes } = decodedDataUrl(part, maxInputBytes)
   const logicalName = logicalNameForPart(part, index, mime)
   const destination = path.join(stagingDirectory, `attachment-${randomBytes(18).toString("hex")}${extensionByMime[mime]}`)
   await writeFile(destination, bytes, { flag: "wx", mode: 0o600 })
@@ -674,10 +779,15 @@ async function referenceFromPart(part: FilePart, index: number, sessionID: strin
   if (sourcePath) return { ref: localReference(part, index, worktree, sourcePath), stagingDirectory }
 
   if (typeof part.url === "string" && part.url.startsWith("data:")) {
+    const budget = await configuredInputBudget(worktree)
     const directory = stagingDirectory || await createStagingDirectory(sessionID)
+    if (budget.rejectionCode) {
+      return { ref: rejectedReference(sessionID, index, part.mime, directory, budget.rejectionCode), stagingDirectory: directory }
+    }
     try {
-      return { ref: await materializeDataAttachment(part, index, directory), stagingDirectory: directory }
-    } catch {
+      return { ref: await materializeDataAttachment(part, index, directory, budget.maxInputBytes ?? MAX_INPUT_BYTES), stagingDirectory: directory }
+    } catch (error) {
+      if (error instanceof ResourceBudgetAttachmentError) return { ref: rejectedReference(sessionID, index, part.mime, directory, error.code), stagingDirectory: directory }
       return { ref: rejectedReference(sessionID, index, part.mime, directory), stagingDirectory: directory }
     }
   }

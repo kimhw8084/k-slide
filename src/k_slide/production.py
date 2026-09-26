@@ -53,6 +53,7 @@ from .egress_policy import load_egress_policy, policy_completeness as egress_pol
 from .ocr.policy import OCRProviderPolicy, create_ocr_provider
 from .runtime import RuntimeMetadata
 from .retention_policy import RetentionPolicy, RETENTION_POLICY_FIELD, CONTENT_RETENTION_FIELD, OPERATIONAL_METADATA_RETENTION_FIELD
+from .resource_budget import ResourceBudget
 
 
 PRODUCTION_PROFILE_SCHEMA_VERSION = "1.1"
@@ -98,6 +99,7 @@ class ProductionProfile:
     egress_policy_identity: str | None = None
     inference_endpoint_identity: str | None = None
     opencode_bootstrap_manifest: str | None = None
+    resource_budget: dict[str, Any] | None = None
 
     @classmethod
     def from_mapping(cls, value: dict[str, Any], *, require_resolved_retention: bool = True) -> "ProductionProfile":
@@ -121,6 +123,12 @@ class ProductionProfile:
             retention_policy = RetentionPolicy.from_mapping(value[RETENTION_POLICY_FIELD], require_resolved=require_resolved_retention)
         except (TypeError, ValueError) as exc:
             raise KSlideError(ErrorCode.PRODUCTION_PROFILE_INVALID, "Invalid production retention policy.", {"reason": type(exc).__name__}) from exc
+        resource_budget = value.get("resource_budget")
+        if resource_budget is not None:
+            try:
+                ResourceBudget.from_dict(resource_budget)
+            except KSlideError as exc:
+                raise KSlideError(ErrorCode.PRODUCTION_PROFILE_INVALID, "Invalid production resource budget.") from exc
         return cls(
             schema_version=schema_version,
             release_state=str(value["release_state"]),
@@ -149,6 +157,7 @@ class ProductionProfile:
             egress_policy_identity=str(value["egress_policy_identity"]) if "egress_policy_identity" in value else None,
             inference_endpoint_identity=str(value["inference_endpoint_identity"]) if "inference_endpoint_identity" in value else None,
             opencode_bootstrap_manifest=str(value["opencode_bootstrap_manifest"]) if "opencode_bootstrap_manifest" in value else None,
+            resource_budget=dict(resource_budget) if isinstance(resource_budget, dict) else None,
         )
 
     def as_dict(self) -> dict[str, Any]:
@@ -180,6 +189,7 @@ class ProductionProfile:
             **({"egress_policy_identity": self.egress_policy_identity} if self.egress_policy_identity is not None else {}),
             **({"inference_endpoint_identity": self.inference_endpoint_identity} if self.inference_endpoint_identity is not None else {}),
             **({"opencode_bootstrap_manifest": self.opencode_bootstrap_manifest} if self.opencode_bootstrap_manifest is not None else {}),
+            **({"resource_budget": self.resource_budget} if self.resource_budget is not None else {}),
         }
 
 
@@ -643,6 +653,17 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
         return [*checks, _check("Production profile", False, exc.message), *_retention_policy_checks(RetentionPolicy("1.0", "UNSET", "UNSET"), invalid_detail=exc.message)]
     checks.append(_check("Production profile schema", profile.schema_version == PRODUCTION_PROFILE_SCHEMA_VERSION, profile.schema_version))
     checks.append(_check("Release state", profile.release_state == ReleaseState.PRODUCTION_CERTIFIED.value, profile.release_state))
+    budget_ready, budget_detail = (False, "production resource budget is missing")
+    if profile.resource_budget is not None:
+        try:
+            selected_budget = ResourceBudget.from_dict(profile.resource_budget)
+            budget_ready = selected_budget.environment == "production"
+            budget_detail = selected_budget.sha256 if budget_ready else "resource budget is not classified as production"
+        except KSlideError as exc:
+            budget_detail = exc.message
+    checks.append(_check("Production resource budget", budget_ready, budget_detail))
+    checks.append(_check("Provider token accounting", False, "The current OpenCode host contract does not expose provider-reported token usage; K-Slide enforces packet and returned-patch bounds using a UTF-8 estimate."))
+    checks.append(_check("Company PaaS budget binding", False, "No live company PaaS admission adapter is installed to bind the profile's concurrency and queue limits."))
     candidate = profile.candidate_spec or {}
     candidate_missing = candidate_completeness(candidate, ReleaseState.PRODUCTION_CERTIFIED.value)
     checks.append(_check("Candidate completeness", not candidate_missing, "complete" if not candidate_missing else "unresolved=" + ",".join(candidate_missing)))

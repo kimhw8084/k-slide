@@ -14,6 +14,7 @@ const hostInputReference = tool.schema.object({
   source_kind: tool.schema.enum(["attachment", "workspace_file"]),
   logical_name: tool.schema.string(),
   locator: tool.schema.string(),
+  rejection_code: tool.schema.enum(["KSLIDE_INPUT_TOO_LARGE", "KSLIDE_RESOURCE_LIMIT", "KSLIDE_RESOURCE_BUDGET_INVALID", "KSLIDE_RESOURCE_BUDGET_UNAVAILABLE"]).optional(),
 }).strict()
 
 const hangulRetention = tool.schema.object({

@@ -21,6 +21,7 @@ from k_slide.ingest import prepare_run
 from k_slide.model import build_translation_prompt, build_work_packet
 from k_slide.normalization import _terminate_subprocess_group, normalize_run
 from k_slide.opencode_bootstrap import APPROVED_API_URL, APPROVED_MODEL, APPROVED_PROVIDER_ID
+from k_slide.resource_budget import ResourceBudget
 from k_slide.security import validate_input
 from k_slide.state import RunPhase, load_state
 from k_slide.translation import parse_translation_patch
@@ -29,6 +30,18 @@ from tests.reference_fixtures import reference_environment
 
 ROOT = Path(__file__).resolve().parents[1]
 PNG = b"\x89PNG\r\n\x1a\nksa21-source"
+
+
+def _reference_budget_profile(root: Path, **overrides: int) -> None:
+    values = dict(ResourceBudget.reference().values)
+    values.update(overrides)
+    budget = ResourceBudget(tuple(sorted(values.items())), "reference_non_production")
+    config = root / ".k-slide-config"
+    config.mkdir(parents=True, exist_ok=True)
+    (config / "production-profile.json").write_text(
+        json.dumps({"schema_version": "1.1", "resource_budget": budget.as_dict()}),
+        encoding="utf-8",
+    )
 
 
 def _base_pptx_members(*, slides: int = 1) -> dict[str, bytes]:
@@ -523,10 +536,10 @@ class KSA21OfficePackageTests(unittest.TestCase):
             root = Path(directory)
             path = root / "many-slides.pptx"
             _write_pptx(path, _base_pptx_members(slides=3))
+            _reference_budget_profile(root, max_pptx_slides_per_deck=2)
             run = prepare_run(root, explicit_paths=[str(path)], environment_identity=reference_environment())
-            import k_slide.normalization as normalization
 
-            with patch.object(normalization, "MAX_SLIDES_PER_PPTX", 2), patch.object(normalization, "_render_pptx", side_effect=AssertionError("converter reached")) as render:
+            with patch("k_slide.normalization._render_pptx", side_effect=AssertionError("converter reached")) as render:
                 with self.assertRaises(KSlideError) as raised:
                     normalize_run(run, environment_identity=reference_environment())
             self.assertEqual(raised.exception.code, ErrorCode.RESOURCE_LIMIT)
@@ -557,12 +570,11 @@ class KSA21ResourceAndBoundaryTests(unittest.TestCase):
             root = Path(directory)
             source = root / "large.png"
             Image.new("RGB", (2, 2), "white").save(source)
+            _reference_budget_profile(root, max_image_dimension=1)
             run = prepare_run(root, explicit_paths=[str(source)], environment_identity=reference_environment())
-            import k_slide.normalization as normalization
 
-            with patch.object(normalization, "MAX_IMAGE_WIDTH", 1):
-                with self.assertRaises(KSlideError) as raised:
-                    normalize_run(run, environment_identity=reference_environment())
+            with self.assertRaises(KSlideError) as raised:
+                normalize_run(run, environment_identity=reference_environment())
             self.assertEqual(raised.exception.code, ErrorCode.INPUT_TOO_LARGE)
             self.assertEqual(load_state(run).phase, RunPhase.FAILED_NORMALIZATION)
             self.assertFalse((run / "RUN_COMPLETE.md").exists())
@@ -571,17 +583,15 @@ class KSA21ResourceAndBoundaryTests(unittest.TestCase):
     def test_total_render_and_normalized_byte_limits_fail_closed(self) -> None:
         from PIL import Image
 
-        import k_slide.normalization as normalization
-
-        for limit_name, limit in (("MAX_TOTAL_RENDER_PIXELS", 3), ("MAX_NORMALIZED_BYTES", 0)):
+        for limit_name, limit in (("max_total_decoded_pixels_per_run", 3), ("max_normalized_bytes_per_run", 1)):
             with self.subTest(limit_name=limit_name), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 source = root / "bounded.png"
                 Image.new("RGB", (2, 2), "white").save(source)
+                _reference_budget_profile(root, **{limit_name: limit})
                 run = prepare_run(root, explicit_paths=[str(source)], environment_identity=reference_environment())
-                with patch.object(normalization, limit_name, limit):
-                    with self.assertRaises(KSlideError) as raised:
-                        normalize_run(run, environment_identity=reference_environment())
+                with self.assertRaises(KSlideError) as raised:
+                    normalize_run(run, environment_identity=reference_environment())
                 self.assertEqual(raised.exception.code, ErrorCode.RESOURCE_LIMIT)
                 self.assertEqual(load_state(run).phase, RunPhase.FAILED_NORMALIZATION)
                 self.assertFalse((run / "RUN_COMPLETE.md").exists())
@@ -590,19 +600,18 @@ class KSA21ResourceAndBoundaryTests(unittest.TestCase):
     def test_pdf_page_limit_fails_closed_without_semantic_review(self) -> None:
         import fitz
 
-        import k_slide.normalization as normalization
-
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = root / "pages.pdf"
             document = fitz.open()
             document.new_page(width=100, height=100)
+            document.new_page(width=100, height=100)
             document.save(source)
             document.close()
+            _reference_budget_profile(root, max_pdf_pages_per_document=1)
             run = prepare_run(root, explicit_paths=[str(source)], environment_identity=reference_environment())
-            with patch.object(normalization, "MAX_PAGES_PER_PDF", 0):
-                with self.assertRaises(KSlideError) as raised:
-                    normalize_run(run, environment_identity=reference_environment())
+            with self.assertRaises(KSlideError) as raised:
+                normalize_run(run, environment_identity=reference_environment())
             self.assertEqual(raised.exception.code, ErrorCode.RESOURCE_LIMIT)
             self.assertEqual(load_state(run).phase, RunPhase.FAILED_NORMALIZATION)
             self.assertFalse((run / "RUN_COMPLETE.md").exists())
