@@ -1,342 +1,542 @@
 {
-  "artifact_bridge": {
-    "published": false,
-    "reason": "No Project OS Artifact Bridge tool was available in this session; deterministic Git evidence is prepared for independent Project OS promotion.",
-    "requested_bridge": "Project OS Artifact Bridge",
-    "tool_available_in_active_session": false
-  },
-  "artifact_path": ".codex-fabric/audit.json",
+  "accepted_at": "2026-09-26T14:44:25Z",
+  "changed_files": [
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": ".opencode/agents/k-slide.md",
+      "status": "M"
+    },
+    {
+      "additions": 117,
+      "deletions": 7,
+      "path": ".opencode/plugin/k-slide-host.ts",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 0,
+      "path": ".opencode/tools/kslide.ts",
+      "status": "M"
+    },
+    {
+      "additions": 7,
+      "deletions": 3,
+      "path": "deploy/README.md",
+      "status": "M"
+    },
+    {
+      "additions": 88,
+      "deletions": 0,
+      "path": "docs/ksa36-performance-load-budget.md",
+      "status": "A"
+    },
+    {
+      "additions": 548,
+      "deletions": 0,
+      "path": "evals/performance_load.py",
+      "status": "A"
+    },
+    {
+      "additions": 3,
+      "deletions": 2,
+      "path": "schemas/operational-telemetry-event.schema.json",
+      "status": "M"
+    },
+    {
+      "additions": 46,
+      "deletions": 0,
+      "path": "schemas/resource-budget.schema.json",
+      "status": "A"
+    },
+    {
+      "additions": 14,
+      "deletions": 22,
+      "path": "src/k_slide/certification.py",
+      "status": "M"
+    },
+    {
+      "additions": 104,
+      "deletions": 3,
+      "path": "src/k_slide/cli.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 0,
+      "path": "src/k_slide/errors.py",
+      "status": "M"
+    },
+    {
+      "additions": 16,
+      "deletions": 3,
+      "path": "src/k_slide/host_adapter.py",
+      "status": "M"
+    },
+    {
+      "additions": 189,
+      "deletions": 8,
+      "path": "src/k_slide/ingest.py",
+      "status": "M"
+    },
+    {
+      "additions": 148,
+      "deletions": 36,
+      "path": "src/k_slide/normalization.py",
+      "status": "M"
+    },
+    {
+      "additions": 40,
+      "deletions": 1,
+      "path": "src/k_slide/paas.py",
+      "status": "M"
+    },
+    {
+      "additions": 21,
+      "deletions": 0,
+      "path": "src/k_slide/production.py",
+      "status": "M"
+    },
+    {
+      "additions": 244,
+      "deletions": 0,
+      "path": "src/k_slide/resource_budget.py",
+      "status": "A"
+    },
+    {
+      "additions": 7,
+      "deletions": 2,
+      "path": "src/k_slide/security.py",
+      "status": "M"
+    },
+    {
+      "additions": 14,
+      "deletions": 1,
+      "path": "tests/test_certification_closure.py",
+      "status": "M"
+    },
+    {
+      "additions": 73,
+      "deletions": 7,
+      "path": "tests/test_chg16_opencode_plugin.ts",
+      "status": "M"
+    },
+    {
+      "additions": 446,
+      "deletions": 0,
+      "path": "tests/test_chg16_resource_budget.py",
+      "status": "A"
+    },
+    {
+      "additions": 26,
+      "deletions": 17,
+      "path": "tests/test_ksa21_adversarial_security.py",
+      "status": "M"
+    },
+    {
+      "additions": 1,
+      "deletions": 1,
+      "path": "tests/test_ksa24_f24_real_path.py",
+      "status": "M"
+    }
+  ],
   "checks": [
     {
-      "name": "Focused KSA-35 product telemetry tests, Python 3.11",
-      "status": "PASS",
-      "tests": 13
+      "command": "/bin/zsh -lc \"rtk env /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport json\nfrom pathlib import Path\nr=json.loads(Path('/tmp/k-slide-ksa36-evidence/py311-smoke-final.json').read_text())\nfor x in r['scenario_results']:\n if x['topology']=='local_cli_reference' and x['scenario']['scenario_class'] in ('screenshot','presentation_10_20_slides','presentation_50_plus_slides'):\n  print(x['scenario']['scenario_id'], x['measurement_status'], x['observed_latency_ms'], [s.get('error_code') for s in x['samples']])\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
     },
     {
-      "name": "Focused KSA-35 product telemetry tests, Python 3.12",
-      "status": "PASS",
-      "tests": 13
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py312/bin/python -m evals.performance_load --root . --output /tmp/k-slide-ksa36-evidence/py312-smoke-final.json --warmups 0 --repetitions 1'",
+      "exit_code": 0,
+      "type": "command_execution"
     },
     {
-      "name": "Full repository Python unittest suite, Python 3.11",
-      "status": "PASS",
-      "tests": 700,
-      "optional_skips": 4
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python -m unittest discover -s tests -q > /tmp/k-slide-ksa36-full-py311-finalcandidate.log 2>&1'",
+      "exit_code": 0,
+      "type": "command_execution"
     },
     {
-      "name": "Full repository Python unittest suite, Python 3.12",
-      "status": "PASS",
-      "tests": 700
+      "command": "/bin/zsh -lc \"rtk rg '\"'^ERROR:|''^FAIL:|''^Ran |''^FAILED|''^OK'\"' /tmp/k-slide-ksa36-full-py311-finalcandidate.log\"",
+      "exit_code": 0,
+      "type": "command_execution"
     },
     {
-      "name": "Related telemetry/privacy/security/authorization/retention/host regressions, Python 3.11",
-      "status": "PASS",
-      "tests": 194,
-      "optional_skips": 1,
-      "module_patterns": [
-        "test_ksa35_product_telemetry.py",
-        "test_chg16_*.py",
-        "test_chg17_*.py",
-        "test_chg18_*.py"
-      ]
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py312/bin/python -m unittest discover -s tests -q > /tmp/k-slide-ksa36-full-py312-finalcandidate.log 2>&1'",
+      "exit_code": 0,
+      "type": "command_execution"
     },
     {
-      "name": "Related telemetry/privacy/security/authorization/retention/host regressions, Python 3.12",
-      "status": "PASS",
-      "tests": 194,
-      "module_patterns": [
-        "test_ksa35_product_telemetry.py",
-        "test_chg16_*.py",
-        "test_chg17_*.py",
-        "test_chg18_*.py"
-      ]
+      "command": "/bin/zsh -lc \"rtk rg '\"'^ERROR:|''^FAIL:|''^Ran |''^FAILED|''^OK'\"' /tmp/k-slide-ksa36-full-py312-finalcandidate.log\"",
+      "exit_code": 0,
+      "type": "command_execution"
     },
     {
-      "name": "OpenCode issue-report host regression, Python 3.11",
-      "status": "PASS",
-      "runner": "Bun 1.4.2",
-      "test_file": "tests/test_chg16_opencode_plugin.ts"
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python -m evals.performance_load --root . --output /tmp/k-slide-ksa36-evidence/py311-measure-final.json --warmups 1 --repetitions 2'",
+      "exit_code": 0,
+      "type": "command_execution"
     },
     {
-      "name": "OpenCode issue-report host regression, Python 3.12",
-      "status": "PASS",
-      "runner": "Bun 1.4.2",
-      "test_file": "tests/test_chg16_opencode_plugin.ts"
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py312/bin/python -m evals.performance_load --root . --output /tmp/k-slide-ksa36-evidence/py312-measure-final.json --warmups 1 --repetitions 2'",
+      "exit_code": 0,
+      "type": "command_execution"
     },
     {
-      "name": "JSON-schema validation and ErrorCode enum parity, Python 3.11",
-      "status": "PASS",
-      "schemas": 8,
-      "error_enum_members": 89
+      "command": "/bin/zsh -lc \"rtk env /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport hashlib,json\nfrom pathlib import Path\nroot=Path('/tmp/k-slide-ksa36-evidence')\nfor name in ('py311-measure-final.json','py312-measure-final.json'):\n p=root/name; b=p.read_bytes(); doc=json.loads(b)\n assert doc['candidate_sha']=='61c8b35bc9841690bf854c3cb3ced77a6abdbe20'\n assert doc['candidate_tree']=='d5eea9d1b30f9348d067c5f441be9ce609a77e5f'\n assert len(doc['scenario_results'])==20 and b'CF-' not in b\n print(json.dumps({'report':name,'sha256':hashlib.sha256(b).hexdigest(),'python':doc['measurement_environment']['python_version'],'measurement_environment_sha256':doc['measurement_environment_identity_sha256'],'budget_sha256':doc['resource_budget_sha256'],'soffice':doc['measurement_environment']['soffice_path_present'],'opencode_binary':doc['measurement_environment']['opencode_path_present']},sort_keys=True))\n for x in doc['scenario_results']:\n  if x['topology']=='reference_paas_scoped_admission':\n   s=x['samples']; print(json.dumps({'scenario':x['scenario']['scenario_id'],'topology':'reference_paas_admission','status':x['measurement_status'],'per_submission_p50_ms':x['observed_latency_ms']['per_submission_p50'],'per_submission_p95_ms':x['observed_latency_ms']['per_submission_p95'],'submissions_per_second':x['throughput_submissions_per_second'],'accepted_per_batch':[a['accepted'] for a in s],'active_runs':[a['active_runs'] for a in s],'queued_runs':[a['queued_runs'] for a in s]},sort_keys=True))\n  elif x['scenario']['scenario_class']=='screenshot' or x['scenario']['input_shape']['format']=='pdf' or x['topology']=='local_cli_reference':\n   error=sorted({s.get('error_code') or s.get('output_parse') for s in x['samples'] if s.get('status')=='NOT_MEASURED'})\n   print(json.dumps({'scenario':x['scenario']['scenario_id'],'topology':x['topology'],'status':x['measurement_status'],'p50_ms':x['observed_latency_ms']['p50'],'p95_ms':x['observed_latency_ms']['p95'],'throughput_slides_per_sec':x['throughput_slides_per_second'],'unmeasured_reasons':error},sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
     },
     {
-      "name": "JSON-schema validation and ErrorCode enum parity, Python 3.12",
-      "status": "PASS",
-      "schemas": 8,
-      "error_enum_members": 89
+      "command": "/bin/zsh -lc \"rtk env /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport json\nfrom pathlib import Path\nfor file in ('py311-measure-final.json','py312-measure-final.json'):\n d=json.loads((Path('/tmp/k-slide-ksa36-evidence')/file).read_text())\n for x in d['scenario_results']:\n  if x['topology']=='local_cli_reference' and x['scenario']['input_shape']['format']=='pptx':\n   print(file,x['scenario']['scenario_id'],json.dumps(x['samples'],sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
     },
     {
-      "name": "Workflow YAML parsing and embedded shell syntax",
-      "status": "PASS",
-      "python_versions": [
-        "3.11",
-        "3.12"
-      ],
-      "workflows": 6,
-      "shell_steps": 49
+      "command": "/bin/zsh -lc \"rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport json, os, subprocess, sys, tempfile\nfrom pathlib import Path\nfrom evals.performance_load import Scenario, _write_scenario, _parse_product_cli_json\nwith tempfile.TemporaryDirectory() as d:\n root=Path(d); src=root/'fixture.pptx'; _write_scenario(src,Scenario('debug','presentation_10_20_slides','pptx',16,1600,900))\n runner='''import sys\\\\nfrom unittest.mock import patch\\\\nfrom k_slide import cli\\\\nfrom k_slide.environment import RunEnvironmentIdentity\\\\nreal=cli.prepare_run\\\\nenv=RunEnvironmentIdentity.legacy_reference(runtime_ref=\\\"ksa36-local-reference-runtime\\\",model_identity=\\\"NOT_INVOKED\\\",ocr_identity=\\\"native-extraction-only\\\",termbase_identity=\\\"core-reference-termbase\\\",source_revision=sys.argv[1])\\\\ndef prep(root,**kw):return real(root,environment_identity=env,**kw)\\\\nwith patch.object(cli,\\\"prepare_run\\\",side_effect=prep):raise SystemExit(cli.main(sys.argv[2:]))\\\\n'''\n env=os.environ.copy();env['PYTHONPATH']=os.pathsep.join((str(Path.cwd()/'src'),str(Path.cwd())))\n p=subprocess.run([sys.executable,'-c',runner,'a'*40,'prepare','--root',str(root/'run'),'--json','--host-adapter','local_cli',str(src)],cwd=Path.cwd(),env=env,capture_output=True,text=True)\n out=_parse_product_cli_json(p.stdout)\n print(json.dumps({'exit_code':p.returncode,'keys':sorted(out) if out else None,'status':out.get('status') if out else None,'phase':out.get('phase') if out else None,'error_code':out.get('error_code') if out else None,'error':out.get('error') if out else None,'next_action':out.get('next_action') if out else None},sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
     },
     {
-      "name": "Python compileall for src, evals, and tests",
-      "status": "PASS",
-      "python_versions": [
-        "3.11",
-        "3.12"
-      ]
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python -m unittest tests.test_chg16_resource_budget -q'",
+      "exit_code": 0,
+      "type": "command_execution"
     },
     {
-      "name": "git diff --check",
-      "status": "PASS"
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py312/bin/python -m unittest tests.test_chg16_resource_budget -q'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git add -A'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git commit -m 'KSA-36: record nested product prerequisite errors'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git rev-parse HEAD && rtk git rev-parse HEAD''^{tree} && rtk git branch --show-current && rtk git status --porcelain && rtk git merge-base --is-ancestor 71d3b0a56eee84716a37712440dd1763fd078c66 HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py311/bin/python -m evals.performance_load --root . --output /tmp/k-slide-ksa36-evidence/py311-measure-candidate.json --warmups 1 --repetitions 2'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env PYTHONPATH=src:. /tmp/k-slide-ksa36-py312/bin/python -m evals.performance_load --root . --output /tmp/k-slide-ksa36-evidence/py312-measure-candidate.json --warmups 1 --repetitions 2'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport hashlib,json\nfrom pathlib import Path\nbase=Path('/tmp/k-slide-ksa36-evidence')\nfor name in ('py311-measure-candidate.json','py312-measure-candidate.json'):\n p=base/name;raw=p.read_bytes();d=json.loads(raw)\n assert d['candidate_sha']=='e7582e6dbe827c45e4843097ca8884164e71e314'\n assert d['candidate_tree']=='d8e21c0ee03e9fbcb92dd603506a3408003ffc90'\n assert len(d['scenario_results'])==20 and b'CF-' not in raw\n print(json.dumps({'report':name,'sha256':hashlib.sha256(raw).hexdigest(),'python':d['measurement_environment']['python_version'],'environment_sha256':d['measurement_environment_identity_sha256'],'budget_sha256':d['resource_budget_sha256'],'scenario_results':len(d['scenario_results']),'soffice_available':d['measurement_environment']['soffice_path_present'],'target_model_status':d['measurement_environment']['target_model_status'],'company_paas_status':d['measurement_environment']['company_paas_status']},sort_keys=True))\n for x in d['scenario_results']:\n  if x['topology']=='reference_paas_scoped_admission':\n   print(json.dumps({'scenario':x['scenario']['scenario_id'],'topology':'reference_paas_admission','status':x['measurement_status'],'latency_ms':x['observed_latency_ms'],'submissions_per_second':x['throughput_submissions_per_second'],'capacity':x['capacity_outcome']},sort_keys=True))\n  else:\n   errs=sorted({s['error_code'] for s in x['samples'] if s.get('error_code')})\n   print(json.dumps({'scenario':x['scenario']['scenario_id'],'topology':x['topology'],'status':x['measurement_status'],'p50_ms':x['observed_latency_ms']['p50'],'p95_ms':x['observed_latency_ms']['p95'],'throughput_slides_per_second':x['throughput_slides_per_second'],'typed_errors':errs},sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport json, pathlib\nfor name in ['py311-measure-candidate.json','py312-measure-candidate.json']:\n p=pathlib.Path('/tmp/k-slide-ksa36-evidence')/name\n d=json.loads(p.read_text())\n print(name, 'sha', __import__('hashlib').sha256(p.read_bytes()).hexdigest())\n print('candidate',d.get('candidate'))\n print('environment',d.get('measurement_environment'))\n print('budget',d.get('resource_budget'))\n rows=d.get('scenario_results',[])\n print('records',len(rows))\n for x in rows:\n  print(x.get('scenario'),x.get('topology'),x.get('status'),x.get('error_code'),x.get('p50_ms'),x.get('p95_ms'),x.get('throughput_per_minute'),x.get('capacity'))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport json, pathlib\np=pathlib.Path('/tmp/k-slide-ksa36-evidence/py311-measure-candidate.json')\nd=json.loads(p.read_text())\nprint('topkeys',sorted(d))\nfor i,x in enumerate(d['scenario_results']):\n if i in (0,3,4,12,13,19): print('rowkeys',sorted(x)); print(json.dumps(x,sort_keys=True)[:4500])\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport json,pathlib,hashlib\nfor name in ('py311-measure-candidate.json','py312-measure-candidate.json'):\n p=pathlib.Path('/tmp/k-slide-ksa36-evidence')/name; d=json.loads(p.read_text())\n print('\\\\n'+name, hashlib.sha256(p.read_bytes()).hexdigest())\n print('identity',d['base_sha'],d['branch'],d['candidate_sha'],d['candidate_tree'],d['measurement_environment_identity_sha256'],d['resource_budget_sha256'],d['measurement_policy'])\n for x in d['scenario_results']:\n  s=x['scenario']; lat=x.get('observed_latency_ms',{})\n  errs=sorted({z.get('error_code') for z in x['samples'] if z.get('error_code')})\n  print(s['scenario_id'],x['topology'],x['measurement_status'],f\\\"p50={lat.get('p50',lat.get('per_submission_p50'))} p95={lat.get('p95',lat.get('per_submission_p95'))}\\\", 'errors='+','.join(errs))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env /tmp/k-slide-ksa36-py311/bin/python -m compileall -q src tests evals'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env /tmp/k-slide-ksa36-py312/bin/python -m compileall -q src tests evals'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git status --porcelain && rtk git rev-parse HEAD HEAD''^{tree} && rtk git merge-base --is-ancestor 71d3b0a56eee84716a37712440dd1763fd078c66 HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env KSLIDE_TEST_PYTHON=/tmp/k-slide-ksa36-py311/bin/python npx --yes bun tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env KSLIDE_TEST_PYTHON=/tmp/k-slide-ksa36-py312/bin/python npx --yes bun tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env KSLIDE_TEST_PYTHON=/tmp/k-slide-ksa36-py311/bin/python npx --yes bun tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env /tmp/k-slide-ksa36-py311/bin/python -m unittest discover -s tests -p 'test_*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env /tmp/k-slide-ksa36-py312/bin/python -m unittest discover -s tests -p 'test_*.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport json,pathlib\nx=json.loads(pathlib.Path('/tmp/k-slide-ksa36-evidence/py311-measure-candidate.json').read_text())\nfor k in ('report_type','project','operation','request_id','base_sha','branch','candidate_sha','candidate_tree','overall_qualification','topology_prerequisites','measurement_environment_identity_sha256','kslide_reference_run_environment_identity_sha256','resource_budget_sha256'):\n print(k, json.dumps(x.get(k),sort_keys=True))\nPY\nrtk rg --files -g '*schema*' -g '*workflow*' -g '*validate*' -g '*parity*' | head -80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env /tmp/k-slide-ksa36-py311/bin/python -m unittest discover -s tests -p 'test_chg16_resource_budget.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env /tmp/k-slide-ksa36-py312/bin/python -m unittest discover -s tests -p 'test_chg16_resource_budget.py'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env /tmp/k-slide-ksa36-py311/bin/python evals/performance_load.py --help'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env /tmp/k-slide-ksa36-py311/bin/python evals/performance_load.py --warmups 0 --repetitions 1 --output /tmp/k-slide-ksa36-evidence/py311-smoke-candidate.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk env /tmp/k-slide-ksa36-py312/bin/python evals/performance_load.py --warmups 0 --repetitions 1 --output /tmp/k-slide-ksa36-evidence/py312-smoke-candidate.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"Draft202012|jsonschema|workflow.*yaml|embedded.*shell|bash -n|ErrorCode.*operational-telemetry|operational-telemetry-event\" tests evals scripts 2>/dev/null'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n \\\"class ErrorCode|operational-telemetry-event|\\\\.github/workflows\\\" src/k_slide tests | head -80\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env /tmp/k-slide-ksa36-py311/bin/python - <<'PY'\nimport json, pathlib, subprocess, tempfile, sys\nfrom jsonschema import Draft202012Validator\nroot=pathlib.Path.cwd()\nschemas=sorted((root/'schemas').glob('*.json'))\nfor p in schemas: Draft202012Validator.check_schema(json.loads(p.read_text()))\nfrom k_slide.errors import ErrorCode\nschema=json.loads((root/'schemas/operational-telemetry-event.schema.json').read_text())\nfield=schema.get('properties',{}).get('error_code',{})\n# Schema enum is the runtime-parity authority for the telemetry error field.\nschema_codes=set(field.get('enum', []))\nruntime_codes={e.value for e in ErrorCode}\nprint(json.dumps({'schemas_validated':len(schemas),'runtime_error_codes':len(runtime_codes),'telemetry_schema_error_codes':len(schema_codes),'error_enum_parity':runtime_codes==schema_codes},sort_keys=True))\nimport yaml\nworkflows=sorted((root/'.github/workflows').glob('*.yml'))+sorted((root/'.github/workflows').glob('*.yaml'))\ncommands=[]\nfor path in workflows:\n data=yaml.safe_load(path.read_text()) or {}\n def walk(node):\n  if isinstance(node,dict):\n   if isinstance(node.get('run'),str): commands.append((path,node['run']))\n   for value in node.values(): walk(value)\n  elif isinstance(node,list):\n   for value in node: walk(value)\n walk(data)\nwith tempfile.TemporaryDirectory(prefix='ksa36-workflow-shell-') as td:\n for i,(path,script) in enumerate(commands):\n  scriptpath=pathlib.Path(td)/f'{i}.sh'; scriptpath.write_text(script)\n  result=subprocess.run(['rtk','bash','-n',str(scriptpath)],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)\n  if result.returncode: raise SystemExit(f'workflow embedded-shell syntax failed: {path} command#{i}: {result.stderr}')\nprint(json.dumps({'workflow_yaml_parsed':len(workflows),'embedded_shell_commands_bash_n_passed':len(commands)},sort_keys=True))\nPY\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3 -c 'import sys; print(sys.executable); import yaml; print(yaml.__version__)'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3 - <<'PY'\nimport json, pathlib, subprocess, tempfile, sys\nimport yaml\nfrom jsonschema import Draft202012Validator\nroot=pathlib.Path.cwd(); sys.path.insert(0,str(root/'src'))\nschemas=sorted((root/'schemas').glob('*.json'))\nfor p in schemas: Draft202012Validator.check_schema(json.loads(p.read_text()))\nfrom k_slide.errors import ErrorCode\nschema=json.loads((root/'schemas/operational-telemetry-event.schema.json').read_text())\ntelemetry_codes=set(schema.get('properties',{}).get('error_code',{}).get('enum',[]))\nruntime_codes={e.value for e in ErrorCode}\nif runtime_codes\"'!=telemetry_codes: raise SystemExit('\"'runtime/telemetry error enum mismatch')\nprint(json.dumps({'schemas_validated':len(schemas),'runtime_error_codes':len(runtime_codes),'telemetry_schema_error_codes':len(telemetry_codes),'error_enum_parity':'PASS'},sort_keys=True))\nworkflows=sorted((root/'.github/workflows').glob('*.yml'))+sorted((root/'.github/workflows').glob('*.yaml'))\ncommands=[]\ndef walk(node,path):\n if isinstance(node,dict):\n  if isinstance(node.get('run'),str): commands.append((path,node['run']))\n  for value in node.values(): walk(value,path)\n elif isinstance(node,list):\n  for value in node: walk(value,path)\nfor path in workflows: walk(yaml.safe_load(path.read_text()) or {},path)\nwith tempfile.TemporaryDirectory(prefix='ksa36-workflow-shell-') as td:\n for i,(path,script) in enumerate(commands):\n  scriptpath=pathlib.Path(td)/f'{i}.sh'; scriptpath.write_text(script)\n  result=subprocess.run(['rtk','bash','-n',str(scriptpath)],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)\n  if result.returncode: raise SystemExit(f'workflow embedded-shell syntax failed: {path} command#{i}: {result.stderr}')\nprint(json.dumps({'workflow_yaml_parsed':len(workflows),'embedded_shell_commands_bash_n_passed':len(commands)},sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --porcelain && rtk git diff --check && rtk git rev-parse HEAD 'HEAD\"'^{tree}'\"' 71d3b0a56eee84716a37712440dd1763fd078c66 '71d3b0a56eee84716a37712440dd1763fd078c66\"'^{tree}'\"' && rtk git diff --name-only 71d3b0a56eee84716a37712440dd1763fd078c66..HEAD\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '220,285p' tests/test_chg16_opencode_plugin.ts && rtk rg -n \\\"tmp|fixture|mkdtemp|KSLIDE_TEST_PYTHON|run_id|workspace\\\" tests/test_chg16_opencode_plugin.ts\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3 - <<'PY'\nimport hashlib, json, pathlib, subprocess, collections, sys\nroot=pathlib.Path.cwd(); outdir=pathlib.Path('/tmp/k-slide-ksa36-evidence')\nbase='71d3b0a56eee84716a37712440dd1763fd078c66'\ndef git(*args):\n return subprocess.check_output(['rtk','git',*args],cwd=root,text=True).strip()\ndef sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()\nhead=git('rev-parse','HEAD'); tree=git('rev-parse','HEAD\"'^{tree}'\"'); branch=git('branch','--show-current')\nbase_tree=git('rev-parse',base+'\"'^{tree}'\"')\npaths=git('diff','--name-only',base+'..HEAD').splitlines()\nreports=[]; envs={}; prereq={}; budget_hash=None\nfor py, prefix in [('3.11','py311'),('3.12','py312')]:\n for kind, suffix in [('measurement','measure'),('smoke','smoke')]:\n  p=outdir/f'{prefix}-{suffix}-candidate.json'; data=json.loads(p.read_text())\n  assert data['candidate_sha']==head and data['candidate_tree']==tree and data['base_sha']==base\n  assert data['branch']==branch and data['project']=='k-slide' and data['operation']=='BUILD' and data['request_id']=='chg16-performance-load-budget-01'\n  content=p.read_text()\n  assert 'CF-' not in content\n  counts=collections.Counter(row['measurement_status'] for row in data['scenario_results'])\n  assert len(data['scenario_results'])==20\n  envs[py]={'measurement_environment_identity_sha256':data['measurement_environment_identity_sha256'],'reference_run_environment_identity_sha256':data['kslide_reference_run_environment_identity_sha256'],'environment':data['measurement_environment']}\n  prereq=data['topology_prerequisites']\n  if prereq:\n   if not prereq.get('pptx_office_converter','').startswith('PPTX pipeline is NOT_MEASURED'): raise AssertionError('PPTX exclusion mismatch')\n   prereq['target_model']='NOT_MEASURED_EXTERNAL_PROVIDER_UNAVAILABLE'\n   prereq['company_paas']='NOT_MEASURED_EXTERNAL_JOB_SERVICE_UNAVAILABLE'\n   prereq['opencode_actual_lifecycle']='NOT_MEASURED; shared core only'\n   prereq['cloud_vscode_adapter']='NOT_MEASURED; shared CLI core only'\n   # Report uses the same topology prerequisites for both interpreter runs.\n   prereq_ref=prereq\n  budget_hash=data['resource_budget_sha256']\n  reports.append({'kind':kind,'python_version':py,'path':str(p),'sha256':sha(p),'report_type':data['report_type'],'overall_qualification':data['overall_qualification'],'measurement_policy':data['measurement_policy'],'scenario_record_count':len(data['scenario_results']),'scenario_status_counts':dict(sorted(counts.items())),'measurement_environment_identity_sha256':data['measurement_environment_identity_sha256'],'reference_run_environment_identity_sha256':data['kslide_reference_run_environment_identity_sha256']})\n if py=='3.11': topology=prereq_ref\ncontract=root/'src/k_slide/resource_budget.py'; schema=root/'schemas/resource-budget.schema.json'\nevidence={\n 'evidence_type':'k-slide-chg16-candidate-evidence',\n 'project':'k-slide','operation':'BUILD','request_id':'chg16-performance-load-budget-01',\n 'exact_base':{'sha':base,'tree':base_tree},\n 'work_branch':branch,\n 'candidate':{'sha':head,'tree':tree,'changed_paths':paths},\n 'measurement_artifacts':reports,\n 'measurement_environment_by_python':envs,\n 'topology_prerequisites':topology,\n 'resource_budget_contract':{'schema_version':'1.0','environment':'reference_non_production','resource_budget_profile_sha256':budget_hash,'implementation':{'path':'src/k_slide/resource_budget.py','sha256':sha(contract)},'schema':{'path':'schemas/resource-budget.schema.json','sha256':sha(schema)},'production_values':'NOT_SUPPLIED','production_readiness':'FAIL_CLOSED_PENDING_EXPLICIT_CENTRAL_PRODUCTION_BUDGET_PROVIDER_TOKEN_ACCOUNTING_AND_LIVE_PAAS_BUDGET_BINDING'},\n 'observed_checks':[\n  {'name':'full_repository_unittest_discovery','python':'3.11.7','status':'PASS','tests_run':717,'elapsed_seconds':140.569},\n  {'name':'full_repository_unittest_discovery','python':'3.12','status':'PASS','tests_run':717,'elapsed_seconds':115.848},\n  {'name':'focused_ksa36_resource_budget_tests','python':'3.11.7','status':'PASS','tests_run':17},\n  {'name':'focused_ksa36_resource_budget_tests','python':'3.12','status':'PASS','tests_run':17},\n  {'name':'opencode_host_attachment_regression','python':'3.11.7','status':'PASS'},\n  {'name':'opencode_host_attachment_regression','python':'3.12','status':'PASS'},\n  {'name':'compileall_src_tests_evals','python':'3.11.7','status':'PASS'},\n  {'name':'compileall_src_tests_evals','python':'3.12','status':'PASS'},\n  {'name':'json_schemas','runtime':'/opt/anaconda3/bin/python3','status':'PASS','schemas_validated':9},\n  {'name':'runtime_telemetry_error_enum_parity','runtime':'/opt/anaconda3/bin/python3','status':'PASS','runtime_values':92,'schema_values':92},\n  {'name':'github_workflow_yaml_and_embedded_shell','runtime':'/opt/anaconda3/bin/python3','status':'PASS','workflow_yaml_files':6,'embedded_shell_commands_bash_n':49},\n  {'name':'git_diff_check','status':'PASS'},\n  {'name':'worktree_clean_after_commit','status':'PASS'}\n ],\n 'measurement_qualification':'REFERENCE_MEASUREMENTS_ONLY; no production performance qualification or SLO inferred',\n 'capacity_observation':'Reference scoped admission only: at configured concurrency 4, 4 submissions were accepted with 1 active and 3 queued; this is not company PaaS or slide-processing capacity.',\n 'telemetry_privacy':'Synthetic inputs; source content not written to operational telemetry or evidence.',\n 'fabric_job_identity':'Publisher-owned post-execution evidence; intentionally omitted from candidate identity and not fabricated.',\n 'external_side_effects':'No Notion call, production provider/PaaS setting mutation, pilot/canary, merge, or main branch mutation.'\n}\np=outdir/'candidate-evidence.json'; p.write_text(json.dumps(evidence,indent=2,sort_keys=True)+'\\\\n')\nprint(json.dumps({'path':str(p),'sha256':sha(p),'candidate_sha':head,'candidate_tree':tree,'changed_paths':len(paths),'reports':len(reports),'report_sha256':[x['sha256'] for x in reports]},sort_keys=True))\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk env /tmp/k-slide-ksa36-py311/bin/python -c 'import platform; print(platform.python_version())' && rtk env /tmp/k-slide-ksa36-py312/bin/python -c 'import platform; print(platform.python_version())'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3 - <<'PY'\nimport collections,hashlib,json,pathlib\np=pathlib.Path('/tmp/k-slide-ksa36-evidence/candidate-evidence.json')\nd=json.loads(p.read_text())\nfor artifact in d['measurement_artifacts']:\n report=json.loads(pathlib.Path(artifact['path']).read_text())\n artifact['topology_status_counts']={topology:dict(sorted(counts.items())) for topology,counts in sorted((t,collections.Counter(x['measurement_status'] for x in report['scenario_results'] if x['topology']==t)) for t in {x['topology'] for x in report['scenario_results']})}\n artifact['scenario_coverage']=[{'scenario_id':x['scenario']['scenario_id'],'scenario_class':x['scenario']['scenario_class'],'input_format':x['scenario']['input_shape']['format']} for x in report['scenario_results'] if x['topology']==report['scenario_results'][0]['topology']]\n if artifact['python_version']=='3.12':\n  for check in d['observed_checks']:\n   if check.get('python')=='3.12': check['python']='3.12.9'\n  for env in d['measurement_environment_by_python'].values():\n   if env['environment'].get('python_version','').startswith('3.12'):\n    env['python_version']='3.12.9'\np.write_text(json.dumps(d,indent=2,sort_keys=True)+'\\\\n')\nprint(hashlib.sha256(p.read_bytes()).hexdigest(),p.stat().st_size)\nPY\nrtk rg -n \\\"CF-\\\" /tmp/k-slide-ksa36-evidence/py311-measure-candidate.json /tmp/k-slide-ksa36-evidence/py312-measure-candidate.json /tmp/k-slide-ksa36-evidence/py311-smoke-candidate.json /tmp/k-slide-ksa36-evidence/py312-smoke-candidate.json /tmp/k-slide-ksa36-evidence/candidate-evidence.json || true\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3 - <<'PY'\nimport hashlib,json,pathlib,subprocess\nroot=pathlib.Path.cwd(); evidence=pathlib.Path('/tmp/k-slide-ksa36-evidence/candidate-evidence.json'); d=json.loads(evidence.read_text())\nassert d['candidate']['sha']==subprocess.check_output(['rtk','git','rev-parse','HEAD'],cwd=root,text=True).strip()\nassert d['candidate']['tree']==subprocess.check_output(['rtk','git','rev-parse','HEAD\"'^{tree}'\"'],cwd=root,text=True).strip()\nassert d['candidate']['changed_paths']==subprocess.check_output(['rtk','git','diff','--name-only',d['exact_base']['sha']+'..HEAD'],cwd=root,text=True).strip().splitlines()\nfor item in d['measurement_artifacts']:\n p=pathlib.Path(item['path']); assert hashlib.sha256(p.read_bytes()).hexdigest()==item['sha256']\n r=json.loads(p.read_text()); assert r['candidate_sha']==d['candidate']['sha'] and r['candidate_tree']==d['candidate']['tree']\n assert len(r['scenario_results'])==20\nassert 'CF-' not in evidence.read_text()\nprint(json.dumps({'candidate_sha':d['candidate']['sha'],'candidate_tree':d['candidate']['tree'],'changed_paths':len(d['candidate']['changed_paths']),'reports_verified':len(d['measurement_artifacts']),'report_scenario_records':sum(x['scenario_record_count'] for x in d['measurement_artifacts']),'evidence_sidecar_sha256':hashlib.sha256(evidence.read_bytes()).hexdigest(),'current_fabric_job_id_present':False},sort_keys=True))\nPY\nrtk git status --porcelain && rtk git diff --check\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3 - <<'PY'\nimport hashlib,json,pathlib\np=pathlib.Path('/tmp/k-slide-ksa36-evidence/candidate-evidence.json')\nd=json.loads(p.read_text())\nd['execution_notes']=[{'check':'opencode_host_attachment_regression','observed':'The two interpreter runs were first started concurrently; the Python 3.11 invocation returned KSLIDE_INPUT_NOT_FOUND while Python 3.12 passed. Rerunning Python 3.11 alone passed. Both final per-interpreter host checks passed when run sequentially; the cause of the overlapping-run failure was not established.'}]\np.write_text(json.dumps(d,indent=2,sort_keys=True)+'\\\\n')\nprint(hashlib.sha256(p.read_bytes()).hexdigest())\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk python3 - <<'PY'\nimport hashlib,json,pathlib,subprocess\np=pathlib.Path('/tmp/k-slide-ksa36-evidence/candidate-evidence.json'); d=json.loads(p.read_text())\nassert d['candidate']['sha']==subprocess.check_output(['rtk','git','rev-parse','HEAD'],text=True).strip()\nassert not any(x.startswith('CF-') for x in [d['candidate']['sha'],d['work_branch']])\nassert all(hashlib.sha256(pathlib.Path(x['path']).read_bytes()).hexdigest()==x['sha256'] for x in d['measurement_artifacts'])\nprint(hashlib.sha256(p.read_bytes()).hexdigest())\nPY\nrtk git status --porcelain\"",
+      "exit_code": 0,
+      "type": "command_execution"
     }
   ],
-  "employee_pilot_or_canary": false,
-  "fix_binding_identity": {
-    "base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
-    "base_tree_oid": "b546ad8f1abbd0dea4124c6c3d91ac4103e4de8a",
-    "fix_request": "chg16-product-telemetry-01-fix03",
-    "issue_id": "CHG-16",
-    "logical_build_request": "chg16-product-telemetry-01",
-    "operation": "FIX",
-    "predecessor_candidate_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
-    "predecessor_candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
-    "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
-    "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
-    "product_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
-    "project_id": "k-slide",
-    "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix03",
-    "work_item": "KSA-35 F35-01/F35-02"
+  "codex": {
+    "cli_version": "codex-cli 0.157.0",
+    "configured_model": "gpt-6-luna",
+    "event_count": 1111,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 98.69,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 80688384,
+      "fresh_input_tokens": 1072388,
+      "input_tokens": 81760772,
+      "non_reasoning_output_tokens": 136215,
+      "output_tokens": 313564,
+      "reasoning_output_tokens": 177349,
+      "total_processed_tokens": 82074336
+    },
+    "warnings": []
   },
-  "fix_binding_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
-  "fix_binding_identity_sha256": "bb94b9409136a1e70f429e7614ba35616b5e26d110de2ce5839a9e9e7b5be36a",
-  "fix_request": "chg16-product-telemetry-01-fix03",
-  "generated_at": "2026-09-25",
-  "historical_build_evidence": {
-    "commit_parent_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
-    "error_code": "CODEX_EXIT_NONZERO",
-    "evidence_audit_sha256": "4eb0fcffb8508254d07a2571b847448b1ee3b9ef8d6a630ea041a40222cd0a87",
-    "evidence_commit_sha": "c8185e0aeb776038cd80bfcd72a054dcfd308f46",
-    "evidence_identity_sha256": "b2c3eb633ed68bef65500a9da7cb7c14926dc156a0fba13a4479e62c98d5fa2f",
-    "evidence_manifest_count": 0,
-    "evidence_ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-product-telemetry-01",
-    "failure_class": "CODEX_EXECUTION",
-    "implementation_commits": [],
-    "job_id": "CF-ab2fb520eae8329f1d87bef3",
-    "operation": "BUILD",
-    "pinned_base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
-    "project_id": "k-slide",
-    "request": "chg16-product-telemetry-01",
-    "result": "FAILED_BEFORE_IMPLEMENTATION",
-    "status": "FAILED_MODEL"
+  "commits": [
+    {
+      "sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
+      "subject": "KSA-36: record nested product prerequisite errors"
+    },
+    {
+      "sha": "61c8b35bc9841690bf854c3cb3ced77a6abdbe20",
+      "subject": "KSA-36: preserve PDF CLI JSON in measurements"
+    },
+    {
+      "sha": "87b0a0edb9ef130d040b1013fbc0dca43cffe9b5",
+      "subject": "KSA-36: add shared resource budgets and load harness"
+    }
+  ],
+  "diff": {
+    "additions": 2157,
+    "changed_files": 23,
+    "commit_count": 3,
+    "deletions": 113
   },
-  "historical_recovery_evidence": {
-    "corrected_in_fix01": [
-      "The recovery request remains historical evidence and is not relabeled as the canonically bound FIX request.",
-      "The original pinned base is not reused as the recovery work head.",
-      "The recovery evidence ref remains a historical alias of its work/audit head and is not reused as the FIX evidence publication."
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 5,
+    "items": [
+      {
+        "bytes": 4139,
+        "path": ".opencode/agents/k-slide.md",
+        "sha256": "d3b3a900341675c7d388b35fd7725cb762b96f6c0216fd7c7dd8623018bdb16a"
+      },
+      {
+        "bytes": 6752,
+        "path": "deploy/README.md",
+        "sha256": "24e5082f380137a324c814e9845ae9161e6a253b45c829a44ed11e57448914a7"
+      },
+      {
+        "bytes": 5565,
+        "path": "docs/ksa36-performance-load-budget.md",
+        "sha256": "055dc91b5d13429684ef7e56b35a179a3c50420959f65058e80c9461d47ff288"
+      },
+      {
+        "bytes": 7181,
+        "path": "schemas/operational-telemetry-event.schema.json",
+        "sha256": "f0a5bbdac321ed6a68edc87b8cc70a2a1de073dd572a2569413cfc679184b207"
+      },
+      {
+        "bytes": 2966,
+        "path": "schemas/resource-budget.schema.json",
+        "sha256": "4d71eab905eaea11f8412cb2d45a6f13eaae71f50225298f503ba7e9578eea1a"
+      }
     ],
-    "evidence_audit_sha256": "48c32b4376fb33e3ee409e3ebcd00f8e75cb86042d4a25551471848903306470",
-    "evidence_commit_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
-    "evidence_identity_sha256": "808adabcad874d8e130f2020fb64815d886bfc9138d5d3cb3e31561a7f42418f",
-    "evidence_ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-product-telemetry-01-resume1",
-    "evidence_ref_equals_work_head": true,
-    "job_id": "CF-e009b0f332b3f5fba1e37419",
-    "logical_build_request": "chg16-product-telemetry-01",
-    "operation": "BUILD",
-    "prebound_in_project_os": false,
-    "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
-    "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
-    "project_id": "k-slide",
-    "request": "chg16-product-telemetry-01-resume1",
-    "status": "EXECUTED_CHANGE",
-    "work_branch": "codex/k-slide-chg16-product-telemetry-01-resume1",
-    "work_head_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
-    "work_ref": "refs/heads/codex/k-slide-chg16-product-telemetry-01-resume1"
+    "version": 1
   },
-  "issue_id": "CHG-16",
+  "evidence_publisher_release": "1.2.5-dashboard-controls-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.5-dashboard-controls-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-26T17:29:03Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "71d3b0a56eee84716a37712440dd1763fd078c66",
+    "branch": "codex/k-slide-chg16-performance-load-budget-01",
+    "detached_verify": false,
+    "head_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
+    "remote_exact_head": true,
+    "remote_head_sha": "e7582e6dbe827c45e4843097ca8884164e71e314",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "71d3b0a56eee84716a37712440dd1763fd078c66",
+    "work_branch": "codex/k-slide-chg16-performance-load-budget-01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-f22fdb5fd16b97bc4cd098f7",
   "kind": "codex-fabric-audit-evidence",
-  "logical_request": "chg16-product-telemetry-01",
-  "operation": "FIX",
-  "operation_identity": {
-    "base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
-    "base_tree_oid": "b546ad8f1abbd0dea4124c6c3d91ac4103e4de8a",
-    "fix_request": "chg16-product-telemetry-01-fix03",
-    "issue_id": "CHG-16",
-    "logical_build_request": "chg16-product-telemetry-01",
-    "operation": "FIX",
-    "predecessor_candidate_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
-    "predecessor_candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
-    "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
-    "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
-    "product_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
-    "project_id": "k-slide",
-    "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix03",
-    "work_item": "KSA-35 F35-01/F35-02"
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-performance-load-budget-01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-performance-load-budget-01"
   },
-  "operation_identity_scheme": "SHA-256 over UTF-8 canonical JSON with sorted keys and compact separators.",
-  "operation_identity_sha256": "bb94b9409136a1e70f429e7614ba35616b5e26d110de2ce5839a9e9e7b5be36a",
-  "operational_service_enabled": false,
-  "predecessor_recovery_audit_sha256": "48c32b4376fb33e3ee409e3ebcd00f8e75cb86042d4a25551471848903306470",
-  "predecessor_recovery_evidence_identity_sha256": "808adabcad874d8e130f2020fb64815d886bfc9138d5d3cb3e31561a7f42418f",
-  "predecessor_recovery_head_sha": "c7f493ae69ad6177b79ce366c6985b1cf6e8f38c",
-  "predecessor_recovery_tree_oid": "603a9bdca64a1a9e339ca6d6e9ce9ddad7e04ec7",
-  "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
-  "product_source_content_manifest": [
-    {
-      "path": ".opencode/agents/k-slide.md",
-      "sha256": "7964e807477936f6564e9c0e90e952b1a7adf79da09c4a4e973423e247a0d0d3"
-    },
-    {
-      "path": ".opencode/tools/kslide.ts",
-      "sha256": "2061077db8adde9baf49c431bfdbb4fb59775f103b9f0242d15955700ae5ea1e"
-    },
-    {
-      "path": "IMPLEMENTATION_STATUS.md",
-      "sha256": "bb71208f95af07f5289c011c81f1aba0678d5c3eade30d4a52e8e8faa0500fd7"
-    },
-    {
-      "path": "docs/ksa35-product-telemetry.md",
-      "sha256": "b83127bacd4ca39a2e6d0e8a6e34658becdaa76acb97941b49a852c8f188a42e"
-    },
-    {
-      "path": "schemas/operational-telemetry-event.schema.json",
-      "sha256": "4da0dc3ed702b0f7809bcef5094771b1b32ddf5645e4e0788d786469ed38468f"
-    },
-    {
-      "path": "src/k_slide/cli.py",
-      "sha256": "cf6844ec24fecad0c29d0787244625db5c602e04bc4e5a6c4ec5c00ac652a52d"
-    },
-    {
-      "path": "src/k_slide/deletion.py",
-      "sha256": "0b273f6d5bfdb5ec995f8f2f404230da20567f4d07771440fad47badbc3c64d6"
-    },
-    {
-      "path": "src/k_slide/run_store.py",
-      "sha256": "6c2e020183f4238c400fb3e58b46c394eef434ca15e6f81be17d35019b3602b5"
-    },
-    {
-      "path": "src/k_slide/telemetry.py",
-      "sha256": "de482890890393e3a17579287680eefcd1d84295c3425238ca091a4e49459273"
-    },
-    {
-      "path": "tests/test_chg16_deletion.py",
-      "sha256": "9eab29ad9c6738a8b9535d2020020efcf2bc4b2fdfb888d8a71d0e91fd1ca476"
-    },
-    {
-      "path": "tests/test_chg16_opencode_plugin.ts",
-      "sha256": "02f155fdb06d58812f18f8cc1f7c49660ce74597f8d0a4ebeb350658bc56378c"
-    },
-    {
-      "path": "tests/test_chg16_storage_planes.py",
-      "sha256": "a56fb5bc82fd3646588fc705192d2d7658a386f0a11e0c6d10dcdad9228484cb"
-    },
-    {
-      "path": "tests/test_ksa35_product_telemetry.py",
-      "sha256": "4b8f4767cbec0c87ecef70768cc028a62ecb9dbed452102a1abd763faef40e19"
-    }
-  ],
-  "product_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
-  "product_source_parent_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
-  "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
+  "operation": "BUILD",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.5-dashboard-controls-candidate",
+    "policy_sha256": "123615bf2f6e57dcac197e49ca98ceac59ada86a55e2c84445ea5d00812c0833",
+    "registry_sha256": "af81b8552f9d6a33847310e3c6bcd2d48401782b963a58efd2993e93570cb4aa"
+  },
   "project_id": "k-slide",
-  "qualification_status": "CANDIDATE_CHECKS_PASS_PENDING_NATIVE_PUBLICATION_AND_INDEPENDENT_PROJECT_OS_REVIEW",
-  "release_or_production_claim": false,
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-performance-load-budget-01",
   "schema_version": 1,
-  "scope": {
-    "excluded": [
-      "KSA-36 and later work.",
-      "Live telemetry service provisioning.",
-      "Company policy changes.",
-      "Merge or movement of main.",
-      "Real pilot or canary.",
-      "Release, BUILD COMPLETE, or production certification."
-    ],
-    "implemented": [
-      "KSA-35 FIX03 candidate-side provenance correction only."
-    ],
-    "preserved": [
-      "Typed allowlisted source-free telemetry.",
-      "Engine-derived semantic outcome and review category.",
-      "Closed employee issue taxonomy meaning_error, number_error, omission, false_done, unnecessary_review; ALLEGATION status only.",
-      "Session/run-scoped authorization and idempotent duplicate/restart handling.",
-      "Truthful NOT_DELIVERED behavior for optional sink failures.",
-      "Operational-metadata retention and legal-hold reuse.",
-      "AccessKey and content non-leakage.",
-      "Shared Cloud VS Code/CLI and OpenCode host semantics.",
-      "No mutation of EvidenceIR, completion, or certification state."
-    ]
-  },
-  "source_tree_preservation": {
-    "code_or_test_changes_after_predecessor": false,
-    "fix_candidate_changed_paths": [
-      ".codex-fabric/audit.json"
-    ],
-    "predecessor_candidate_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
-    "predecessor_candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
-    "product_changed_paths_from_base": [
-      ".opencode/agents/k-slide.md",
-      ".opencode/tools/kslide.ts",
-      "IMPLEMENTATION_STATUS.md",
-      "docs/ksa35-product-telemetry.md",
-      "schemas/operational-telemetry-event.schema.json",
-      "src/k_slide/cli.py",
-      "src/k_slide/deletion.py",
-      "src/k_slide/run_store.py",
-      "src/k_slide/telemetry.py",
-      "tests/test_chg16_deletion.py",
-      "tests/test_chg16_opencode_plugin.ts",
-      "tests/test_chg16_storage_planes.py",
-      "tests/test_ksa35_product_telemetry.py"
-    ],
-    "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
-    "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
-    "product_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
-    "relative_to_predecessor_candidate": true
-  },
+  "started_at": "2026-09-26T14:44:27Z",
   "status": "EXECUTED_CHANGE",
-  "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix03",
-  "work_candidate": {
-    "project_id": "k-slide",
-    "operation": "FIX",
-    "request": "chg16-product-telemetry-01-fix03",
-    "base_commit_sha": "ad1d9acc67f78ede9de33efdca23a6d8e3fafdff",
-    "base_tree_oid": "b546ad8f1abbd0dea4124c6c3d91ac4103e4de8a",
-    "predecessor_candidate_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
-    "predecessor_candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
-    "product_source_commit_sha": "bf8b346e2502fabd57fc037bc377fa5e56366234",
-    "product_source_content_manifest_sha256": "93b02431d5a9dda0fc3d7e19a4b9cbc9e88ef990feeaccf8dbd1e1a71ebbbfea",
-    "product_source_tree_oid": "de30f9067befffcc787654831dcfcbbc2e812a70",
-    "work_branch": "codex/k-slide-chg16-product-telemetry-01-fix03",
-    "resulting_candidate_sha": null,
-    "resulting_candidate_tree_oid": null,
-    "resulting_candidate_binding_owner": "Fabric native publisher post-execution evidence",
-    "promotable_candidate": false,
-    "promotion_status": "PENDING_NATIVE_PUBLICATION_AND_INDEPENDENT_PROJECT_OS_REVIEW",
-    "candidate_check_status": "PASS"
+  "timing": {
+    "execution_seconds": 9876,
+    "queue_seconds": 2,
+    "total_seconds": 9878
   },
-  "work_item": "KSA-35 F35-01/F35-02",
-  "worktree_clean_before_audit_write": true,
-  "request": "chg16-product-telemetry-01-fix03",
-  "predecessor_candidate_sha": "5090f3cf6ae8c94b054c6f5aeaad3da446c42e54",
-  "predecessor_candidate_tree_oid": "76682767be1938eb0b2674a5159382322856ba79",
-  "fabric_execution_identity": {
-    "fabric_job_id": null,
-    "owner": "Fabric native publisher",
-    "status": "PENDING_POST_EXECUTION_PUBLICATION"
-  },
-  "historical_invalid_surrogate": {
-    "value": "CF-58388dc2ed6a76e938309a56",
-    "classification": "INVALID_LOCAL_SURROGATE",
-    "source_fix_request": "chg16-product-telemetry-01-fix01",
-    "origin": "Locally derived in FIX01; not issued or verified by Fabric.",
-    "valid_as_current_fabric_job_id": false
+  "transport": {
+    "bytes": 5363,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 5036,
+    "prompt_sha256": "624e3fe9dbc033947e907ab9285728560081c776141cdc84d6c959faf31ec2ea",
+    "sha256": "f22fdb5fd16b97bc4cd098f718dde512ff8aad15bfad9547add6722c8b801af2"
   }
 }
