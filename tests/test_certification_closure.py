@@ -63,6 +63,7 @@ from tests.bilingual_review_fixtures import make_review_contract
 from tests.zero_korean_study_fixtures import zero_korean_payload
 from tests.ksa32_governance_fixtures import write_governance_sources
 from evals.model_results import aggregate_model_results
+from k_slide.candidate_revocation import CandidateRevocationStatus
 from k_slide.production import ProductionProfile, _asset_manifest_status, _manifest_and_fingerprint_status
 
 
@@ -2247,10 +2248,23 @@ class CertificationClosureTests(unittest.TestCase):
             manifest_path = root / "release" / "manifest.json"
             profile_path = sbom_folder / "production-profile.json"
             release_args = ["--root", str(root), "--output", str(manifest_path), "--requested-state", "PRODUCTION_CERTIFIED", "--require-certified", "--candidate-profile", str(candidate_path), "--certified-profile-output", str(profile_path)]
+            environment_identity = "e" * 64
+            release_args.extend(["--candidate-run-environment-identity-sha256", environment_identity])
             for option, evidence_type in (("--runtime-evidence", "runtime"), ("--heavy-runtime-evidence", "heavy_runtime"), ("--validation-evidence", "model_validation"), ("--high-risk-evidence", "model_high_risk_stability"), ("--held-out-evidence", "model_held_out")):
                 release_args.extend([option, str(evidence_paths[evidence_type])])
             for option, evidence_type in (("--internal-bilingual-attestation", "internal_bilingual"), ("--zero-korean-attestation", "zero_korean_comprehension"), ("--model-data-policy-attestation", "model_data_policy"), ("--security-attestation", "security"), ("--reliability-attestation", "reliability"), ("--governance-attestation", "governance"), ("--pilot-attestation", "pilot_canary")):
                 release_args.extend([option, str(evidence_paths[evidence_type])])
+            class ClearRevocationProvider:
+                def status(self, exact_candidate):
+                    return CandidateRevocationStatus(exact_candidate, "a" * 64, 0, "CLEAR")
+
+            provider = ClearRevocationProvider()
+            release_provider_patch = patch("evals.release.deployment_candidate_revocation_control", return_value=provider)
+            readiness_provider_patch = patch("k_slide.candidate_revocation.deployment_candidate_revocation_control", return_value=provider)
+            release_provider_patch.start()
+            readiness_provider_patch.start()
+            self.addCleanup(release_provider_patch.stop)
+            self.addCleanup(readiness_provider_patch.stop)
             self.assertEqual(release_main(release_args), 0)
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["release_state"], "PRODUCTION_CERTIFIED")
@@ -2260,6 +2274,7 @@ class CertificationClosureTests(unittest.TestCase):
             self.assertEqual(profile["release_manifest_sha256"], _sha(manifest_path))
             self.assertEqual(profile["retention_policy"], candidate["retention_policy"])
             self.assertEqual(ProductionProfile.from_mapping(profile).deployment_fingerprint, deployment)
+            self.assertEqual(profile["run_environment_identity_sha256"], environment_identity)
             from k_slide.installer import install
             install(Path.cwd(), root, scope="project")
             shutil.rmtree(root / "prompts")
