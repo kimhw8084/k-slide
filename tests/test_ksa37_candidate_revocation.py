@@ -286,6 +286,87 @@ class KSA37CandidateRevocationTests(unittest.TestCase):
             apply_reference_candidate_event(root, event=signed, key=KEY, now=NOW)
             self.assertEqual((_state(root)["stage"], _state(root)["transition_action"]), ("DISABLED", "DISABLE"))
 
+    def test_recovery_rejects_enabled_primary_after_revoke_transition_crash(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            active = _environment("recover-crash-window")
+            policy = _initialize(root, active)
+            _transition(root, policy, action="SET_STAGE", transition_id="open-before-revoke-crash", stage="CANARY")
+            state_path = root / ".k-slide-config" / "rollout-state.json"
+            head_path = root / ".k-slide-config" / "rollout-head.json"
+            history_dir = root / ".k-slide-config" / "rollout-history"
+            state_before = state_path.read_bytes()
+            head_before = head_path.read_bytes()
+            history_before = {path.name: path.read_bytes() for path in history_dir.glob("*.json")}
+
+            revoke = event_for(root, active, event_id="crash-window-revoke")
+            with patch("k_slide.rollout.transition_reference_rollout_control", side_effect=RolloutControlError("simulated rollout transition failure")):
+                with self.assertRaisesRegex(CandidateRevocationError, "recorded"):
+                    apply_reference_candidate_event(root, event=revoke, key=KEY, now=NOW)
+
+            revoked = ReferenceFileCandidateRevocationControl(root, key=KEY).status(binding(active))
+            self.assertTrue(revoked.revoked)
+            self.assertEqual(state_path.read_bytes(), state_before)
+            self.assertEqual(head_path.read_bytes(), head_before)
+            self.assertEqual({path.name: path.read_bytes() for path in history_dir.glob("*.json")}, history_before)
+            self.assertEqual((_state(root)["stage"], _state(root)["admissions_enabled"]), ("CANARY", True))
+
+            recovery = event_for(root, active, action="RECOVER", event_id="crash-window-recover", evidence_kind="REQUALIFICATION_ATTESTATION")
+            with self.assertRaisesRegex(CandidateRevocationError, "disabled primary rollout"):
+                apply_reference_candidate_event(root, event=recovery, key=KEY, now=NOW)
+
+            still_revoked = ReferenceFileCandidateRevocationControl(root, key=KEY).status(binding(active))
+            self.assertTrue(still_revoked.revoked)
+            self.assertEqual(still_revoked.revision, revoked.revision)
+            self.assertEqual(state_path.read_bytes(), state_before)
+            self.assertEqual(head_path.read_bytes(), head_before)
+            self.assertEqual({path.name: path.read_bytes() for path in history_dir.glob("*.json")}, history_before)
+            admission = ReferenceFileRolloutControl(root, key=KEY, cohort_id="alpha", now=NOW).admit(binding(active))
+            self.assertEqual((admission.status, admission.reason_code, admission.revocation_status), ("DENIED", "CANDIDATE_REVOKED", "REVOKED"))
+
+    def test_recovery_from_already_disabled_primary_keeps_rollout_disabled(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            active = _environment("recover-disabled-primary")
+            _initialize(root, active)
+            apply_reference_candidate_event(root, event=event_for(root, active, event_id="disabled-revoke"), key=KEY, now=NOW)
+            state_before = (root / ".k-slide-config" / "rollout-state.json").read_bytes()
+            history_before = tuple(sorted(path.name for path in (root / ".k-slide-config" / "rollout-history").glob("*.json")))
+
+            recovery = event_for(root, active, action="RECOVER", event_id="disabled-recovery", evidence_kind="REQUALIFICATION_ATTESTATION")
+            recovered = apply_reference_candidate_event(root, event=recovery, key=KEY, now=NOW)
+
+            self.assertEqual((recovered.status, recovered.active_reason_categories), ("RECOVERED", ()))
+            self.assertEqual((root / ".k-slide-config" / "rollout-state.json").read_bytes(), state_before)
+            self.assertEqual(tuple(sorted(path.name for path in (root / ".k-slide-config" / "rollout-history").glob("*.json"))), history_before)
+            state = _state(root)
+            self.assertEqual((state["candidate_binding"], state["stage"], state["admissions_enabled"], state["admitted_cohorts"]), (binding(active).as_dict(), "DISABLED", False, []))
+            admission = ReferenceFileRolloutControl(root, key=KEY, cohort_id="alpha", now=NOW).admit(binding(active))
+            self.assertEqual((admission.status, admission.reason_code, admission.revocation_status), ("DENIED", "ADMISSIONS_DISABLED", "RECOVERED"))
+
+    def test_failed_restore_keeps_primary_revoked_until_rollout_is_proven(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            active, fallback = _environment("recover-restore-failure"), _environment("recover-restore-fallback")
+            policy = _initialize(root, active, rollback=fallback)
+            _transition(root, policy, action="SET_STAGE", transition_id="open-before-restore-failure", stage="PILOT")
+            apply_reference_candidate_event(root, event=event_for(root, active, event_id="restore-failure-revoke"), key=KEY, now=NOW)
+            state_path = root / ".k-slide-config" / "rollout-state.json"
+            state_before = state_path.read_bytes()
+            revocations = ReferenceFileCandidateRevocationControl(root, key=KEY)
+            before = revocations.status(binding(active))
+            recovery = event_for(root, active, action="RECOVER", event_id="restore-failure-recover", evidence_kind="REQUALIFICATION_ATTESTATION")
+
+            with patch("k_slide.rollout.transition_reference_rollout_control", side_effect=RolloutControlError("simulated RESTORE_CANDIDATE failure")):
+                with self.assertRaisesRegex(CandidateRevocationError, "revocation remains active"):
+                    apply_reference_candidate_event(root, event=recovery, key=KEY, now=NOW)
+
+            after = revocations.status(binding(active))
+            self.assertTrue(after.revoked)
+            self.assertEqual(after.revision, before.revision)
+            self.assertEqual(state_path.read_bytes(), state_before)
+            self.assertEqual((_state(root)["candidate_binding"], _state(root)["stage"]), (binding(fallback).as_dict(), "DISABLED"))
+
     def test_recovery_requires_requalification_and_restores_only_to_disabled(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

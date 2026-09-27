@@ -691,7 +691,14 @@ def initialize_reference_rollout_control(root: Path, *, policy: dict[str, Any], 
         atomic_write_json(_history_path(directory, 1), state, mode=0o600)
 
 
-def transition_reference_rollout_control(root: Path, *, command: dict[str, Any], key: bytes, now: datetime | None = None) -> int:
+def transition_reference_rollout_control(
+    root: Path,
+    *,
+    command: dict[str, Any],
+    key: bytes,
+    now: datetime | None = None,
+    recovery_event: dict[str, Any] | None = None,
+) -> int:
     """Apply a signed CAS transition to the local reference adapter."""
 
     root = Path(root).expanduser().resolve()
@@ -709,13 +716,35 @@ def transition_reference_rollout_control(root: Path, *, command: dict[str, Any],
         payload, policy_identity = _policy_payload(policy, key, now=(now or datetime.now(timezone.utc)).astimezone(timezone.utc))
         current, state_identity = _state_payload(state, key, policy_identity=policy_identity, head=head)
         _verify_reference_history(directory, key=key, policy_identity=policy_identity, latest_state=current, latest_identity=state_identity)
-        from .candidate_revocation import ReferenceFileCandidateRevocationControl
+        from .candidate_revocation import ReferenceFileCandidateRevocationControl, _verify as _verify_candidate_event, record_reference_candidate_event
 
         action_payload = _verify_signed(command, key, "rollout transition")
         action = action_payload.get("action")
         target = None
         if isinstance(action_payload.get("target_candidate_binding"), dict):
             target = RolloutCandidateBinding.from_mapping(action_payload["target_candidate_binding"])
+        recovery_candidate = None
+        if recovery_event is not None:
+            recovery_payload = _verify_candidate_event(recovery_event, key, "candidate recovery event")
+            recovery_candidate = RolloutCandidateBinding.from_mapping(recovery_payload.get("candidate_binding"))
+            primary = RolloutCandidateBinding.from_mapping(payload["candidate_binding"])
+            rollback = RolloutCandidateBinding.from_mapping(payload["rollback_target_binding"]) if payload["rollback_target_binding"] is not None else None
+            if (
+                action != "RESTORE_CANDIDATE"
+                or recovery_payload.get("action") != "RECOVER"
+                or recovery_candidate != primary
+                or target != primary
+                or RolloutCandidateBinding.from_mapping(current["candidate_binding"]) != rollback
+                or action_payload.get("transition_id") != "restore-" + recovery_payload.get("event_id", "")
+            ):
+                raise RolloutControlError("candidate recovery event does not authorize this exact restore transition")
+            recovery_status, duplicate = record_reference_candidate_event(
+                root, event=recovery_event, key=key, now=now, _validate_only=True
+            )
+            if duplicate or not recovery_status.revoked:
+                raise RolloutControlError("candidate recovery requires a current active revocation")
+            if ReferenceFileCandidateRevocationControl(root, key=key).status(rollback).revoked:
+                raise RolloutControlError("candidate recovery rollback target is revoked")
         protected_candidates = []
         if action == "SET_STAGE":
             protected_candidates.append(RolloutCandidateBinding.from_mapping(current["candidate_binding"]))
@@ -725,9 +754,17 @@ def transition_reference_rollout_control(root: Path, *, command: dict[str, Any],
             protected_candidates.append(target)
         revocations = ReferenceFileCandidateRevocationControl(root, key=key)
         for protected in protected_candidates:
-            if revocations.status(protected).revoked:
+            if revocations.status(protected).revoked and protected != recovery_candidate:
                 raise RolloutControlError("rollout transition is blocked by an active candidate revocation")
         next_state, next_head = apply_rollout_transition(policy=policy, state=state, head=head, command=command, key=key, now=now)
+        next_payload = _verify_signed(next_state, key, "rollout state")
+        if action == "RESTORE_CANDIDATE" and (
+            next_payload["candidate_binding"] != payload["candidate_binding"]
+            or next_payload["stage"] != "DISABLED"
+            or next_payload["admissions_enabled"] is not False
+            or next_payload["admitted_cohorts"] != []
+        ):
+            raise RolloutControlError("candidate recovery did not produce a disabled primary rollout")
         # A crash between these two writes makes the state fail closed until an
         # authorized control-plane reconciliation. The signed head is the
         # reference adapter's monotonic replay anchor.
@@ -738,4 +775,8 @@ def transition_reference_rollout_control(root: Path, *, command: dict[str, Any],
         atomic_write_json(history_path, next_state, mode=0o600)
         atomic_write_json(state_path, next_state, mode=0o600)
         atomic_write_json(head_path, next_head, mode=0o600)
+        if recovery_event is not None:
+            recovered_state, recovered_identity = _state_payload(next_state, key, policy_identity=policy_identity, head=next_head)
+            _verify_reference_history(directory, key=key, policy_identity=policy_identity, latest_state=recovered_state, latest_identity=recovered_identity)
+            record_reference_candidate_event(root, event=recovery_event, key=key, now=now)
         return next_revision

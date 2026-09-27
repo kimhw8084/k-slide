@@ -417,8 +417,9 @@ def record_reference_candidate_event(
     event: dict[str, Any],
     key: bytes,
     now: datetime | None = None,
+    _validate_only: bool = False,
 ) -> tuple[CandidateRevocationStatus, bool]:
-    """CAS-append a signed event. Returns ``(status, was_duplicate)``."""
+    """CAS-append a signed event, or validate it without appending."""
 
     signed_event = event
     candidate_payload = _verify(signed_event, key, "candidate revocation event")
@@ -447,6 +448,9 @@ def record_reference_candidate_event(
             if not set(payload["reason_categories"]) <= categories:
                 raise CandidateRevocationError("candidate recovery lacks a current matching revocation")
             categories.difference_update(payload["reason_categories"])
+        if _validate_only:
+            status = CandidateRevocationStatus(candidate, state_id, state["revision"], state["status"], tuple(state["active_reason_categories"]), state["event_identity"])
+            return status.validate(candidate), False
         event_identity = hashlib.sha256(_canonical(payload)).hexdigest()
         revision = state["revision"] + 1
         next_payload = {
@@ -486,16 +490,20 @@ def apply_reference_candidate_event(
     key: bytes,
     now: datetime | None = None,
 ) -> CandidateRevocationStatus:
-    """Persist an authorized event and use existing signed rollout transitions.
-
-    Revocation is durable before DISABLE/ROLLBACK is attempted, so a rollout
-    transition conflict cannot reopen admission. Recovery invokes the existing
-    RESTORE_CANDIDATE transition only for the exact policy primary candidate.
-    """
+    """Persist an authorized event and use existing signed rollout transitions."""
 
     candidate_payload = _verify(event, key, "candidate revocation event")
     candidate = RolloutCandidateBinding.from_mapping(candidate_payload.get("candidate_binding"))
-    status, duplicate = record_reference_candidate_event(root, event=event, key=key, now=now)
+    current_time = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    candidate_payload = _validate_event(candidate_payload, candidate, now=current_time)
+    if candidate_payload["action"] == "RECOVER":
+        status, duplicate = record_reference_candidate_event(root, event=event, key=key, now=current_time, _validate_only=True)
+        if duplicate:
+            return status
+        return _apply_reference_recovery(root, event=event, candidate_payload=candidate_payload, candidate=candidate, key=key, now=current_time)
+
+    # REVOKE remains durable before DISABLE/ROLLBACK is attempted.
+    status, duplicate = record_reference_candidate_event(root, event=event, key=key, now=current_time)
     event_identity = hashlib.sha256(_canonical(candidate_payload)).hexdigest()
     if duplicate and status.event_identity != event_identity:
         return status
@@ -519,17 +527,13 @@ def apply_reference_candidate_event(
         current, _state_id = _state_payload(state, key, policy_identity=policy_id, head=head)
     except Exception as exc:
         raise CandidateRevocationError("signed rollout control state is unavailable for revocation transition") from exc
-    primary = RolloutCandidateBinding.from_mapping(policy_payload["candidate_binding"])
     rollback = RolloutCandidateBinding.from_mapping(policy_payload["rollback_target_binding"]) if policy_payload["rollback_target_binding"] is not None else None
     active = RolloutCandidateBinding.from_mapping(current["candidate_binding"])
-    if candidate_payload["action"] == "REVOKE" and active == candidate:
+    if active == candidate:
         fallback = reference_candidate_revocation_status(root, rollback, key=key) if rollback is not None else None
         action = "ROLLBACK" if rollback is not None and fallback is not None and not fallback.revoked else "DISABLE"
         target = rollback if action == "ROLLBACK" else None
         transition_id = "rev-" + candidate_payload["event_id"]
-    elif candidate_payload["action"] == "RECOVER" and primary == candidate and rollback is not None and active == rollback:
-        action, target = "RESTORE_CANDIDATE", primary
-        transition_id = "restore-" + candidate_payload["event_id"]
     else:
         return status
     command = build_transition_command(
@@ -548,6 +552,88 @@ def apply_reference_candidate_event(
         # The event remains durable and the admission gate remains closed.
         raise CandidateRevocationError("candidate revocation is recorded; signed rollout transition requires reconciliation") from exc
     return status
+
+
+def _load_reference_rollout_snapshot(root: Path, *, key: bytes, now: datetime) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any], str]:
+    from .rollout import _policy_payload, _state_payload, _verify_reference_history
+
+    directory = Path(root).expanduser().resolve() / ".k-slide-config"
+    paths = tuple(directory / name for name in ("rollout-policy.json", "rollout-state.json", "rollout-head.json"))
+    if directory.is_symlink() or any(path.is_symlink() for path in paths):
+        raise CandidateRevocationError("signed rollout control state is unavailable for candidate recovery")
+    try:
+        policy, signed_state, head = (read_json(path) for path in paths)
+        policy_payload, policy_identity = _policy_payload(policy, key, now=now)
+        state_payload, state_identity = _state_payload(signed_state, key, policy_identity=policy_identity, head=head)
+        _verify_reference_history(directory, key=key, policy_identity=policy_identity, latest_state=state_payload, latest_identity=state_identity)
+    except Exception as exc:
+        raise CandidateRevocationError("signed rollout policy, state, head, or history is unavailable or invalid for candidate recovery") from exc
+    return policy, signed_state, head, policy_payload, policy_identity
+
+
+def _apply_reference_recovery(
+    root: Path,
+    *,
+    event: dict[str, Any],
+    candidate_payload: dict[str, Any],
+    candidate: RolloutCandidateBinding,
+    key: bytes,
+    now: datetime,
+) -> CandidateRevocationStatus:
+    from .locking import filesystem_lock
+    from .rollout import (
+        RolloutControlError,
+        _state_payload,
+        build_transition_command,
+        rollout_policy_identity,
+        transition_reference_rollout_control,
+    )
+
+    root = Path(root).expanduser().resolve()
+    directory = root / ".k-slide-config"
+    policy, signed_state, head, policy_payload, _policy_id = _load_reference_rollout_snapshot(root, key=key, now=now)
+    primary = RolloutCandidateBinding.from_mapping(policy_payload["candidate_binding"])
+    rollback = RolloutCandidateBinding.from_mapping(policy_payload["rollback_target_binding"]) if policy_payload["rollback_target_binding"] is not None else None
+    current, _state_id = _state_payload(signed_state, key, policy_identity=_policy_id, head=head)
+    active = RolloutCandidateBinding.from_mapping(current["candidate_binding"])
+    if primary != candidate:
+        raise CandidateRevocationError("candidate recovery is not bound to the exact signed rollout primary")
+
+    if active == primary:
+        if current["stage"] != "DISABLED" or current["admissions_enabled"] is not False or current["admitted_cohorts"] != []:
+            raise CandidateRevocationError("candidate recovery requires a disabled primary rollout before clearing revocation")
+        # Hold the rollout CAS lock through the ledger append so a concurrent
+        # signed stage change cannot reopen admission between the check/write.
+        with filesystem_lock(directory / "rollout-control.lock"):
+            _policy, current_state, current_head, current_policy_payload, current_policy_id = _load_reference_rollout_snapshot(root, key=key, now=now)
+            current, _state_id = _state_payload(current_state, key, policy_identity=current_policy_id, head=current_head)
+            if current_policy_payload["candidate_binding"] != candidate.as_dict() or current["candidate_binding"] != candidate.as_dict() or current["stage"] != "DISABLED" or current["admissions_enabled"] is not False or current["admitted_cohorts"] != []:
+                raise CandidateRevocationError("candidate recovery rollout changed before the disabled-state ledger append")
+            status, _duplicate = record_reference_candidate_event(root, event=event, key=key, now=now)
+            return status
+
+    if rollback is None or active != rollback:
+        raise CandidateRevocationError("candidate recovery requires the signed primary or its exact authorized rollback target to be active")
+    fallback_status = reference_candidate_revocation_status(root, rollback, key=key)
+    if fallback_status.revoked:
+        raise CandidateRevocationError("candidate recovery is blocked because the authorized rollback candidate is revoked")
+
+    recovery_id = "restore-" + candidate_payload["event_id"]
+    command = build_transition_command(
+        policy_identity=rollout_policy_identity(policy, key=key, now=now),
+        expected_revision=current["revision"],
+        action="RESTORE_CANDIDATE",
+        transition_id=recovery_id,
+        actor_ref=candidate_payload["actor_ref"],
+        target_stage=None,
+        target_candidate=candidate,
+        key=key,
+    )
+    try:
+        transition_reference_rollout_control(root, command=command, key=key, now=now, recovery_event=event)
+    except RolloutControlError as exc:
+        raise CandidateRevocationError("candidate recovery could not prove a disabled primary rollout; revocation remains active") from exc
+    return reference_candidate_revocation_status(root, candidate, key=key)
 
 
 class ReferenceFileCandidateRevocationControl:
