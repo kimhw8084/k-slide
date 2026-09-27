@@ -1,0 +1,313 @@
+{
+  "schema_version": "1.0",
+  "evidence_type": "k-slide-fix-candidate-evidence",
+  "project": "k-slide",
+  "issue_id": "CHG-16",
+  "work_item": "KSA-37 FIX01; F37-01/F37-02/F37-03",
+  "operation": "FIX",
+  "logical_build_request": "chg16-candidate-revocation-drift-01",
+  "request": "chg16-candidate-revocation-drift-01-fix01",
+  "exact_base": {
+    "commit_sha": "76d8ea098bce24cf5e7e901c6764fe8bba51dca3",
+    "tree_oid": "ab6c05e1098dd7cf1d4b1a47913b099a10ed573c"
+  },
+  "work_branch": "codex/k-slide-chg16-candidate-revocation-drift-01-fix01",
+  "predecessor": {
+    "product_commit_sha": "ea90ea1a0d662ad56fe9b29472416e6cc21466df",
+    "product_tree_oid": "1cf26f02d69737b95aaa6e0954f75955390f78ab",
+    "parent_commit_sha": "76d8ea098bce24cf5e7e901c6764fe8bba51dca3",
+    "build_execution_identity": {
+      "fabric_job_id": "CF-377d117c643ee14d76df6dd0",
+      "operation": "BUILD",
+      "request": "chg16-candidate-revocation-drift-01",
+      "native_evidence_commit_sha": "75229dc0afe3e93be6cb4a8ddc8c169c37b249c2",
+      "verified_native_evidence_parent": "ea90ea1a0d662ad56fe9b29472416e6cc21466df"
+    }
+  },
+  "resulting_product_candidate": {
+    "commit_sha": "9b7f6d8ab0cec76faadc988751f305fcfe57f3ab",
+    "tree_oid": "4b156c0f2379babad3a1b7c81980faa8207b1d16",
+    "parent_commit_sha": "ea90ea1a0d662ad56fe9b29472416e6cc21466df",
+    "work_branch": "codex/k-slide-chg16-candidate-revocation-drift-01-fix01",
+    "worktree_clean_at_product_candidate": true
+  },
+  "current_execution_identity": null,
+  "fabric_execution_identity": {
+    "fabric_job_id": null,
+    "owner": "Fabric native publisher post-execution evidence",
+    "status": "PENDING_POST_EXECUTION_PUBLICATION"
+  },
+  "candidate_changes": {
+    "changed_product_paths_since_predecessor": [
+      "src/k_slide/candidate_revocation.py",
+      "src/k_slide/rollout.py",
+      "tests/test_ksa37_candidate_revocation.py"
+    ],
+    "product_paths_from_exact_base": [
+      "docs/ksa37-candidate-revocation.md",
+      "evals/release.py",
+      "schemas/candidate-revocation.schema.json",
+      "schemas/rollout-control.schema.json",
+      "src/k_slide/candidate_revocation.py",
+      "src/k_slide/production.py",
+      "src/k_slide/rollout.py",
+      "tests/rollout_fixtures.py",
+      "tests/test_certification_closure.py",
+      "tests/test_ksa37_candidate_revocation.py"
+    ],
+    "candidate_evidence_paths": [
+      ".codex-fabric/audit.json",
+      ".codex-fabric/ksa37/candidate-evidence.json"
+    ],
+    "unrelated_product_behavior_changed_after_predecessor": false
+  },
+  "ksa37_contract": {
+    "revocation_schema_version": "1.0",
+    "closed_reason_categories": [
+      "BROKEN_EVIDENCE_IDENTITY",
+      "CREDENTIAL_LEAKAGE",
+      "CRITICAL_SEMANTIC_DEFECT",
+      "CRITICAL_VULNERABILITY",
+      "MATERIAL_DATA_USE_POLICY_CHANGE",
+      "PRIVACY_INCIDENT",
+      "PROVIDER_MODEL_CONFIG_DRIFT",
+      "SECURITY_INCIDENT",
+      "TENANT_ISOLATION_FAILURE"
+    ],
+    "reason_authority_mapping": {
+      "CRITICAL_SEMANTIC_DEFECT": "quality_authority",
+      "SECURITY_INCIDENT": "security_authority",
+      "PRIVACY_INCIDENT": "privacy_authority",
+      "CREDENTIAL_LEAKAGE": "security_authority",
+      "TENANT_ISOLATION_FAILURE": "security_authority",
+      "PROVIDER_MODEL_CONFIG_DRIFT": "deployment_authority",
+      "BROKEN_EVIDENCE_IDENTITY": "release_authority",
+      "MATERIAL_DATA_USE_POLICY_CHANGE": "privacy_authority",
+      "CRITICAL_VULNERABILITY": "security_authority"
+    },
+    "preserved_invariants": [
+      "source-free typed evidence references",
+      "exact RolloutCandidateBinding",
+      "signed and versioned state, head, and immutable history",
+      "fail-closed missing or unreadable provider",
+      "rollout admission, readiness, and release blocking",
+      "only the signed-policy authorized rollback target may be selected",
+      "no in-flight candidate migration",
+      "qualification_authority RECOVER requires REQUALIFICATION_ATTESTATION",
+      "historical evidence is not rewritten",
+      "live company provider remains an external typed adapter and is not claimed qualified"
+    ],
+    "source_identities": [
+      {
+        "path": "schemas/candidate-revocation.schema.json",
+        "sha256": "2236944dd3dad23da00bebd7e8da652531c94686149e7cdc0302b3135dc62a30",
+        "git_blob_oid": "4f3eacd2f2356029781a6526470420e0d452c753"
+      },
+      {
+        "path": "schemas/rollout-control.schema.json",
+        "sha256": "87e5757a4d73352c6a2b2a709b28299d250b2590d2a7d5f174c85142a294cc67",
+        "git_blob_oid": "8c174d8b1a1cfd9416df73d2d651c8617590147c"
+      },
+      {
+        "path": "src/k_slide/candidate_revocation.py",
+        "sha256": "3a2d5c6842fdbf4b7934675b13dd22dee916e1370d68cc989db5f73952695e8b",
+        "git_blob_oid": "13624766e242f83461f07e527fd261528e10b9b3"
+      },
+      {
+        "path": "src/k_slide/rollout.py",
+        "sha256": "7de39ccf4b6ec29ed5261b8af5d341942a565673c52123b17b17c4c6b46af7d2",
+        "git_blob_oid": "de0e43f1ab0508903d5edd7d7c3975e0cd5ffad2"
+      },
+      {
+        "path": "src/k_slide/production.py",
+        "sha256": "fe4db82d62a741c56bbeb6155564188fb327a9c79469edca2a748bc861c6956e",
+        "git_blob_oid": "09701cb8edda24c0362566e79d76df51881a327e"
+      },
+      {
+        "path": "evals/release.py",
+        "sha256": "9ec3c554a5176a95419dfdd44310e3a03fd80b3b7948d48ac19510e450cdcff3",
+        "git_blob_oid": "63d6ef72aa881a21d856f87b0a14f8b6ac9343ea"
+      },
+      {
+        "path": "tests/test_ksa37_candidate_revocation.py",
+        "sha256": "950ffc81be00d39d04e8f4ebc1067e5a8f54e1e0800cc34a1bf9cf99c4c79440",
+        "git_blob_oid": "e5437362bcced44d0e6341a3b533efb72d9f1491"
+      },
+      {
+        "path": "tests/test_certification_closure.py",
+        "sha256": "9ea93db798d8472a94187e30f0fd6decd174257b2ce2bda6ada4063a2abc4c64",
+        "git_blob_oid": "7c2bf63222b50b280a2227b7843c97438f3f9595"
+      },
+      {
+        "path": "tests/rollout_fixtures.py",
+        "sha256": "cbef1cd2d8100e5c3ea70d241e6e138dc52ee7ba3dddce29525f78a68a225f25",
+        "git_blob_oid": "78a8a4b7e91f2d0f60e5da185288f9499037a158"
+      },
+      {
+        "path": "docs/ksa37-candidate-revocation.md",
+        "sha256": "9d4f44679a37e0d14eb9d77b918c9eea45ac5ce94aadf0556fa81284013e2d34",
+        "git_blob_oid": "b86e7727e93cffd5618c4e5f1f6f96deec1b40f5"
+      }
+    ],
+    "authoritative_integration_points": [
+      "src/k_slide/candidate_revocation.py::apply_reference_candidate_event — signed REVOKE/RECOVER orchestration and recovery rollout preconditions",
+      "src/k_slide/candidate_revocation.py::record_reference_candidate_event — candidate-bound signed CAS ledger and immutable history append",
+      "src/k_slide/candidate_revocation.py::deployment_candidate_revocation_control and candidate_revocation_gate — typed deployment adapter and fail-closed readiness gate",
+      "src/k_slide/rollout.py::ReferenceFileRolloutControl.admit — rollout admission gate bound to candidate revocation status",
+      "src/k_slide/rollout.py::deployment_rollout_control and RevocationAwareRolloutControl — deployment rollout adapter and revocation-aware admission wrapper",
+      "src/k_slide/rollout.py::transition_reference_rollout_control — signed optimistic-concurrency transition, history verification, and recovery ordering",
+      "src/k_slide/production.py::production readiness candidate_revocation_gate integration",
+      "evals/release.py::release candidate_revocation_gate integration"
+    ],
+    "company_provider_qualification": "EXTERNAL_TYPED_ADAPTER_NOT_INSTALLED_OR_QUALIFIED"
+  },
+  "f37_01_regression": {
+    "status": "PASS",
+    "crash_window_test": "tests/test_ksa37_candidate_revocation.py::test_recovery_rejects_enabled_primary_after_revoke_transition_crash",
+    "observed": "A signed REVOKE was durably recorded while a forced rollout-transition failure left the primary in CANARY with admissions enabled. A valid requalification RECOVER was rejected before ledger append; revocation stayed REVOKED at the same revision, rollout state/head/history stayed byte-identical, and admission returned DENIED/CANDIDATE_REVOKED.",
+    "disabled_primary_recovery": "PASS; revocation cleared only while exact primary was already DISABLED with admissions disabled and no cohorts; rollout state/history did not advance and admission remained denied as ADMISSIONS_DISABLED.",
+    "authorized_rollback_recovery": "PASS; exact unrevoked signed-policy rollback target was active; existing RESTORE_CANDIDATE transition restored the primary into DISABLED with admissions disabled and no cohorts before revocation cleared.",
+    "failed_restore": "PASS; simulated RESTORE_CANDIDATE failure left recovery unappended and primary revocation active.",
+    "revoke_write_before_transition": "PRESERVED"
+  },
+  "qualification": {
+    "candidate_status": "PASS_PENDING_NATIVE_PUBLICATION_AND_INDEPENDENT_PROJECT_OS_REVIEW",
+    "checks": [
+      {
+        "name": "focused_ksa37_candidate_revocation",
+        "command": "pytest -q tests/test_ksa37_candidate_revocation.py",
+        "python": "3.11.7",
+        "runner": "pytest 8.x isolated venv",
+        "tests": 22,
+        "status": "PASS"
+      },
+      {
+        "name": "focused_ksa37_candidate_revocation",
+        "command": "pytest -q tests/test_ksa37_candidate_revocation.py",
+        "python": "3.12.9",
+        "runner": "pytest 8.x isolated venv",
+        "tests": 22,
+        "status": "PASS"
+      },
+      {
+        "name": "ksa34_rollout_regressions",
+        "command": "pytest -q tests/test_ksa34_rollout.py",
+        "python": "3.11.7",
+        "tests": 17,
+        "status": "PASS"
+      },
+      {
+        "name": "ksa34_rollout_regressions",
+        "command": "pytest -q tests/test_ksa34_rollout.py",
+        "python": "3.12.9",
+        "tests": 17,
+        "status": "PASS"
+      },
+      {
+        "name": "full_repository_python_suite",
+        "command": "pytest -q",
+        "python": "3.11.7",
+        "tests": 739,
+        "warnings": 5,
+        "status": "PASS"
+      },
+      {
+        "name": "full_repository_python_suite",
+        "command": "pytest -q",
+        "python": "3.12.9",
+        "tests": 739,
+        "warnings": 5,
+        "status": "PASS"
+      },
+      {
+        "name": "related_release_certification_security_privacy_authorization_retention_telemetry_host_regressions",
+        "command": "pytest -q tests/test_certification_closure.py tests/test_ksa31_promotion_recertification.py tests/test_ksa32_release_governance.py tests/test_ksa33_security_release.py tests/test_ksa21_adversarial_security.py tests/test_ksa25_recovery_law.py tests/test_ksa35_product_telemetry.py tests/test_chg16_*.py tests/test_chg17_*.py tests/test_chg18_*.py",
+        "python": "3.11.7",
+        "tests": 402,
+        "warnings": 5,
+        "status": "PASS"
+      },
+      {
+        "name": "related_release_certification_security_privacy_authorization_retention_telemetry_host_regressions",
+        "command": "pytest -q tests/test_certification_closure.py tests/test_ksa31_promotion_recertification.py tests/test_ksa32_release_governance.py tests/test_ksa33_security_release.py tests/test_ksa21_adversarial_security.py tests/test_ksa25_recovery_law.py tests/test_ksa35_product_telemetry.py tests/test_chg16_*.py tests/test_chg17_*.py tests/test_chg18_*.py",
+        "python": "3.12.9",
+        "tests": 402,
+        "warnings": 5,
+        "status": "PASS"
+      },
+      {
+        "name": "opencode_host_attachment_regression",
+        "command": "npx --yes bun@1.4.2 run tests/test_chg16_opencode_plugin.ts",
+        "runner_version": "Bun 1.4.2",
+        "python_3_11": {
+          "version": "3.11.7",
+          "status": "PASS",
+          "assertion_boundaries": 12,
+          "isolated_tmp_root": "/tmp/k-slide-chg16-opencode-py311"
+        },
+        "python_3_12": {
+          "version": "3.12.9",
+          "status": "PASS",
+          "assertion_boundaries": 12,
+          "isolated_tmp_root": "/tmp/k-slide-chg16-opencode-py312"
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "json_schema_validation_and_runtime_error_code_parity",
+        "python_3_11": {
+          "schemas": 10,
+          "candidate_revocation_schema": "PASS",
+          "rollout_control_schema": "PASS",
+          "runtime_error_codes": 92,
+          "schema_error_codes": 92,
+          "status": "PASS"
+        },
+        "python_3_12": {
+          "schemas": 10,
+          "candidate_revocation_schema": "PASS",
+          "rollout_control_schema": "PASS",
+          "runtime_error_codes": 92,
+          "schema_error_codes": 92,
+          "status": "PASS"
+        }
+      },
+      {
+        "name": "workflow_yaml_and_embedded_shell_validation",
+        "python": "3.11.7",
+        "pyyaml": "6.0.3",
+        "workflows": 6,
+        "embedded_shell_steps": 49,
+        "validated_with": "bash -n",
+        "status": "PASS"
+      },
+      {
+        "name": "compileall_src_tests_evals",
+        "python": "3.11.7",
+        "python_source_files": 166,
+        "status": "PASS"
+      },
+      {
+        "name": "compileall_src_tests_evals",
+        "python": "3.12.9",
+        "python_source_files": 166,
+        "status": "PASS"
+      },
+      {
+        "name": "git_diff_check",
+        "product_candidate": "9b7f6d8ab0cec76faadc988751f305fcfe57f3ab",
+        "status": "PASS"
+      }
+    ],
+    "external_model_company_provider_live_rollout": "NOT_MEASURED_OR_QUALIFIED"
+  },
+  "scope_boundaries": {
+    "notion_mutated": false,
+    "main_moved_or_merged": false,
+    "live_company_rollout_security_vulnerability_iam_provider_systems_mutated": false,
+    "pilot_or_canary_run": false,
+    "ksa38_or_later_work_added": false,
+    "go_release_build_complete_runtime_ready_champion_production_revocation_or_production_certification_claimed": false,
+    "project_os_chatgpt_remains_independent_auditor_and_integration_authority": true
+  }
+}
