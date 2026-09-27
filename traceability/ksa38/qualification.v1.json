@@ -1,0 +1,180 @@
+{
+  "schema_version": "1.0",
+  "project": "k-slide",
+  "operation": "BUILD",
+  "request": "chg16-requirement-traceability-01",
+  "product_subject_sha": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd",
+  "change_base_sha": "af5836540304b424289bedbe57a87dbb5d02763f",
+  "checks": [
+    {
+      "name": "focused_ksa38_traceability_tests",
+      "command": "rtk python3.11 -m pytest -q tests/test_ksa38_traceability.py",
+      "python_version": "3.11.7",
+      "status": "PASS",
+      "tests_passed": 16,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Focused schema, exact subject/span, clause/KSA/path coverage, closure separation, locator, gap, and report tests."
+    },
+    {
+      "name": "focused_ksa38_traceability_tests",
+      "command": "rtk /tmp/k-slide-ksa37-py312/bin/python -m pytest -q tests/test_ksa38_traceability.py",
+      "python_version": "3.12.9",
+      "status": "PASS",
+      "tests_passed": 16,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Focused schema, exact subject/span, clause/KSA/path coverage, closure separation, locator, gap, and report tests."
+    },
+    {
+      "name": "full_repository_python_suite",
+      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m pytest -q",
+      "python_version": "3.11.7",
+      "status": "PASS",
+      "tests_passed": 750,
+      "tests_skipped": 5,
+      "warnings": 1,
+      "details": "The single warning is the installed fontTools py23 deprecation warning. Full discovery includes certification, release, security, runtime, and Python host regressions."
+    },
+    {
+      "name": "full_repository_python_suite",
+      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa37-py312/bin/python -m pytest -q",
+      "python_version": "3.12.9",
+      "status": "PASS",
+      "tests_passed": 744,
+      "tests_skipped": 11,
+      "warnings": 0,
+      "details": "Full discovery includes certification, release, security, runtime, and Python host regressions."
+    },
+    {
+      "name": "exact_subject_change_span_matrix_validation",
+      "command": "tools/ksa38/validate_traceability.py --check-report",
+      "python_version": "3.11.7",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "warnings": 0,
+      "details": "Independently rederived the 152-commit ancestor span and all 229 paths; 35 clauses, 37 KSAs, and zero unexplained paths."
+    },
+    {
+      "name": "exact_subject_change_span_matrix_validation",
+      "command": "tools/ksa38/validate_traceability.py --check-report",
+      "python_version": "3.12.9",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "warnings": 0,
+      "details": "Independently rederived the 152-commit ancestor span and all 229 paths; 35 clauses, 37 KSAs, and zero unexplained paths."
+    },
+    {
+      "name": "repository_json_schemas_draft_2020_12",
+      "command": "Draft202012Validator.check_schema over every repository schema JSON file",
+      "python_version": "3.11.7",
+      "status": "PASS",
+      "tests_passed": 13,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "All 10 existing schemas and the 3 dedicated KSA-38 schemas passed Draft 2020-12 meta-schema validation."
+    },
+    {
+      "name": "repository_json_schemas_draft_2020_12",
+      "command": "Draft202012Validator.check_schema over every repository schema JSON file",
+      "python_version": "3.12.9",
+      "status": "PASS",
+      "tests_passed": 13,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "All 10 existing schemas and the 3 dedicated KSA-38 schemas passed Draft 2020-12 meta-schema validation."
+    },
+    {
+      "name": "runtime_errorcode_parity",
+      "command": "pytest -q tests/test_chg16_resource_budget.py -k resource_budget_and_telemetry_error_schemas_match_runtime_contract",
+      "python_version": "3.11.7",
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Runtime ErrorCode and schema parity regression passed."
+    },
+    {
+      "name": "runtime_errorcode_parity",
+      "command": "pytest -q tests/test_chg16_resource_budget.py -k resource_budget_and_telemetry_error_schemas_match_runtime_contract",
+      "python_version": "3.12.9",
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Runtime ErrorCode and schema parity regression passed."
+    },
+    {
+      "name": "workflow_yaml_and_embedded_shell",
+      "command": "PyYAML safe_load for .github/workflows/*.yml and bash -n for each embedded run step",
+      "python_version": "3.11.7",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Six workflow YAML files parsed; all 49 embedded shell steps passed bash -n."
+    },
+    {
+      "name": "workflow_yaml_and_embedded_shell",
+      "command": "PyYAML safe_load for .github/workflows/*.yml and bash -n for each embedded run step",
+      "python_version": "3.12.9",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Six workflow YAML files parsed; all 49 embedded shell steps passed bash -n."
+    },
+    {
+      "name": "compileall_src_tests_evals_tools_ksa38",
+      "command": "python -m compileall -q src tests evals tools/ksa38",
+      "python_version": "3.11.7",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "warnings": 0,
+      "details": "Compilation completed for all requested Python trees and the dedicated KSA-38 tools."
+    },
+    {
+      "name": "compileall_src_tests_evals_tools_ksa38",
+      "command": "python -m compileall -q src tests evals tools/ksa38",
+      "python_version": "3.12.9",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "warnings": 0,
+      "details": "Compilation completed for all requested Python trees and the dedicated KSA-38 tools."
+    },
+    {
+      "name": "related_contract_regressions_additional_targeted_group",
+      "command": "No separate group; full repository suite includes these regressions",
+      "python_version": null,
+      "status": "NOT_REQUIRED",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "warnings": 0,
+      "details": "The KSA-38 validator imports no certification, release, security, runtime, or host contract modules; their repository regressions ran in both full suites."
+    },
+    {
+      "name": "opencode_host_typescript_regression",
+      "command": "Not run because OpenCode host code was not touched",
+      "python_version": null,
+      "status": "NOT_REQUIRED",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "warnings": 0,
+      "details": "No .opencode or host integration implementation files were changed by KSA-38."
+    },
+    {
+      "name": "git_diff_check",
+      "command": "git diff --check and git diff --cached --check",
+      "python_version": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "warnings": 0,
+      "details": "Whitespace validation is rerun after staging the complete candidate."
+    }
+  ]
+}
