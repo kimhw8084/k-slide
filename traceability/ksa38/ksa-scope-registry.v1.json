@@ -1,0 +1,728 @@
+{
+  "schema_version": "1.0",
+  "authority": "PROJECT_OS_BOUND_DISPATCH",
+  "items": [
+    {
+      "ksa_id": "KSA-01",
+      "scope": "operational lifecycle vs semantic DONE/NEEDS REVIEW",
+      "mappings": [
+        {
+          "family_id": "ROUND_2",
+          "clause_id": "durable_resumable_jobs_checkpoint_retry_cancel",
+          "mapping_rationale": "KSA-01 lifecycle scope is the operational-versus-semantic state distinction enforced by durable checkpoint, retry, cancellation, and NEEDS_REVIEW behavior.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-02",
+      "scope": "canonical host-adapter contract and one normal employee workflow",
+      "mappings": [
+        {
+          "family_id": "ROUND_1",
+          "clause_id": "employee_workflow_host_parity_native_invocation",
+          "mapping_rationale": "KSA-02 requires the canonical host adapter to expose one normal employee workflow.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-03",
+      "scope": "native OpenCode attachment/workspace intake",
+      "mappings": [
+        {
+          "family_id": "ROUND_1",
+          "clause_id": "employee_workflow_host_parity_native_invocation",
+          "mapping_rationale": "KSA-03 covers native OpenCode invocation through the employee workflow contract.",
+          "implementation_state": "IMPLEMENTED"
+        },
+        {
+          "family_id": "ROUND_1",
+          "clause_id": "immutable_source_multifile_evidence_boundaries",
+          "mapping_rationale": "KSA-03 attachment and workspace intake must preserve immutable multi-file source boundaries.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-04",
+      "scope": "first-class Cloud VS Code adapter with current/selected files and host parity",
+      "mappings": [
+        {
+          "family_id": "ROUND_1",
+          "clause_id": "employee_workflow_host_parity_native_invocation",
+          "mapping_rationale": "KSA-04 is specifically a host-parity requirement; current/selected Cloud VS Code file intake remains an open repository scope.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": true,
+      "future_project_os_owner": "Project OS KSA-04 owner to deliver and reconcile the full queued host scope."
+    },
+    {
+      "ksa_id": "KSA-05",
+      "scope": "Decision View, reconstruction, review disclosure and evidence drill-down parity across hosts",
+      "mappings": [
+        {
+          "family_id": "ROUND_1",
+          "clause_id": "employee_workflow_host_parity_native_invocation",
+          "mapping_rationale": "KSA-05 includes Decision View parity across hosts, which remains open with the queued Cloud VS Code host scope.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_1",
+          "clause_id": "decision_view_reconstruction_review_disclosure_evidence_drilldown",
+          "mapping_rationale": "KSA-05 directly governs reconstructed Decision View, review disclosure, and evidence drill-down.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": true,
+      "future_project_os_owner": "Project OS KSA-05 owner to deliver and reconcile the full queued host scope."
+    },
+    {
+      "ksa_id": "KSA-06",
+      "scope": "durable execution/job/run-store contract",
+      "mappings": [
+        {
+          "family_id": "ROUND_2",
+          "clause_id": "durable_resumable_jobs_checkpoint_retry_cancel",
+          "mapping_rationale": "KSA-06 directly specifies durable execution, job, checkpoint, and run-store behavior.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-07",
+      "scope": "pinned production runtime artifact",
+      "mappings": [
+        {
+          "family_id": "ROUND_2",
+          "clause_id": "pinned_runtime_exact_production_model_no_fallback",
+          "mapping_rationale": "KSA-07 requires the pinned production runtime artifact and exact production model.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "The deployed runtime and production model require candidate-bound company qualification evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-08",
+      "scope": "durable PaaS worker/controller path",
+      "mappings": [
+        {
+          "family_id": "ROUND_2",
+          "clause_id": "durable_resumable_jobs_checkpoint_retry_cancel",
+          "mapping_rationale": "KSA-08 requires durable worker execution, checkpoints, retry, and cancellation.",
+          "implementation_state": "IMPLEMENTED"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "A durable production PaaS worker/controller requires company deployment qualification.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-09",
+      "scope": "durable scoped persistence/queue/concurrency",
+      "mappings": [
+        {
+          "family_id": "ROUND_2",
+          "clause_id": "scoped_persistence_queue_concurrency",
+          "mapping_rationale": "KSA-09 directly governs scoped persistence, queueing, and concurrency.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Production persistence and concurrency isolation require deployment-bound company evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-10",
+      "scope": "exact candidate/run identity and compatible resume",
+      "mappings": [
+        {
+          "family_id": "ROUND_2",
+          "clause_id": "exact_run_runtime_model_ocr_termbase_identity",
+          "mapping_rationale": "KSA-10 requires exact run, runtime, model, OCR, and terminology identity on compatible resume.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "The deployed runtime and model identity require production-bound qualification.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-11",
+      "scope": "three-class storage model",
+      "mappings": [
+        {
+          "family_id": "ROUND_3",
+          "clause_id": "three_class_storage",
+          "mapping_rationale": "KSA-11 directly governs the three-class storage model.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-12",
+      "scope": "separate content and operational-metadata retention with no authoritative 30-day default",
+      "mappings": [
+        {
+          "family_id": "ROUND_3",
+          "clause_id": "content_vs_operational_retention",
+          "mapping_rationale": "KSA-12 directly governs separate content and operational-metadata retention policies.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-13",
+      "scope": "deletion/expiry/legal hold",
+      "mappings": [
+        {
+          "family_id": "ROUND_3",
+          "clause_id": "deletion_expiry_legal_hold",
+          "mapping_rationale": "KSA-13 directly governs deletion, expiry, and legal-hold behavior.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-14",
+      "scope": "AccessKey runtime consumption/fail-closed authentication",
+      "mappings": [
+        {
+          "family_id": "ROUND_4",
+          "clause_id": "accesskey_consumption_nonleakage",
+          "mapping_rationale": "KSA-14 directly governs runtime AccessKey consumption and fail-closed authentication.",
+          "implementation_state": "IMPLEMENTED"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Company production authentication authority must be verified against the deployed candidate.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-15",
+      "scope": "AccessKey non-leakage",
+      "mappings": [
+        {
+          "family_id": "ROUND_4",
+          "clause_id": "accesskey_consumption_nonleakage",
+          "mapping_rationale": "KSA-15 directly governs prevention of AccessKey leakage from persisted and source-bearing data.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-16",
+      "scope": "authoritative classification admission",
+      "mappings": [
+        {
+          "family_id": "ROUND_4",
+          "clause_id": "authoritative_classification",
+          "mapping_rationale": "KSA-16 directly governs authoritative classification admission.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Deployed classification authority and data-use routing require company qualification evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-17",
+      "scope": "run-scoped authorization/tenant isolation",
+      "mappings": [
+        {
+          "family_id": "ROUND_4",
+          "clause_id": "run_scoped_authorization_tenant_isolation",
+          "mapping_rationale": "KSA-17 directly governs run-scoped authorization and tenant isolation.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Production tenant and IAM isolation require candidate-bound company evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-18",
+      "scope": "default-deny production egress",
+      "mappings": [
+        {
+          "family_id": "ROUND_4",
+          "clause_id": "default_deny_egress",
+          "mapping_rationale": "KSA-18 directly governs default-deny production egress.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Production network policy and egress authority require company qualification evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-19",
+      "scope": "governed company termbase resolution",
+      "mappings": [
+        {
+          "family_id": "ROUND_4",
+          "clause_id": "governed_termbase",
+          "mapping_rationale": "KSA-19 directly governs governed company termbase resolution.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "The deployed company termbase authority and identity require candidate-bound qualification.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-20",
+      "scope": "controlled content-bearing diagnostic support",
+      "mappings": [
+        {
+          "family_id": "ROUND_4",
+          "clause_id": "controlled_content_support",
+          "mapping_rationale": "KSA-20 directly governs controlled content-bearing diagnostic support.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Production support access authority and data-use controls require company qualification evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-21",
+      "scope": "adversarial document/prompt-injection security",
+      "mappings": [
+        {
+          "family_id": "ROUND_4",
+          "clause_id": "adversarial_security_prompt_injection",
+          "mapping_rationale": "KSA-21 directly governs adversarial document and prompt-injection security.",
+          "implementation_state": "IMPLEMENTED"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Production security qualification must verify the deployed candidate against adversarial input risk.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-22",
+      "scope": "first-class source fact/supported interpretation/unresolved provenance",
+      "mappings": [
+        {
+          "family_id": "ROUND_5",
+          "clause_id": "source_fact_interpretation_unresolved_provenance",
+          "mapping_rationale": "KSA-22 directly governs source facts, supported interpretation, and unresolved provenance.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-23",
+      "scope": "conflict/supersession objects",
+      "mappings": [
+        {
+          "family_id": "ROUND_5",
+          "clause_id": "conflict_supersession",
+          "mapping_rationale": "KSA-23 directly governs conflict and supersession objects.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-24",
+      "scope": "mixed-language/table/chart/diagram/modality conformance",
+      "mappings": [
+        {
+          "family_id": "ROUND_5",
+          "clause_id": "mixed_language_table_chart_diagram_modality_fidelity",
+          "mapping_rationale": "KSA-24 directly governs mixed-language, table, chart, diagram, and modality fidelity.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-25",
+      "scope": "unreadable/decorative/cross-document recovery law",
+      "mappings": [
+        {
+          "family_id": "ROUND_5",
+          "clause_id": "unreadable_decorative_cross_document_recovery_law",
+          "mapping_rationale": "KSA-25 directly governs unreadable, decorative, and cross-document recovery states.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-26",
+      "scope": "four-set corpus taxonomy/contamination governance",
+      "mappings": [
+        {
+          "family_id": "ROUND_6",
+          "clause_id": "four_set_corpus_governance",
+          "mapping_rationale": "KSA-26 directly governs four-set corpus taxonomy and contamination controls.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-27",
+      "scope": "non-compensable hard gates/policy floors",
+      "mappings": [
+        {
+          "family_id": "ROUND_6",
+          "clause_id": "hard_gates_floors_repetition_false_done",
+          "mapping_rationale": "KSA-27 directly governs non-compensable hard gates and policy floors.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-28",
+      "scope": "repetition/stability and false-DONE calibration",
+      "mappings": [
+        {
+          "family_id": "ROUND_6",
+          "clause_id": "hard_gates_floors_repetition_false_done",
+          "mapping_rationale": "KSA-28 directly governs repetition, stability, and false-DONE calibration.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-29",
+      "scope": "bilingual gold/adjudication workflow",
+      "mappings": [
+        {
+          "family_id": "ROUND_6",
+          "clause_id": "bilingual_gold_adjudication",
+          "mapping_rationale": "KSA-29 directly governs bilingual gold and adjudication workflow.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Production use of bilingual gold and adjudication requires candidate-bound data-use and evaluator qualification.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-30",
+      "scope": "zero-Korean employee-study protocol",
+      "mappings": [
+        {
+          "family_id": "ROUND_6",
+          "clause_id": "zero_korean_study",
+          "mapping_rationale": "KSA-30 directly governs the zero-Korean employee-study protocol.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Human-study outcomes and employee data-use evidence must be supplied and reviewed outside the repository.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-31",
+      "scope": "champion promotion and scoped recertification/invalidation",
+      "mappings": [
+        {
+          "family_id": "ROUND_6",
+          "clause_id": "champion_promotion_scoped_recertification_invalidation",
+          "mapping_rationale": "KSA-31 directly governs champion promotion and scoped recertification/invalidation.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "A production champion decision requires externally qualified evidence and governance.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-32",
+      "scope": "protected release governance",
+      "mappings": [
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "protected_release_governance",
+          "mapping_rationale": "KSA-32 directly governs protected release governance.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Live protected-branch and release authority require company-owned evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_completion_traceability_regression_audit_blocker_boundary",
+          "mapping_rationale": "KSA-32 release evidence must be bound to the exact candidate and its open blockers.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_complete_separate_from_production_certified",
+          "mapping_rationale": "KSA-32 release governance remains distinct from production certification.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-33",
+      "scope": "candidate-bound security release evidence",
+      "mappings": [
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "candidate_bound_security_evidence",
+          "mapping_rationale": "KSA-33 directly governs candidate-bound security release evidence.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Current company security and deployment evidence must be bound to the candidate.",
+          "implementation_state": "EXTERNAL_ONLY"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_completion_traceability_regression_audit_blocker_boundary",
+          "mapping_rationale": "KSA-33 security results must be tied to the exact candidate and qualification record.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_complete_separate_from_production_certified",
+          "mapping_rationale": "KSA-33 repository evidence does not establish production certification.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-34",
+      "scope": "cohort/pilot/canary/reversible rollout controls",
+      "mappings": [
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "rollout_pilot_canary_controls",
+          "mapping_rationale": "KSA-34 directly governs cohort, pilot, canary, and reversible rollout controls.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Pilot, canary, and rollout outcomes require company-owned candidate evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_completion_traceability_regression_audit_blocker_boundary",
+          "mapping_rationale": "KSA-34 rollout blockers and evidence must be bound to the exact candidate.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_complete_separate_from_production_certified",
+          "mapping_rationale": "KSA-34 rollout controls do not by themselves establish production certification.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-35",
+      "scope": "non-content telemetry/employee issue reporting",
+      "mappings": [
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "noncontent_telemetry_issue_reporting",
+          "mapping_rationale": "KSA-35 directly governs non-content telemetry and employee issue reporting.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Live telemetry and employee reporting governance require company qualification.",
+          "implementation_state": "EXTERNAL_ONLY"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_completion_traceability_regression_audit_blocker_boundary",
+          "mapping_rationale": "KSA-35 evidence and open reporting blockers must be bound to the exact candidate.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_complete_separate_from_production_certified",
+          "mapping_rationale": "KSA-35 telemetry evidence is distinct from production certification.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-36",
+      "scope": "performance/load measurement and resource-budget enforcement",
+      "mappings": [
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "performance_load_budgets",
+          "mapping_rationale": "KSA-36 directly governs performance/load measurement and resource budgets.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Production load and company capacity require measured candidate-bound evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_completion_traceability_regression_audit_blocker_boundary",
+          "mapping_rationale": "KSA-36 measurements and unresolved budgets must be bound to the exact candidate.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_complete_separate_from_production_certified",
+          "mapping_rationale": "KSA-36 performance results do not substitute for production certification.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-37",
+      "scope": "candidate revocation/kill-switch/drift response",
+      "mappings": [
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "revocation_kill_switch_drift_response",
+          "mapping_rationale": "KSA-37 directly governs candidate revocation, kill-switch, and drift response.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Company deployment authority must qualify the production revocation and recovery path.",
+          "implementation_state": "EXTERNAL_ONLY"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_completion_traceability_regression_audit_blocker_boundary",
+          "mapping_rationale": "KSA-37 revocation and drift evidence must be bound to the exact candidate.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_complete_separate_from_production_certified",
+          "mapping_rationale": "KSA-37 revocation qualification remains separate from production certification.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    }
+  ]
+}

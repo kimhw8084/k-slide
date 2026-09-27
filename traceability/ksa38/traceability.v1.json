@@ -1,0 +1,5635 @@
+{
+  "schema_version": "1.0",
+  "matrix_version": "1.0",
+  "project": "k-slide",
+  "change_id": "CHG-16 / KSA-38",
+  "product_subject": {
+    "commit_sha": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd",
+    "tree_oid": "e049fcc0e5d245630c1a47e1ec08d30f6419d6c2"
+  },
+  "change_span": {
+    "change_base_sha": "af5836540304b424289bedbe57a87dbb5d02763f",
+    "change_base_tree_oid": "f099c39d4665dde2e323108c4ed2ad9122a636a5",
+    "commit_count": 152,
+    "changed_path_count": 229,
+    "changed_path_coverage": [
+      {
+        "path": ".codex-fabric/audit.json",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "AUDIT_EVIDENCE",
+        "reason": "Committed historical candidate-side audit or qualification evidence at the immutable subject; not adopted as a current KSA-38 receipt."
+      },
+      {
+        "path": ".codex-fabric/ksa36/candidate-evidence.json",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "AUDIT_EVIDENCE",
+        "reason": "Committed historical candidate-side audit or qualification evidence at the immutable subject; not adopted as a current KSA-38 receipt."
+      },
+      {
+        "path": ".codex-fabric/ksa36/py311-measure.json",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "AUDIT_EVIDENCE",
+        "reason": "Committed historical candidate-side audit or qualification evidence at the immutable subject; not adopted as a current KSA-38 receipt."
+      },
+      {
+        "path": ".codex-fabric/ksa36/py312-measure.json",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "AUDIT_EVIDENCE",
+        "reason": "Committed historical candidate-side audit or qualification evidence at the immutable subject; not adopted as a current KSA-38 receipt."
+      },
+      {
+        "path": ".codex-fabric/ksa37/candidate-evidence.json",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "AUDIT_EVIDENCE",
+        "reason": "Committed historical candidate-side audit or qualification evidence at the immutable subject; not adopted as a current KSA-38 receipt."
+      },
+      {
+        "path": ".github/CODEOWNERS",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-027"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": ".github/workflows/k-slide-governance.yml",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-027"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": ".github/workflows/k-slide-phase32.yml",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-027"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": ".github/workflows/k-slide-security.yml",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-028"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": ".opencode/agents/k-slide.md",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": ".opencode/commands/k-slide-continue.md",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": ".opencode/commands/k-slide-help.md",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": ".opencode/commands/k-slide-safe.md",
+        "historical": true,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "MIGRATION_COMPATIBILITY",
+        "reason": "Retired duplicate command surface; the canonical employee entrypoint remains /k-slide."
+      },
+      {
+        "path": ".opencode/commands/k-slide-strict.md",
+        "historical": true,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "MIGRATION_COMPATIBILITY",
+        "reason": "Retired duplicate command surface; the canonical employee entrypoint remains /k-slide."
+      },
+      {
+        "path": ".opencode/commands/k-slide.md",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": ".opencode/internal/lib/k-slide-access-key.ts",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-011"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": ".opencode/plugin/k-slide-host.ts",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": ".opencode/skills/k-slide/SKILL.md",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": ".opencode/skills/k-slide/bin/prepare_run.sh",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": ".opencode/skills/k-slide/references/troubleshooting.md",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": ".opencode/tools/kslide.ts",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "DEVELOPMENT_NOTES.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "IMPLEMENTATION_STATUS.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "README.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "SOURCE_PROVENANCE.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "constraints-production.txt",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "deploy/README.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "deploy/opencode-bootstrap.example.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "deploy/production-profile.example.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004",
+          "KSA38-TR-007"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "deploy/runtime/Dockerfile",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "deploy/runtime/ocr-context/.keep",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "deploy/runtime/production-dependency-inventory.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "deploy/runtime/production-requirements.lock",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "deploy/runtime/system-packages-linux-amd64.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "docs/adr/0038-versioned-durable-execution-contract.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "docs/adr/0039-pinned-runtime-artifact.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "docs/adr/0040-paas-worker-controller-boundary.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "docs/adr/0041-scoped-durable-admission.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "docs/adr/0042-run-environment-identity.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "docs/adr/0043-three-plane-storage-contract.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "docs/adr/0044-classification-admission.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "docs/adr/0045-candidate-bound-rollout-controls.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "docs/ksa32-release-governance.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "docs/ksa33-security-release-evidence.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "docs/ksa34-rollout-controls.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "docs/ksa35-product-telemetry.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "docs/ksa36-performance-load-budget.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "docs/ksa37-candidate-revocation.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "docs/zero-korean-human-study.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "evals/EVAL_REPORT.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "evals/README.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "evals/build_certification_bundle.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-022",
+          "KSA38-TR-026"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/build_security_release_context.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-028"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/capture_governance.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-027"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/certification.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-026",
+          "KSA38-TR-031"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/corpus_governance.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-022"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/download_certification_bundle.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-022"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/enforce_security.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-028"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/freeze_production_dependencies.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/generate_corpus.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-022"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/governed_corpus.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-022"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/heavy/Dockerfile",
+        "historical": true,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "MIGRATION_COMPATIBILITY",
+        "reason": "Historical duplicate heavy image definition removed in favor of the canonical pinned deploy/runtime image."
+      },
+      {
+        "path": "evals/heavy/README.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "evals/heavy/doctor.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/heavy/prefetch_ocr_models.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/heavy/run_checks.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004",
+          "KSA38-TR-020"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/materialize_certification_bundle.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-022"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/model_eval.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-023"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/model_results.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-023"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/model_scorers.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-023"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/noncritical_semantics.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-023"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/opencode_diagnostics.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/opencode_runner.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005",
+          "KSA38-TR-007"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/performance_load.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-031"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/production-candidate.example.yaml",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004",
+          "KSA38-TR-007"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/production-candidate.yaml",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004",
+          "KSA38-TR-007"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/release.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-027",
+          "KSA38-TR-031",
+          "KSA38-TR-032"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/run_engine_eval.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-023"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/run_model_eval.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-023"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/run_opencode_diagnostics.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/scenarios.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-022",
+          "KSA38-TR-023"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/security_controls.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-028"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/security_reports.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-028"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "evals/validate_certification_bundle_provenance.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-022"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "opencode.example.jsonc",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "private-evals/README.md",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "DOCUMENTATION",
+        "reason": "Documentation or architecture record; it explains the product contract but is not executable product behavior."
+      },
+      {
+        "path": "prompts/translation/v1.md",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-017"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "pyproject.toml",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "schemas/candidate-revocation.schema.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-032"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "schemas/conflict-registry.schema.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-019"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "schemas/evidence-ir.schema.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-001",
+          "KSA38-TR-018"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "schemas/operational-telemetry-event.schema.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-030"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "schemas/resource-budget.schema.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-031"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "schemas/rollout-control.schema.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-029"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "schemas/security-release-evidence.schema.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-028"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "schemas/slide-ir.schema.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-001"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "schemas/translation-patch.schema.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-001",
+          "KSA38-TR-018"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "schemas/vulnerability-dispositions.schema.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-028"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "scripts/build_runtime_artifact.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "scripts/launch_opencode_k_slide.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "scripts/verify_runtime_reproducibility.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "security/release-governance-policy.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-027"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "security/release-security-policy.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-028"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "security/vulnerability-dispositions.json",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-028"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/__init__.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/access_key_handoff.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-011"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/authentication.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-011",
+          "KSA38-TR-013"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/bilingual_adjudication.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-024"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/candidate_revocation.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-032"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/certification.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-026",
+          "KSA38-TR-027",
+          "KSA38-TR-028",
+          "KSA38-TR-031",
+          "KSA38-TR-032"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/classification_policy.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-012"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/cli.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005",
+          "KSA38-TR-001",
+          "KSA38-TR-015"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/conflicts.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-019"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/content_support.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-016"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/corpus_governance.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-022"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/deletion.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-010",
+          "KSA38-TR-016"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/doctor.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004",
+          "KSA38-TR-009",
+          "KSA38-TR-012"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/egress_policy.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-014"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/environment.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-007",
+          "KSA38-TR-012",
+          "KSA38-TR-013"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/errors.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/evidence_adapters.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-027",
+          "KSA38-TR-028",
+          "KSA38-TR-029"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/evidence_ir.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-001",
+          "KSA38-TR-018"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/execution.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/extraction.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-001",
+          "KSA38-TR-020",
+          "KSA38-TR-021"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/fusion.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-020",
+          "KSA38-TR-021"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/governed_terminology.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-015"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/host_adapter.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005",
+          "KSA38-TR-015"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/ingest.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-001"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/installer.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/io.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-001"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/ir.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-001",
+          "KSA38-TR-020"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/locking.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-006"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/modality.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-020"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/model.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-007"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/normalization.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-001"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/numeric.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-020"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/ocr/paddle.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/ocr/policy.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004",
+          "KSA38-TR-007"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/opencode_bootstrap.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005",
+          "KSA38-TR-014"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/paas.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005",
+          "KSA38-TR-006",
+          "KSA38-TR-007"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/policy.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-001"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/production.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004",
+          "KSA38-TR-012",
+          "KSA38-TR-013",
+          "KSA38-TR-028",
+          "KSA38-TR-029",
+          "KSA38-TR-032"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/quality_policy.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-023"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/queue.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005",
+          "KSA38-TR-006"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/recertification.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-026"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/redaction.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-011"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/release_governance.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-027",
+          "KSA38-TR-029"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/rendering/reports.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-001"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/resource_budget.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-006",
+          "KSA38-TR-031"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/retention.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-009",
+          "KSA38-TR-010"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/retention_policy.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-009"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/rollout.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-029",
+          "KSA38-TR-032"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/run_store.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005",
+          "KSA38-TR-006",
+          "KSA38-TR-008"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/runtime.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/runtime_artifact.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-004"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/security.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-017"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/security_release.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-028"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/semantics.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-018"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/session.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-007"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/state.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/storage.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-008"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/support.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-016"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/telemetry.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-030"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/terminology.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-015"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/translation.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-001",
+          "KSA38-TR-018"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/translation_contract.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-001",
+          "KSA38-TR-017"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/verify.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-001"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/worker.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "src/k_slide/zero_korean_study.py",
+        "historical": false,
+        "coverage_type": "REQUIREMENT_ROW",
+        "trace_ids": [
+          "KSA38-TR-025"
+        ],
+        "classification": null,
+        "reason": ""
+      },
+      {
+        "path": "tests/bilingual_review_fixtures.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "FIXTURE",
+        "reason": "Test-only fixture/support input; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/fixtures/ksa22_table_fixture.json",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "FIXTURE",
+        "reason": "Test-only fixture/support input; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/fixtures/ksa24_chart_claim_fixture.json",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "FIXTURE",
+        "reason": "Test-only fixture/support input; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/fixtures/ksa24_connector_fixture.json",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "FIXTURE",
+        "reason": "Test-only fixture/support input; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/fixtures/ksa24_table_fixture.json",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "FIXTURE",
+        "reason": "Test-only fixture/support input; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/fixtures/ksa24_visual_fixture.json",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "FIXTURE",
+        "reason": "Test-only fixture/support input; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/ksa32_governance_fixtures.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "FIXTURE",
+        "reason": "Test-only fixture/support input; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/reference_fixtures.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "FIXTURE",
+        "reason": "Test-only fixture/support input; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/rollout_fixtures.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "FIXTURE",
+        "reason": "Test-only fixture/support input; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_certification_closure.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-029",
+          "KSA38-TR-030"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg16_accesskey_nonleakage.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-008"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg16_authentication_transport.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-008",
+          "KSA38-TR-009",
+          "KSA38-TR-010",
+          "KSA38-TR-011"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg16_classification_admission.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-009"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg16_deletion.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-006",
+          "KSA38-TR-012"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg16_durable_execution.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-001"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg16_environment_binding.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-001",
+          "KSA38-TR-005",
+          "KSA38-TR-010"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg16_foundation.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-001"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg16_host_integration.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-005",
+          "KSA38-TR-001"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg16_opencode_plugin.ts",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg16_paas_worker.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-001",
+          "KSA38-TR-004"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg16_resource_budget.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-004",
+          "KSA38-TR-028"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg16_retention_policy.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg16_scoped_admission.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-004"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg16_storage_planes.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg17_run_scope_authorization.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-010"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg18_accesskey_handoff.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-008"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg18_default_deny_egress.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-011"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_chg18_opencode_bootstrap.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-005",
+          "KSA38-TR-011"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_cli_blackbox.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa19_employee_path.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-005"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa19_governed_termbase.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-011"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa20_controlled_content_support.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-012"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa21_adversarial_security.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-013",
+          "KSA38-TR-017"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa22_provenance.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-011"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa23_conflicts.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-015"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa24_f24_real_path.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-016"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa24_f24_repairs.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-016"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa24_modality_conformance.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-016"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa25_recovery_law.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-014"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa26_corpus_governance.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-018"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa26_governed_runner.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-018"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa27_quality_policy.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-017"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa28_stability_calibration.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-017"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa29_bilingual_adjudication.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-020"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa30_zero_korean_study.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-021"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa31_promotion_recertification.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-022"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa32_release_governance.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-025"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa33_security_release.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-027"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa34_rollout.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-026"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa35_product_telemetry.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-028"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_ksa37_candidate_revocation.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-025"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_normalization.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-001"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_phase1.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-001"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_phase11.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-001"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_phase21.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-001"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_phase33.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-027"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_phase34.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-026"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_phase35.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-028"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/test_runtime_artifact.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [
+          "KSA38-TR-001"
+        ],
+        "classification": "TEST",
+        "reason": "Repository regression test module; exact related trace rows are listed when applicable."
+      },
+      {
+        "path": "tests/zero_korean_study_fixtures.py",
+        "historical": false,
+        "coverage_type": "NON_PRODUCT_PATH_CLASSIFICATION",
+        "trace_ids": [],
+        "classification": "FIXTURE",
+        "reason": "Test-only fixture/support input; exact related trace rows are listed when applicable."
+      }
+    ]
+  },
+  "repository_anchors": [
+    {
+      "role": "PRODUCT_SUBJECT",
+      "commit_sha": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd",
+      "tree_oid": "e049fcc0e5d245630c1a47e1ec08d30f6419d6c2",
+      "independently_rederivable": true
+    },
+    {
+      "role": "CHG16_CHANGE_BASE",
+      "commit_sha": "af5836540304b424289bedbe57a87dbb5d02763f",
+      "tree_oid": "f099c39d4665dde2e323108c4ed2ad9122a636a5",
+      "independently_rederivable": true
+    }
+  ],
+  "project_os_closure_snapshot": {
+    "authority": "PROJECT_OS_BOUND_DISPATCH_SNAPSHOT",
+    "items": [
+      {
+        "ksa_id": "KSA-01",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-02",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-03",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-04",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-05",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-06",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-07",
+        "state": "ACTIVE_VERIFY_REQUIRED"
+      },
+      {
+        "ksa_id": "KSA-08",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-09",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-10",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-11",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-12",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-13",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-14",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-15",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-16",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-17",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-18",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-19",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-20",
+        "state": "ACTIVE"
+      },
+      {
+        "ksa_id": "KSA-21",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-22",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-23",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-24",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-25",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-26",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-27",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-28",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-29",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-30",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-31",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-32",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-33",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-34",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-35",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-36",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-37",
+        "state": "DONE_INTEGRATED"
+      }
+    ]
+  },
+  "ksa_scope_registry": [
+    {
+      "ksa_id": "KSA-01",
+      "scope": "operational lifecycle vs semantic DONE/NEEDS REVIEW",
+      "mappings": [
+        {
+          "family_id": "ROUND_2",
+          "clause_id": "durable_resumable_jobs_checkpoint_retry_cancel",
+          "mapping_rationale": "KSA-01 lifecycle scope is the operational-versus-semantic state distinction enforced by durable checkpoint, retry, cancellation, and NEEDS_REVIEW behavior.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-02",
+      "scope": "canonical host-adapter contract and one normal employee workflow",
+      "mappings": [
+        {
+          "family_id": "ROUND_1",
+          "clause_id": "employee_workflow_host_parity_native_invocation",
+          "mapping_rationale": "KSA-02 requires the canonical host adapter to expose one normal employee workflow.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-03",
+      "scope": "native OpenCode attachment/workspace intake",
+      "mappings": [
+        {
+          "family_id": "ROUND_1",
+          "clause_id": "employee_workflow_host_parity_native_invocation",
+          "mapping_rationale": "KSA-03 covers native OpenCode invocation through the employee workflow contract.",
+          "implementation_state": "IMPLEMENTED"
+        },
+        {
+          "family_id": "ROUND_1",
+          "clause_id": "immutable_source_multifile_evidence_boundaries",
+          "mapping_rationale": "KSA-03 attachment and workspace intake must preserve immutable multi-file source boundaries.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-04",
+      "scope": "first-class Cloud VS Code adapter with current/selected files and host parity",
+      "mappings": [
+        {
+          "family_id": "ROUND_1",
+          "clause_id": "employee_workflow_host_parity_native_invocation",
+          "mapping_rationale": "KSA-04 is specifically a host-parity requirement; current/selected Cloud VS Code file intake remains an open repository scope.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": true,
+      "future_project_os_owner": "Project OS KSA-04 owner to deliver and reconcile the full queued host scope."
+    },
+    {
+      "ksa_id": "KSA-05",
+      "scope": "Decision View, reconstruction, review disclosure and evidence drill-down parity across hosts",
+      "mappings": [
+        {
+          "family_id": "ROUND_1",
+          "clause_id": "employee_workflow_host_parity_native_invocation",
+          "mapping_rationale": "KSA-05 includes Decision View parity across hosts, which remains open with the queued Cloud VS Code host scope.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_1",
+          "clause_id": "decision_view_reconstruction_review_disclosure_evidence_drilldown",
+          "mapping_rationale": "KSA-05 directly governs reconstructed Decision View, review disclosure, and evidence drill-down.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": true,
+      "future_project_os_owner": "Project OS KSA-05 owner to deliver and reconcile the full queued host scope."
+    },
+    {
+      "ksa_id": "KSA-06",
+      "scope": "durable execution/job/run-store contract",
+      "mappings": [
+        {
+          "family_id": "ROUND_2",
+          "clause_id": "durable_resumable_jobs_checkpoint_retry_cancel",
+          "mapping_rationale": "KSA-06 directly specifies durable execution, job, checkpoint, and run-store behavior.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-07",
+      "scope": "pinned production runtime artifact",
+      "mappings": [
+        {
+          "family_id": "ROUND_2",
+          "clause_id": "pinned_runtime_exact_production_model_no_fallback",
+          "mapping_rationale": "KSA-07 requires the pinned production runtime artifact and exact production model.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "The deployed runtime and production model require candidate-bound company qualification evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-08",
+      "scope": "durable PaaS worker/controller path",
+      "mappings": [
+        {
+          "family_id": "ROUND_2",
+          "clause_id": "durable_resumable_jobs_checkpoint_retry_cancel",
+          "mapping_rationale": "KSA-08 requires durable worker execution, checkpoints, retry, and cancellation.",
+          "implementation_state": "IMPLEMENTED"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "A durable production PaaS worker/controller requires company deployment qualification.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-09",
+      "scope": "durable scoped persistence/queue/concurrency",
+      "mappings": [
+        {
+          "family_id": "ROUND_2",
+          "clause_id": "scoped_persistence_queue_concurrency",
+          "mapping_rationale": "KSA-09 directly governs scoped persistence, queueing, and concurrency.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Production persistence and concurrency isolation require deployment-bound company evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-10",
+      "scope": "exact candidate/run identity and compatible resume",
+      "mappings": [
+        {
+          "family_id": "ROUND_2",
+          "clause_id": "exact_run_runtime_model_ocr_termbase_identity",
+          "mapping_rationale": "KSA-10 requires exact run, runtime, model, OCR, and terminology identity on compatible resume.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "The deployed runtime and model identity require production-bound qualification.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-11",
+      "scope": "three-class storage model",
+      "mappings": [
+        {
+          "family_id": "ROUND_3",
+          "clause_id": "three_class_storage",
+          "mapping_rationale": "KSA-11 directly governs the three-class storage model.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-12",
+      "scope": "separate content and operational-metadata retention with no authoritative 30-day default",
+      "mappings": [
+        {
+          "family_id": "ROUND_3",
+          "clause_id": "content_vs_operational_retention",
+          "mapping_rationale": "KSA-12 directly governs separate content and operational-metadata retention policies.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-13",
+      "scope": "deletion/expiry/legal hold",
+      "mappings": [
+        {
+          "family_id": "ROUND_3",
+          "clause_id": "deletion_expiry_legal_hold",
+          "mapping_rationale": "KSA-13 directly governs deletion, expiry, and legal-hold behavior.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-14",
+      "scope": "AccessKey runtime consumption/fail-closed authentication",
+      "mappings": [
+        {
+          "family_id": "ROUND_4",
+          "clause_id": "accesskey_consumption_nonleakage",
+          "mapping_rationale": "KSA-14 directly governs runtime AccessKey consumption and fail-closed authentication.",
+          "implementation_state": "IMPLEMENTED"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Company production authentication authority must be verified against the deployed candidate.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-15",
+      "scope": "AccessKey non-leakage",
+      "mappings": [
+        {
+          "family_id": "ROUND_4",
+          "clause_id": "accesskey_consumption_nonleakage",
+          "mapping_rationale": "KSA-15 directly governs prevention of AccessKey leakage from persisted and source-bearing data.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-16",
+      "scope": "authoritative classification admission",
+      "mappings": [
+        {
+          "family_id": "ROUND_4",
+          "clause_id": "authoritative_classification",
+          "mapping_rationale": "KSA-16 directly governs authoritative classification admission.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Deployed classification authority and data-use routing require company qualification evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-17",
+      "scope": "run-scoped authorization/tenant isolation",
+      "mappings": [
+        {
+          "family_id": "ROUND_4",
+          "clause_id": "run_scoped_authorization_tenant_isolation",
+          "mapping_rationale": "KSA-17 directly governs run-scoped authorization and tenant isolation.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Production tenant and IAM isolation require candidate-bound company evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-18",
+      "scope": "default-deny production egress",
+      "mappings": [
+        {
+          "family_id": "ROUND_4",
+          "clause_id": "default_deny_egress",
+          "mapping_rationale": "KSA-18 directly governs default-deny production egress.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Production network policy and egress authority require company qualification evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-19",
+      "scope": "governed company termbase resolution",
+      "mappings": [
+        {
+          "family_id": "ROUND_4",
+          "clause_id": "governed_termbase",
+          "mapping_rationale": "KSA-19 directly governs governed company termbase resolution.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "The deployed company termbase authority and identity require candidate-bound qualification.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-20",
+      "scope": "controlled content-bearing diagnostic support",
+      "mappings": [
+        {
+          "family_id": "ROUND_4",
+          "clause_id": "controlled_content_support",
+          "mapping_rationale": "KSA-20 directly governs controlled content-bearing diagnostic support.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Production support access authority and data-use controls require company qualification evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-21",
+      "scope": "adversarial document/prompt-injection security",
+      "mappings": [
+        {
+          "family_id": "ROUND_4",
+          "clause_id": "adversarial_security_prompt_injection",
+          "mapping_rationale": "KSA-21 directly governs adversarial document and prompt-injection security.",
+          "implementation_state": "IMPLEMENTED"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Production security qualification must verify the deployed candidate against adversarial input risk.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-22",
+      "scope": "first-class source fact/supported interpretation/unresolved provenance",
+      "mappings": [
+        {
+          "family_id": "ROUND_5",
+          "clause_id": "source_fact_interpretation_unresolved_provenance",
+          "mapping_rationale": "KSA-22 directly governs source facts, supported interpretation, and unresolved provenance.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-23",
+      "scope": "conflict/supersession objects",
+      "mappings": [
+        {
+          "family_id": "ROUND_5",
+          "clause_id": "conflict_supersession",
+          "mapping_rationale": "KSA-23 directly governs conflict and supersession objects.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-24",
+      "scope": "mixed-language/table/chart/diagram/modality conformance",
+      "mappings": [
+        {
+          "family_id": "ROUND_5",
+          "clause_id": "mixed_language_table_chart_diagram_modality_fidelity",
+          "mapping_rationale": "KSA-24 directly governs mixed-language, table, chart, diagram, and modality fidelity.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-25",
+      "scope": "unreadable/decorative/cross-document recovery law",
+      "mappings": [
+        {
+          "family_id": "ROUND_5",
+          "clause_id": "unreadable_decorative_cross_document_recovery_law",
+          "mapping_rationale": "KSA-25 directly governs unreadable, decorative, and cross-document recovery states.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-26",
+      "scope": "four-set corpus taxonomy/contamination governance",
+      "mappings": [
+        {
+          "family_id": "ROUND_6",
+          "clause_id": "four_set_corpus_governance",
+          "mapping_rationale": "KSA-26 directly governs four-set corpus taxonomy and contamination controls.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-27",
+      "scope": "non-compensable hard gates/policy floors",
+      "mappings": [
+        {
+          "family_id": "ROUND_6",
+          "clause_id": "hard_gates_floors_repetition_false_done",
+          "mapping_rationale": "KSA-27 directly governs non-compensable hard gates and policy floors.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-28",
+      "scope": "repetition/stability and false-DONE calibration",
+      "mappings": [
+        {
+          "family_id": "ROUND_6",
+          "clause_id": "hard_gates_floors_repetition_false_done",
+          "mapping_rationale": "KSA-28 directly governs repetition, stability, and false-DONE calibration.",
+          "implementation_state": "IMPLEMENTED"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-29",
+      "scope": "bilingual gold/adjudication workflow",
+      "mappings": [
+        {
+          "family_id": "ROUND_6",
+          "clause_id": "bilingual_gold_adjudication",
+          "mapping_rationale": "KSA-29 directly governs bilingual gold and adjudication workflow.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Production use of bilingual gold and adjudication requires candidate-bound data-use and evaluator qualification.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-30",
+      "scope": "zero-Korean employee-study protocol",
+      "mappings": [
+        {
+          "family_id": "ROUND_6",
+          "clause_id": "zero_korean_study",
+          "mapping_rationale": "KSA-30 directly governs the zero-Korean employee-study protocol.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Human-study outcomes and employee data-use evidence must be supplied and reviewed outside the repository.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-31",
+      "scope": "champion promotion and scoped recertification/invalidation",
+      "mappings": [
+        {
+          "family_id": "ROUND_6",
+          "clause_id": "champion_promotion_scoped_recertification_invalidation",
+          "mapping_rationale": "KSA-31 directly governs champion promotion and scoped recertification/invalidation.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "A production champion decision requires externally qualified evidence and governance.",
+          "implementation_state": "EXTERNAL_ONLY"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-32",
+      "scope": "protected release governance",
+      "mappings": [
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "protected_release_governance",
+          "mapping_rationale": "KSA-32 directly governs protected release governance.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Live protected-branch and release authority require company-owned evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_completion_traceability_regression_audit_blocker_boundary",
+          "mapping_rationale": "KSA-32 release evidence must be bound to the exact candidate and its open blockers.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_complete_separate_from_production_certified",
+          "mapping_rationale": "KSA-32 release governance remains distinct from production certification.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-33",
+      "scope": "candidate-bound security release evidence",
+      "mappings": [
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "candidate_bound_security_evidence",
+          "mapping_rationale": "KSA-33 directly governs candidate-bound security release evidence.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Current company security and deployment evidence must be bound to the candidate.",
+          "implementation_state": "EXTERNAL_ONLY"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_completion_traceability_regression_audit_blocker_boundary",
+          "mapping_rationale": "KSA-33 security results must be tied to the exact candidate and qualification record.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_complete_separate_from_production_certified",
+          "mapping_rationale": "KSA-33 repository evidence does not establish production certification.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-34",
+      "scope": "cohort/pilot/canary/reversible rollout controls",
+      "mappings": [
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "rollout_pilot_canary_controls",
+          "mapping_rationale": "KSA-34 directly governs cohort, pilot, canary, and reversible rollout controls.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Pilot, canary, and rollout outcomes require company-owned candidate evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_completion_traceability_regression_audit_blocker_boundary",
+          "mapping_rationale": "KSA-34 rollout blockers and evidence must be bound to the exact candidate.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_complete_separate_from_production_certified",
+          "mapping_rationale": "KSA-34 rollout controls do not by themselves establish production certification.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-35",
+      "scope": "non-content telemetry/employee issue reporting",
+      "mappings": [
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "noncontent_telemetry_issue_reporting",
+          "mapping_rationale": "KSA-35 directly governs non-content telemetry and employee issue reporting.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Live telemetry and employee reporting governance require company qualification.",
+          "implementation_state": "EXTERNAL_ONLY"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_completion_traceability_regression_audit_blocker_boundary",
+          "mapping_rationale": "KSA-35 evidence and open reporting blockers must be bound to the exact candidate.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_complete_separate_from_production_certified",
+          "mapping_rationale": "KSA-35 telemetry evidence is distinct from production certification.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-36",
+      "scope": "performance/load measurement and resource-budget enforcement",
+      "mappings": [
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "performance_load_budgets",
+          "mapping_rationale": "KSA-36 directly governs performance/load measurement and resource budgets.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Production load and company capacity require measured candidate-bound evidence.",
+          "implementation_state": "EXTERNAL_ONLY"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_completion_traceability_regression_audit_blocker_boundary",
+          "mapping_rationale": "KSA-36 measurements and unresolved budgets must be bound to the exact candidate.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_complete_separate_from_production_certified",
+          "mapping_rationale": "KSA-36 performance results do not substitute for production certification.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    },
+    {
+      "ksa_id": "KSA-37",
+      "scope": "candidate revocation/kill-switch/drift response",
+      "mappings": [
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "revocation_kill_switch_drift_response",
+          "mapping_rationale": "KSA-37 directly governs candidate revocation, kill-switch, and drift response.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_7",
+          "clause_id": "external_production_qualification_gates",
+          "mapping_rationale": "Company deployment authority must qualify the production revocation and recovery path.",
+          "implementation_state": "EXTERNAL_ONLY"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_completion_traceability_regression_audit_blocker_boundary",
+          "mapping_rationale": "KSA-37 revocation and drift evidence must be bound to the exact candidate.",
+          "implementation_state": "PARTIAL"
+        },
+        {
+          "family_id": "ROUND_8",
+          "clause_id": "build_complete_separate_from_production_certified",
+          "mapping_rationale": "KSA-37 revocation qualification remains separate from production certification.",
+          "implementation_state": "PARTIAL"
+        }
+      ],
+      "repository_requirement_open": false,
+      "future_project_os_owner": null
+    }
+  ],
+  "canonical_contract_families": [
+    {
+      "family_id": "ROUND_1",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_1",
+      "canonical_clause_ids": [
+        "employee_workflow_host_parity_native_invocation",
+        "immutable_source_multifile_evidence_boundaries",
+        "decision_view_reconstruction_review_disclosure_evidence_drilldown"
+      ]
+    },
+    {
+      "family_id": "ROUND_2",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_2",
+      "canonical_clause_ids": [
+        "pinned_runtime_exact_production_model_no_fallback",
+        "durable_resumable_jobs_checkpoint_retry_cancel",
+        "scoped_persistence_queue_concurrency",
+        "exact_run_runtime_model_ocr_termbase_identity"
+      ]
+    },
+    {
+      "family_id": "ROUND_3",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_3",
+      "canonical_clause_ids": [
+        "three_class_storage",
+        "content_vs_operational_retention",
+        "deletion_expiry_legal_hold"
+      ]
+    },
+    {
+      "family_id": "ROUND_4",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_4",
+      "canonical_clause_ids": [
+        "accesskey_consumption_nonleakage",
+        "authoritative_classification",
+        "run_scoped_authorization_tenant_isolation",
+        "default_deny_egress",
+        "governed_termbase",
+        "controlled_content_support",
+        "adversarial_security_prompt_injection"
+      ]
+    },
+    {
+      "family_id": "ROUND_5",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_5",
+      "canonical_clause_ids": [
+        "source_fact_interpretation_unresolved_provenance",
+        "conflict_supersession",
+        "mixed_language_table_chart_diagram_modality_fidelity",
+        "unreadable_decorative_cross_document_recovery_law"
+      ]
+    },
+    {
+      "family_id": "ROUND_6",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_6",
+      "canonical_clause_ids": [
+        "four_set_corpus_governance",
+        "hard_gates_floors_repetition_false_done",
+        "bilingual_gold_adjudication",
+        "zero_korean_study",
+        "champion_promotion_scoped_recertification_invalidation"
+      ]
+    },
+    {
+      "family_id": "ROUND_7",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_7",
+      "canonical_clause_ids": [
+        "protected_release_governance",
+        "candidate_bound_security_evidence",
+        "rollout_pilot_canary_controls",
+        "noncontent_telemetry_issue_reporting",
+        "performance_load_budgets",
+        "revocation_kill_switch_drift_response",
+        "external_production_qualification_gates"
+      ]
+    },
+    {
+      "family_id": "ROUND_8",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_8",
+      "canonical_clause_ids": [
+        "build_completion_traceability_regression_audit_blocker_boundary",
+        "build_complete_separate_from_production_certified"
+      ]
+    }
+  ],
+  "trace_rows": [
+    {
+      "trace_id": "KSA38-TR-001",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_1 / employee_workflow_host_parity_native_invocation",
+      "contract_family": "ROUND_1",
+      "clause_ids": [
+        "employee_workflow_host_parity_native_invocation"
+      ],
+      "requirement_summary": "One employee-visible /k-slide workflow invokes the typed host tools with host parity and no alternate product command.",
+      "ownership": "REPOSITORY_OWNED",
+      "linked_ksa_items": [
+        "KSA-02",
+        "KSA-03",
+        "KSA-04",
+        "KSA-05"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-02",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-03",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-04",
+          "state": "QUEUED"
+        },
+        {
+          "ksa_id": "KSA-05",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": ".opencode/plugin/k-slide-host.ts"
+        },
+        {
+          "path": "src/k_slide/host_adapter.py",
+          "symbol": "validate_host_inputs"
+        },
+        {
+          "path": ".opencode/tools/kslide.ts"
+        },
+        {
+          "path": "src/k_slide/cli.py"
+        },
+        {
+          "path": "src/k_slide/evidence_ir.py",
+          "symbol": "EvidenceIR"
+        },
+        {
+          "path": "src/k_slide/extraction.py",
+          "symbol": "extract_run"
+        },
+        {
+          "path": "src/k_slide/ingest.py",
+          "symbol": "prepare_run"
+        },
+        {
+          "path": "src/k_slide/io.py"
+        },
+        {
+          "path": "src/k_slide/ir.py"
+        },
+        {
+          "path": "src/k_slide/normalization.py",
+          "symbol": "normalize_run"
+        },
+        {
+          "path": "src/k_slide/policy.py"
+        },
+        {
+          "path": "src/k_slide/rendering/reports.py",
+          "symbol": "render_run"
+        },
+        {
+          "path": "src/k_slide/translation.py",
+          "symbol": "parse_translation_patch"
+        },
+        {
+          "path": "src/k_slide/translation_contract.py"
+        },
+        {
+          "path": "src/k_slide/verify.py",
+          "symbol": "verify_run"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": ".opencode/commands/k-slide.md"
+        },
+        {
+          "path": "schemas/evidence-ir.schema.json"
+        },
+        {
+          "path": "schemas/slide-ir.schema.json"
+        },
+        {
+          "path": "schemas/translation-patch.schema.json"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_chg16_host_integration.py",
+          "symbol": "test_normal_employee_tool_has_no_mode_choice_and_legacy_commands_are_absent"
+        },
+        {
+          "path": "tests/test_chg16_opencode_plugin.ts",
+          "symbol": "capture"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_ONLY",
+      "gap_classification": [
+        "OPEN_PROJECT_OS_RECONCILIATION",
+        "OPEN_REPOSITORY_REQUIREMENT"
+      ],
+      "next_owner": "Project OS KSA-04 owner to deliver and reconcile the full queued host scope.; Project OS KSA-05 owner to deliver and reconcile the full queued host scope."
+    },
+    {
+      "trace_id": "KSA38-TR-002",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_1 / immutable_source_multifile_evidence_boundaries",
+      "contract_family": "ROUND_1",
+      "clause_ids": [
+        "immutable_source_multifile_evidence_boundaries"
+      ],
+      "requirement_summary": "Input references are validated before immutable snapshots and multi-file extraction; source facts and evidence remain engine-owned.",
+      "ownership": "REPOSITORY_OWNED",
+      "linked_ksa_items": [
+        "KSA-03"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-03",
+          "state": "DONE_INTEGRATED"
+        }
+      ],
+      "implementation_state": "IMPLEMENTED",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/host_adapter.py",
+          "symbol": "validate_host_inputs"
+        },
+        {
+          "path": "src/k_slide/ingest.py",
+          "symbol": "prepare_run"
+        },
+        {
+          "path": "src/k_slide/normalization.py",
+          "symbol": "normalize_run"
+        },
+        {
+          "path": "src/k_slide/extraction.py",
+          "symbol": "extract_run"
+        },
+        {
+          "path": "src/k_slide/evidence_ir.py",
+          "symbol": "EvidenceIR"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "schemas/evidence-ir.schema.json"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_chg16_host_integration.py",
+          "symbol": "test_workspace_packet_preserves_order_identity_hashes_and_snapshot_boundaries"
+        },
+        {
+          "path": "tests/test_normalization.py",
+          "symbol": "test_image_normalization_crops_and_builds_engine_evidence"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_ONLY",
+      "gap_classification": [],
+      "next_owner": null
+    },
+    {
+      "trace_id": "KSA38-TR-003",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_1 / decision_view_reconstruction_review_disclosure_evidence_drilldown",
+      "contract_family": "ROUND_1",
+      "clause_ids": [
+        "decision_view_reconstruction_review_disclosure_evidence_drilldown"
+      ],
+      "requirement_summary": "Deterministic reconstruction precedes interpretation; review state and decision summaries retain links to source evidence and unresolved items.",
+      "ownership": "REPOSITORY_OWNED",
+      "linked_ksa_items": [
+        "KSA-05"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-05",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/translation.py",
+          "symbol": "parse_translation_patch"
+        },
+        {
+          "path": "src/k_slide/verify.py",
+          "symbol": "verify_run"
+        },
+        {
+          "path": "src/k_slide/rendering/reports.py",
+          "symbol": "render_run"
+        },
+        {
+          "path": "src/k_slide/cli.py"
+        },
+        {
+          "path": "src/k_slide/evidence_ir.py",
+          "symbol": "EvidenceIR"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "schemas/slide-ir.schema.json"
+        },
+        {
+          "path": "schemas/translation-patch.schema.json"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_chg16_foundation.py",
+          "symbol": "test_access_key_readiness_is_secret_free_and_fails_closed"
+        },
+        {
+          "path": "tests/test_certification_closure.py",
+          "symbol": "test_deterministic_evidence_identity_excludes_generated_at"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_ONLY",
+      "gap_classification": [
+        "OPEN_PROJECT_OS_RECONCILIATION",
+        "OPEN_REPOSITORY_REQUIREMENT"
+      ],
+      "next_owner": "Project OS KSA-05 owner to deliver and reconcile the full queued host scope."
+    },
+    {
+      "trace_id": "KSA38-TR-004",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_2 / pinned_runtime_exact_production_model_no_fallback",
+      "contract_family": "ROUND_2",
+      "clause_ids": [
+        "pinned_runtime_exact_production_model_no_fallback"
+      ],
+      "requirement_summary": "The production target is exactly google/gemma-4-31b-it and runtime artifacts are pinned; benchmark, employee, and production routes retain exact model identity, while local results do not establish production qualification.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-07"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-07",
+          "state": "ACTIVE_VERIFY_REQUIRED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/runtime_artifact.py",
+          "symbol": "verify_runtime_artifact"
+        },
+        {
+          "path": "src/k_slide/runtime.py",
+          "symbol": "discover_runtime"
+        },
+        {
+          "path": "src/k_slide/opencode_bootstrap.py",
+          "symbol": "bootstrap_environment"
+        },
+        {
+          "path": "scripts/build_runtime_artifact.py",
+          "symbol": "build"
+        },
+        {
+          "path": "evals/heavy/doctor.py"
+        },
+        {
+          "path": "evals/model_eval.py",
+          "symbol": "ModelEvaluationRunner"
+        },
+        {
+          "path": "evals/opencode_runner.py"
+        },
+        {
+          "path": "src/k_slide/production.py",
+          "symbol": "production_checks"
+        },
+        {
+          "path": "evals/freeze_production_dependencies.py"
+        },
+        {
+          "path": "evals/heavy/prefetch_ocr_models.py"
+        },
+        {
+          "path": "evals/heavy/run_checks.py"
+        },
+        {
+          "path": "scripts/verify_runtime_reproducibility.py",
+          "symbol": "compare"
+        },
+        {
+          "path": "src/k_slide/doctor.py"
+        },
+        {
+          "path": "src/k_slide/ocr/paddle.py"
+        },
+        {
+          "path": "src/k_slide/ocr/policy.py"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "deploy/runtime/production-requirements.lock"
+        },
+        {
+          "path": "deploy/runtime/production-dependency-inventory.json"
+        },
+        {
+          "path": "evals/production-candidate.yaml"
+        },
+        {
+          "path": "constraints-production.txt"
+        },
+        {
+          "path": "deploy/production-profile.example.json"
+        },
+        {
+          "path": "deploy/runtime/Dockerfile"
+        },
+        {
+          "path": "deploy/runtime/ocr-context/.keep"
+        },
+        {
+          "path": "deploy/runtime/system-packages-linux-amd64.json"
+        },
+        {
+          "path": "evals/production-candidate.example.yaml"
+        },
+        {
+          "path": "pyproject.toml"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_runtime_artifact.py",
+          "symbol": "test_canonical_inputs_are_digest_and_snapshot_pinned"
+        },
+        {
+          "path": "tests/test_chg16_environment_binding.py",
+          "symbol": "test_creation_persists_one_complete_identity_and_recreation_is_field_equivalent"
+        },
+        {
+          "path": "tests/test_certification_closure.py",
+          "symbol": "test_certifying_model_runner_requires_frozen_policy_approved_effective_model"
+        },
+        {
+          "path": "tests/test_certification_closure.py",
+          "symbol": "test_actual_model_runner_separates_behavior_and_experiment_identity"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE",
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Repository owner maintains the local contract; company deployment owner supplies the external gate evidence; Project OS reconciles closure."
+    },
+    {
+      "trace_id": "KSA38-TR-005",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_2 / durable_resumable_jobs_checkpoint_retry_cancel",
+      "contract_family": "ROUND_2",
+      "clause_ids": [
+        "durable_resumable_jobs_checkpoint_retry_cancel"
+      ],
+      "requirement_summary": "Durable job contracts persist checkpoints and distinguish bounded retry, cancellation, operational failure, and semantic review across worker restarts.",
+      "ownership": "REPOSITORY_OWNED",
+      "linked_ksa_items": [
+        "KSA-01",
+        "KSA-06",
+        "KSA-08"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-01",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-06",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-08",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "IMPLEMENTED",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/execution.py",
+          "symbol": "ExecutionJob"
+        },
+        {
+          "path": "src/k_slide/paas.py",
+          "symbol": "PaaSController"
+        },
+        {
+          "path": "src/k_slide/worker.py",
+          "symbol": "main"
+        },
+        {
+          "path": "src/k_slide/run_store.py"
+        },
+        {
+          "path": ".opencode/agents/k-slide.md"
+        },
+        {
+          "path": ".opencode/commands/k-slide-continue.md"
+        },
+        {
+          "path": ".opencode/commands/k-slide-help.md"
+        },
+        {
+          "path": ".opencode/commands/k-slide.md"
+        },
+        {
+          "path": ".opencode/plugin/k-slide-host.ts"
+        },
+        {
+          "path": ".opencode/skills/k-slide/SKILL.md"
+        },
+        {
+          "path": ".opencode/skills/k-slide/bin/prepare_run.sh"
+        },
+        {
+          "path": ".opencode/skills/k-slide/references/troubleshooting.md"
+        },
+        {
+          "path": ".opencode/tools/kslide.ts"
+        },
+        {
+          "path": "evals/opencode_diagnostics.py"
+        },
+        {
+          "path": "evals/opencode_runner.py"
+        },
+        {
+          "path": "evals/run_opencode_diagnostics.py"
+        },
+        {
+          "path": "scripts/launch_opencode_k_slide.py"
+        },
+        {
+          "path": "src/k_slide/__init__.py"
+        },
+        {
+          "path": "src/k_slide/cli.py"
+        },
+        {
+          "path": "src/k_slide/errors.py"
+        },
+        {
+          "path": "src/k_slide/host_adapter.py",
+          "symbol": "validate_host_inputs"
+        },
+        {
+          "path": "src/k_slide/installer.py"
+        },
+        {
+          "path": "src/k_slide/opencode_bootstrap.py",
+          "symbol": "bootstrap_environment"
+        },
+        {
+          "path": "src/k_slide/queue.py"
+        },
+        {
+          "path": "src/k_slide/state.py"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "deploy/opencode-bootstrap.example.json"
+        },
+        {
+          "path": "opencode.example.jsonc"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_chg16_durable_execution.py",
+          "symbol": "test_both_profiles_share_creation_lifecycle_checkpoint_and_replay_contract"
+        },
+        {
+          "path": "tests/test_chg16_paas_worker.py",
+          "symbol": "test_worker_interruption_restarts_from_last_committed_checkpoint_without_duplicate_markers"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_ONLY",
+      "gap_classification": [
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Project OS item owner to reconcile the repository trace with the accepted KSA scope."
+    },
+    {
+      "trace_id": "KSA38-TR-006",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_2 / scoped_persistence_queue_concurrency",
+      "contract_family": "ROUND_2",
+      "clause_ids": [
+        "scoped_persistence_queue_concurrency"
+      ],
+      "requirement_summary": "Scoped reference admission uses isolated namespaces, bounded active-run capacity, FIFO promotion, and durable compare-and-set state.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-09"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-09",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/paas.py",
+          "symbol": "PaaSController"
+        },
+        {
+          "path": "src/k_slide/queue.py"
+        },
+        {
+          "path": "src/k_slide/resource_budget.py",
+          "symbol": "ResourceBudget"
+        },
+        {
+          "path": "src/k_slide/locking.py"
+        },
+        {
+          "path": "src/k_slide/run_store.py"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "schemas/resource-budget.schema.json"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_chg16_scoped_admission.py",
+          "symbol": "test_independent_scopes_have_independent_active_slots"
+        },
+        {
+          "path": "tests/test_chg16_resource_budget.py",
+          "symbol": "test_shared_scoped_queue_capacity_is_race_safe_and_survives_reload"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE",
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Repository owner maintains the local contract; company deployment owner supplies the external gate evidence; Project OS reconciles closure."
+    },
+    {
+      "trace_id": "KSA38-TR-007",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_2 / exact_run_runtime_model_ocr_termbase_identity",
+      "contract_family": "ROUND_2",
+      "clause_ids": [
+        "exact_run_runtime_model_ocr_termbase_identity"
+      ],
+      "requirement_summary": "Resumed runs bind source, runtime, effective model, OCR, configuration, and governed terminology identities without silent identity switching.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-10"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-10",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/environment.py",
+          "symbol": "RunEnvironmentIdentity"
+        },
+        {
+          "path": "src/k_slide/session.py",
+          "symbol": "bind_session"
+        },
+        {
+          "path": "src/k_slide/model.py"
+        },
+        {
+          "path": "src/k_slide/ocr/policy.py"
+        },
+        {
+          "path": "src/k_slide/governed_terminology.py",
+          "symbol": "resolve_governed_termbase"
+        },
+        {
+          "path": "evals/opencode_runner.py"
+        },
+        {
+          "path": "src/k_slide/paas.py",
+          "symbol": "PaaSController"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "deploy/runtime/system-packages-linux-amd64.json"
+        },
+        {
+          "path": "deploy/production-profile.example.json"
+        },
+        {
+          "path": "evals/production-candidate.example.yaml"
+        },
+        {
+          "path": "evals/production-candidate.yaml"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_chg16_environment_binding.py",
+          "symbol": "test_creation_persists_one_complete_identity_and_recreation_is_field_equivalent"
+        },
+        {
+          "path": "tests/test_ksa19_governed_termbase.py",
+          "symbol": "test_candidate_binding_rejects_content_drift_and_plain_hash_is_not_complete_provenance"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE",
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Repository owner maintains the local contract; company deployment owner supplies the external gate evidence; Project OS reconciles closure."
+    },
+    {
+      "trace_id": "KSA38-TR-008",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_3 / three_class_storage",
+      "contract_family": "ROUND_3",
+      "clause_ids": [
+        "three_class_storage"
+      ],
+      "requirement_summary": "Content, operational control data, and telemetry use separately classified storage planes with scoped references and path safety.",
+      "ownership": "REPOSITORY_OWNED",
+      "linked_ksa_items": [
+        "KSA-11"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-11",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "IMPLEMENTED",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/storage.py",
+          "symbol": "StorageLayout"
+        },
+        {
+          "path": "src/k_slide/run_store.py"
+        },
+        {
+          "path": "src/k_slide/telemetry.py",
+          "symbol": "TelemetryWriter"
+        }
+      ],
+      "schema_config_locators": [],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_chg16_storage_planes.py",
+          "symbol": "test_allowlisted_non_content_event_classes_are_persisted"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_ONLY",
+      "gap_classification": [
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Project OS item owner to reconcile the repository trace with the accepted KSA scope."
+    },
+    {
+      "trace_id": "KSA38-TR-009",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_3 / content_vs_operational_retention",
+      "contract_family": "ROUND_3",
+      "clause_ids": [
+        "content_vs_operational_retention"
+      ],
+      "requirement_summary": "Content retention and operational metadata retention have distinct policy values and cleanup behavior; no implicit duration is supplied.",
+      "ownership": "REPOSITORY_OWNED",
+      "linked_ksa_items": [
+        "KSA-12"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-12",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "IMPLEMENTED",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/retention_policy.py",
+          "symbol": "RetentionPolicy"
+        },
+        {
+          "path": "src/k_slide/retention.py",
+          "symbol": "cleanup_expired_runs"
+        },
+        {
+          "path": "src/k_slide/deletion.py",
+          "symbol": "DeletionCoordinator"
+        },
+        {
+          "path": "src/k_slide/doctor.py"
+        }
+      ],
+      "schema_config_locators": [],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_chg16_retention_policy.py",
+          "symbol": "test_legacy_single_field_fails_closed_without_auto_split"
+        },
+        {
+          "path": "tests/test_chg16_deletion.py",
+          "symbol": "test_retention_and_operational_metadata_ttls_are_separate"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_ONLY",
+      "gap_classification": [
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Project OS item owner to reconcile the repository trace with the accepted KSA scope."
+    },
+    {
+      "trace_id": "KSA38-TR-010",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_3 / deletion_expiry_legal_hold",
+      "contract_family": "ROUND_3",
+      "clause_ids": [
+        "deletion_expiry_legal_hold"
+      ],
+      "requirement_summary": "Deletion handles expiry and explicit requests with resumable audit, legal-hold checks, scoped cleanup, and safe operational metadata expiry.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-13"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-13",
+          "state": "DONE_INTEGRATED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/deletion.py",
+          "symbol": "DeletionCoordinator"
+        },
+        {
+          "path": "src/k_slide/retention.py",
+          "symbol": "cleanup_expired_runs"
+        },
+        {
+          "path": "src/k_slide/retention_policy.py",
+          "symbol": "RetentionPolicy"
+        }
+      ],
+      "schema_config_locators": [],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_chg16_deletion.py",
+          "symbol": "test_hold_unknown_blocks_and_fresh_release_allows_same_request"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE"
+      ],
+      "next_owner": "Company production owner to supply current candidate-bound deployment evidence; Project OS reviews independently."
+    },
+    {
+      "trace_id": "KSA38-TR-011",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_4 / accesskey_consumption_nonleakage",
+      "contract_family": "ROUND_4",
+      "clause_ids": [
+        "accesskey_consumption_nonleakage"
+      ],
+      "requirement_summary": "AccessKey is consumed at the authenticated call edge from the process environment and is excluded from persisted, source-bearing, and telemetry payloads.",
+      "ownership": "REPOSITORY_OWNED",
+      "linked_ksa_items": [
+        "KSA-14",
+        "KSA-15"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-14",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-15",
+          "state": "DONE_INTEGRATED"
+        }
+      ],
+      "implementation_state": "IMPLEMENTED",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/access_key_handoff.py"
+        },
+        {
+          "path": "src/k_slide/authentication.py",
+          "symbol": "authenticated_company_service_call"
+        },
+        {
+          "path": "src/k_slide/redaction.py"
+        },
+        {
+          "path": ".opencode/internal/lib/k-slide-access-key.ts"
+        }
+      ],
+      "schema_config_locators": [],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_chg16_authentication_transport.py",
+          "symbol": "test_process_access_key_is_the_only_runtime_credential_source"
+        },
+        {
+          "path": "tests/test_chg16_accesskey_nonleakage.py",
+          "symbol": "test_execution_and_typed_storage_boundaries_are_safe"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_ONLY",
+      "gap_classification": [],
+      "next_owner": null
+    },
+    {
+      "trace_id": "KSA38-TR-012",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_4 / authoritative_classification",
+      "contract_family": "ROUND_4",
+      "clause_ids": [
+        "authoritative_classification"
+      ],
+      "requirement_summary": "Trusted host classification defaults conservatively and is checked against an exact route and data-use policy before source materialization.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-16"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-16",
+          "state": "DONE_INTEGRATED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/classification_policy.py",
+          "symbol": "InferenceDataUsePolicy"
+        },
+        {
+          "path": "src/k_slide/host_adapter.py",
+          "symbol": "validate_host_inputs"
+        },
+        {
+          "path": "src/k_slide/production.py",
+          "symbol": "production_checks"
+        },
+        {
+          "path": "src/k_slide/doctor.py"
+        },
+        {
+          "path": "src/k_slide/environment.py",
+          "symbol": "RunEnvironmentIdentity"
+        }
+      ],
+      "schema_config_locators": [],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_chg16_classification_admission.py",
+          "symbol": "test_authoritative_host_metadata_is_versioned_but_tool_supplied_unknown_fields_do_not_change_it"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE"
+      ],
+      "next_owner": "Company production owner to supply current candidate-bound deployment evidence; Project OS reviews independently."
+    },
+    {
+      "trace_id": "KSA38-TR-013",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_4 / run_scoped_authorization_tenant_isolation",
+      "contract_family": "ROUND_4",
+      "clause_ids": [
+        "run_scoped_authorization_tenant_isolation"
+      ],
+      "requirement_summary": "Every managed request is bound to deployment-owned run and tenant scope; request-supplied identifiers cannot create authority or cross scope.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-17"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-17",
+          "state": "DONE_INTEGRATED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/authentication.py",
+          "symbol": "authenticated_company_service_call"
+        },
+        {
+          "path": "src/k_slide/paas.py",
+          "symbol": "PaaSController"
+        },
+        {
+          "path": "src/k_slide/environment.py",
+          "symbol": "RunEnvironmentIdentity"
+        },
+        {
+          "path": "src/k_slide/production.py",
+          "symbol": "production_checks"
+        }
+      ],
+      "schema_config_locators": [],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_chg17_run_scope_authorization.py",
+          "symbol": "test_all_cross_scope_and_forged_identity_probes_share_the_same_contract"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE"
+      ],
+      "next_owner": "Company production owner to supply current candidate-bound deployment evidence; Project OS reviews independently."
+    },
+    {
+      "trace_id": "KSA38-TR-014",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_4 / default_deny_egress",
+      "contract_family": "ROUND_4",
+      "clause_ids": [
+        "default_deny_egress"
+      ],
+      "requirement_summary": "Model and support egress is authorized against a closed capability policy and denied when policy or route identity is missing, invalid, or drifting.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-18"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-18",
+          "state": "DONE_INTEGRATED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/egress_policy.py",
+          "symbol": "EgressPolicy"
+        },
+        {
+          "path": "src/k_slide/opencode_bootstrap.py",
+          "symbol": "bootstrap_environment"
+        },
+        {
+          "path": "src/k_slide/production.py",
+          "symbol": "production_checks"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "security/release-security-policy.json"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_chg18_default_deny_egress.py",
+          "symbol": "test_all_four_explicit_capabilities_allow_only_their_closed_purpose"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE"
+      ],
+      "next_owner": "Company production owner to supply current candidate-bound deployment evidence; Project OS reviews independently."
+    },
+    {
+      "trace_id": "KSA38-TR-015",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_4 / governed_termbase",
+      "contract_family": "ROUND_4",
+      "clause_ids": [
+        "governed_termbase"
+      ],
+      "requirement_summary": "Terminology resolution uses authorized core and scoped overlays with deterministic identity and candidate binding.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-19"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-19",
+          "state": "DONE_INTEGRATED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/governed_terminology.py",
+          "symbol": "resolve_governed_termbase"
+        },
+        {
+          "path": "src/k_slide/terminology.py"
+        },
+        {
+          "path": "src/k_slide/translation.py",
+          "symbol": "parse_translation_patch"
+        },
+        {
+          "path": "src/k_slide/cli.py"
+        },
+        {
+          "path": "src/k_slide/host_adapter.py",
+          "symbol": "validate_host_inputs"
+        }
+      ],
+      "schema_config_locators": [],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa19_governed_termbase.py",
+          "symbol": "test_authorized_bu_and_team_overlays_follow_hierarchy"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE"
+      ],
+      "next_owner": "Company production owner to supply current candidate-bound deployment evidence; Project OS reviews independently."
+    },
+    {
+      "trace_id": "KSA38-TR-016",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_4 / controlled_content_support",
+      "contract_family": "ROUND_4",
+      "clause_ids": [
+        "controlled_content_support"
+      ],
+      "requirement_summary": "Content-bearing support is selected by exact run-scoped references, reauthorized at access time, time-limited, and audited without making ordinary support bundles content-bearing.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-20"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-20",
+          "state": "ACTIVE"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/content_support.py",
+          "symbol": "ControlledSupportRequest"
+        },
+        {
+          "path": "src/k_slide/support.py"
+        },
+        {
+          "path": "src/k_slide/deletion.py",
+          "symbol": "DeletionCoordinator"
+        }
+      ],
+      "schema_config_locators": [],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa20_controlled_content_support.py",
+          "symbol": "test_authority_is_rechecked_on_read_and_reference_provider_is_not_production_authority"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE",
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Repository owner maintains the local contract; company deployment owner supplies the external gate evidence; Project OS reconciles closure."
+    },
+    {
+      "trace_id": "KSA38-TR-017",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_4 / adversarial_security_prompt_injection",
+      "contract_family": "ROUND_4",
+      "clause_ids": [
+        "adversarial_security_prompt_injection"
+      ],
+      "requirement_summary": "Untrusted document content cannot grant tool authority, alter system policy, inject credentials, or bypass bounded evidence and translation contracts.",
+      "ownership": "REPOSITORY_OWNED",
+      "linked_ksa_items": [
+        "KSA-21"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-21",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "IMPLEMENTED",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/security.py",
+          "symbol": "validate_input"
+        },
+        {
+          "path": "src/k_slide/translation_contract.py"
+        },
+        {
+          "path": "src/k_slide/host_adapter.py",
+          "symbol": "validate_host_inputs"
+        },
+        {
+          "path": "prompts/translation/v1.md"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "prompts/translation/v1.md"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa21_adversarial_security.py",
+          "symbol": "test_agent_permission_contract_is_default_deny_and_typed_only"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_ONLY",
+      "gap_classification": [
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Project OS item owner to reconcile the repository trace with the accepted KSA scope."
+    },
+    {
+      "trace_id": "KSA38-TR-018",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_5 / source_fact_interpretation_unresolved_provenance",
+      "contract_family": "ROUND_5",
+      "clause_ids": [
+        "source_fact_interpretation_unresolved_provenance"
+      ],
+      "requirement_summary": "Source facts, bounded interpretation, and unresolved claims retain distinct provenance links to source regions and translation decisions.",
+      "ownership": "REPOSITORY_OWNED",
+      "linked_ksa_items": [
+        "KSA-22"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-22",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "IMPLEMENTED",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/evidence_ir.py",
+          "symbol": "EvidenceIR"
+        },
+        {
+          "path": "src/k_slide/translation.py",
+          "symbol": "parse_translation_patch"
+        },
+        {
+          "path": "src/k_slide/semantics.py"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "schemas/evidence-ir.schema.json"
+        },
+        {
+          "path": "schemas/translation-patch.schema.json"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa22_provenance.py",
+          "symbol": "test_canonical_verifier_rejects_invalid_provenance_and_foreign_ids"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_ONLY",
+      "gap_classification": [
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Project OS item owner to reconcile the repository trace with the accepted KSA scope."
+    },
+    {
+      "trace_id": "KSA38-TR-019",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_5 / conflict_supersession",
+      "contract_family": "ROUND_5",
+      "clause_ids": [
+        "conflict_supersession"
+      ],
+      "requirement_summary": "Contradictory claims are represented in a versioned conflict registry with explicit supersession and without rewriting historical evidence.",
+      "ownership": "REPOSITORY_OWNED",
+      "linked_ksa_items": [
+        "KSA-23"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-23",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "IMPLEMENTED",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/conflicts.py",
+          "symbol": "ConflictRegistry"
+        },
+        {
+          "path": "src/k_slide/evidence_ir.py",
+          "symbol": "EvidenceIR"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "schemas/conflict-registry.schema.json"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa23_conflicts.py",
+          "symbol": "test_evidence_backed_authoritative_supersession_is_separate_and_keeps_both_claims"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_ONLY",
+      "gap_classification": [
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Project OS item owner to reconcile the repository trace with the accepted KSA scope."
+    },
+    {
+      "trace_id": "KSA38-TR-020",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_5 / mixed_language_table_chart_diagram_modality_fidelity",
+      "contract_family": "ROUND_5",
+      "clause_ids": [
+        "mixed_language_table_chart_diagram_modality_fidelity"
+      ],
+      "requirement_summary": "Mixed-language source structure preserves visible tables, chart trends, process edges, labels, counts, units, and modality-specific evidence.",
+      "ownership": "REPOSITORY_OWNED",
+      "linked_ksa_items": [
+        "KSA-24"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-24",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "IMPLEMENTED",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/modality.py",
+          "symbol": "decision_bearing_status"
+        },
+        {
+          "path": "src/k_slide/extraction.py",
+          "symbol": "extract_run"
+        },
+        {
+          "path": "src/k_slide/numeric.py"
+        },
+        {
+          "path": "src/k_slide/ir.py"
+        },
+        {
+          "path": "evals/heavy/run_checks.py"
+        },
+        {
+          "path": "src/k_slide/fusion.py"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "schemas/evidence-ir.schema.json"
+        },
+        {
+          "path": "schemas/slide-ir.schema.json"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa24_modality_conformance.py",
+          "symbol": "test_chart_trend_and_process_direction_are_bound_to_engine_evidence"
+        },
+        {
+          "path": "tests/test_ksa24_f24_real_path.py",
+          "symbol": "test_generated_pptx_survives_employee_runtime_and_rejects_adversaries"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_ONLY",
+      "gap_classification": [
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Project OS item owner to reconcile the repository trace with the accepted KSA scope."
+    },
+    {
+      "trace_id": "KSA38-TR-021",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_5 / unreadable_decorative_cross_document_recovery_law",
+      "contract_family": "ROUND_5",
+      "clause_ids": [
+        "unreadable_decorative_cross_document_recovery_law"
+      ],
+      "requirement_summary": "Unreadable, decorative, and cross-document content is routed through explicit evidence and recovery states instead of fabricated conclusions.",
+      "ownership": "REPOSITORY_OWNED",
+      "linked_ksa_items": [
+        "KSA-25"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-25",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "IMPLEMENTED",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/extraction.py",
+          "symbol": "extract_run"
+        },
+        {
+          "path": "src/k_slide/fusion.py"
+        },
+        {
+          "path": "src/k_slide/verify.py",
+          "symbol": "verify_run"
+        },
+        {
+          "path": "src/k_slide/state.py"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "schemas/evidence-ir.schema.json"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa25_recovery_law.py",
+          "symbol": "test_unreadable_table_cell_cannot_be_recovered_from_model_text"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_ONLY",
+      "gap_classification": [
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Project OS item owner to reconcile the repository trace with the accepted KSA scope."
+    },
+    {
+      "trace_id": "KSA38-TR-022",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_6 / four_set_corpus_governance",
+      "contract_family": "ROUND_6",
+      "clause_ids": [
+        "four_set_corpus_governance"
+      ],
+      "requirement_summary": "Corpus inputs are partitioned into four governed sets with lifecycle, membership, overlap, contamination, and provenance controls.",
+      "ownership": "REPOSITORY_OWNED",
+      "linked_ksa_items": [
+        "KSA-26"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-26",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "IMPLEMENTED",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/corpus_governance.py",
+          "symbol": "canonical_manifest"
+        },
+        {
+          "path": "evals/corpus_governance.py",
+          "symbol": "public_synthetic_manifest"
+        },
+        {
+          "path": "evals/governed_corpus.py",
+          "symbol": "load_governed_external_cases"
+        },
+        {
+          "path": "evals/build_certification_bundle.py"
+        },
+        {
+          "path": "evals/download_certification_bundle.py"
+        },
+        {
+          "path": "evals/generate_corpus.py"
+        },
+        {
+          "path": "evals/materialize_certification_bundle.py"
+        },
+        {
+          "path": "evals/scenarios.py"
+        },
+        {
+          "path": "evals/validate_certification_bundle_provenance.py"
+        }
+      ],
+      "schema_config_locators": [],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa26_corpus_governance.py",
+          "symbol": "test_candidate_certification_completeness_fails_for_legacy_and_partial_identity"
+        },
+        {
+          "path": "tests/test_ksa26_governed_runner.py",
+          "symbol": "test_frozen_high_risk_uses_governed_protected_groups_and_repeats"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_ONLY",
+      "gap_classification": [
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Project OS item owner to reconcile the repository trace with the accepted KSA scope."
+    },
+    {
+      "trace_id": "KSA38-TR-023",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_6 / hard_gates_floors_repetition_false_done",
+      "contract_family": "ROUND_6",
+      "clause_ids": [
+        "hard_gates_floors_repetition_false_done"
+      ],
+      "requirement_summary": "Non-compensable hard gates and category floors apply across repeated runs, including false-DONE, stability calibration, and unaveraged model-fallback failures.",
+      "ownership": "REPOSITORY_OWNED",
+      "linked_ksa_items": [
+        "KSA-27",
+        "KSA-28"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-27",
+          "state": "QUEUED"
+        },
+        {
+          "ksa_id": "KSA-28",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "IMPLEMENTED",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/quality_policy.py",
+          "symbol": "quality_policy_identity"
+        },
+        {
+          "path": "evals/model_results.py",
+          "symbol": "aggregate_model_results"
+        },
+        {
+          "path": "evals/model_scorers.py"
+        },
+        {
+          "path": "evals/model_eval.py",
+          "symbol": "ModelEvaluationRunner"
+        },
+        {
+          "path": "evals/noncritical_semantics.py"
+        },
+        {
+          "path": "evals/run_engine_eval.py"
+        },
+        {
+          "path": "evals/run_model_eval.py"
+        },
+        {
+          "path": "evals/scenarios.py"
+        }
+      ],
+      "schema_config_locators": [],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa27_quality_policy.py",
+          "symbol": "test_one_missing_media_or_model_fallback_cannot_be_averaged_over_99_cases"
+        },
+        {
+          "path": "tests/test_ksa28_stability_calibration.py",
+          "symbol": "test_false_done_calibration_uses_persisted_execution_and_established_gates"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_ONLY",
+      "gap_classification": [
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Project OS item owner to reconcile the repository trace with the accepted KSA scope."
+    },
+    {
+      "trace_id": "KSA38-TR-024",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_6 / bilingual_gold_adjudication",
+      "contract_family": "ROUND_6",
+      "clause_ids": [
+        "bilingual_gold_adjudication"
+      ],
+      "requirement_summary": "Bilingual gold decisions preserve Korean source, English target, adjudication rationale, and accepted evaluator agreement as governed evidence.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-29"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-29",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/bilingual_adjudication.py",
+          "symbol": "build_internal_bilingual_payload"
+        }
+      ],
+      "schema_config_locators": [],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa29_bilingual_adjudication.py",
+          "symbol": "test_ai_assistance_is_allowed_only_as_non_authoritative_provenance"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE",
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Repository owner maintains the local contract; company deployment owner supplies the external gate evidence; Project OS reconciles closure."
+    },
+    {
+      "trace_id": "KSA38-TR-025",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_6 / zero_korean_study",
+      "contract_family": "ROUND_6",
+      "clause_ids": [
+        "zero_korean_study"
+      ],
+      "requirement_summary": "The zero-Korean comprehension protocol fixes participant eligibility, task order, scoring, and decision rules; repository protocol does not supply human outcomes.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-30"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-30",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/zero_korean_study.py",
+          "symbol": "build_zero_korean_study_payload"
+        },
+        {
+          "path": "docs/zero-korean-human-study.md"
+        }
+      ],
+      "schema_config_locators": [],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa30_zero_korean_study.py",
+          "symbol": "test_absolute_critical_and_overall_floors_fail_independently"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE",
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Repository owner maintains the local contract; company deployment owner supplies the external gate evidence; Project OS reconciles closure."
+    },
+    {
+      "trace_id": "KSA38-TR-026",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_6 / champion_promotion_scoped_recertification_invalidation",
+      "contract_family": "ROUND_6",
+      "clause_ids": [
+        "champion_promotion_scoped_recertification_invalidation"
+      ],
+      "requirement_summary": "Champion promotion is evidence-bound; material changes scope recertification and invalidate affected prior evidence and champion state.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-31"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-31",
+          "state": "QUEUED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/recertification.py",
+          "symbol": "build_champion_promotion"
+        },
+        {
+          "path": "src/k_slide/certification.py",
+          "symbol": "resolve_candidate_spec"
+        },
+        {
+          "path": "evals/release.py",
+          "symbol": "derive_release_state"
+        },
+        {
+          "path": "evals/build_certification_bundle.py"
+        },
+        {
+          "path": "evals/certification.py"
+        }
+      ],
+      "schema_config_locators": [],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa31_promotion_recertification.py",
+          "symbol": "test_edited_promotion_record_and_editable_summary_fail_closed"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE",
+        "OPEN_PROJECT_OS_RECONCILIATION"
+      ],
+      "next_owner": "Repository owner maintains the local contract; company deployment owner supplies the external gate evidence; Project OS reconciles closure."
+    },
+    {
+      "trace_id": "KSA38-TR-027",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_7 / protected_release_governance",
+      "contract_family": "ROUND_7",
+      "clause_ids": [
+        "protected_release_governance"
+      ],
+      "requirement_summary": "Release governance binds required checks, protected branch facts, code-owner coverage, reviews, and exact candidate identity; local fixtures are not live protection facts.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-32"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-32",
+          "state": "DONE_INTEGRATED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/release_governance.py",
+          "symbol": "derive_governance_payload"
+        },
+        {
+          "path": "evals/capture_governance.py",
+          "symbol": "capture_and_derive"
+        },
+        {
+          "path": "evals/release.py",
+          "symbol": "derive_release_state"
+        },
+        {
+          "path": "src/k_slide/certification.py",
+          "symbol": "resolve_candidate_spec"
+        },
+        {
+          "path": "src/k_slide/evidence_adapters.py",
+          "symbol": "derive_payload"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "security/release-governance-policy.json"
+        },
+        {
+          "path": ".github/CODEOWNERS"
+        },
+        {
+          "path": ".github/workflows/k-slide-governance.yml"
+        },
+        {
+          "path": ".github/workflows/k-slide-governance.yml"
+        },
+        {
+          "path": ".github/workflows/k-slide-phase32.yml"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa32_release_governance.py",
+          "symbol": "test_candidate_files_are_bound_to_merge_subject_and_policy_identity"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE"
+      ],
+      "next_owner": "Company production owner to supply current candidate-bound deployment evidence; Project OS reviews independently."
+    },
+    {
+      "trace_id": "KSA38-TR-028",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_7 / candidate_bound_security_evidence",
+      "contract_family": "ROUND_7",
+      "clause_ids": [
+        "candidate_bound_security_evidence"
+      ],
+      "requirement_summary": "Candidate-bound security evidence rederives minimized scanner, dependency, image, and control results against the exact candidate; no current company scan is claimed.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-33"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-33",
+          "state": "DONE_INTEGRATED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/security_release.py",
+          "symbol": "candidate_tree_sha256"
+        },
+        {
+          "path": "evals/build_security_release_context.py"
+        },
+        {
+          "path": "evals/security_reports.py",
+          "symbol": "sanitize_reports"
+        },
+        {
+          "path": "evals/enforce_security.py"
+        },
+        {
+          "path": "evals/security_controls.py"
+        },
+        {
+          "path": "src/k_slide/certification.py",
+          "symbol": "resolve_candidate_spec"
+        },
+        {
+          "path": "src/k_slide/evidence_adapters.py",
+          "symbol": "derive_payload"
+        },
+        {
+          "path": "src/k_slide/production.py",
+          "symbol": "production_checks"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "schemas/security-release-evidence.schema.json"
+        },
+        {
+          "path": "schemas/vulnerability-dispositions.schema.json"
+        },
+        {
+          "path": "security/release-security-policy.json"
+        },
+        {
+          "path": ".github/workflows/k-slide-security.yml"
+        },
+        {
+          "path": ".github/workflows/k-slide-security.yml"
+        },
+        {
+          "path": "security/vulnerability-dispositions.json"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa33_security_release.py",
+          "symbol": "test_candidate_sha_tree_and_fingerprint_replay_fail_closed"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE"
+      ],
+      "next_owner": "Company production owner to supply current candidate-bound deployment evidence; Project OS reviews independently."
+    },
+    {
+      "trace_id": "KSA38-TR-029",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_7 / rollout_pilot_canary_controls",
+      "contract_family": "ROUND_7",
+      "clause_ids": [
+        "rollout_pilot_canary_controls"
+      ],
+      "requirement_summary": "Signed candidate-bound rollout transitions and admission controls support disable, contraction, rollback, and staged cohorts; no pilot or canary was run.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-34"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-34",
+          "state": "DONE_INTEGRATED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/rollout.py",
+          "symbol": "transition_reference_rollout_control"
+        },
+        {
+          "path": "src/k_slide/production.py",
+          "symbol": "production_checks"
+        },
+        {
+          "path": "src/k_slide/evidence_adapters.py",
+          "symbol": "derive_payload"
+        },
+        {
+          "path": "src/k_slide/release_governance.py",
+          "symbol": "derive_governance_payload"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "schemas/rollout-control.schema.json"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa34_rollout.py",
+          "symbol": "test_stage_expansion_and_contraction_require_explicit_transitions"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE"
+      ],
+      "next_owner": "Company production owner to supply current candidate-bound deployment evidence; Project OS reviews independently."
+    },
+    {
+      "trace_id": "KSA38-TR-030",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_7 / noncontent_telemetry_issue_reporting",
+      "contract_family": "ROUND_7",
+      "clause_ids": [
+        "noncontent_telemetry_issue_reporting"
+      ],
+      "requirement_summary": "Telemetry records source-free operational events and run-scoped employee allegations without carrying content or changing evidence or completion.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-35"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-35",
+          "state": "DONE_INTEGRATED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/telemetry.py",
+          "symbol": "TelemetryWriter"
+        },
+        {
+          "path": "src/k_slide/support.py"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "schemas/operational-telemetry-event.schema.json"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa35_product_telemetry.py",
+          "symbol": "test_cloud_vscode_report_and_confirmation_use_verified_done_state_without_mutation"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE"
+      ],
+      "next_owner": "Company production owner to supply current candidate-bound deployment evidence; Project OS reviews independently."
+    },
+    {
+      "trace_id": "KSA38-TR-031",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_7 / performance_load_budgets",
+      "contract_family": "ROUND_7",
+      "clause_ids": [
+        "performance_load_budgets"
+      ],
+      "requirement_summary": "Configured input, queue, model, and runtime budgets have deterministic boundary checks and a candidate-bound measurement harness; production SLO and company capacity remain unmeasured.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-36"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-36",
+          "state": "DONE_INTEGRATED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/resource_budget.py",
+          "symbol": "ResourceBudget"
+        },
+        {
+          "path": "evals/performance_load.py",
+          "symbol": "run_measurement"
+        },
+        {
+          "path": "evals/certification.py"
+        },
+        {
+          "path": "evals/release.py",
+          "symbol": "derive_release_state"
+        },
+        {
+          "path": "src/k_slide/certification.py",
+          "symbol": "resolve_candidate_spec"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "schemas/resource-budget.schema.json"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_chg16_resource_budget.py",
+          "symbol": "test_every_numeric_limit_rejects_above_and_accepts_below_at"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE"
+      ],
+      "next_owner": "Company production owner to supply current candidate-bound deployment evidence; Project OS reviews independently."
+    },
+    {
+      "trace_id": "KSA38-TR-032",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_7 / revocation_kill_switch_drift_response",
+      "contract_family": "ROUND_7",
+      "clause_ids": [
+        "revocation_kill_switch_drift_response"
+      ],
+      "requirement_summary": "Candidate-bound signed revocation blocks admission and release and permits recovery only after requalification and safe rollout restoration.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-37"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-37",
+          "state": "DONE_INTEGRATED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/candidate_revocation.py",
+          "symbol": "apply_reference_candidate_event"
+        },
+        {
+          "path": "src/k_slide/rollout.py",
+          "symbol": "transition_reference_rollout_control"
+        },
+        {
+          "path": "src/k_slide/production.py",
+          "symbol": "production_checks"
+        },
+        {
+          "path": "evals/release.py",
+          "symbol": "derive_release_state"
+        },
+        {
+          "path": "src/k_slide/certification.py",
+          "symbol": "resolve_candidate_spec"
+        }
+      ],
+      "schema_config_locators": [
+        {
+          "path": "schemas/candidate-revocation.schema.json"
+        }
+      ],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_ksa37_candidate_revocation.py",
+          "symbol": "test_revocation_gate_blocks_readiness_and_release_promotion_without_live_authority"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE"
+      ],
+      "next_owner": "Company production owner to supply current candidate-bound deployment evidence; Project OS reviews independently."
+    },
+    {
+      "trace_id": "KSA38-TR-033",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_7 / external_production_qualification_gates",
+      "contract_family": "ROUND_7",
+      "clause_ids": [
+        "external_production_qualification_gates"
+      ],
+      "requirement_summary": "Company PaaS, pinned deployed runtime, production Gemma, private human and security data-use evidence, network and IAM authority, performance, governance, pilot, and canary facts require external candidate-bound proof.",
+      "ownership": "EXTERNAL_PRODUCTION_GATE",
+      "linked_ksa_items": [
+        "KSA-07",
+        "KSA-08",
+        "KSA-09",
+        "KSA-10",
+        "KSA-14",
+        "KSA-16",
+        "KSA-17",
+        "KSA-18",
+        "KSA-19",
+        "KSA-20",
+        "KSA-21",
+        "KSA-29",
+        "KSA-30",
+        "KSA-31",
+        "KSA-32",
+        "KSA-33",
+        "KSA-34",
+        "KSA-35",
+        "KSA-36",
+        "KSA-37"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-07",
+          "state": "ACTIVE_VERIFY_REQUIRED"
+        },
+        {
+          "ksa_id": "KSA-08",
+          "state": "QUEUED"
+        },
+        {
+          "ksa_id": "KSA-09",
+          "state": "QUEUED"
+        },
+        {
+          "ksa_id": "KSA-10",
+          "state": "QUEUED"
+        },
+        {
+          "ksa_id": "KSA-14",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-16",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-17",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-18",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-19",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-20",
+          "state": "ACTIVE"
+        },
+        {
+          "ksa_id": "KSA-21",
+          "state": "QUEUED"
+        },
+        {
+          "ksa_id": "KSA-29",
+          "state": "QUEUED"
+        },
+        {
+          "ksa_id": "KSA-30",
+          "state": "QUEUED"
+        },
+        {
+          "ksa_id": "KSA-31",
+          "state": "QUEUED"
+        },
+        {
+          "ksa_id": "KSA-32",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-33",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-34",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-35",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-36",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-37",
+          "state": "DONE_INTEGRATED"
+        }
+      ],
+      "implementation_state": "EXTERNAL_ONLY",
+      "implementation_locators": [],
+      "schema_config_locators": [],
+      "decisive_test_locators": [],
+      "repository_evidence_availability": "EXTERNAL_EVIDENCE_NOT_SUPPLIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE"
+      ],
+      "next_owner": "Company production owner to supply current candidate-bound deployment evidence; Project OS reviews independently."
+    },
+    {
+      "trace_id": "KSA38-TR-034",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_8 / build_completion_traceability_regression_audit_blocker_boundary",
+      "contract_family": "ROUND_8",
+      "clause_ids": [
+        "build_completion_traceability_regression_audit_blocker_boundary"
+      ],
+      "requirement_summary": "Build evidence must bind exact inputs, tests, changed paths, open blockers, and candidate identity while preserving Project OS as independent auditor and integration authority.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-32",
+        "KSA-33",
+        "KSA-34",
+        "KSA-35",
+        "KSA-36",
+        "KSA-37"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-32",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-33",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-34",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-35",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-36",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-37",
+          "state": "DONE_INTEGRATED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/evidence_adapters.py",
+          "symbol": "derive_payload"
+        },
+        {
+          "path": "src/k_slide/certification.py",
+          "symbol": "resolve_candidate_spec"
+        },
+        {
+          "path": "evals/release.py",
+          "symbol": "derive_release_state"
+        }
+      ],
+      "schema_config_locators": [],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_certification_closure.py",
+          "symbol": "test_candidate_completeness_resolves_repository_inputs_and_keeps_states_practical"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE"
+      ],
+      "next_owner": "Company production owner to supply current candidate-bound deployment evidence; Project OS reviews independently."
+    },
+    {
+      "trace_id": "KSA38-TR-035",
+      "source_section": "Rounds 1–8 Production Contract / ROUND_8 / build_complete_separate_from_production_certified",
+      "contract_family": "ROUND_8",
+      "clause_ids": [
+        "build_complete_separate_from_production_certified"
+      ],
+      "requirement_summary": "BUILD COMPLETE is a traceability and regression result; PRODUCTION CERTIFIED remains a separate evidence-derived state gated by external production facts.",
+      "ownership": "MIXED_REPOSITORY_AND_EXTERNAL",
+      "linked_ksa_items": [
+        "KSA-32",
+        "KSA-33",
+        "KSA-34",
+        "KSA-35",
+        "KSA-36",
+        "KSA-37"
+      ],
+      "project_os_closure": [
+        {
+          "ksa_id": "KSA-32",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-33",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-34",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-35",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-36",
+          "state": "DONE_INTEGRATED"
+        },
+        {
+          "ksa_id": "KSA-37",
+          "state": "DONE_INTEGRATED"
+        }
+      ],
+      "implementation_state": "PARTIAL",
+      "implementation_locators": [
+        {
+          "path": "src/k_slide/certification.py",
+          "symbol": "resolve_candidate_spec"
+        },
+        {
+          "path": "src/k_slide/production.py",
+          "symbol": "production_checks"
+        },
+        {
+          "path": "src/k_slide/release_governance.py",
+          "symbol": "derive_governance_payload"
+        },
+        {
+          "path": "evals/release.py",
+          "symbol": "derive_release_state"
+        }
+      ],
+      "schema_config_locators": [],
+      "decisive_test_locators": [
+        {
+          "path": "tests/test_certification_closure.py",
+          "symbol": "test_certification_runtime_fixtures_encode_the_pinned_production_interpreter"
+        }
+      ],
+      "repository_evidence_availability": "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+      "gap_classification": [
+        "OPEN_EXTERNAL_PRODUCTION_GATE"
+      ],
+      "next_owner": "Company production owner to supply current candidate-bound deployment evidence; Project OS reviews independently."
+    }
+  ],
+  "core_invariants": {
+    "production_target_model": "google/gemma-4-31b-it",
+    "benchmark_user_production_path_equal": true,
+    "decision_critical_fields": [
+      "meaning",
+      "number",
+      "date",
+      "unit",
+      "table",
+      "cardinality",
+      "trend",
+      "owner",
+      "status",
+      "dependency",
+      "risk",
+      "timing",
+      "uncertainty",
+      "terminology",
+      "modality"
+    ],
+    "silent_model_fallback_allowed": false,
+    "release_state_source": "EVIDENCE_DERIVED",
+    "production_certification_external_gates_separate": true
+  },
+  "evidence_provenance": {
+    "closure_snapshot_source": "PROJECT_OS_BOUND_DISPATCH_SNAPSHOT",
+    "historical_fabric_receipts_claimed": false,
+    "notion_only_locators_claimed": false,
+    "external_production_evidence_claimed": false
+  },
+  "summary": {
+    "trace_rows": 35,
+    "rows_by_contract_family": {
+      "ROUND_1": 3,
+      "ROUND_2": 4,
+      "ROUND_3": 3,
+      "ROUND_4": 7,
+      "ROUND_5": 4,
+      "ROUND_6": 5,
+      "ROUND_7": 7,
+      "ROUND_8": 2
+    },
+    "rows_by_ownership": {
+      "REPOSITORY_OWNED": 14,
+      "MIXED_REPOSITORY_AND_EXTERNAL": 20,
+      "EXTERNAL_PRODUCTION_GATE": 1
+    },
+    "rows_by_implementation_state": {
+      "IMPLEMENTED": 12,
+      "PARTIAL": 22,
+      "REUSED_UNCHANGED": 0,
+      "NOT_IMPLEMENTED": 0,
+      "EXTERNAL_ONLY": 1
+    },
+    "trace_links_by_project_os_closure_state": {
+      "DONE_INTEGRATED": 41,
+      "ACTIVE_VERIFY_REQUIRED": 2,
+      "ACTIVE": 2,
+      "QUEUED": 26,
+      "NOT_IN_SUPPLIED_SNAPSHOT": 0
+    },
+    "project_os_ksa_items_by_closure_state": {
+      "DONE_INTEGRATED": 17,
+      "ACTIVE_VERIFY_REQUIRED": 1,
+      "ACTIVE": 1,
+      "QUEUED": 18
+    },
+    "ksa_coverage": {
+      "required_items": 37,
+      "covered_items": 37,
+      "missing_items": []
+    },
+    "canonical_clause_coverage": {
+      "required_clauses": 35,
+      "covered_clauses": 35,
+      "missing_clauses": []
+    },
+    "ksa_clause_crosswalk": {
+      "required_links": 71,
+      "covered_links": 71,
+      "missing_links": [],
+      "mappings_by_implementation_state": {
+        "IMPLEMENTED": 18,
+        "PARTIAL": 33,
+        "REUSED_UNCHANGED": 0,
+        "NOT_IMPLEMENTED": 0,
+        "EXTERNAL_ONLY": 20
+      }
+    },
+    "changed_path_coverage": {
+      "expected_paths": 229,
+      "requirement_referenced_paths": 137,
+      "closed_classification_paths": 92,
+      "unexplained_paths": 0
+    },
+    "rows_by_gap_classification": {
+      "OPEN_EXTERNAL_PRODUCTION_GATE": 21,
+      "OPEN_PROJECT_OS_RECONCILIATION": 19,
+      "OPEN_REPOSITORY_REQUIREMENT": 2,
+      "ORPHAN_REQUIREMENT": 0
+    },
+    "orphan_requirement_count": 0
+  }
+}

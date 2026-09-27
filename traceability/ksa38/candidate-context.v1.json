@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "project": "k-slide",
+  "operation": "FIX",
+  "request": "chg16-requirement-traceability-01-fix03",
+  "work_branch": "codex/k-slide-chg16-requirement-traceability-01-fix03",
+  "exact_base_sha": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd",
+  "change_base_sha": "af5836540304b424289bedbe57a87dbb5d02763f",
+  "candidate_parent_sha": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
+  "predecessor_lineage": {
+    "request": "chg16-requirement-traceability-01-fix02",
+    "disposition": "ACCEPTED",
+    "work_head": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
+    "traceability_product_commit": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
+    "native_evidence_commit": "e71b3465f8943b57dbe2b774212ae6108043c9a8",
+    "native_build_job_id": "CF-959e82d5a93c6227f3e861fb"
+  },
+  "historical_lineage": [
+    {
+      "request": "chg16-requirement-traceability-01-fix01",
+      "disposition": "REJECTED",
+      "work_head": "3538dc1d0c9ac5c255545751662bb08980997f44",
+      "traceability_product_commit": "34092db009e4701b2c9949b7d644afce9267c08d",
+      "native_evidence_commit": "1ea3e8b413bf8ef28ae16c2ddc2c0d7e9d096ce7",
+      "native_build_job_id": "CF-6a7997ef8068f9a3b6ae02bd"
+    },
+    {
+      "request": "chg16-requirement-traceability-01",
+      "disposition": "BUILD_PREDECESSOR",
+      "work_head": "6bad7b23ddfc9525acffb9e169fb65182f9c8764",
+      "traceability_product_commit": "b07011b674d165bf8ed28d5b2a96add6e850bd6d",
+      "native_evidence_commit": "99063af41106fb26d46f573c5fd0fb52a5352cf7",
+      "native_build_job_id": "CF-12417898c2198699f08668aa"
+    }
+  ]
+}
