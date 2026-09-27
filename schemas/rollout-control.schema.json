@@ -128,18 +128,21 @@
     "admission": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema_version", "status", "reason_code", "candidate_binding", "policy_identity", "policy_version", "state_revision", "stage", "cohort_id", "rollback_rule"],
+      "required": ["schema_version", "status", "reason_code", "candidate_binding", "policy_identity", "policy_version", "state_revision", "stage", "cohort_id", "rollback_rule", "revocation_state_identity", "revocation_revision", "revocation_status"],
       "properties": {
-        "schema_version": { "const": "1.0" },
+        "schema_version": { "const": "1.1" },
         "status": { "enum": ["ADMITTED", "DENIED", "REJECTED"] },
-        "reason_code": { "enum": ["COHORT_ADMITTED", "COHORT_NOT_ADMITTED", "ADMISSIONS_DISABLED", "CONTROL_INVALID", "AUTHORITY_UNAVAILABLE"] },
+        "reason_code": { "enum": ["COHORT_ADMITTED", "COHORT_NOT_ADMITTED", "ADMISSIONS_DISABLED", "CANDIDATE_REVOKED", "CONTROL_INVALID", "AUTHORITY_UNAVAILABLE"] },
         "candidate_binding": { "$ref": "#/$defs/candidate" },
         "policy_identity": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
         "policy_version": { "oneOf": [{ "const": "1.0" }, { "type": "null" }] },
         "state_revision": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }] },
         "stage": { "oneOf": [{ "enum": ["DISABLED", "NAMED_COHORT", "PILOT", "CANARY", "PHASED", "FULL"] }, { "type": "null" }] },
         "cohort_id": { "oneOf": [{ "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,63}$" }, { "type": "null" }] },
-        "rollback_rule": { "const": "BOUND_RUNS_COMPLETE_OR_STOP_ON_IDENTITY_MISMATCH_V1" }
+        "rollback_rule": { "const": "BOUND_RUNS_COMPLETE_OR_STOP_ON_IDENTITY_MISMATCH_V1" },
+        "revocation_state_identity": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+        "revocation_revision": { "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }] },
+        "revocation_status": { "oneOf": [{ "enum": ["CLEAR", "REVOKED", "RECOVERED"] }, { "type": "null" }] }
       }
     }
   }

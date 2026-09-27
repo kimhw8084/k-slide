@@ -100,6 +100,7 @@ class ProductionProfile:
     inference_endpoint_identity: str | None = None
     opencode_bootstrap_manifest: str | None = None
     resource_budget: dict[str, Any] | None = None
+    run_environment_identity_sha256: str | None = None
 
     @classmethod
     def from_mapping(cls, value: dict[str, Any], *, require_resolved_retention: bool = True) -> "ProductionProfile":
@@ -158,6 +159,7 @@ class ProductionProfile:
             inference_endpoint_identity=str(value["inference_endpoint_identity"]) if "inference_endpoint_identity" in value else None,
             opencode_bootstrap_manifest=str(value["opencode_bootstrap_manifest"]) if "opencode_bootstrap_manifest" in value else None,
             resource_budget=dict(resource_budget) if isinstance(resource_budget, dict) else None,
+            run_environment_identity_sha256=str(value["run_environment_identity_sha256"]) if "run_environment_identity_sha256" in value else None,
         )
 
     def as_dict(self) -> dict[str, Any]:
@@ -190,6 +192,7 @@ class ProductionProfile:
             **({"inference_endpoint_identity": self.inference_endpoint_identity} if self.inference_endpoint_identity is not None else {}),
             **({"opencode_bootstrap_manifest": self.opencode_bootstrap_manifest} if self.opencode_bootstrap_manifest is not None else {}),
             **({"resource_budget": self.resource_budget} if self.resource_budget is not None else {}),
+            **({"run_environment_identity_sha256": self.run_environment_identity_sha256} if self.run_environment_identity_sha256 is not None else {}),
         }
 
 
@@ -667,6 +670,25 @@ def production_checks(root: Path, runtime: RuntimeMetadata) -> list[dict[str, st
     candidate = profile.candidate_spec or {}
     candidate_missing = candidate_completeness(candidate, ReleaseState.PRODUCTION_CERTIFIED.value)
     checks.append(_check("Candidate completeness", not candidate_missing, "complete" if not candidate_missing else "unresolved=" + ",".join(candidate_missing)))
+    from .candidate_revocation import candidate_revocation_gate, deployment_candidate_revocation_control
+    from .rollout import RolloutCandidateBinding
+
+    exact_binding = None
+    if profile.run_environment_identity_sha256 is not None:
+        try:
+            exact_binding = RolloutCandidateBinding(
+                profile.subject_git_sha,
+                profile.deployment_fingerprint,
+                profile.run_environment_identity_sha256,
+            )
+        except ValueError:
+            exact_binding = None
+    try:
+        revocation_provider = deployment_candidate_revocation_control()
+    except Exception:
+        revocation_provider = None
+    revocation_ready, revocation_detail = candidate_revocation_gate(candidate=exact_binding, provider=revocation_provider)
+    checks.append(_check("Candidate revocation state", revocation_ready, revocation_detail))
     checks.extend(_execution_behavior_checks(root, profile))
     expected_kslide = (profile.candidate_spec or {}).get("kslide_version")
     checks.append(_check("K-Slide version", runtime.kslide_version == expected_kslide, f"expected={expected_kslide}; actual={runtime.kslide_version}"))

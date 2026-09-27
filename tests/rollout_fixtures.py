@@ -18,4 +18,7 @@ class TestOnlyRolloutAdmission:
             state_revision=1,
             stage="PILOT",
             cohort_id="test_fixture",
+            revocation_state_identity=hashlib.sha256(b"ksa37-test-only-clear-state").hexdigest(),
+            revocation_revision=0,
+            revocation_status="CLEAR",
         )

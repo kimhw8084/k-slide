@@ -26,6 +26,7 @@ from .locking import filesystem_lock
 
 
 ROLLOUT_CONTRACT_VERSION = "1.0"
+ROLLOUT_ADMISSION_VERSION = "1.1"
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _HEX40 = re.compile(r"^[0-9a-f]{40}$")
 _NAME = re.compile(r"^[a-z][a-z0-9_.-]{0,63}$")
@@ -134,10 +135,13 @@ class RolloutAdmission:
     stage: str | None = None
     cohort_id: str | None = None
     rollback_rule: str = _ROLLBACK_RULE
+    revocation_state_identity: str | None = None
+    revocation_revision: int | None = None
+    revocation_status: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "schema_version": ROLLOUT_CONTRACT_VERSION,
+            "schema_version": ROLLOUT_ADMISSION_VERSION,
             "status": self.status,
             "reason_code": self.reason_code,
             "candidate_binding": self.candidate_binding.as_dict(),
@@ -147,6 +151,9 @@ class RolloutAdmission:
             "stage": self.stage,
             "cohort_id": self.cohort_id,
             "rollback_rule": self.rollback_rule,
+            "revocation_state_identity": self.revocation_state_identity,
+            "revocation_revision": self.revocation_revision,
+            "revocation_status": self.revocation_status,
         }
 
 
@@ -154,6 +161,40 @@ class RolloutAdmissionProvider(Protocol):
     """Deployment boundary that resolves authorized cohort membership."""
 
     def admit(self, candidate: RolloutCandidateBinding) -> RolloutAdmission: ...
+
+
+class RevocationAwareRolloutControl:
+    """Bind rollout admissions to an independent typed revocation provider."""
+
+    def __init__(self, rollout: RolloutAdmissionProvider, revocations: Any) -> None:
+        self.rollout = rollout
+        self.revocations = revocations
+
+    def admit(self, candidate: RolloutCandidateBinding) -> RolloutAdmission:
+        from .candidate_revocation import candidate_revocation_status
+
+        status = candidate_revocation_status(self.revocations, candidate)
+        receipt = self.rollout.admit(candidate)
+        if not isinstance(receipt, RolloutAdmission):
+            raise RolloutControlError("rollout provider returned an invalid receipt")
+        if status.revoked:
+            if receipt.stage != "DISABLED":
+                raise RolloutControlError("active candidate revocation requires the signed rollout DISABLE or ROLLBACK transition")
+            return RolloutAdmission(
+                "DENIED", "CANDIDATE_REVOKED", candidate, receipt.policy_identity, receipt.policy_version,
+                receipt.state_revision, receipt.stage, receipt.cohort_id, receipt.rollback_rule,
+                revocation_state_identity=status.state_identity,
+                revocation_revision=status.revision,
+                revocation_status=status.status,
+            )
+        return RolloutAdmission(
+            **{
+                **receipt.__dict__,
+                "revocation_state_identity": status.state_identity,
+                "revocation_revision": status.revision,
+                "revocation_status": status.status,
+            }
+        )
 
 
 def _policy_payload(value: Any, key: bytes, *, now: datetime) -> tuple[dict[str, Any], str]:
@@ -442,6 +483,8 @@ class ReferenceFileRolloutControl:
             raise RolloutControlError("rollout control document is unreadable or malformed") from exc
 
     def admit(self, candidate: RolloutCandidateBinding) -> RolloutAdmission:
+        from .candidate_revocation import candidate_revocation_status
+
         policy, state, head = self._read("rollout-policy.json"), self._read("rollout-state.json"), self._read("rollout-head.json")
         payload, policy_identity = _policy_payload(policy, self.key, now=self.now)
         current, state_identity = _state_payload(state, self.key, policy_identity=policy_identity, head=head)
@@ -463,13 +506,22 @@ class ReferenceFileRolloutControl:
             raise RolloutControlError("rollback state does not select its authorized target")
         if current["transition_action"] == "RESTORE_CANDIDATE" and active.as_dict() != policy_candidate:
             raise RolloutControlError("restored state does not select its authorized candidate")
+        from .candidate_revocation import ReferenceFileCandidateRevocationControl
+
         stage = current["stage"]
+        revocation = candidate_revocation_status(ReferenceFileCandidateRevocationControl(self.root, key=self.key), candidate)
+        if revocation.revoked:
+            return RolloutAdmission(
+                "DENIED", "CANDIDATE_REVOKED", candidate, policy_identity, payload["policy_version"], current["revision"],
+                stage, self.cohort_id, revocation_state_identity=revocation.state_identity,
+                revocation_revision=revocation.revision, revocation_status=revocation.status,
+            )
         if not current["admissions_enabled"] or stage == "DISABLED":
-            return RolloutAdmission("DENIED", "ADMISSIONS_DISABLED", candidate, policy_identity, payload["policy_version"], current["revision"], stage, self.cohort_id)
+            return RolloutAdmission("DENIED", "ADMISSIONS_DISABLED", candidate, policy_identity, payload["policy_version"], current["revision"], stage, self.cohort_id, revocation_state_identity=revocation.state_identity, revocation_revision=revocation.revision, revocation_status=revocation.status)
         admitted = current["admitted_cohorts"]
         if admitted != payload["stage_cohorts"][stage] or self.cohort_id not in admitted:
-            return RolloutAdmission("DENIED", "COHORT_NOT_ADMITTED", candidate, policy_identity, payload["policy_version"], current["revision"], stage, self.cohort_id)
-        return RolloutAdmission("ADMITTED", "COHORT_ADMITTED", candidate, policy_identity, payload["policy_version"], current["revision"], stage, self.cohort_id)
+            return RolloutAdmission("DENIED", "COHORT_NOT_ADMITTED", candidate, policy_identity, payload["policy_version"], current["revision"], stage, self.cohort_id, revocation_state_identity=revocation.state_identity, revocation_revision=revocation.revision, revocation_status=revocation.status)
+        return RolloutAdmission("ADMITTED", "COHORT_ADMITTED", candidate, policy_identity, payload["policy_version"], current["revision"], stage, self.cohort_id, revocation_state_identity=revocation.state_identity, revocation_revision=revocation.revision, revocation_status=revocation.status)
 
 
 def validate_rollout_admission(value: Any, candidate: RolloutCandidateBinding) -> RolloutAdmission:
@@ -479,12 +531,12 @@ def validate_rollout_admission(value: Any, candidate: RolloutCandidateBinding) -
         raise RolloutControlError("rollout admission binding is invalid")
     if value.status not in {"ADMITTED", "DENIED", "REJECTED"}:
         raise RolloutControlError("rollout admission status is invalid")
-    allowed_reasons = {"COHORT_ADMITTED", "COHORT_NOT_ADMITTED", "ADMISSIONS_DISABLED", "CONTROL_INVALID", "AUTHORITY_UNAVAILABLE"}
+    allowed_reasons = {"COHORT_ADMITTED", "COHORT_NOT_ADMITTED", "ADMISSIONS_DISABLED", "CANDIDATE_REVOKED", "CONTROL_INVALID", "AUTHORITY_UNAVAILABLE"}
     if value.reason_code not in allowed_reasons:
         raise RolloutControlError("rollout admission reason is invalid")
     if value.status == "ADMITTED" and value.reason_code != "COHORT_ADMITTED":
         raise RolloutControlError("rollout admission result is contradictory")
-    if value.status == "DENIED" and value.reason_code not in {"COHORT_NOT_ADMITTED", "ADMISSIONS_DISABLED"}:
+    if value.status == "DENIED" and value.reason_code not in {"COHORT_NOT_ADMITTED", "ADMISSIONS_DISABLED", "CANDIDATE_REVOKED"}:
         raise RolloutControlError("rollout denial result is contradictory")
     if value.status == "REJECTED" and value.reason_code not in {"CONTROL_INVALID", "AUTHORITY_UNAVAILABLE"}:
         raise RolloutControlError("rollout rejection result is contradictory")
@@ -502,6 +554,15 @@ def validate_rollout_admission(value: Any, candidate: RolloutCandidateBinding) -
     if value.status in {"ADMITTED", "DENIED"}:
         if value.policy_identity is None or value.policy_version is None or value.state_revision is None or value.stage is None:
             raise RolloutControlError("rollout admission is missing its authorized policy or state identity")
+        _digest(value.revocation_state_identity, "rollout admission revocation state identity")
+        if isinstance(value.revocation_revision, bool) or not isinstance(value.revocation_revision, int) or value.revocation_revision < 0:
+            raise RolloutControlError("rollout admission revocation revision is invalid")
+        if value.revocation_status not in {"CLEAR", "RECOVERED", "REVOKED"}:
+            raise RolloutControlError("rollout admission revocation status is invalid")
+        if (value.reason_code == "CANDIDATE_REVOKED") != (value.revocation_status == "REVOKED"):
+            raise RolloutControlError("rollout admission revocation result is contradictory")
+        if value.status == "ADMITTED" and value.revocation_status == "REVOKED":
+            raise RolloutControlError("revoked candidate cannot be admitted")
         _name(value.cohort_id, "rollout admission cohort ID")
         if value.status == "ADMITTED" and value.stage not in _STAGES:
             raise RolloutControlError("admitted rollout result has no enabled stage")
@@ -530,7 +591,15 @@ def deployment_rollout_control() -> RolloutAdmissionProvider | None:
         raise RolloutControlError("deployment rollout authority is unavailable") from exc
     if not callable(getattr(adapter, "admit", None)):
         raise RolloutControlError("deployment rollout adapter is invalid")
-    return adapter
+    from .candidate_revocation import CandidateRevocationError, deployment_candidate_revocation_control
+
+    try:
+        revocations = deployment_candidate_revocation_control()
+    except CandidateRevocationError as exc:
+        raise RolloutControlError("candidate revocation authority is unavailable") from exc
+    if revocations is None:
+        raise RolloutControlError("candidate revocation authority is unavailable")
+    return RevocationAwareRolloutControl(adapter, revocations)
 
 
 def managed_candidate_environment(environment: RunEnvironmentIdentity) -> bool:
@@ -598,6 +667,13 @@ def initialize_reference_rollout_control(root: Path, *, policy: dict[str, Any], 
     with filesystem_lock(directory / "rollout-control.lock"):
         if any(path.exists() or path.is_symlink() for path in paths) or history_dir.exists() or history_dir.is_symlink():
             raise RolloutControlError("rollout control is already initialized")
+        from .candidate_revocation import initialize_reference_candidate_revocation
+
+        policy_payload, _ = _policy_payload(policy, key, now=(now or datetime.now(timezone.utc)).astimezone(timezone.utc))
+        candidates = [RolloutCandidateBinding.from_mapping(policy_payload["candidate_binding"])]
+        if policy_payload["rollback_target_binding"] is not None:
+            candidates.append(RolloutCandidateBinding.from_mapping(policy_payload["rollback_target_binding"]))
+        initialize_reference_candidate_revocation(root, tuple(candidates), key=key, now=now)
         state = initial_rollout_state(policy, key=key, now=now)
         state_payload = _verify_signed(state, key, "initial rollout state")
         head = _signed(
@@ -615,7 +691,14 @@ def initialize_reference_rollout_control(root: Path, *, policy: dict[str, Any], 
         atomic_write_json(_history_path(directory, 1), state, mode=0o600)
 
 
-def transition_reference_rollout_control(root: Path, *, command: dict[str, Any], key: bytes, now: datetime | None = None) -> int:
+def transition_reference_rollout_control(
+    root: Path,
+    *,
+    command: dict[str, Any],
+    key: bytes,
+    now: datetime | None = None,
+    recovery_event: dict[str, Any] | None = None,
+) -> int:
     """Apply a signed CAS transition to the local reference adapter."""
 
     root = Path(root).expanduser().resolve()
@@ -633,7 +716,55 @@ def transition_reference_rollout_control(root: Path, *, command: dict[str, Any],
         payload, policy_identity = _policy_payload(policy, key, now=(now or datetime.now(timezone.utc)).astimezone(timezone.utc))
         current, state_identity = _state_payload(state, key, policy_identity=policy_identity, head=head)
         _verify_reference_history(directory, key=key, policy_identity=policy_identity, latest_state=current, latest_identity=state_identity)
+        from .candidate_revocation import ReferenceFileCandidateRevocationControl, _verify as _verify_candidate_event, record_reference_candidate_event
+
+        action_payload = _verify_signed(command, key, "rollout transition")
+        action = action_payload.get("action")
+        target = None
+        if isinstance(action_payload.get("target_candidate_binding"), dict):
+            target = RolloutCandidateBinding.from_mapping(action_payload["target_candidate_binding"])
+        recovery_candidate = None
+        if recovery_event is not None:
+            recovery_payload = _verify_candidate_event(recovery_event, key, "candidate recovery event")
+            recovery_candidate = RolloutCandidateBinding.from_mapping(recovery_payload.get("candidate_binding"))
+            primary = RolloutCandidateBinding.from_mapping(payload["candidate_binding"])
+            rollback = RolloutCandidateBinding.from_mapping(payload["rollback_target_binding"]) if payload["rollback_target_binding"] is not None else None
+            if (
+                action != "RESTORE_CANDIDATE"
+                or recovery_payload.get("action") != "RECOVER"
+                or recovery_candidate != primary
+                or target != primary
+                or RolloutCandidateBinding.from_mapping(current["candidate_binding"]) != rollback
+                or action_payload.get("transition_id") != "restore-" + recovery_payload.get("event_id", "")
+            ):
+                raise RolloutControlError("candidate recovery event does not authorize this exact restore transition")
+            recovery_status, duplicate = record_reference_candidate_event(
+                root, event=recovery_event, key=key, now=now, _validate_only=True
+            )
+            if duplicate or not recovery_status.revoked:
+                raise RolloutControlError("candidate recovery requires a current active revocation")
+            if ReferenceFileCandidateRevocationControl(root, key=key).status(rollback).revoked:
+                raise RolloutControlError("candidate recovery rollback target is revoked")
+        protected_candidates = []
+        if action == "SET_STAGE":
+            protected_candidates.append(RolloutCandidateBinding.from_mapping(current["candidate_binding"]))
+        elif action == "RESTORE_CANDIDATE" and target is not None:
+            protected_candidates.append(target)
+        elif action == "ROLLBACK" and target is not None:
+            protected_candidates.append(target)
+        revocations = ReferenceFileCandidateRevocationControl(root, key=key)
+        for protected in protected_candidates:
+            if revocations.status(protected).revoked and protected != recovery_candidate:
+                raise RolloutControlError("rollout transition is blocked by an active candidate revocation")
         next_state, next_head = apply_rollout_transition(policy=policy, state=state, head=head, command=command, key=key, now=now)
+        next_payload = _verify_signed(next_state, key, "rollout state")
+        if action == "RESTORE_CANDIDATE" and (
+            next_payload["candidate_binding"] != payload["candidate_binding"]
+            or next_payload["stage"] != "DISABLED"
+            or next_payload["admissions_enabled"] is not False
+            or next_payload["admitted_cohorts"] != []
+        ):
+            raise RolloutControlError("candidate recovery did not produce a disabled primary rollout")
         # A crash between these two writes makes the state fail closed until an
         # authorized control-plane reconciliation. The signed head is the
         # reference adapter's monotonic replay anchor.
@@ -644,4 +775,8 @@ def transition_reference_rollout_control(root: Path, *, command: dict[str, Any],
         atomic_write_json(history_path, next_state, mode=0o600)
         atomic_write_json(state_path, next_state, mode=0o600)
         atomic_write_json(head_path, next_head, mode=0o600)
+        if recovery_event is not None:
+            recovered_state, recovered_identity = _state_payload(next_state, key, policy_identity=policy_identity, head=next_head)
+            _verify_reference_history(directory, key=key, policy_identity=policy_identity, latest_state=recovered_state, latest_identity=recovered_identity)
+            record_reference_candidate_event(root, event=recovery_event, key=key, now=now)
         return next_revision

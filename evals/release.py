@@ -51,6 +51,8 @@ from k_slide.runtime import discover_runtime
 from k_slide.io import atomic_write_text
 from k_slide.errors import KSlideError
 from k_slide.redaction import safe_operational_json
+from k_slide.rollout import RolloutCandidateBinding
+from k_slide.candidate_revocation import candidate_revocation_gate, deployment_candidate_revocation_control
 
 from .scenarios import DATASET_VERSION, split_manifest
 
@@ -62,6 +64,21 @@ def _write_operational_json(path: Path, value: Any) -> None:
     """Persist release/profile metadata only through the operational boundary."""
 
     atomic_write_text(path, safe_operational_json(value, roots=(path.parent,)), mode=0o600)
+
+
+def _release_revocation_gate(root: Path, *, subject: str, deployment: str, environment_identity: str | None) -> tuple[bool, str, RolloutCandidateBinding | None]:
+    candidate_binding = None
+    if isinstance(environment_identity, str):
+        try:
+            candidate_binding = RolloutCandidateBinding(subject, deployment, environment_identity)
+        except ValueError:
+            candidate_binding = None
+    try:
+        provider = deployment_candidate_revocation_control()
+    except Exception:
+        provider = None
+    ready, detail = candidate_revocation_gate(candidate=candidate_binding, provider=provider)
+    return ready, detail, candidate_binding
 
 
 def _sha256(path: Path | None) -> str | None:
@@ -571,7 +588,7 @@ def _load_prior_recertification_inputs(
     return recertification, prior_records, prior_paths, prior_path
 
 
-def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.value, requested_state: str | None = None, model: str | None = None, ocr_asset_manifest: Path | None = None, validation_result: Path | None = None, held_out_result: Path | None = None, evidence_paths: dict[str, Path] | None = None, subject_sha: str | None = None, candidate_profile: Path | None = None, prior_release_manifest: Path | None = None, carry_forward_evidence: tuple[str, ...] | list[str] = ()) -> dict[str, Any]:
+def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.value, requested_state: str | None = None, model: str | None = None, ocr_asset_manifest: Path | None = None, validation_result: Path | None = None, held_out_result: Path | None = None, evidence_paths: dict[str, Path] | None = None, subject_sha: str | None = None, candidate_profile: Path | None = None, candidate_run_environment_identity_sha256: str | None = None, prior_release_manifest: Path | None = None, carry_forward_evidence: tuple[str, ...] | list[str] = ()) -> dict[str, Any]:
     root = root.expanduser().resolve()
     runtime = discover_runtime(root)
     policy = load_model_policy(root)
@@ -625,6 +642,18 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
         recertification=recertification,
         prior_records=carried_records,
     )
+    candidate_binding = None
+    if requested in {ReleaseState.PILOT_APPROVED.value, ReleaseState.PRODUCTION_CERTIFIED.value}:
+        revocation_ready, revocation_detail, candidate_binding = _release_revocation_gate(
+            root,
+            subject=subject,
+            deployment=deployment_fp,
+            environment_identity=candidate_run_environment_identity_sha256,
+        )
+        if not revocation_ready:
+            blockers.append("candidate revocation gate is unavailable or blocked: " + revocation_detail)
+            if derived in {ReleaseState.PILOT_APPROVED.value, ReleaseState.PRODUCTION_CERTIFIED.value}:
+                derived = ReleaseState.INTERNAL_VALIDATED.value
     if evidence_errors:
         blockers.extend(evidence_errors)
     champion, champion_hash, champion_blockers = _champion(
@@ -681,6 +710,7 @@ def build_release_manifest(root: Path, *, state: str = ReleaseState.DEVELOPMENT.
         "report_generated_from_sha": _git_sha(root) or "UNSET",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "deployment_fingerprint": deployment_fp,
+        **({"candidate_binding": candidate_binding.as_dict()} if candidate_binding is not None else {}),
         "certification_fingerprint": cert_fp,
         "candidate_spec": canonical_candidate_factors(candidate),
         "runtime_provenance": {"opencode_version": runtime.opencode_version, "model": runtime.reported_model_id, "provider": runtime.provider, "vision_support": runtime.vision_support},
@@ -755,6 +785,11 @@ def _certified_profile_mapping(root: Path, *, candidate_spec: dict[str, Any], ma
 
     if manifest.get("release_state") != ReleaseState.PRODUCTION_CERTIFIED.value:
         raise EvidenceValidationError("certified profile requires PRODUCTION_CERTIFIED manifest")
+    binding = manifest.get("candidate_binding")
+    if not isinstance(binding, dict) or set(binding) != {"subject_git_sha", "deployment_fingerprint", "run_environment_identity_sha256"}:
+        raise EvidenceValidationError("certified profile requires the exact candidate revocation binding")
+    if binding.get("subject_git_sha") != manifest.get("subject_git_sha") or binding.get("deployment_fingerprint") != manifest.get("deployment_fingerprint"):
+        raise EvidenceValidationError("certified profile candidate revocation binding is inconsistent")
     manifest_path = manifest_path.expanduser().resolve()
     candidate = dict(candidate_spec)
     finalized = manifest.get("candidate_spec")
@@ -789,6 +824,7 @@ def _certified_profile_mapping(root: Path, *, candidate_spec: dict[str, Any], ma
         "release_manifest_sha256": manifest_sha256,
         "model_data_attestation": model_data_attestation,
         "candidate_spec": canonical_candidate_factors(candidate),
+        "run_environment_identity_sha256": binding["run_environment_identity_sha256"],
     })
     if candidate.get("opencode_bootstrap_identity"):
         profile["opencode_bootstrap_manifest"] = ".k-slide-config/opencode-bootstrap.json"
@@ -832,6 +868,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--requested-state", choices=REQUESTABLE_STATES, default=None)
     parser.add_argument("--state", choices=REQUESTABLE_STATES, default=None, help="Deprecated alias for --requested-state")
     parser.add_argument("--subject-sha")
+    parser.add_argument("--candidate-run-environment-identity-sha256", help="Exact run environment identity from the authorized rollout binding")
     parser.add_argument("--prior-release-manifest", type=Path, help="Prior release manifest used for scoped recertification")
     parser.add_argument("--carry-forward-evidence", action="append", choices=EVIDENCE_TYPES, default=[], help="Explicitly carry one proven-unaffected evidence type from --prior-release-manifest")
     parser.add_argument("--model")
@@ -913,6 +950,17 @@ def main(argv: list[str] | None = None) -> int:
         recertification=recertification,
         prior_records=carried_records,
     )
+    if requested in {ReleaseState.PILOT_APPROVED.value, ReleaseState.PRODUCTION_CERTIFIED.value}:
+        revocation_ready, revocation_detail, _candidate_binding = _release_revocation_gate(
+            root,
+            subject=subject,
+            deployment=deployment_fp,
+            environment_identity=args.candidate_run_environment_identity_sha256,
+        )
+        if not revocation_ready:
+            blockers.append("candidate revocation gate is unavailable or blocked: " + revocation_detail)
+            if derived in {ReleaseState.PILOT_APPROVED.value, ReleaseState.PRODUCTION_CERTIFIED.value}:
+                derived = ReleaseState.INTERNAL_VALIDATED.value
     blockers.extend(evidence_errors)
     if args.validation_result and "model_validation" not in paths:
         blockers.append("raw --validation-result is not certification evidence; provide --validation-evidence envelope")
@@ -943,7 +991,15 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"status": "BLOCKED", "requested_state": requested, "derived_state": derived, "reasons": ["PRODUCTION_CERTIFIED outputs must be new files; refusing to replace a prior release"]}, ensure_ascii=False, indent=2))
             return 2
     try:
-        manifest = build_release_manifest(root, requested_state=requested, model=args.model, ocr_asset_manifest=args.ocr_asset_manifest, evidence_paths=paths, subject_sha=subject, candidate_profile=args.candidate_profile, prior_release_manifest=args.prior_release_manifest, carry_forward_evidence=args.carry_forward_evidence)
+        manifest = build_release_manifest(root, requested_state=requested, model=args.model, ocr_asset_manifest=args.ocr_asset_manifest, evidence_paths=paths, subject_sha=subject, candidate_profile=args.candidate_profile, candidate_run_environment_identity_sha256=args.candidate_run_environment_identity_sha256, prior_release_manifest=args.prior_release_manifest, carry_forward_evidence=args.carry_forward_evidence)
+        if requested != ReleaseState.DEVELOPMENT.value and manifest.get("release_state") != requested:
+            print(json.dumps({
+                "status": "BLOCKED",
+                "requested_state": requested,
+                "derived_state": manifest.get("release_state", ReleaseState.DEVELOPMENT.value),
+                "reasons": manifest.get("blocking_reasons") or ["release state changed during final revocation/readiness verification"],
+            }, ensure_ascii=False, indent=2))
+            return 2
         if manifest["release_state"] == ReleaseState.PRODUCTION_CERTIFIED.value:
             # Validate the generated profile shape before writing the manifest.
             # Its real manifest hash is filled only after the manifest is

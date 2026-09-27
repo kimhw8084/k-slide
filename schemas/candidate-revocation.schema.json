@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://k-slide.invalid/schemas/candidate-revocation.schema.json",
+  "title": "K-Slide KSA-37 candidate revocation control contract",
+  "oneOf": [
+    { "$ref": "#/$defs/eventEnvelope" },
+    { "$ref": "#/$defs/stateEnvelope" },
+    { "$ref": "#/$defs/headEnvelope" }
+  ],
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_git_sha", "deployment_fingerprint", "run_environment_identity_sha256"],
+      "properties": {
+        "subject_git_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "deployment_fingerprint": { "$ref": "#/$defs/digest" },
+        "run_environment_identity_sha256": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "signature": { "$ref": "#/$defs/digest" },
+    "signedObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["payload", "signature"],
+      "properties": {
+        "payload": { "type": "object" },
+        "signature": { "$ref": "#/$defs/signature" }
+      }
+    },
+    "reasonCategory": {
+      "enum": [
+        "CRITICAL_SEMANTIC_DEFECT",
+        "SECURITY_INCIDENT",
+        "PRIVACY_INCIDENT",
+        "CREDENTIAL_LEAKAGE",
+        "TENANT_ISOLATION_FAILURE",
+        "PROVIDER_MODEL_CONFIG_DRIFT",
+        "BROKEN_EVIDENCE_IDENTITY",
+        "MATERIAL_DATA_USE_POLICY_CHANGE",
+        "CRITICAL_VULNERABILITY"
+      ]
+    },
+    "evidenceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "identity"],
+      "properties": {
+        "kind": { "enum": ["INCIDENT_RECORD", "SECURITY_ADVISORY", "POLICY_CHANGE_RECORD", "EVIDENCE_IDENTITY_RECORD", "REQUALIFICATION_ATTESTATION"] },
+        "identity": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "eventEnvelope": {
+      "allOf": [
+        { "$ref": "#/$defs/signedObject" },
+        {
+          "type": "object",
+          "properties": {
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["schema_version", "action", "candidate_binding", "actor_ref", "authority_ref", "event_id", "expected_revision", "revision", "expected_state_identity", "previous_event_identity", "occurred_at", "reason_categories", "evidence_reference"],
+              "properties": {
+                "schema_version": { "const": "1.0" },
+                "action": { "enum": ["REVOKE", "RECOVER"] },
+                "candidate_binding": { "$ref": "#/$defs/candidate" },
+                "actor_ref": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,63}$" },
+                "authority_ref": { "enum": ["quality_authority", "security_authority", "privacy_authority", "deployment_authority", "release_authority", "qualification_authority"] },
+                "event_id": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,54}$" },
+                "expected_revision": { "type": "integer", "minimum": 0 },
+                "revision": { "type": "integer", "minimum": 1 },
+                "expected_state_identity": { "$ref": "#/$defs/digest" },
+                "previous_event_identity": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+                "occurred_at": { "type": "string", "format": "date-time" },
+                "reason_categories": { "type": "array", "items": { "$ref": "#/$defs/reasonCategory" }, "uniqueItems": true, "minItems": 1 },
+                "evidence_reference": { "$ref": "#/$defs/evidenceReference" }
+              },
+              "allOf": [
+                {
+                  "if": { "properties": { "action": { "const": "REVOKE" } }, "required": ["action"] },
+                  "then": { "properties": { "reason_categories": { "minItems": 1, "maxItems": 1 }, "evidence_reference": { "properties": { "kind": { "enum": ["INCIDENT_RECORD", "SECURITY_ADVISORY", "POLICY_CHANGE_RECORD", "EVIDENCE_IDENTITY_RECORD"] } } } } }
+                },
+                {
+                  "if": { "properties": { "action": { "const": "RECOVER" } }, "required": ["action"] },
+                  "then": { "properties": { "authority_ref": { "const": "qualification_authority" }, "evidence_reference": { "properties": { "kind": { "const": "REQUALIFICATION_ATTESTATION" } } } } }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "stateEnvelope": {
+      "allOf": [
+        { "$ref": "#/$defs/signedObject" },
+        {
+          "type": "object",
+          "properties": {
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["schema_version", "candidate_binding", "revision", "previous_state_identity", "event_identity", "status", "active_reason_categories", "actor_ref", "authority_ref", "updated_at", "transition_id"],
+              "properties": {
+                "schema_version": { "const": "1.0" },
+                "candidate_binding": { "$ref": "#/$defs/candidate" },
+                "revision": { "type": "integer", "minimum": 0 },
+                "previous_state_identity": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+                "event_identity": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+                "status": { "enum": ["CLEAR", "REVOKED", "RECOVERED"] },
+                "active_reason_categories": { "type": "array", "items": { "$ref": "#/$defs/reasonCategory" }, "uniqueItems": true },
+                "actor_ref": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,63}$" },
+                "authority_ref": { "enum": ["deployment_authority", "quality_authority", "security_authority", "privacy_authority", "release_authority", "qualification_authority"] },
+                "updated_at": { "type": "string", "format": "date-time" },
+                "transition_id": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,63}$" }
+              },
+              "allOf": [
+                {
+                  "if": { "properties": { "revision": { "const": 0 } }, "required": ["revision"] },
+                  "then": {
+                    "properties": {
+                      "previous_state_identity": { "type": "null" },
+                      "event_identity": { "type": "null" },
+                      "status": { "const": "CLEAR" },
+                      "active_reason_categories": { "maxItems": 0 }
+                    }
+                  }
+                },
+                {
+                  "if": { "properties": { "revision": { "minimum": 1 } }, "required": ["revision"] },
+                  "then": {
+                    "properties": {
+                      "previous_state_identity": { "$ref": "#/$defs/digest" },
+                      "event_identity": { "$ref": "#/$defs/digest" },
+                      "status": { "enum": ["REVOKED", "RECOVERED"] }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "headEnvelope": {
+      "allOf": [
+        { "$ref": "#/$defs/signedObject" },
+        {
+          "type": "object",
+          "properties": {
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["schema_version", "candidate_binding_identity", "revision", "state_identity"],
+              "properties": {
+                "schema_version": { "const": "1.0" },
+                "candidate_binding_identity": { "$ref": "#/$defs/digest" },
+                "revision": { "type": "integer", "minimum": 0 },
+                "state_identity": { "$ref": "#/$defs/digest" }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
