@@ -1,97 +1,670 @@
 {
-  "artifact_path": ".codex-fabric/audit.json",
-  "schema_version": 1,
-  "kind": "codex-fabric-audit-evidence",
-  "project_id": "k-slide",
-  "issue_id": "CHG-16",
-  "work_item": "KSA-37 FIX01; F37-01/F37-02/F37-03",
-  "operation": "FIX",
-  "logical_build_request": "chg16-candidate-revocation-drift-01",
-  "request": "chg16-candidate-revocation-drift-01-fix01",
-  "work_branch": "codex/k-slide-chg16-candidate-revocation-drift-01-fix01",
-  "exact_base": {
-    "commit_sha": "76d8ea098bce24cf5e7e901c6764fe8bba51dca3",
-    "tree_oid": "ab6c05e1098dd7cf1d4b1a47913b099a10ed573c"
-  },
-  "predecessor_candidate": {
-    "commit_sha": "ea90ea1a0d662ad56fe9b29472416e6cc21466df",
-    "tree_oid": "1cf26f02d69737b95aaa6e0954f75955390f78ab",
-    "parent_sha": "76d8ea098bce24cf5e7e901c6764fe8bba51dca3"
-  },
-  "predecessor_build_execution_identity": {
-    "fabric_job_id": "CF-377d117c643ee14d76df6dd0",
-    "operation": "BUILD",
-    "request": "chg16-candidate-revocation-drift-01",
-    "native_evidence_commit_sha": "75229dc0afe3e93be6cb4a8ddc8c169c37b249c2",
-    "verified_native_evidence_parent": "ea90ea1a0d662ad56fe9b29472416e6cc21466df"
-  },
-  "current_execution_identity": null,
-  "fabric_execution_identity": {
-    "fabric_job_id": null,
-    "owner": "Fabric native publisher post-execution evidence",
-    "status": "PENDING_POST_EXECUTION_PUBLICATION"
-  },
-  "candidate_evidence_sidecar": {
-    "path": ".codex-fabric/ksa37/candidate-evidence.json",
-    "sha256": "55c36183085745d59aeb90f88bf24626fddc5a7e5977d161ab9c9f9a72bd2ab5"
-  },
-  "candidate_identity_binding_note": "The resulting product candidate SHA/tree bind the exact source and tests qualified in this run. Current Fabric execution identity is null and reserved for the native publisher.",
-  "final_candidate_binding": {
-    "project_id": "k-slide",
-    "operation": "FIX",
-    "request": "chg16-candidate-revocation-drift-01-fix01",
-    "base_commit_sha": "76d8ea098bce24cf5e7e901c6764fe8bba51dca3",
-    "base_tree_oid": "ab6c05e1098dd7cf1d4b1a47913b099a10ed573c",
-    "predecessor_product_commit_sha": "ea90ea1a0d662ad56fe9b29472416e6cc21466df",
-    "predecessor_product_tree_oid": "1cf26f02d69737b95aaa6e0954f75955390f78ab",
-    "resulting_product_candidate_sha": "9b7f6d8ab0cec76faadc988751f305fcfe57f3ab",
-    "resulting_product_candidate_tree_oid": "4b156c0f2379babad3a1b7c81980faa8207b1d16",
-    "resulting_product_candidate_parent_sha": "ea90ea1a0d662ad56fe9b29472416e6cc21466df",
-    "work_branch": "codex/k-slide-chg16-candidate-revocation-drift-01-fix01",
-    "changed_product_paths_since_predecessor": [
-      "src/k_slide/candidate_revocation.py",
-      "src/k_slide/rollout.py",
-      "tests/test_ksa37_candidate_revocation.py"
-    ],
-    "target_drift_closed": [
-      "F37-01 RECOVER no longer clears candidate revocation before proving signed rollout safety and any required RESTORE_CANDIDATE transition.",
-      "F37-02 stale KSA-36 audit metadata is replaced by CHG-16 KSA-37 FIX01 candidate evidence.",
-      "F37-03 OpenCode host regression completed with pinned Bun 1.4.2 on isolated Python 3.11 and 3.12 environments."
-    ]
-  },
-  "checks": [
-    {"name": "focused_ksa37_candidate_revocation_py311", "python": "3.11.7", "status": "PASS", "tests": 22},
-    {"name": "focused_ksa37_candidate_revocation_py312", "python": "3.12.9", "status": "PASS", "tests": 22},
-    {"name": "ksa34_rollout_regressions_py311", "python": "3.11.7", "status": "PASS", "tests": 17},
-    {"name": "ksa34_rollout_regressions_py312", "python": "3.12.9", "status": "PASS", "tests": 17},
-    {"name": "full_repository_python_suite_py311", "python": "3.11.7", "status": "PASS", "tests": 739, "warnings": 5},
-    {"name": "full_repository_python_suite_py312", "python": "3.12.9", "status": "PASS", "tests": 739, "warnings": 5},
-    {"name": "related_release_certification_security_privacy_authorization_retention_telemetry_host_py311", "python": "3.11.7", "status": "PASS", "tests": 402, "warnings": 5},
-    {"name": "related_release_certification_security_privacy_authorization_retention_telemetry_host_py312", "python": "3.12.9", "status": "PASS", "tests": 402, "warnings": 5},
-    {"name": "opencode_host_attachment_regression_py311", "python": "3.11.7", "runner": "Bun 1.4.2", "status": "PASS", "assertion_boundaries": 12},
-    {"name": "opencode_host_attachment_regression_py312", "python": "3.12.9", "runner": "Bun 1.4.2", "status": "PASS", "assertion_boundaries": 12},
-    {"name": "json_schema_validation_and_runtime_error_code_parity", "status": "PASS", "schemas": 10, "runtime_error_codes": 92, "schema_error_codes": 92},
-    {"name": "workflow_yaml_and_embedded_shell_validation", "status": "PASS", "workflows": 6, "embedded_shell_steps": 49},
-    {"name": "compileall_src_tests_evals_py311", "python": "3.11.7", "status": "PASS", "python_source_files": 166},
-    {"name": "compileall_src_tests_evals_py312", "python": "3.12.9", "status": "PASS", "python_source_files": 166},
-    {"name": "git_diff_check", "status": "PASS"}
+  "accepted_at": "2026-09-27T02:46:29Z",
+  "changed_files": [
+    {
+      "additions": 81,
+      "deletions": 357,
+      "path": ".codex-fabric/audit.json",
+      "status": "M"
+    },
+    {
+      "additions": 313,
+      "deletions": 0,
+      "path": ".codex-fabric/ksa37/candidate-evidence.json",
+      "status": "A"
+    },
+    {
+      "additions": 47,
+      "deletions": 0,
+      "path": "docs/ksa37-candidate-revocation.md",
+      "status": "A"
+    },
+    {
+      "additions": 58,
+      "deletions": 2,
+      "path": "evals/release.py",
+      "status": "M"
+    },
+    {
+      "additions": 167,
+      "deletions": 0,
+      "path": "schemas/candidate-revocation.schema.json",
+      "status": "A"
+    },
+    {
+      "additions": 7,
+      "deletions": 4,
+      "path": "schemas/rollout-control.schema.json",
+      "status": "M"
+    },
+    {
+      "additions": 701,
+      "deletions": 0,
+      "path": "src/k_slide/candidate_revocation.py",
+      "status": "A"
+    },
+    {
+      "additions": 22,
+      "deletions": 0,
+      "path": "src/k_slide/production.py",
+      "status": "M"
+    },
+    {
+      "additions": 143,
+      "deletions": 8,
+      "path": "src/k_slide/rollout.py",
+      "status": "M"
+    },
+    {
+      "additions": 3,
+      "deletions": 0,
+      "path": "tests/rollout_fixtures.py",
+      "status": "M"
+    },
+    {
+      "additions": 15,
+      "deletions": 0,
+      "path": "tests/test_certification_closure.py",
+      "status": "M"
+    },
+    {
+      "additions": 538,
+      "deletions": 0,
+      "path": "tests/test_ksa37_candidate_revocation.py",
+      "status": "A"
+    }
   ],
-  "source_tree_preservation": {
-    "relative_to_predecessor_candidate": true,
-    "product_or_test_changes_after_predecessor": true,
-    "changed_paths_after_predecessor": [
-      "src/k_slide/candidate_revocation.py",
-      "src/k_slide/rollout.py",
-      "tests/test_ksa37_candidate_revocation.py"
-    ],
-    "unrelated_product_behavior_changed_after_predecessor": false,
-    "candidate_worktree_clean_before_evidence_binding": true
+  "checks": [
+    {
+      "command": "/bin/zsh -lc \"rtk /tmp/k-slide-chg16-fix01-py311/bin/python -m pip install -e '.[dev,pdf,pptx]' PyYAML\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py311/bin/python -m pytest -q tests/test_ksa37_candidate_revocation.py tests/test_ksa34_rollout.py'",
+      "exit_code": 1,
+      "test_result": {
+        "counts": {
+          "failed": 2,
+          "passed": 37
+        },
+        "exit_code": 1,
+        "failing_test_ids": [
+          "tests/test_ksa37_candidate_revocation.py::KSA37CandidateRevocationTests::test_recovery_from_already_disabled_primary_keeps_rollout_disabled",
+          "tests/test_ksa37_candidate_revocation.py::KSA37CandidateRevocationTests::test_recovery_rejects_enabled_primary_after_revoke_transition_crash"
+        ],
+        "framework": "pytest",
+        "outcome": "test_failures",
+        "output_bytes": 5463,
+        "output_sha256": "17158e6efdf3449af3360b88e10230d422518847be2d68c0d09d5f5ef3ea024d",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py312/bin/python -m pytest -q tests/test_ksa37_candidate_revocation.py tests/test_ksa34_rollout.py'",
+      "exit_code": 1,
+      "test_result": {
+        "counts": {
+          "failed": 2,
+          "passed": 37
+        },
+        "exit_code": 1,
+        "failing_test_ids": [
+          "tests/test_ksa37_candidate_revocation.py::KSA37CandidateRevocationTests::test_recovery_from_already_disabled_primary_keeps_rollout_disabled",
+          "tests/test_ksa37_candidate_revocation.py::KSA37CandidateRevocationTests::test_recovery_rejects_enabled_primary_after_revoke_transition_crash"
+        ],
+        "framework": "pytest",
+        "outcome": "test_failures",
+        "output_bytes": 5463,
+        "output_sha256": "6bee8ef4db4da1ca6d6874a2030a48112f06a02fd1c90a4ac0ef688d5cf293bc",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py311/bin/python -m pytest -q tests/test_ksa37_candidate_revocation.py tests/test_ksa34_rollout.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 39
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 99,
+        "output_sha256": "4a3ab1c3e59775c0f7bd8cedaa96b9efce78237fb1a51e19d70befe03b52435a",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py312/bin/python -m pytest -q tests/test_ksa37_candidate_revocation.py tests/test_ksa34_rollout.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 39
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 99,
+        "output_sha256": "b1e19914f15a62441869f85f92a18bad4c694ed5095e604ae02e6f5e1e70490e",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mkdir -p /tmp/k-slide-chg16-opencode-py311 /tmp/k-slide-chg16-opencode-py312 && rtk proxy env KSLIDE_TEST_PYTHON=/tmp/k-slide-chg16-fix01-py311/bin/python TMPDIR=/tmp/k-slide-chg16-opencode-py311 npx --yes bun@1.4.2 run tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env KSLIDE_TEST_PYTHON=/tmp/k-slide-chg16-fix01-py312/bin/python TMPDIR=/tmp/k-slide-chg16-opencode-py312 npx --yes bun@1.4.2 run tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py311/bin/python -m pytest -q'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 739,
+          "warnings": 5
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 2131,
+        "output_sha256": "530256d2fdf4e64fe18e73d7dda2070af195ff913696c88217e9a75895258af1",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py312/bin/python -m pytest -q'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 739,
+          "warnings": 5
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 2131,
+        "output_sha256": "26c6c1b7f6c0d46f83dac4a970403278784df1cf6796254a3f2f86c8ed50ec7f",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py311/bin/python -m pytest -q tests/test_certification_closure.py tests/test_ksa31_promotion_recertification.py tests/test_ksa32_release_governance.py tests/test_ksa33_security_release.py tests/test_ksa21_adversarial_security.py tests/test_ksa25_recovery_law.py tests/test_ksa35_product_telemetry.py tests/test_chg16_*.py tests/test_chg17_*.py tests/test_chg18_*.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 402,
+          "warnings": 5
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 1731,
+        "output_sha256": "22132d3efeb2671df8544ed24fe0895514d676917c6f2881923c3f8574a7a284",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py312/bin/python -m pytest -q tests/test_certification_closure.py tests/test_ksa31_promotion_recertification.py tests/test_ksa32_release_governance.py tests/test_ksa33_security_release.py tests/test_ksa21_adversarial_security.py tests/test_ksa25_recovery_law.py tests/test_ksa35_product_telemetry.py tests/test_chg16_*.py tests/test_chg17_*.py tests/test_chg18_*.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 402,
+          "warnings": 5
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 1731,
+        "output_sha256": "16fe4bbefd96fe8bcf4effdfe5c7b3dda939c301901e769877f231e26a631a20",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"class ErrorCode|ErrorCode|error_code\" src/k_slide/errors.py schemas tests | head -100 && rtk rg --files .github/workflows'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk sed -n '1,110p' src/k_slide/errors.py && rtk sed -n '1,60p' schemas/operational-telemetry-event.schema.json && rtk ls .github/workflows\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk /tmp/k-slide-chg16-fix01-py311/bin/python -c 'import glob,json; from jsonschema import Draft202012Validator; from k_slide.errors import ErrorCode; files=glob.glob('schemas/*.json'); [Draft202012Validator.check_schema(json.load(open(p, encoding='utf-8'))) for p in files]; schema=json.load(open('schemas/operational-telemetry-event.schema.json', encoding='utf-8')); actual=sorted(x.value for x in ErrorCode); expected=sorted(schema['properties']['error_code']['enum']); assert actual == expected, (len(actual),len(expected),sorted(set(actual)\"'^set(expected))); print(f'\"'schemas={len(files)} runtime_error_codes={len(actual)} schema_error_codes={len(expected)} parity=PASS')' && rtk /tmp/k-slide-chg16-fix01-py311/bin/python -m compileall -q src tests evals && rtk /tmp/k-slide-chg16-fix01-py311/bin/python -c \\\"from pathlib import Path; print('python_source_files='+str(sum(1 for d in ('src','tests','evals') for p in Path(d).rglob('*.py'))))\\\"\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk /tmp/k-slide-chg16-fix01-py312/bin/python -c 'import glob,json; from jsonschema import Draft202012Validator; from k_slide.errors import ErrorCode; files=glob.glob('schemas/*.json'); [Draft202012Validator.check_schema(json.load(open(p, encoding='utf-8'))) for p in files]; schema=json.load(open('schemas/operational-telemetry-event.schema.json', encoding='utf-8')); actual=sorted(x.value for x in ErrorCode); expected=sorted(schema['properties']['error_code']['enum']); assert actual == expected, (len(actual),len(expected),sorted(set(actual)\"'^set(expected))); print(f'\"'schemas={len(files)} runtime_error_codes={len(actual)} schema_error_codes={len(expected)} parity=PASS')' && rtk /tmp/k-slide-chg16-fix01-py312/bin/python -m compileall -q src tests evals && rtk /tmp/k-slide-chg16-fix01-py312/bin/python -c \\\"from pathlib import Path; print('python_source_files='+str(sum(1 for d in ('src','tests','evals') for p in Path(d).rglob('*.py'))))\\\"\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk /tmp/k-slide-chg16-fix01-py311/bin/python -c \\\"import glob,json; from jsonschema import Draft202012Validator; from k_slide.errors import ErrorCode; files=glob.glob('schemas/*.json'); [Draft202012Validator.check_schema(json.load(open(p, encoding='utf-8'))) for p in files]; schema=json.load(open('schemas/operational-telemetry-event.schema.json', encoding='utf-8')); actual=sorted(x.value for x in ErrorCode); expected=sorted(schema['properties']['error_code']['enum']); assert actual == expected, (len(actual),len(expected),sorted(set(actual)\"'^set(expected))); print(f'\"'schemas={len(files)} runtime_error_codes={len(actual)} schema_error_codes={len(expected)} parity=PASS')\\\" && rtk /tmp/k-slide-chg16-fix01-py311/bin/python -m compileall -q src tests evals && rtk /tmp/k-slide-chg16-fix01-py311/bin/python -c \\\"from pathlib import Path; print('python_source_files='+str(sum(1 for d in ('src','tests','evals') for p in Path(d).rglob('*.py'))))\\\"\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk /tmp/k-slide-chg16-fix01-py312/bin/python -c \\\"import glob,json; from jsonschema import Draft202012Validator; from k_slide.errors import ErrorCode; files=glob.glob('schemas/*.json'); [Draft202012Validator.check_schema(json.load(open(p, encoding='utf-8'))) for p in files]; schema=json.load(open('schemas/operational-telemetry-event.schema.json', encoding='utf-8')); actual=sorted(x.value for x in ErrorCode); expected=sorted(schema['properties']['error_code']['enum']); assert actual == expected, (len(actual),len(expected),sorted(set(actual)\"'^set(expected))); print(f'\"'schemas={len(files)} runtime_error_codes={len(actual)} schema_error_codes={len(expected)} parity=PASS')\\\" && rtk /tmp/k-slide-chg16-fix01-py312/bin/python -m compileall -q src tests evals && rtk /tmp/k-slide-chg16-fix01-py312/bin/python -c \\\"from pathlib import Path; print('python_source_files='+str(sum(1 for d in ('src','tests','evals') for p in Path(d).rglob('*.py'))))\\\"\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk tee /tmp/k-slide-chg16-fix01-validate-workflows.py <<'PY'\nimport json\nimport subprocess\nfrom pathlib import Path\n\nimport yaml\n\nworkflow_paths = sorted(Path('.github/workflows').glob('*.yml'))\nshell_steps = []\n\ndef inspect(value, workflow):\n    if isinstance(value, dict):\n        for key, child in value.items():\n            if key == 'run' and isinstance(child, str):\n                subprocess.run(['bash', '-n'], input=child, text=True, check=True)\n                shell_steps.append({'workflow': str(workflow), 'chars': len(child)})\n            else:\n                inspect(child, workflow)\n    elif isinstance(value, list):\n        for child in value:\n            inspect(child, workflow)\n\nfor path in workflow_paths:\n    yaml.safe_load(path.read_text(encoding='utf-8'))\n    inspect(yaml.safe_load(path.read_text(encoding='utf-8')), path)\n\nprint(json.dumps({'workflows': len(workflow_paths), 'embedded_shell_steps': len(shell_steps), 'validated_with': 'bash -n', 'status': 'PASS'}))\nPY\nrtk /tmp/k-slide-chg16-fix01-py311/bin/python /tmp/k-slide-chg16-fix01-validate-workflows.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git diff --stat && rtk git status --short && rtk git diff -- src/k_slide/candidate_revocation.py src/k_slide/rollout.py'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"candidate_revocation_gate|deployment_candidate_revocation_control|RevocationAwareRolloutControl|candidate_revocation|rollout_control|ReferenceFileRolloutControl\" src/k_slide/production.py src/k_slide/rollout.py src/k_slide/candidate_revocation.py evals/release.py && rtk git diff ea90ea1a0d662ad56fe9b29472416e6cc21466df --name-only'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rm -rf src/k_slide.egg-info && rtk git status --short && rtk sed -n '515,550p' src/k_slide/candidate_revocation.py && rtk git diff --check\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py312/bin/python -m pytest -q tests/test_ksa34_rollout.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 17
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 99,
+        "output_sha256": "db1e7e976b1431a8de066cf19647f86dd2aac0d4939c196344bf0d1730fe3793",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py311/bin/python -m pytest -q tests/test_ksa34_rollout.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 17
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 99,
+        "output_sha256": "a4a9b0490baef287bfa5b8eab1c4372ff2dcf16e7ac63a61f04f036b95235791",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py311/bin/python -m pytest -q tests/test_ksa37_candidate_revocation.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 22
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 99,
+        "output_sha256": "fcdf1d68347a13a5ebde5ceae518d0addd3226bd7a0bae9064e631f494d193a3",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py312/bin/python -m pytest -q tests/test_ksa37_candidate_revocation.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 22
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 99,
+        "output_sha256": "8dd67d4088cfa248b8bcb96badea53efe741bc0d0609b5e947fc76dbc96eb1d3",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n '\"'^async function|''^function |await [a-zA-Z]|console'\"\\\\.log' tests/test_chg16_opencode_plugin.ts && rtk tail -n 110 tests/test_chg16_opencode_plugin.ts && rtk git show -s --format='%H%n%T%n%P%n%s' 75229dc0afe3e93be6cb4a8ddc8c169c37b249c2 && rtk git rev-parse ea90ea1a0d662ad56fe9b29472416e6cc21466df\"'^{tree} && rtk git rev-parse 76d8ea098bce24cf5e7e901c6764fe8bba51dca3''^{tree}'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git add src/k_slide/candidate_revocation.py src/k_slide/rollout.py tests/test_ksa37_candidate_revocation.py && rtk git commit -m 'fix(k-slide): fail closed candidate recovery' && rtk git status --short --branch && rtk git rev-parse HEAD && rtk git rev-parse HEAD\"'^{tree} && rtk git diff --name-only ea90ea1a0d662ad56fe9b29472416e6cc21466df..HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env KSLIDE_TEST_PYTHON=/tmp/k-slide-chg16-fix01-py311/bin/python TMPDIR=/tmp/k-slide-chg16-opencode-py311 npx --yes bun@1.4.2 run tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy env KSLIDE_TEST_PYTHON=/tmp/k-slide-chg16-fix01-py312/bin/python TMPDIR=/tmp/k-slide-chg16-opencode-py312 npx --yes bun@1.4.2 run tests/test_chg16_opencode_plugin.ts'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py311/bin/python -m pytest -q'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 739,
+          "warnings": 5
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 2131,
+        "output_sha256": "682662de888b86cec54ed948beee4a7610698a9019575feb2166b6efe35bdaf9",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py312/bin/python -m pytest -q'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 739,
+          "warnings": 5
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 2131,
+        "output_sha256": "84c8a8352336aa524cfe3769fef7c87cde3ade68129a1ef04ad0de0451c1a90e",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py311/bin/python -m pytest -q tests/test_certification_closure.py tests/test_ksa31_promotion_recertification.py tests/test_ksa32_release_governance.py tests/test_ksa33_security_release.py tests/test_ksa21_adversarial_security.py tests/test_ksa25_recovery_law.py tests/test_ksa35_product_telemetry.py tests/test_chg16_*.py tests/test_chg17_*.py tests/test_chg18_*.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 402,
+          "warnings": 5
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 1731,
+        "output_sha256": "ecad982401788930164a02f560cf05255a78d915af44076c151c6a2753099fc7",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py312/bin/python -m pytest -q tests/test_certification_closure.py tests/test_ksa31_promotion_recertification.py tests/test_ksa32_release_governance.py tests/test_ksa33_security_release.py tests/test_ksa21_adversarial_security.py tests/test_ksa25_recovery_law.py tests/test_ksa35_product_telemetry.py tests/test_chg16_*.py tests/test_chg17_*.py tests/test_chg18_*.py'",
+      "exit_code": 0,
+      "test_result": {
+        "counts": {
+          "passed": 402,
+          "warnings": 5
+        },
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 1731,
+        "output_sha256": "46d756450524dadb5ccd2e02f65f6083420afd7bfbb7cf4113cb418044a8760b",
+        "summary_detected": true
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk /tmp/k-slide-chg16-fix01-py311/bin/python -c \\\"import glob,json; from jsonschema import Draft202012Validator; from k_slide.errors import ErrorCode; files=glob.glob('schemas/*.json'); [Draft202012Validator.check_schema(json.load(open(p, encoding='utf-8'))) for p in files]; schema=json.load(open('schemas/operational-telemetry-event.schema.json', encoding='utf-8')); actual=sorted(x.value for x in ErrorCode); expected=sorted(schema['properties']['error_code']['enum']); assert actual == expected; print(f'schemas={len(files)} runtime_error_codes={len(actual)} schema_error_codes={len(expected)} parity=PASS')\\\" && rtk /tmp/k-slide-chg16-fix01-py311/bin/python -m compileall -q src tests evals && rtk /tmp/k-slide-chg16-fix01-py311/bin/python -c \\\"import sys; from pathlib import Path; print(sys.version.split()[0], sum(1 for d in ('src','tests','evals') for p in Path(d).rglob('*.py')))\\\"\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk /tmp/k-slide-chg16-fix01-py312/bin/python -c \\\"import glob,json; from jsonschema import Draft202012Validator; from k_slide.errors import ErrorCode; files=glob.glob('schemas/*.json'); [Draft202012Validator.check_schema(json.load(open(p, encoding='utf-8'))) for p in files]; schema=json.load(open('schemas/operational-telemetry-event.schema.json', encoding='utf-8')); actual=sorted(x.value for x in ErrorCode); expected=sorted(schema['properties']['error_code']['enum']); assert actual == expected; print(f'schemas={len(files)} runtime_error_codes={len(actual)} schema_error_codes={len(expected)} parity=PASS')\\\" && rtk /tmp/k-slide-chg16-fix01-py312/bin/python -m compileall -q src tests evals && rtk /tmp/k-slide-chg16-fix01-py312/bin/python -c \\\"import sys; from pathlib import Path; print(sys.version.split()[0], sum(1 for d in ('src','tests','evals') for p in Path(d).rglob('*.py')))\\\"\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-chg16-fix01-py311/bin/python /tmp/k-slide-chg16-fix01-validate-workflows.py && rtk proxy npx --yes bun@1.4.2 --version && rtk shasum -a 256 schemas/candidate-revocation.schema.json schemas/rollout-control.schema.json src/k_slide/candidate_revocation.py src/k_slide/rollout.py src/k_slide/production.py evals/release.py tests/test_ksa37_candidate_revocation.py tests/test_certification_closure.py docs/ksa37-candidate-revocation.md && rtk git diff --name-only 76d8ea098bce24cf5e7e901c6764fe8bba51dca3..HEAD && rtk git rev-parse HEAD && rtk git rev-parse HEAD''^{tree} && rtk git show --check --oneline HEAD'",
+      "exit_code": 128,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git log --all --format='%H %P %s' -- .codex-fabric/audit.json | head -20 && rtk git show -s --format='%H%n%T%n%P%n%s' 92b60cdce4465ac543940b8d532eda451df6a3fd && rtk git show -s --format='%H%n%T%n%P%n%s' a4e1f64\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk shasum -a 256 tests/rollout_fixtures.py && rtk git rev-parse HEAD:schemas/candidate-revocation.schema.json HEAD:schemas/rollout-control.schema.json HEAD:src/k_slide/candidate_revocation.py HEAD:src/k_slide/rollout.py HEAD:src/k_slide/production.py HEAD:evals/release.py HEAD:tests/test_ksa37_candidate_revocation.py HEAD:tests/test_certification_closure.py HEAD:tests/rollout_fixtures.py HEAD:docs/ksa37-candidate-revocation.md && rtk git status --short --branch && rtk git diff --check && rtk git diff-tree --check HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk mkdir -p .codex-fabric/ksa37'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk /tmp/k-slide-chg16-fix01-py311/bin/python -c \\\"import json; json.load(open('.codex-fabric/ksa37/candidate-evidence.json', encoding='utf-8')); print('candidate evidence JSON=PASS')\\\" && rtk shasum -a 256 .codex-fabric/ksa37/candidate-evidence.json && rtk git diff --check && rtk git status --short\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk /tmp/k-slide-chg16-fix01-py311/bin/python -c \\\"import hashlib,json; a=json.load(open('.codex-fabric/audit.json')); e=json.load(open('.codex-fabric/ksa37/candidate-evidence.json')); actual=hashlib.sha256(open('.codex-fabric/ksa37/candidate-evidence.json','rb').read()).hexdigest(); assert actual==a['candidate_evidence_sidecar']['sha256']; assert a['current_execution_identity'] is None and a['fabric_execution_identity']['fabric_job_id'] is None; assert e['current_execution_identity'] is None and e['fabric_execution_identity']['fabric_job_id'] is None; assert a['final_candidate_binding']['resulting_product_candidate_sha']==e['resulting_product_candidate']['commit_sha']; assert a['final_candidate_binding']['resulting_product_candidate_tree_oid']==e['resulting_product_candidate']['tree_oid']; print('audit and candidate evidence bindings=PASS', actual)\\\" && rtk rg -n 'CF-' .codex-fabric/audit.json .codex-fabric/ksa37/candidate-evidence.json && rtk git diff --check && rtk git status --short\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy which fabric codex-fabric'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git add .codex-fabric/audit.json .codex-fabric/ksa37/candidate-evidence.json && rtk git diff --cached --check && rtk git diff --cached --name-only && rtk git commit -m 'fix(fabric): bind KSA-37 FIX01 candidate evidence' && rtk git status --short --branch && rtk git rev-parse HEAD && rtk git rev-parse HEAD\"'^{tree}'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk git status --short --branch && rtk git log --format='%H %T %P %s' -3 && rtk git diff --name-only 76d8ea098bce24cf5e7e901c6764fe8bba51dca3..HEAD && rtk git diff --name-only ea90ea1a0d662ad56fe9b29472416e6cc21466df..9b7f6d8ab0cec76faadc988751f305fcfe57f3ab && rtk git show --check 9b7f6d8ab0cec76faadc988751f305fcfe57f3ab && rtk git show --check HEAD && rtk /tmp/k-slide-chg16-fix01-py311/bin/python -c \\\"import hashlib,json; a=json.load(open('.codex-fabric/audit.json')); e=json.load(open('.codex-fabric/ksa37/candidate-evidence.json')); assert hashlib.sha256(open('.codex-fabric/ksa37/candidate-evidence.json','rb').read()).hexdigest()==a['candidate_evidence_sidecar']['sha256']; assert e['resulting_product_candidate']['commit_sha']=='9b7f6d8ab0cec76faadc988751f305fcfe57f3ab'; assert a['final_candidate_binding']['resulting_product_candidate_tree_oid']=='4b156c0f2379babad3a1b7c81980faa8207b1d16'; print('committed candidate evidence binding=PASS')\\\"\"",
+      "exit_code": 128,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git show --check HEAD && rtk proxy git show --check 9b7f6d8ab0cec76faadc988751f305fcfe57f3ab && rtk git diff --check && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk /tmp/k-slide-chg16-fix01-py311/bin/python -c \\\"import hashlib,json; a=json.load(open('.codex-fabric/audit.json')); e=json.load(open('.codex-fabric/ksa37/candidate-evidence.json')); assert hashlib.sha256(open('.codex-fabric/ksa37/candidate-evidence.json','rb').read()).hexdigest()==a['candidate_evidence_sidecar']['sha256']; assert a['current_execution_identity'] is None and a['fabric_execution_identity']['fabric_job_id'] is None; assert e['current_execution_identity'] is None and e['fabric_execution_identity']['fabric_job_id'] is None; assert e['resulting_product_candidate']['commit_sha']=='9b7f6d8ab0cec76faadc988751f305fcfe57f3ab'; print('committed candidate evidence binding=PASS')\\\"\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rm -rf /tmp/k-slide-chg16-fix01-py311 /tmp/k-slide-chg16-fix01-py312 /tmp/k-slide-chg16-opencode-py311 /tmp/k-slide-chg16-opencode-py312 /tmp/k-slide-chg16-fix01-validate-workflows.py && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy command -v fabric'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy command -v codex-fabric'",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk rg -n '\"'^def record_reference_candidate_event|''^def apply_reference_candidate_event|''^def _load_reference_rollout_snapshot|''^def _apply_reference_recovery|''^def transition_reference_rollout_control|test_recovery_rejects_enabled_primary_after_revoke_transition_crash|test_recovery_from_already_disabled_primary_keeps_rollout_disabled|test_failed_restore_keeps_primary_revoked_until_rollout_is_proven'\"' src/k_slide/candidate_revocation.py src/k_slide/rollout.py tests/test_ksa37_candidate_revocation.py && rtk git rev-parse HEAD HEAD\"'^{tree} 9b7f6d8ab0cec76faadc988751f305fcfe57f3ab 9b7f6d8ab0cec76faadc988751f305fcfe57f3ab''^{tree} && rtk git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.157.0",
+    "configured_model": "gpt-6-luna",
+    "event_count": 190,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 97.79,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 9513728,
+      "fresh_input_tokens": 214931,
+      "input_tokens": 9728659,
+      "non_reasoning_output_tokens": 27160,
+      "output_tokens": 81167,
+      "reasoning_output_tokens": 54007,
+      "total_processed_tokens": 9809826
+    },
+    "warnings": []
   },
-  "qualification_status": "CANDIDATE_CHECKS_PASS_PENDING_NATIVE_PUBLICATION_AND_INDEPENDENT_PROJECT_OS_REVIEW",
-  "employee_pilot_or_canary": false,
-  "operational_service_enabled": false,
-  "release_or_production_claim": false,
-  "notion_mutated": false,
-  "company_provider_qualification": "EXTERNAL_TYPED_ADAPTER_NOT_INSTALLED_OR_QUALIFIED",
-  "status": "EXECUTED_CHANGE"
+  "commits": [
+    {
+      "sha": "0fe93215459c5f084e932985d76c164adaa8664b",
+      "subject": "fix(fabric): bind KSA-37 FIX01 candidate evidence"
+    },
+    {
+      "sha": "9b7f6d8ab0cec76faadc988751f305fcfe57f3ab",
+      "subject": "fix(k-slide): fail closed candidate recovery"
+    },
+    {
+      "sha": "ea90ea1a0d662ad56fe9b29472416e6cc21466df",
+      "subject": "KSA-37: add candidate revocation gate"
+    }
+  ],
+  "diff": {
+    "additions": 2095,
+    "changed_files": 12,
+    "commit_count": 3,
+    "deletions": 371
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 5,
+    "items": [
+      {
+        "bytes": 5819,
+        "path": ".codex-fabric/audit.json",
+        "sha256": "ef3e398ca35855413532548e55617fcc49e2c749927af00ae3e3b61c98eb05e3"
+      },
+      {
+        "bytes": 13919,
+        "path": ".codex-fabric/ksa37/candidate-evidence.json",
+        "sha256": "55c36183085745d59aeb90f88bf24626fddc5a7e5977d161ab9c9f9a72bd2ab5"
+      },
+      {
+        "bytes": 2528,
+        "path": "docs/ksa37-candidate-revocation.md",
+        "sha256": "9d4f44679a37e0d14eb9d77b918c9eea45ac5ce94aadf0556fa81284013e2d34"
+      },
+      {
+        "bytes": 7773,
+        "path": "schemas/candidate-revocation.schema.json",
+        "sha256": "2236944dd3dad23da00bebd7e8da652531c94686149e7cdc0302b3135dc62a30"
+      },
+      {
+        "bytes": 7179,
+        "path": "schemas/rollout-control.schema.json",
+        "sha256": "87e5757a4d73352c6a2b2a709b28299d250b2590d2a7d5f174c85142a294cc67"
+      }
+    ],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.5-dashboard-controls-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
+    }
+  },
+  "fabric_release": "1.2.5-dashboard-controls-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-27T03:19:21Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "76d8ea098bce24cf5e7e901c6764fe8bba51dca3",
+    "branch": "codex/k-slide-chg16-candidate-revocation-drift-01-fix01",
+    "detached_verify": false,
+    "head_sha": "0fe93215459c5f084e932985d76c164adaa8664b",
+    "remote_exact_head": true,
+    "remote_head_sha": "0fe93215459c5f084e932985d76c164adaa8664b",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "76d8ea098bce24cf5e7e901c6764fe8bba51dca3",
+    "work_branch": "codex/k-slide-chg16-candidate-revocation-drift-01-fix01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
+  },
+  "job_id": "CF-b88203189d62b87bbd7cf60e",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-candidate-revocation-drift-01-fix01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-candidate-revocation-drift-01-fix01"
+  },
+  "operation": "FIX",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.5-dashboard-controls-candidate",
+    "policy_sha256": "123615bf2f6e57dcac197e49ca98ceac59ada86a55e2c84445ea5d00812c0833",
+    "registry_sha256": "af81b8552f9d6a33847310e3c6bcd2d48401782b963a58efd2993e93570cb4aa"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-candidate-revocation-drift-01-fix01",
+  "schema_version": 1,
+  "started_at": "2026-09-27T02:46:29Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 1972,
+    "queue_seconds": 0,
+    "total_seconds": 1972
+  },
+  "transport": {
+    "bytes": 6949,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 6606,
+    "prompt_sha256": "b83773f71acdcf5d83ebc674faf9af3fede3dfc5224018408a7246c224ef9351",
+    "sha256": "b88203189d62b87bbd7cf60e8295574f3bd17676ff3abf9a137148b9b6b1988a"
+  }
 }
