@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -232,6 +233,50 @@ class KSA38TraceabilityTests(unittest.TestCase):
         self.assertIn("`KSA-02` | canonical host-adapter contract and one normal employee workflow | `ROUND_1/employee_workflow_host_parity_native_invocation` (KSA38-TR-001): KSA-02 requires the canonical host adapter to expose one normal employee workflow. | `IMPLEMENTED` | `DONE_INTEGRATED` | None recorded", report)
         self.assertIn("ACTIVE_VERIFY_REQUIRED", report)
         self.assertIn("QUEUED", report)
+
+    def test_full_suite_workflows_checkout_history_for_traceability(self) -> None:
+        workflow_jobs = (
+            (ROOT / ".github/workflows/k-slide.yml", "test"),
+            (ROOT / ".github/workflows/k-slide-phase32.yml", "fast"),
+        )
+        for workflow_path, job_name in workflow_jobs:
+            with self.subTest(workflow=workflow_path.name, job=job_name):
+                workflow = workflow_path.read_text(encoding="utf-8")
+                job_header = re.search(
+                    rf"(?m)^  {re.escape(job_name)}:\s*$", workflow
+                )
+                self.assertIsNotNone(job_header, f"missing {job_name} job")
+                assert job_header is not None
+                next_job = re.search(
+                    r"(?m)^  [A-Za-z0-9_-]+:\s*$",
+                    workflow[job_header.end() :],
+                )
+                job = workflow[
+                    job_header.end() :
+                    job_header.end() + next_job.start()
+                    if next_job
+                    else len(workflow)
+                ]
+                self.assertIn("python -m unittest discover -s tests", job)
+
+                lines = job.splitlines()
+                checkout_indexes = [
+                    index
+                    for index, line in enumerate(lines)
+                    if line.startswith("      - uses: actions/checkout@")
+                ]
+                self.assertEqual(len(checkout_indexes), 1)
+                checkout_index = checkout_indexes[0]
+                next_step = next(
+                    (
+                        index
+                        for index in range(checkout_index + 1, len(lines))
+                        if lines[index].startswith("      - ")
+                    ),
+                    len(lines),
+                )
+                checkout_step = lines[checkout_index:next_step]
+                self.assertIn("fetch-depth: 0", [line.strip() for line in checkout_step])
 
 
 if __name__ == "__main__":
