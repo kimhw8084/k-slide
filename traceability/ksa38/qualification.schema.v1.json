@@ -9,11 +9,17 @@
     "project",
     "operation",
     "request",
+    "exact_base_sha",
     "product_subject_sha",
     "change_base_sha",
-    "checks",
     "work_branch",
-    "predecessor_work_head"
+    "predecessor_lineage",
+    "historical_lineage",
+    "candidate_binding",
+    "coverage_sha256",
+    "artifact_hashes",
+    "closure_snapshot_authority",
+    "checks"
   ],
   "properties": {
     "schema_version": {
@@ -26,7 +32,8 @@
       "const": "FIX"
     },
     "request": {
-      "const": "chg16-requirement-traceability-01-fix01"
+      "type": "string",
+      "pattern": "^chg16-requirement-traceability-01(?:-fix[0-9]{2})?$"
     },
     "product_subject_sha": {
       "const": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd"
@@ -42,10 +49,58 @@
       }
     },
     "work_branch": {
-      "const": "codex/k-slide-chg16-requirement-traceability-01-fix01"
+      "type": "string",
+      "pattern": "^codex/k-slide-chg16-requirement-traceability-01(?:-fix[0-9]{2})?$"
     },
     "predecessor_work_head": {
       "const": "6bad7b23ddfc9525acffb9e169fb65182f9c8764"
+    },
+    "exact_base_sha": {
+      "const": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd"
+    },
+    "predecessor_lineage": {
+      "$ref": "#/$defs/lineageRecord"
+    },
+    "historical_lineage": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/lineageRecord"
+      }
+    },
+    "candidate_binding": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/candidateBinding"
+        }
+      ]
+    },
+    "coverage_sha256": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      ]
+    },
+    "artifact_hashes": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/artifactHashes"
+        }
+      ]
+    },
+    "closure_snapshot_authority": {
+      "const": "PROJECT_OS_BOUND_DISPATCH_SNAPSHOT"
     }
   },
   "$defs": {
@@ -123,6 +178,122 @@
         },
         "details": {
           "type": "string"
+        }
+      }
+    },
+    "candidateBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit_sha",
+        "tree_oid",
+        "parent_sha",
+        "work_branch",
+        "worktree_clean_at_product_candidate"
+      ],
+      "properties": {
+        "commit_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "tree_oid": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "parent_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "work_branch": {
+          "type": "string",
+          "pattern": "^codex/k-slide-chg16-requirement-traceability-01(?:-fix[0-9]{2})?$"
+        },
+        "worktree_clean_at_product_candidate": {
+          "const": true
+        }
+      }
+    },
+    "lineageRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request",
+        "disposition",
+        "work_head",
+        "traceability_product_commit",
+        "native_evidence_commit",
+        "native_build_job_id"
+      ],
+      "properties": {
+        "request": {
+          "type": "string",
+          "pattern": "^chg16-requirement-traceability-01(?:-fix[0-9]{2})?$"
+        },
+        "disposition": {
+          "enum": [
+            "ACCEPTED",
+            "REJECTED",
+            "BUILD_PREDECESSOR"
+          ]
+        },
+        "work_head": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "traceability_product_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "native_evidence_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "native_build_job_id": {
+          "type": "string",
+          "pattern": "^CF-[0-9a-f]{16,32}$"
+        }
+      }
+    },
+    "artifactHashes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_context",
+        "matrix",
+        "matrix_schema",
+        "candidate_evidence_schema",
+        "qualification_schema",
+        "scope_registry",
+        "human_report"
+      ],
+      "properties": {
+        "candidate_context": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "matrix": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "matrix_schema": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "candidate_evidence_schema": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "qualification_schema": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "scope_registry": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "human_report": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
         }
       }
     }

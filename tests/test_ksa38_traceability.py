@@ -13,6 +13,7 @@ from jsonschema import Draft202012Validator
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools/ksa38"))
 
+import build_candidate_evidence as candidate_evidence  # noqa: E402
 from traceability import (  # noqa: E402
     EXPECTED_FAMILIES,
     EXPECTED_KSA_CLAUSES,
@@ -277,6 +278,75 @@ class KSA38TraceabilityTests(unittest.TestCase):
                 )
                 checkout_step = lines[checkout_index:next_step]
                 self.assertIn("fetch-depth: 0", [line.strip() for line in checkout_step])
+
+
+class KSA38CandidateEvidenceTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.context = load_json(ROOT / "traceability/ksa38/candidate-context.v1.json")
+        cls.qualification = load_json(ROOT / "traceability/ksa38/qualification.v1.json")
+
+    def test_candidate_context_preserves_native_predecessor_chain(self) -> None:
+        candidate_evidence._validate_context(self.context)
+        self.assertEqual(self.context["candidate_parent_sha"], self.context["predecessor_lineage"]["work_head"])
+        self.assertEqual(self.context["predecessor_lineage"]["native_evidence_commit"], "e71b3465f8943b57dbe2b774212ae6108043c9a8")
+        self.assertEqual(self.context["historical_lineage"][0]["disposition"], "REJECTED")
+        self.assertEqual(self.context["historical_lineage"][1]["disposition"], "BUILD_PREDECESSOR")
+
+    def test_stale_request_work_branch_and_predecessor_are_rejected(self) -> None:
+        invalid = copy.deepcopy(self.qualification)
+        invalid["request"] = "chg16-requirement-traceability-01-fix01"
+        with self.assertRaisesRegex(candidate_evidence.CandidateEvidenceError, "qualification request"):
+            candidate_evidence.validate_qualification_identity(invalid, self.context)
+
+        invalid = copy.deepcopy(self.qualification)
+        invalid["work_branch"] = "codex/k-slide-chg16-requirement-traceability-01-fix01"
+        with self.assertRaisesRegex(candidate_evidence.CandidateEvidenceError, "qualification work_branch"):
+            candidate_evidence.validate_qualification_identity(invalid, self.context)
+
+        invalid = copy.deepcopy(self.qualification)
+        invalid["predecessor_lineage"]["work_head"] = "6bad7b23ddfc9525acffb9e169fb65182f9c8764"
+        with self.assertRaisesRegex(candidate_evidence.CandidateEvidenceError, "qualification predecessor_lineage"):
+            candidate_evidence.validate_qualification_identity(invalid, self.context)
+
+    def test_candidate_parent_must_match_bound_predecessor(self) -> None:
+        with self.assertRaisesRegex(candidate_evidence.CandidateEvidenceError, "candidate parent"):
+            candidate_evidence.validate_bound_candidate_identity(
+                self.context["request"],
+                self.context["work_branch"],
+                "6bad7b23ddfc9525acffb9e169fb65182f9c8764",
+                self.context,
+            )
+
+    def test_generator_binds_current_candidate_to_qualification(self) -> None:
+        qualification = load_json(ROOT / "traceability/ksa38/qualification.v1.json")
+        candidate_sha = (
+            qualification["candidate_binding"]["commit_sha"]
+            if qualification["candidate_binding"]
+            else candidate_evidence.git("rev-parse", "HEAD")
+        )
+        evidence, bound_qualification = candidate_evidence.build_candidate_artifacts(candidate_sha)
+        self.assertEqual(evidence["request"], self.context["request"])
+        self.assertEqual(evidence["work_branch"], self.context["work_branch"])
+        self.assertEqual(evidence["candidate_binding"]["parent_sha"], self.context["candidate_parent_sha"])
+        self.assertEqual(evidence["predecessor_lineage"], self.context["predecessor_lineage"])
+        self.assertEqual(evidence["historical_lineage"], self.context["historical_lineage"])
+        self.assertEqual(evidence["candidate_binding"], bound_qualification["candidate_binding"])
+        self.assertIsNone(evidence["current_execution_identity"])
+        self.assertIsNone(evidence["fabric_execution_identity"]["fabric_job_id"])
+
+    def test_conventional_audit_must_match_candidate_sidecar_binding(self) -> None:
+        qualification = load_json(ROOT / "traceability/ksa38/qualification.v1.json")
+        candidate_sha = (
+            qualification["candidate_binding"]["commit_sha"]
+            if qualification["candidate_binding"]
+            else candidate_evidence.git("rev-parse", "HEAD")
+        )
+        sidecar, _ = candidate_evidence.build_candidate_artifacts(candidate_sha)
+        audit = copy.deepcopy(sidecar)
+        audit["candidate_binding"]["commit_sha"] = "3538dc1d0c9ac5c255545751662bb08980997f44"
+        with self.assertRaisesRegex(candidate_evidence.CandidateEvidenceError, "audit.json differs"):
+            candidate_evidence.validate_audit_match(sidecar, audit)
 
 
 if __name__ == "__main__":
