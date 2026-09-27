@@ -1,24 +1,49 @@
 {
   "schema_version": "1.0",
-  "evidence_type": "k-slide-ksa38-fix01-candidate-evidence",
+  "evidence_type": "k-slide-ksa38-fix-candidate-evidence",
   "project": "k-slide",
   "issue_id": "CHG-16",
   "operation": "FIX",
-  "request": "chg16-requirement-traceability-01-fix01",
+  "request": "chg16-requirement-traceability-01-fix03",
   "exact_base": {
     "commit_sha": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd",
     "tree_oid": "e049fcc0e5d245630c1a47e1ec08d30f6419d6c2"
   },
-  "work_branch": "codex/k-slide-chg16-requirement-traceability-01-fix01",
+  "work_branch": "codex/k-slide-chg16-requirement-traceability-01-fix03",
   "product_subject_sha": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd",
   "change_base_sha": "af5836540304b424289bedbe57a87dbb5d02763f",
   "predecessor_lineage": {
-    "work_head": "6bad7b23ddfc9525acffb9e169fb65182f9c8764",
-    "traceability_product_commit": "b07011b674d165bf8ed28d5b2a96add6e850bd6d",
-    "native_evidence_commit": "99063af41106fb26d46f573c5fd0fb52a5352cf7",
-    "native_build_job_id": "CF-12417898c2198699f08668aa"
+    "request": "chg16-requirement-traceability-01-fix02",
+    "disposition": "ACCEPTED",
+    "work_head": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
+    "traceability_product_commit": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
+    "native_evidence_commit": "e71b3465f8943b57dbe2b774212ae6108043c9a8",
+    "native_build_job_id": "CF-959e82d5a93c6227f3e861fb"
   },
+  "historical_lineage": [
+    {
+      "request": "chg16-requirement-traceability-01-fix01",
+      "disposition": "REJECTED",
+      "work_head": "3538dc1d0c9ac5c255545751662bb08980997f44",
+      "traceability_product_commit": "34092db009e4701b2c9949b7d644afce9267c08d",
+      "native_evidence_commit": "1ea3e8b413bf8ef28ae16c2ddc2c0d7e9d096ce7",
+      "native_build_job_id": "CF-6a7997ef8068f9a3b6ae02bd"
+    },
+    {
+      "request": "chg16-requirement-traceability-01",
+      "disposition": "BUILD_PREDECESSOR",
+      "work_head": "6bad7b23ddfc9525acffb9e169fb65182f9c8764",
+      "traceability_product_commit": "b07011b674d165bf8ed28d5b2a96add6e850bd6d",
+      "native_evidence_commit": "99063af41106fb26d46f573c5fd0fb52a5352cf7",
+      "native_build_job_id": "CF-12417898c2198699f08668aa"
+    }
+  ],
   "artifacts": {
+    "candidate_context": {
+      "path": "traceability/ksa38/candidate-context.v1.json",
+      "sha256": "776dca38798c08feb5f8ee2b033815a5e786b526c0b92ceae65fb696c4e8c884",
+      "version": "1.0"
+    },
     "matrix": {
       "path": "traceability/ksa38/traceability.v1.json",
       "sha256": "4a0ca1394577e4c12e5ae559dde0be0a8871ef4f3593d4a9a360192bea9be884",
@@ -31,17 +56,12 @@
     },
     "candidate_evidence_schema": {
       "path": "traceability/ksa38/candidate-evidence.schema.v1.json",
-      "sha256": "fb777d49a22eec0d362b2288617e69125a57dd8d4f17cdcad08aec72bd5023c2",
-      "version": "1.0"
-    },
-    "qualification_manifest": {
-      "path": "traceability/ksa38/qualification.v1.json",
-      "sha256": "45f2e48beddd08b39b4903bb07eb773b1d32182d9514332b480ea200b0c3bd9d",
+      "sha256": "9e830cffdf2755b8c09f8086552b182dfd77c9adf7accca041a37404fbb66993",
       "version": "1.0"
     },
     "qualification_schema": {
       "path": "traceability/ksa38/qualification.schema.v1.json",
-      "sha256": "dbede812231907a435d8fe139ec766ae5dd9ad9783b89299155ff91230811a6e",
+      "sha256": "93e780adf89ebf236c7cc4cf9331aa4da6dbd90d484acf573de6d9a3b9d1159f",
       "version": "1.0"
     },
     "scope_registry": {
@@ -52,6 +72,11 @@
     "human_report": {
       "path": "traceability/ksa38/README.md",
       "sha256": "d819dd469c78dc93539db7d0841a220165e2b1b83a38804db7fa75b4dfa77840",
+      "version": "1.0"
+    },
+    "qualification_manifest": {
+      "path": "traceability/ksa38/qualification.v1.json",
+      "sha256": "8386490ffb4457ae28427fcdc24f98c448edcf0f33c68236720d660ab7f10a34",
       "version": "1.0"
     }
   },
@@ -260,40 +285,40 @@
       "command": "rtk python3.11 -m pytest -q tests/test_ksa38_traceability.py",
       "python_version": "3.11.7",
       "status": "PASS",
-      "tests_passed": 21,
+      "tests_passed": 27,
       "tests_skipped": 0,
       "warnings": 0,
-      "details": "21 focused tests passed, including exact semantic crosswalk failures for KSA-04/05 mislinks, unrelated KSA insertion, missing clause links, and false implementation claims."
+      "details": "27 focused KSA-38 tests passed, including stale request, branch, predecessor, candidate-parent, and audit/sidecar mismatch regressions."
     },
     {
       "name": "focused_ksa38_traceability_tests",
       "command": "rtk /tmp/k-slide-ksa37-py312/bin/python -m pytest -q tests/test_ksa38_traceability.py",
       "python_version": "3.12.9",
       "status": "PASS",
-      "tests_passed": 21,
+      "tests_passed": 27,
       "tests_skipped": 0,
       "warnings": 0,
-      "details": "21 focused tests passed, including exact semantic crosswalk failures for KSA-04/05 mislinks, unrelated KSA insertion, missing clause links, and false implementation claims."
+      "details": "27 focused KSA-38 tests passed, including stale request, branch, predecessor, candidate-parent, and audit/sidecar mismatch regressions."
     },
     {
       "name": "full_repository_python_suite",
       "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m pytest -q",
       "python_version": "3.11.7",
       "status": "PASS",
-      "tests_passed": 755,
+      "tests_passed": 761,
       "tests_skipped": 5,
       "warnings": 1,
-      "details": "Full repository Python suite passed. The one warning is fontTools.misc.py23 DeprecationWarning from the installed fontTools package."
+      "details": "Full repository suite passed. One external fontTools deprecation warning."
     },
     {
       "name": "full_repository_python_suite",
       "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa37-py312/bin/python -m pytest -q",
       "python_version": "3.12.9",
       "status": "PASS",
-      "tests_passed": 749,
+      "tests_passed": 755,
       "tests_skipped": 11,
       "warnings": 0,
-      "details": "Full repository Python suite passed with 11 environment/version-specific skips and no warnings."
+      "details": "Full repository suite passed with 11 environment/version-specific skips."
     },
     {
       "name": "exact_subject_change_span_matrix_validation",
@@ -303,7 +328,7 @@
       "tests_passed": null,
       "tests_skipped": 0,
       "warnings": 0,
-      "details": "Observed 35/35 canonical clauses, 37/37 KSA items, 71/71 semantic KSA-clause links, 152 commits, 229 changed paths, 137 requirement-referenced paths, 92 classified paths, and zero unexplained paths."
+      "details": "Validated 35/35 canonical clauses, 37/37 KSA items, 71/71 semantic links, 152 commits, 229 paths, and zero unexplained paths or orphan requirements; KSA-04/KSA-05 remain queued/open."
     },
     {
       "name": "exact_subject_change_span_matrix_validation",
@@ -313,27 +338,47 @@
       "tests_passed": null,
       "tests_skipped": 0,
       "warnings": 0,
-      "details": "Observed the same exact subject/span and coverage: 35/35 clauses, 37/37 KSAs, 71/71 links, 152 commits, 229 paths, 137 requirement-referenced, 92 classified, zero unexplained."
+      "details": "Validated 35/35 canonical clauses, 37/37 KSA items, 71/71 semantic links, 152 commits, 229 paths, and zero unexplained paths or orphan requirements; KSA-04/KSA-05 remain queued/open."
     },
     {
       "name": "repository_json_schemas_draft_2020_12",
-      "command": "Draft202012Validator.check_schema over every repository schema JSON file",
+      "command": "Draft202012Validator.check_schema over all repository schema JSON files",
       "python_version": "3.11.7",
       "status": "PASS",
       "tests_passed": 13,
       "tests_skipped": 0,
       "warnings": 0,
-      "details": "All 13 repository JSON schema files passed Draft 2020-12 meta-schema validation."
+      "details": "All 13 repository JSON schemas passed Draft 2020-12 meta-schema validation."
     },
     {
       "name": "repository_json_schemas_draft_2020_12",
-      "command": "Draft202012Validator.check_schema over every repository schema JSON file",
+      "command": "Draft202012Validator.check_schema over all repository schema JSON files",
       "python_version": "3.12.9",
       "status": "PASS",
       "tests_passed": 13,
       "tests_skipped": 0,
       "warnings": 0,
-      "details": "All 13 repository JSON schema files passed Draft 2020-12 meta-schema validation."
+      "details": "All 13 repository JSON schemas passed Draft 2020-12 meta-schema validation."
+    },
+    {
+      "name": "candidate_evidence_generation_and_validation",
+      "command": "rtk python3.11 tools/ksa38/build_candidate_evidence.py; rtk python3.11 tools/ksa38/build_candidate_evidence.py --validate",
+      "python_version": "3.11.7",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Generated and rederived the FIX03 candidate SHA/tree, request, branch, full predecessor lineage, current coverage and hashes; current Fabric identity remains null."
+    },
+    {
+      "name": "candidate_evidence_generation_and_validation",
+      "command": "rtk /tmp/k-slide-ksa37-py312/bin/python tools/ksa38/build_candidate_evidence.py; rtk /tmp/k-slide-ksa37-py312/bin/python tools/ksa38/build_candidate_evidence.py --validate",
+      "python_version": "3.12.9",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Generated and rederived the same FIX03 binding under Python 3.12; current Fabric identity remains null."
     },
     {
       "name": "runtime_errorcode_parity",
@@ -341,9 +386,9 @@
       "python_version": "3.11.7",
       "status": "PASS",
       "tests_passed": 1,
-      "tests_skipped": 0,
+      "tests_skipped": 16,
       "warnings": 0,
-      "details": "Runtime ErrorCode and schema parity regression passed; 1 test passed, 16 deselected."
+      "details": "Runtime ErrorCode and schema parity regression passed."
     },
     {
       "name": "runtime_errorcode_parity",
@@ -351,29 +396,29 @@
       "python_version": "3.12.9",
       "status": "PASS",
       "tests_passed": 1,
-      "tests_skipped": 0,
+      "tests_skipped": 16,
       "warnings": 0,
-      "details": "Runtime ErrorCode and schema parity regression passed; 1 test passed, 16 deselected."
+      "details": "Runtime ErrorCode and schema parity regression passed."
     },
     {
       "name": "workflow_yaml_and_embedded_shell",
-      "command": "PyYAML safe_load for .github/workflows/*.yml and *.yaml; bash -n for each embedded run step",
+      "command": "PyYAML safe_load of .github/workflows/*.yml and bash -n for embedded run blocks",
       "python_version": "3.11.7",
       "status": "PASS",
       "tests_passed": null,
       "tests_skipped": 0,
       "warnings": 0,
-      "details": "All 6 workflow YAML files parsed; all 49 embedded shell blocks passed bash -n."
+      "details": "All 6 workflow YAML files parsed and all 49 embedded shell blocks passed bash -n."
     },
     {
       "name": "workflow_yaml_and_embedded_shell",
-      "command": "PyYAML safe_load for .github/workflows/*.yml and *.yaml; bash -n for each embedded run step",
+      "command": "PyYAML safe_load of .github/workflows/*.yml and bash -n for embedded run blocks",
       "python_version": "3.12.9",
       "status": "PASS",
       "tests_passed": null,
       "tests_skipped": 0,
       "warnings": 0,
-      "details": "All 6 workflow YAML files parsed; all 49 embedded shell blocks passed bash -n."
+      "details": "All 6 workflow YAML files parsed and all 49 embedded shell blocks passed bash -n."
     },
     {
       "name": "compileall_src_tests_evals_tools_ksa38",
@@ -381,9 +426,9 @@
       "python_version": "3.11.7",
       "status": "PASS",
       "tests_passed": null,
-      "tests_skipped": null,
+      "tests_skipped": 0,
       "warnings": 0,
-      "details": "Compilation completed for all requested Python trees and the dedicated KSA-38 tools."
+      "details": "Compilation completed for all requested Python trees and the KSA-38 evidence tools."
     },
     {
       "name": "compileall_src_tests_evals_tools_ksa38",
@@ -391,36 +436,86 @@
       "python_version": "3.12.9",
       "status": "PASS",
       "tests_passed": null,
-      "tests_skipped": null,
+      "tests_skipped": 0,
       "warnings": 0,
-      "details": "Compilation completed for all requested Python trees and the dedicated KSA-38 tools."
-    },
-    {
-      "name": "opencode_host_typescript_regression",
-      "command": "Not run because OpenCode host implementation files were not touched by FIX01.",
-      "python_version": null,
-      "status": "NOT_REQUIRED",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": 0,
-      "details": "No .opencode files, host-adapter implementation files, or host integration regression files were changed by this traceability-only FIX01."
+      "details": "Compilation completed for all requested Python trees and the KSA-38 evidence tools."
     },
     {
       "name": "git_diff_check",
-      "command": "git diff --check and git diff --cached --check",
+      "command": "rtk git diff --check and rtk git diff --cached --check",
       "python_version": null,
       "status": "PASS",
       "tests_passed": null,
-      "tests_skipped": null,
+      "tests_skipped": 0,
       "warnings": 0,
-      "details": "git diff --check passed after the complete matrix, schema, validator, report, tests, and qualification edits were staged."
+      "details": "Whitespace validation passed; the final worktree is verified separately after the evidence commit."
+    },
+    {
+      "name": "exact_head_k_slide_test_branch_push",
+      "command": "GitHub Actions run 36347993238, job test (3.11)",
+      "python_version": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "PASS at exact candidate SHA e5903b405f116a04f11c1402c75a7bc9d22f32df; branch-push workflow completed successfully."
+    },
+    {
+      "name": "exact_head_k_slide_test_branch_push",
+      "command": "GitHub Actions run 36347993238, job test (3.12)",
+      "python_version": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "PASS at exact candidate SHA e5903b405f116a04f11c1402c75a7bc9d22f32df; branch-push workflow completed successfully."
+    },
+    {
+      "name": "exact_head_phase35_fast_branch_push",
+      "command": "GitHub Actions run 36347993244, job fast (3.11)",
+      "python_version": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "PASS at exact candidate SHA e5903b405f116a04f11c1402c75a7bc9d22f32df; branch-push workflow completed successfully."
+    },
+    {
+      "name": "exact_head_phase35_fast_branch_push",
+      "command": "GitHub Actions run 36347993244, job fast (3.12)",
+      "python_version": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "PASS at exact candidate SHA e5903b405f116a04f11c1402c75a7bc9d22f32df; branch-push workflow completed successfully."
+    },
+    {
+      "name": "exact_head_security_workflow",
+      "command": "GitHub Actions workflow_dispatch run 36347992757, job security",
+      "python_version": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "PASS at exact candidate SHA e5903b405f116a04f11c1402c75a7bc9d22f32df; dependency, secret, and static security scans succeeded."
+    },
+    {
+      "name": "optional_phase35_heavy",
+      "command": "GitHub Actions run 36347993244, job heavy",
+      "python_version": null,
+      "status": "NOT_REQUIRED",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Skipped by the configured heavy-runtime policy."
     }
   ],
   "candidate_binding": {
-    "commit_sha": "34092db009e4701b2c9949b7d644afce9267c08d",
-    "tree_oid": "f824cfa11c21980c9c7904f70ea7424a6551f717",
-    "parent_sha": "99063af41106fb26d46f573c5fd0fb52a5352cf7",
-    "work_branch": "codex/k-slide-chg16-requirement-traceability-01-fix01",
+    "commit_sha": "e5903b405f116a04f11c1402c75a7bc9d22f32df",
+    "tree_oid": "01aaf14469213fbb43683cebabcb67dcf4573e29",
+    "parent_sha": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
+    "work_branch": "codex/k-slide-chg16-requirement-traceability-01-fix03",
     "worktree_clean_at_product_candidate": true
   },
   "current_execution_identity": null,

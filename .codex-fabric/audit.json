@@ -1,681 +1,535 @@
 {
-  "accepted_at": "2026-09-27T14:36:48Z",
-  "changed_files": [
+  "schema_version": "1.0",
+  "evidence_type": "k-slide-ksa38-fix-candidate-evidence",
+  "project": "k-slide",
+  "issue_id": "CHG-16",
+  "operation": "FIX",
+  "request": "chg16-requirement-traceability-01-fix03",
+  "exact_base": {
+    "commit_sha": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd",
+    "tree_oid": "e049fcc0e5d245630c1a47e1ec08d30f6419d6c2"
+  },
+  "work_branch": "codex/k-slide-chg16-requirement-traceability-01-fix03",
+  "product_subject_sha": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd",
+  "change_base_sha": "af5836540304b424289bedbe57a87dbb5d02763f",
+  "predecessor_lineage": {
+    "request": "chg16-requirement-traceability-01-fix02",
+    "disposition": "ACCEPTED",
+    "work_head": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
+    "traceability_product_commit": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
+    "native_evidence_commit": "e71b3465f8943b57dbe2b774212ae6108043c9a8",
+    "native_build_job_id": "CF-959e82d5a93c6227f3e861fb"
+  },
+  "historical_lineage": [
     {
-      "additions": 426,
-      "deletions": 83,
-      "path": ".codex-fabric/audit.json",
-      "status": "M"
+      "request": "chg16-requirement-traceability-01-fix01",
+      "disposition": "REJECTED",
+      "work_head": "3538dc1d0c9ac5c255545751662bb08980997f44",
+      "traceability_product_commit": "34092db009e4701b2c9949b7d644afce9267c08d",
+      "native_evidence_commit": "1ea3e8b413bf8ef28ae16c2ddc2c0d7e9d096ce7",
+      "native_build_job_id": "CF-6a7997ef8068f9a3b6ae02bd"
     },
     {
-      "additions": 440,
-      "deletions": 0,
-      "path": ".codex-fabric/ksa38/candidate-evidence.json",
-      "status": "A"
+      "request": "chg16-requirement-traceability-01",
+      "disposition": "BUILD_PREDECESSOR",
+      "work_head": "6bad7b23ddfc9525acffb9e169fb65182f9c8764",
+      "traceability_product_commit": "b07011b674d165bf8ed28d5b2a96add6e850bd6d",
+      "native_evidence_commit": "99063af41106fb26d46f573c5fd0fb52a5352cf7",
+      "native_build_job_id": "CF-12417898c2198699f08668aa"
+    }
+  ],
+  "artifacts": {
+    "candidate_context": {
+      "path": "traceability/ksa38/candidate-context.v1.json",
+      "sha256": "776dca38798c08feb5f8ee2b033815a5e786b526c0b92ceae65fb696c4e8c884",
+      "version": "1.0"
     },
-    {
-      "additions": 238,
-      "deletions": 0,
-      "path": "tests/test_ksa38_traceability.py",
-      "status": "A"
-    },
-    {
-      "additions": 267,
-      "deletions": 0,
-      "path": "tools/ksa38/build_candidate_evidence.py",
-      "status": "A"
-    },
-    {
-      "additions": 640,
-      "deletions": 0,
-      "path": "tools/ksa38/build_matrix.py",
-      "status": "A"
-    },
-    {
-      "additions": 776,
-      "deletions": 0,
-      "path": "tools/ksa38/traceability.py",
-      "status": "A"
-    },
-    {
-      "additions": 55,
-      "deletions": 0,
-      "path": "tools/ksa38/validate_traceability.py",
-      "status": "A"
-    },
-    {
-      "additions": 189,
-      "deletions": 0,
-      "path": "traceability/ksa38/README.md",
-      "status": "A"
-    },
-    {
-      "additions": 494,
-      "deletions": 0,
-      "path": "traceability/ksa38/candidate-evidence.schema.v1.json",
-      "status": "A"
-    },
-    {
-      "additions": 728,
-      "deletions": 0,
-      "path": "traceability/ksa38/ksa-scope-registry.v1.json",
-      "status": "A"
-    },
-    {
-      "additions": 130,
-      "deletions": 0,
-      "path": "traceability/ksa38/qualification.schema.v1.json",
-      "status": "A"
-    },
-    {
-      "additions": 172,
-      "deletions": 0,
-      "path": "traceability/ksa38/qualification.v1.json",
-      "status": "A"
-    },
-    {
-      "additions": 845,
-      "deletions": 0,
-      "path": "traceability/ksa38/schema.v1.json",
-      "status": "A"
-    },
-    {
-      "additions": 5635,
-      "deletions": 0,
+    "matrix": {
       "path": "traceability/ksa38/traceability.v1.json",
-      "status": "A"
+      "sha256": "4a0ca1394577e4c12e5ae559dde0be0a8871ef4f3593d4a9a360192bea9be884",
+      "version": "1.0"
+    },
+    "matrix_schema": {
+      "path": "traceability/ksa38/schema.v1.json",
+      "sha256": "f6a65afc17969dbad5e4c3540873acfa82213cc025a7db5f3b1d5a9768f299d1",
+      "version": "1.0"
+    },
+    "candidate_evidence_schema": {
+      "path": "traceability/ksa38/candidate-evidence.schema.v1.json",
+      "sha256": "9e830cffdf2755b8c09f8086552b182dfd77c9adf7accca041a37404fbb66993",
+      "version": "1.0"
+    },
+    "qualification_schema": {
+      "path": "traceability/ksa38/qualification.schema.v1.json",
+      "sha256": "93e780adf89ebf236c7cc4cf9331aa4da6dbd90d484acf573de6d9a3b9d1159f",
+      "version": "1.0"
+    },
+    "scope_registry": {
+      "path": "traceability/ksa38/ksa-scope-registry.v1.json",
+      "sha256": "1a45998acb466a07b51692d8e1c6239cab2aaa1dd7bd8740bfb8a2d4e7e55f4d",
+      "version": "1.0"
+    },
+    "human_report": {
+      "path": "traceability/ksa38/README.md",
+      "sha256": "d819dd469c78dc93539db7d0841a220165e2b1b83a38804db7fa75b4dfa77840",
+      "version": "1.0"
+    },
+    "qualification_manifest": {
+      "path": "traceability/ksa38/qualification.v1.json",
+      "sha256": "8386490ffb4457ae28427fcdc24f98c448edcf0f33c68236720d660ab7f10a34",
+      "version": "1.0"
     }
-  ],
-  "checks": [
-    {
-      "command": "/bin/zsh -lc \"rtk sed -n '1,260p' tools/ksa38/traceability.py && rtk sed -n '1,240p' tests/test_ksa38_traceability.py && rtk sed -n '1,220p' tools/ksa38/build_matrix.py && rtk sed -n '1,220p' tools/ksa38/validate_traceability.py && rtk sed -n '1,260p' traceability/ksa38/README.md\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk rg -n 'USER_SUPPLIED|project_os_closure_snapshot|linked_ksa_items|mapping_rationale|IMPLEMENTED|def validate_matrix|def render_report|def main|candidate_evidence|qualification|audit.json|FIX01' tools/ksa38 tests/test_ksa38_traceability.py traceability/ksa38 .codex-fabric/audit.json .codex-fabric/ksa38/candidate-evidence.json && rtk sed -n '240,620p' tools/ksa38/traceability.py && rtk sed -n '220,640p' tools/ksa38/build_matrix.py && rtk sed -n '1,260p' tools/ksa38/build_candidate_evidence.py && rtk sed -n '1,180p' tools/ksa38/validate_traceability.py\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nimport json, subprocess\nfrom pathlib import Path\nfor p in ['.codex-fabric/audit.json','.codex-fabric/ksa38/candidate-evidence.json','traceability/ksa38/traceability.v1.json','traceability/ksa38/schema.v1.json','traceability/ksa38/candidate-evidence.schema.v1.json']:\n d=json.loads(Path(p).read_text())\n print('\\\\n',p)\n print('top keys:',list(d))\n if p.endswith('audit.json'):\n  print('values:',{k:d[k] for k in d if k not in {'commands','observations','changed_paths','artifacts','checks','qualification_checks','files','tests'}})\n  for k,v in d.items():\n   if isinstance(v,list): print(k,'len',len(v),'first',v[0] if v else None)\n if p.endswith('candidate-evidence.json'):\n  print('binding:',d.get('candidate_binding')); print('request',d.get('request'),'coverage',d.get('coverage')); print('qualification',d.get('qualification_checks'))\n if p.endswith('traceability.v1.json'):\n  print('snapshot',d['project_os_closure_snapshot']); print('evidence_provenance',d['evidence_provenance']); print('row0',d['trace_rows'][0]); print('row1',d['trace_rows'][1]); print('row2',d['trace_rows'][2]); print('summary',d['summary'])\nPY\nrtk git show --stat --oneline b07011b674d165bf8ed28d5b2a96add6e850bd6d && rtk git show --stat --oneline 6bad7b23ddfc9525acffb9e169fb65182f9c8764 && rtk git show --stat --oneline 99063af41106fb26d46f573c5fd0fb52a5352cf7 && rtk command -v python3.11 && rtk command -v python3.12 && rtk command -v /tmp/k-slide-ksa37-py312/bin/python\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk sed -n '260,500p' tools/ksa38/traceability.py && rtk sed -n '500,670p' tools/ksa38/traceability.py && rtk sed -n '130,300p' traceability/ksa38/schema.v1.json && rtk sed -n '1,210p' traceability/ksa38/candidate-evidence.schema.v1.json && rtk sed -n '1,200p' traceability/ksa38/qualification.v1.json\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk sed -n '110,235p' tools/ksa38/build_matrix.py && rtk sed -n '235,335p' tools/ksa38/build_matrix.py && rtk sed -n '335,450p' tools/ksa38/build_matrix.py && rtk sed -n '500,620p' tools/ksa38/traceability.py && rtk sed -n '1,135p' traceability/ksa38/schema.v1.json && rtk sed -n '135,240p' traceability/ksa38/schema.v1.json\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk sed -n '175,225p' tools/ksa38/build_matrix.py && rtk sed -n '225,255p' tools/ksa38/build_matrix.py && rtk sed -n '410,510p' tools/ksa38/build_matrix.py && rtk cat traceability/ksa38/qualification.schema.v1.json && rtk cat traceability/ksa38/qualification.v1.json | rtk sed -n '1,25p'\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nimport json\nfrom pathlib import Path\n\nclauses = {\n 'host': ('ROUND_1', 'employee_workflow_host_parity_native_invocation'),\n 'source': ('ROUND_1', 'immutable_source_multifile_evidence_boundaries'),\n 'decision': ('ROUND_1', 'decision_view_reconstruction_review_disclosure_evidence_drilldown'),\n 'runtime': ('ROUND_2', 'pinned_runtime_exact_production_model_no_fallback'),\n 'jobs': ('ROUND_2', 'durable_resumable_jobs_checkpoint_retry_cancel'),\n 'queue': ('ROUND_2', 'scoped_persistence_queue_concurrency'),\n 'identity': ('ROUND_2', 'exact_run_runtime_model_ocr_termbase_identity'),\n 'storage': ('ROUND_3', 'three_class_storage'),\n 'retention': ('ROUND_3', 'content_vs_operational_retention'),\n 'deletion': ('ROUND_3', 'deletion_expiry_legal_hold'),\n 'accesskey': ('ROUND_4', 'accesskey_consumption_nonleakage'),\n 'classification': ('ROUND_4', 'authoritative_classification'),\n 'authz': ('ROUND_4', 'run_scoped_authorization_tenant_isolation'),\n 'egress': ('ROUND_4', 'default_deny_egress'),\n 'termbase': ('ROUND_4', 'governed_termbase'),\n 'support': ('ROUND_4', 'controlled_content_support'),\n 'adversarial': ('ROUND_4', 'adversarial_security_prompt_injection'),\n 'provenance': ('ROUND_5', 'source_fact_interpretation_unresolved_provenance'),\n 'conflicts': ('ROUND_5', 'conflict_supersession'),\n 'modality': ('ROUND_5', 'mixed_language_table_chart_diagram_modality_fidelity'),\n 'recovery': ('ROUND_5', 'unreadable_decorative_cross_document_recovery_law'),\n 'corpus': ('ROUND_6', 'four_set_corpus_governance'),\n 'hard_gates': ('ROUND_6', 'hard_gates_floors_repetition_false_done'),\n 'adjudication': ('ROUND_6', 'bilingual_gold_adjudication'),\n 'study': ('ROUND_6', 'zero_korean_study'),\n 'champion': ('ROUND_6', 'champion_promotion_scoped_recertification_invalidation'),\n 'release': ('ROUND_7', 'protected_release_governance'),\n 'security': ('ROUND_7', 'candidate_bound_security_evidence'),\n 'rollout': ('ROUND_7', 'rollout_pilot_canary_controls'),\n 'telemetry': ('ROUND_7', 'noncontent_telemetry_issue_reporting'),\n 'performance': ('ROUND_7', 'performance_load_budgets'),\n 'revocation': ('ROUND_7', 'revocation_kill_switch_drift_response'),\n 'external': ('ROUND_7', 'external_production_qualification_gates'),\n 'build': ('ROUND_8', 'build_completion_traceability_regression_audit_blocker_boundary'),\n 'separation': ('ROUND_8', 'build_complete_separate_from_production_certified'),\n}\nscopes = [\n 'operational lifecycle vs semantic DONE/NEEDS REVIEW',\n 'canonical host-adapter contract and one normal employee workflow',\n 'native OpenCode attachment/workspace intake',\n 'first-class Cloud VS Code adapter with current/selected files and host parity',\n 'Decision View, reconstruction, review disclosure and evidence drill-down parity across hosts',\n 'durable execution/job/run-store contract',\n 'pinned production runtime artifact',\n 'durable PaaS worker/controller path',\n 'durable scoped persistence/queue/concurrency',\n 'exact candidate/run identity and compatible resume',\n 'three-class storage model',\n 'separate content and operational-metadata retention with no authoritative 30-day default',\n 'deletion/expiry/legal hold',\n 'AccessKey runtime consumption/fail-closed authentication',\n 'AccessKey non-leakage',\n 'authoritative classification admission',\n 'run-scoped authorization/tenant isolation',\n 'default-deny production egress',\n 'governed company termbase resolution',\n 'controlled content-bearing diagnostic support',\n 'adversarial document/prompt-injection security',\n 'first-class source fact/supported interpretation/unresolved provenance',\n 'conflict/supersession objects',\n 'mixed-language/table/chart/diagram/modality conformance',\n 'unreadable/decorative/cross-document recovery law',\n 'four-set corpus taxonomy/contamination governance',\n 'non-compensable hard gates/policy floors',\n 'repetition/stability and false-DONE calibration',\n 'bilingual gold/adjudication workflow',\n 'zero-Korean employee-study protocol',\n 'champion promotion and scoped recertification/invalidation',\n 'protected release governance',\n 'candidate-bound security release evidence',\n 'cohort/pilot/canary/reversible rollout controls',\n 'non-content telemetry/employee issue reporting',\n 'performance/load measurement and resource-budget enforcement',\n 'candidate revocation/kill-switch/drift response',\n]\nrows = {\n 1: [('jobs','KSA-01 lifecycle scope is the operational-versus-semantic state distinction enforced by durable checkpoint, retry, cancellation, and NEEDS_REVIEW behavior.')],\n 2: [('host','KSA-02 requires the canonical host adapter to expose one normal employee workflow.')],\n 3: [('host','KSA-03 covers native OpenCode invocation through the employee workflow contract.'),('source','KSA-03 attachment and workspace intake must preserve immutable multi-file source boundaries.')],\n 4: [('host','KSA-04 is specifically a host-parity requirement; current/selected Cloud VS Code file intake remains an open repository scope.')],\n 5: [('host','KSA-05 includes Decision View parity across hosts, which remains open with the queued Cloud VS Code host scope.'),('decision','KSA-05 directly governs reconstructed Decision View, review disclosure, and evidence drill-down.')],\n 6: [('jobs','KSA-06 directly specifies durable execution, job, checkpoint, and run-store behavior.')],\n 7: [('runtime','KSA-07 requires the pinned production runtime artifact and exact production model.'),('external','The deployed runtime and production model require candidate-bound company qualification evidence.')],\n 8: [('jobs','KSA-08 requires durable worker execution, checkpoints, retry, and cancellation.'),('external','A durable production PaaS worker/controller requires company deployment qualification.')],\n 9: [('queue','KSA-09 directly governs scoped persistence, queueing, and concurrency.'),('external','Production persistence and concurrency isolation require deployment-bound company evidence.')],\n 10: [('identity','KSA-10 requires exact run, runtime, model, OCR, and terminology identity on compatible resume.'),('external','The deployed runtime and model identity require production-bound qualification.')],\n 11: [('storage','KSA-11 directly governs the three-class storage model.')],\n 12: [('retention','KSA-12 directly governs separate content and operational-metadata retention policies.')],\n 13: [('deletion','KSA-13 directly governs deletion, expiry, and legal-hold behavior.')],\n 14: [('accesskey','KSA-14 directly governs runtime AccessKey consumption and fail-closed authentication.'),('external','Company production authentication authority must be verified against the deployed candidate.')],\n 15: [('accesskey','KSA-15 directly governs prevention of AccessKey leakage from persisted and source-bearing data.')],\n 16: [('classification','KSA-16 directly governs authoritative classification admission.'),('external','Deployed classification authority and data-use routing require company qualification evidence.')],\n 17: [('authz','KSA-17 directly governs run-scoped authorization and tenant isolation.'),('external','Production tenant and IAM isolation require candidate-bound company evidence.')],\n 18: [('egress','KSA-18 directly governs default-deny production egress.'),('external','Production network policy and egress authority require company qualification evidence.')],\n 19: [('termbase','KSA-19 directly governs governed company termbase resolution.'),('external','The deployed company termbase authority and identity require candidate-bound qualification.')],\n 20: [('support','KSA-20 directly governs controlled content-bearing diagnostic support.'),('external','Production support access authority and data-use controls require company qualification evidence.')],\n 21: [('adversarial','KSA-21 directly governs adversarial document and prompt-injection security.'),('external','Production security qualification must verify the deployed candidate against adversarial input risk.')],\n 22: [('provenance','KSA-22 directly governs source facts, supported interpretation, and unresolved provenance.')],\n 23: [('conflicts','KSA-23 directly governs conflict and supersession objects.')],\n 24: [('modality','KSA-24 directly governs mixed-language, table, chart, diagram, and modality fidelity.')],\n 25: [('recovery','KSA-25 directly governs unreadable, decorative, and cross-document recovery states.')],\n 26: [('corpus','KSA-26 directly governs four-set corpus taxonomy and contamination controls.')],\n 27: [('hard_gates','KSA-27 directly governs non-compensable hard gates and policy floors.')],\n 28: [('hard_gates','KSA-28 directly governs repetition, stability, and false-DONE calibration.')],\n 29: [('adjudication','KSA-29 directly governs bilingual gold and adjudication workflow.'),('external','Production use of bilingual gold and adjudication requires candidate-bound data-use and evaluator qualification.')],\n 30: [('study','KSA-30 directly governs the zero-Korean employee-study protocol.'),('external','Human-study outcomes and employee data-use evidence must be supplied and reviewed outside the repository.')],\n 31: [('champion','KSA-31 directly governs champion promotion and scoped recertification/invalidation.'),('external','A production champion decision requires externally qualified evidence and governance.')],\n 32: [('release','KSA-32 directly governs protected release governance.'),('external','Live protected-branch and release authority require company-owned evidence.'),('build','KSA-32 release evidence must be bound to the exact candidate and its open blockers.'),('separation','KSA-32 release governance remains distinct from production certification.')],\n 33: [('security','KSA-33 directly governs candidate-bound security release evidence.'),('external','Current company security and deployment evidence must be bound to the candidate.'),('build','KSA-33 security results must be tied to the exact candidate and qualification record.'),('separation','KSA-33 repository evidence does not establish production certification.')],\n 34: [('rollout','KSA-34 directly governs cohort, pilot, canary, and reversible rollout controls.'),('external','Pilot, canary, and rollout outcomes require company-owned candidate evidence.'),('build','KSA-34 rollout blockers and evidence must be bound to the exact candidate.'),('separation','KSA-34 rollout controls do not by themselves establish production certification.')],\n 35: [('telemetry','KSA-35 directly governs non-content telemetry and employee issue reporting.'),('external','Live telemetry and employee reporting governance require company qualification.'),('build','KSA-35 evidence and open reporting blockers must be bound to the exact candidate.'),('separation','KSA-35 telemetry evidence is distinct from production certification.')],\n 36: [('performance','KSA-36 directly governs performance/load measurement and resource budgets.'),('external','Production load and company capacity require measured candidate-bound evidence.'),('build','KSA-36 measurements and unresolved budgets must be bound to the exact candidate.'),('separation','KSA-36 performance results do not substitute for production certification.')],\n 37: [('revocation','KSA-37 directly governs candidate revocation, kill-switch, and drift response.'),('external','Company deployment authority must qualify the production revocation and recovery path.'),('build','KSA-37 revocation and drift evidence must be bound to the exact candidate.'),('separation','KSA-37 revocation qualification remains separate from production certification.')],\n}\nitems=[]\nfor n, scope in enumerate(scopes,1):\n    ksa=f'KSA-{n:02d}'\n    mappings=[]\n    for key, rationale in rows[n]:\n        family, clause=clauses[key]\n        mappings.append({'family_id':family,'clause_id':clause,'mapping_rationale':rationale})\n    item={'ksa_id':ksa,'scope':scope,'mappings':mappings,'repository_requirement_open': n in (4,5)}\n    if n in (4,5):\n        item['future_project_os_owner']=f'Project OS {ksa} owner to deliver and reconcile the full queued host scope.'\n    else:\n        item['future_project_os_owner']=None\n    items.append(item)\npath=Path('traceability/ksa38/ksa-scope-registry.v1.json')\npath.write_text(json.dumps({'schema_version':'1.0','authority':'PROJECT_OS_BOUND_DISPATCH','items':items},indent=2,ensure_ascii=False)+'\\\\n')\nprint(f'Wrote {path} with {len(items)} closed KSA scopes and {sum(len(x[\\\"mappings\\\"]) for x in items)} clause links.')\nPY\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk sed -n '1,45p' tools/ksa38/build_matrix.py && rtk sed -n '435,500p' tools/ksa38/build_matrix.py\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk rg -n '\"'^def build|''^    rows_by_number|project_os_closure_snapshot|evidence_provenance|canonical_contract_families|matrix:'\"' tools/ksa38/build_matrix.py && rtk sed -n '395,435p' tools/ksa38/build_matrix.py && rtk sed -n '520,610p' tools/ksa38/build_matrix.py\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nimport json\nfrom pathlib import Path\np=Path('traceability/ksa38/schema.v1.json')\ns=json.loads(p.read_text())\ns['required'].insert(s['required'].index('canonical_contract_families'), 'ksa_scope_registry')\ns['properties']['ksa_scope_registry']={'type':'array','minItems':37,'maxItems':37,'items':{'\"'$ref'\"':'#/\"'$defs/ksaScope'\"'}}\ns['\"'$defs'\"']['closureSnapshot']['properties']['authority']['const']='PROJECT_OS_BOUND_DISPATCH_SNAPSHOT'\ns['\"'$defs'\"']['evidenceProvenance']['properties']['closure_snapshot_source']['const']='PROJECT_OS_BOUND_DISPATCH_SNAPSHOT'\ns['summary']['required'] if False else None\nsm=s['\"'$defs'\"']['summary']\nsm['required'].insert(sm['required'].index('changed_path_coverage'),'ksa_clause_crosswalk')\nsm['properties']['ksa_clause_crosswalk']={\n 'type':'object','additionalProperties':False,'required':['required_links','covered_links','missing_links'],\n 'properties':{'required_links':{'type':'integer','minimum':1},'covered_links':{'type':'integer','minimum':0},'missing_links':{'type':'array','uniqueItems':True,'items':{'type':'string','minLength':1}}}\n}\ns['\"'$defs'\"']['ksaScope']={\n 'type':'object','additionalProperties':False,\n 'required':['ksa_id','scope','mappings','repository_requirement_open','future_project_os_owner'],\n 'properties':{\n  'ksa_id':{'type':'string','pattern':'\"'^KSA-(0[1-9]|[12][0-9]|3[0-7])$'\"'},\n  'scope':{'type':'string','minLength':12,'maxLength':220},\n  'mappings':{'type':'array','minItems':1,'uniqueItems':True,'items':{'\"'$ref'\"':'#/\"'$defs/ksaClauseMapping'\"'}},\n  'repository_requirement_open':{'type':'boolean'},\n  'future_project_os_owner':{'oneOf':[{'type':'null'},{'type':'string','minLength':20,'maxLength':180}]}\n }\n}\ns['\"'$defs'\"']['ksaClauseMapping']={\n 'type':'object','additionalProperties':False,'required':['family_id','clause_id','mapping_rationale'],\n 'properties':{\n  'family_id':{'enum':[f'ROUND_{n}' for n in range(1,9)]},\n  'clause_id':{'type':'string','minLength':1,'maxLength':100},\n  'mapping_rationale':{'type':'string','minLength':24,'maxLength':280}\n }\n}\np.write_text(json.dumps(s,indent=2,ensure_ascii=False)+'\\\\n')\nprint('Updated matrix schema for the closed semantic KSA registry and truthful snapshot provenance.')\nPY\nrtk rg -n 'USER_SUPPLIED|PROJECT_OS_BOUND_DISPATCH_SNAPSHOT|ksa_scope_registry|ksa_clause_crosswalk' traceability/ksa38/schema.v1.json tools/ksa38\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk python3.11 tools/ksa38/build_matrix.py && rtk python3.11 tools/ksa38/validate_traceability.py --check-report --summary-json'",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk python3.11 tools/ksa38/validate_traceability.py --check-report --summary-json'",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nimport json\nfrom pathlib import Path\np=Path('traceability/ksa38/qualification.schema.v1.json')\ns=json.loads(p.read_text())\ns['required'].extend(['work_branch','predecessor_work_head'])\ns['properties']['operation']={'const':'FIX'}\ns['properties']['request']={'const':'chg16-requirement-traceability-01-fix01'}\ns['properties']['work_branch']={'const':'codex/k-slide-chg16-requirement-traceability-01-fix01'}\ns['properties']['predecessor_work_head']={'const':'6bad7b23ddfc9525acffb9e169fb65182f9c8764'}\np.write_text(json.dumps(s,indent=2,ensure_ascii=False)+'\\\\n')\nprint('Updated qualification manifest schema to FIX01 identity and exact predecessor lineage.')\nPY\nrtk rg -n 'USER_SUPPLIED|chg16-requirement-traceability-01\\\"|\\\"operation\\\": \\\"BUILD\\\"|codex/k-slide-chg16-requirement-traceability-01\\\"' traceability/ksa38 tools/ksa38 tests/test_ksa38_traceability.py\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nimport json\nfrom pathlib import Path\np=Path('traceability/ksa38/candidate-evidence.schema.v1.json')\ns=json.loads(p.read_text())\ns['title']='K-Slide KSA-38 FIX01 Candidate Evidence'\ns['required'].insert(s['required'].index('artifacts'),'predecessor_lineage')\ns['properties']['evidence_type']={'const':'k-slide-ksa38-fix01-candidate-evidence'}\ns['properties']['operation']={'const':'FIX'}\ns['properties']['request']={'const':'chg16-requirement-traceability-01-fix01'}\ns['properties']['work_branch']={'const':'codex/k-slide-chg16-requirement-traceability-01-fix01'}\ns['properties']['predecessor_lineage']={'\"'$ref'\"':'#/\"'$defs/predecessorLineage'\"'}\narts=s['\"'$defs'\"']['artifacts']\narts['required'].extend(['scope_registry','human_report'])\narts['properties']['scope_registry']={'\"'$ref'\"':'#/\"'$defs/artifact'\"'}\narts['properties']['human_report']={'\"'$ref'\"':'#/\"'$defs/artifact'\"'}\ns['\"'$defs'\"']['closureSnapshot']['properties']['authority']['const']='PROJECT_OS_BOUND_DISPATCH_SNAPSHOT'\ns['\"'$defs'\"']['candidateBinding']['properties']['parent_sha']['const']='99063af41106fb26d46f573c5fd0fb52a5352cf7'\ns['\"'$defs'\"']['candidateBinding']['properties']['work_branch']['const']='codex/k-slide-chg16-requirement-traceability-01-fix01'\ncov=s['\"'$defs'\"']['coverage']\ncov['required'].append('ksa_clause_mappings')\ncov['properties']['ksa_clause_mappings']={'type':'integer','minimum':71}\ns['\"'$defs'\"']['predecessorLineage']={\n 'type':'object','additionalProperties':False,\n 'required':['work_head','traceability_product_commit','native_evidence_commit','native_build_job_id'],\n 'properties':{\n  'work_head':{'const':'6bad7b23ddfc9525acffb9e169fb65182f9c8764'},\n  'traceability_product_commit':{'const':'b07011b674d165bf8ed28d5b2a96add6e850bd6d'},\n  'native_evidence_commit':{'const':'99063af41106fb26d46f573c5fd0fb52a5352cf7'},\n  'native_build_job_id':{'const':'CF-12417898c2198699f08668aa'}\n }\n}\np.write_text(json.dumps(s,indent=2,ensure_ascii=False)+'\\\\n')\nprint('Updated candidate evidence schema for FIX01, crosswalk/report hashes, and predecessor BUILD lineage.')\nPY\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk python3.11 -m pytest -q tests/test_ksa38_traceability.py'",
-      "exit_code": 1,
-      "test_result": {
-        "counts": {
-          "failed": 2,
-          "passed": 19
-        },
-        "exit_code": 1,
-        "failing_test_ids": [
-          "tests/test_ksa38_traceability.py::KSA38TraceabilityTests::test_ksa05_is_required_on_decision_view_clause",
-          "tests/test_ksa38_traceability.py::KSA38TraceabilityTests::test_open_gap_requires_a_next_owner"
-        ],
-        "framework": "pytest",
-        "outcome": "test_failures",
-        "output_bytes": 11475,
-        "output_sha256": "328a361139b888d961f29b882a630f6c79cfe5c6837c04383ed937278804e500",
-        "summary_detected": true
-      },
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk python3.11 -m pytest -q tests/test_ksa38_traceability.py && rtk python3.11 tools/ksa38/validate_traceability.py --check-report'",
-      "exit_code": 2,
-      "test_result": {
-        "counts": {
-          "errors": 1
-        },
-        "error_test_ids": [
-          "tests/test_ksa38_traceability.py"
-        ],
-        "exit_code": 2,
-        "framework": "pytest",
-        "outcome": "interrupted",
-        "output_bytes": 1580,
-        "output_sha256": "d82b9f1cc3ee783cc451f182b8a5756b914a0e317d389d10dbf7d84318676621",
-        "summary_detected": true
-      },
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk sed -n '455,470p' tools/ksa38/traceability.py\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk python3.11 -m pytest -q tests/test_ksa38_traceability.py && rtk python3.11 tools/ksa38/validate_traceability.py --check-report'",
-      "exit_code": 1,
-      "test_result": {
-        "counts": {
-          "failed": 2,
-          "passed": 19
-        },
-        "exit_code": 1,
-        "failing_test_ids": [
-          "tests/test_ksa38_traceability.py::KSA38TraceabilityTests::test_ksa05_is_required_on_decision_view_clause",
-          "tests/test_ksa38_traceability.py::KSA38TraceabilityTests::test_open_gap_requires_a_next_owner"
-        ],
-        "framework": "pytest",
-        "outcome": "test_failures",
-        "output_bytes": 2548,
-        "output_sha256": "b8248ff382a6f7196ec8bdf0a224c3f2234087ad30835083ee92b78d195f80c6",
-        "summary_detected": true
-      },
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk python3.11 tools/ksa38/build_matrix.py && rtk python3.11 -m pytest -q tests/test_ksa38_traceability.py && rtk python3.11 tools/ksa38/validate_traceability.py --check-report --summary-json'",
-      "exit_code": 0,
-      "test_result": {
-        "counts": {
-          "passed": 21
-        },
-        "exit_code": 0,
-        "framework": "pytest",
-        "outcome": "passed",
-        "output_bytes": 1731,
-        "output_sha256": "89b33db64be35bc43e77dd04a86421697cf2278e3f1b5c90e5b01bd2e4128412",
-        "summary_detected": true
-      },
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk rg -n '\"'^'\"\\\\| \"'`KSA-(0[1-8])`|''^## Closed KSA|''^This report|user-supplied|supplied Project OS|KSA-19|KSA-13'\"' traceability/ksa38/README.md && rtk rg -n 'USER_SUPPLIED|USER_SUPPLIED_PROMPT_SNAPSHOT|NOT_IN_SUPPLIED_SNAPSHOT' traceability/ksa38 tools/ksa38 tests/test_ksa38_traceability.py\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nimport json\nfrom pathlib import Path\np=Path('traceability/ksa38/ksa-scope-registry.v1.json')\nd=json.loads(p.read_text())\nrow_states={\n 'employee_workflow_host_parity_native_invocation':'PARTIAL',\n 'immutable_source_multifile_evidence_boundaries':'IMPLEMENTED',\n 'decision_view_reconstruction_review_disclosure_evidence_drilldown':'PARTIAL',\n 'pinned_runtime_exact_production_model_no_fallback':'PARTIAL',\n 'durable_resumable_jobs_checkpoint_retry_cancel':'IMPLEMENTED',\n 'scoped_persistence_queue_concurrency':'PARTIAL',\n 'exact_run_runtime_model_ocr_termbase_identity':'PARTIAL',\n 'three_class_storage':'IMPLEMENTED',\n 'content_vs_operational_retention':'IMPLEMENTED',\n 'deletion_expiry_legal_hold':'PARTIAL',\n 'accesskey_consumption_nonleakage':'IMPLEMENTED',\n 'authoritative_classification':'PARTIAL',\n 'run_scoped_authorization_tenant_isolation':'PARTIAL',\n 'default_deny_egress':'PARTIAL',\n 'governed_termbase':'PARTIAL',\n 'controlled_content_support':'PARTIAL',\n 'adversarial_security_prompt_injection':'IMPLEMENTED',\n 'source_fact_interpretation_unresolved_provenance':'IMPLEMENTED',\n 'conflict_supersession':'IMPLEMENTED',\n 'mixed_language_table_chart_diagram_modality_fidelity':'IMPLEMENTED',\n 'unreadable_decorative_cross_document_recovery_law':'IMPLEMENTED',\n 'four_set_corpus_governance':'IMPLEMENTED',\n 'hard_gates_floors_repetition_false_done':'IMPLEMENTED',\n 'bilingual_gold_adjudication':'PARTIAL',\n 'zero_korean_study':'PARTIAL',\n 'champion_promotion_scoped_recertification_invalidation':'PARTIAL',\n 'protected_release_governance':'PARTIAL',\n 'candidate_bound_security_evidence':'PARTIAL',\n 'rollout_pilot_canary_controls':'PARTIAL',\n 'noncontent_telemetry_issue_reporting':'PARTIAL',\n 'performance_load_budgets':'PARTIAL',\n 'revocation_kill_switch_drift_response':'PARTIAL',\n 'external_production_qualification_gates':'EXTERNAL_ONLY',\n 'build_completion_traceability_regression_audit_blocker_boundary':'PARTIAL',\n 'build_complete_separate_from_production_certified':'PARTIAL',\n}\nfor item in d['items']:\n    for mapping in item['mappings']:\n        state=row_states[mapping['clause_id']]\n        if item['ksa_id'] in {'KSA-02','KSA-03'} and mapping['clause_id']=='employee_workflow_host_parity_native_invocation':\n            state='IMPLEMENTED'\n        if item['ksa_id']=='KSA-03' and mapping['clause_id']=='immutable_source_multifile_evidence_boundaries':\n            state='IMPLEMENTED'\n        mapping['implementation_state']=state\np.write_text(json.dumps(d,indent=2,ensure_ascii=False)+'\\\\n')\nprint('Added clause-specific implementation state for each reviewed KSA link.')\nPY\nrtk proxy python3.11 - <<'PY'\nimport json\nfrom pathlib import Path\np=Path('traceability/ksa38/schema.v1.json')\ns=json.loads(p.read_text())\nprops=s['\"'$defs'\"']['ksaClauseMapping']['properties']\nprops['implementation_state']={'enum':['IMPLEMENTED','PARTIAL','REUSED_UNCHANGED','NOT_IMPLEMENTED','EXTERNAL_ONLY']}\ns['\"'$defs'\"']['ksaClauseMapping']['required'].append('implementation_state')\np.write_text(json.dumps(s,indent=2,ensure_ascii=False)+'\\\\n')\nprint('Extended matrix schema with closed per-link implementation state.')\nPY\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nimport json\nfrom pathlib import Path\np=Path('traceability/ksa38/schema.v1.json')\ns=json.loads(p.read_text())\nsm=s['\"'$defs'\"']['summary']['properties']['ksa_clause_crosswalk']\nsm['required'].append('mappings_by_implementation_state')\nsm['properties']['mappings_by_implementation_state']={'\"'$ref'\"':'#/\"'$defs/countMap'\"'}\np.write_text(json.dumps(s,indent=2,ensure_ascii=False)+'\\\\n')\nprint('Added per-link implementation state counts to the deterministic summary schema.')\nPY\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nimport json\nfrom pathlib import Path\np=Path('traceability/ksa38/candidate-evidence.schema.v1.json')\ns=json.loads(p.read_text())\nc=s['\"'$defs'\"']['coverage']\nc['required'].append('ksa_mapping_state_counts')\nc['properties']['ksa_mapping_state_counts']={'\"'$ref'\"':'#/\"'$defs/countMap'\"'}\np.write_text(json.dumps(s,indent=2,ensure_ascii=False)+'\\\\n')\nPY\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk python3.11 tools/ksa38/build_matrix.py && rtk python3.11 -m pytest -q tests/test_ksa38_traceability.py && rtk proxy python3.11 - <<'PY'\nimport json\nfrom pathlib import Path\nfrom jsonschema import Draft202012Validator\nfor p in sorted(Path('.').rglob('*.schema*.json')):\n if '.git' not in p.parts:\n  Draft202012Validator.check_schema(json.loads(p.read_text()))\nprint('All repository schema JSON files are valid Draft 2020-12 schemas.')\nPY\nrtk python3.11 tools/ksa38/validate_traceability.py --check-report --summary-json\"",
-      "exit_code": 0,
-      "test_result": {
-        "counts": {
-          "passed": 21
-        },
-        "exit_code": 0,
-        "framework": "pytest",
-        "outcome": "passed",
-        "output_bytes": 1975,
-        "output_sha256": "a35fa2ba8afa167d9f3770bd26879845b6ac33a4570cb1c7056df610fe76b6c2",
-        "summary_detected": true
-      },
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk sed -n '30,47p' traceability/ksa38/README.md && rtk rg -n 'USER_SUPPLIED|USER_SUPPLIED_PROMPT_SNAPSHOT|KSA-13.*decision_view|KSA-19.*employee_workflow|KSA-04.*immutable_source|KSA-05.*immutable_source' traceability/ksa38 tools/ksa38 tests/test_ksa38_traceability.py && rtk git status --short --branch\"",
-      "exit_code": 1,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk python3.11 tools/ksa38/build_matrix.py'",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-ksa37-py312/bin/python -m pytest -q tests/test_ksa38_traceability.py'",
-      "exit_code": 0,
-      "test_result": {
-        "counts": {
-          "passed": 21
-        },
-        "exit_code": 0,
-        "framework": "pytest",
-        "outcome": "passed",
-        "output_bytes": 100,
-        "output_sha256": "02f83757fb4daceb1f9ea3008fd4b79c98a56130ccc6ea5df06b372d7aed0fe5",
-        "summary_detected": true
-      },
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk python3.11 -m pytest -q tests/test_ksa38_traceability.py'",
-      "exit_code": 0,
-      "test_result": {
-        "counts": {
-          "passed": 21
-        },
-        "exit_code": 0,
-        "framework": "pytest",
-        "outcome": "passed",
-        "output_bytes": 100,
-        "output_sha256": "c4fccf6c74c14704f7cbbea67e7a733dd69645afc6819838cf91f8fefaae1c4b",
-        "summary_detected": true
-      },
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa37-py312/bin/python -m pytest -q'",
-      "exit_code": 0,
-      "test_result": {
-        "counts": {
-          "passed": 749,
-          "skipped": 11
-        },
-        "exit_code": 0,
-        "framework": "pytest",
-        "outcome": "passed",
-        "output_bytes": 923,
-        "output_sha256": "f0d9d6fca5356ab53c1255a734bc305c3e37788f21556a1a2e7d996bb1c509c1",
-        "summary_detected": true
-      },
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3.11 -m pytest -q'",
-      "exit_code": 0,
-      "test_result": {
-        "counts": {
-          "passed": 755,
-          "skipped": 5,
-          "warnings": 1
-        },
-        "exit_code": 0,
-        "framework": "pytest",
-        "outcome": "passed",
-        "output_bytes": 1436,
-        "output_sha256": "d91f768bd4f3e5d8a0033a11123ceb124d30f7f79a4f931c2563024e2507ba6f",
-        "summary_detected": true
-      },
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk proxy python3.11 -m compileall -q src tests evals tools/ksa38'",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk proxy /tmp/k-slide-ksa37-py312/bin/python -m compileall -q src tests evals tools/ksa38'",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa37-py312/bin/python -m pytest -q tests/test_chg16_resource_budget.py -k resource_budget_and_telemetry_error_schemas_match_runtime_contract'",
-      "exit_code": 0,
-      "test_result": {
-        "counts": {
-          "deselected": 16,
-          "passed": 1
-        },
-        "exit_code": 0,
-        "framework": "pytest",
-        "outcome": "passed",
-        "output_bytes": 113,
-        "output_sha256": "659fc8c775c14642b4b75314cf3350b0d5934931283f226ce92f293a35aaec2b",
-        "summary_detected": true
-      },
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk proxy env PYTHONPATH=src:. python3.11 -m pytest -q tests/test_chg16_resource_budget.py -k resource_budget_and_telemetry_error_schemas_match_runtime_contract'",
-      "exit_code": 0,
-      "test_result": {
-        "counts": {
-          "deselected": 16,
-          "passed": 1
-        },
-        "exit_code": 0,
-        "framework": "pytest",
-        "outcome": "passed",
-        "output_bytes": 113,
-        "output_sha256": "0fd0ce492676ad11ec9cbbaf4b3e73736dd786b104450aa72718e0182fc0f211",
-        "summary_detected": true
-      },
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-ksa37-py312/bin/python tools/ksa38/validate_traceability.py --check-report --summary-json'",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk python3.11 tools/ksa38/validate_traceability.py --check-report --summary-json'",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nimport json\nfrom pathlib import Path\nfrom jsonschema import Draft202012Validator\npaths=sorted(p for p in Path('.').rglob('*.json') if 'schema' in p.name.lower() and '.git' not in p.parts)\nfor path in paths:\n Draft202012Validator.check_schema(json.loads(path.read_text(encoding='utf-8')))\nprint(f'schemas={len(paths)}')\nPY\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk proxy /tmp/k-slide-ksa37-py312/bin/python - <<'PY'\nimport json\nfrom pathlib import Path\nfrom jsonschema import Draft202012Validator\npaths=sorted(p for p in Path('.').rglob('*.json') if 'schema' in p.name.lower() and '.git' not in p.parts)\nfor path in paths:\n Draft202012Validator.check_schema(json.loads(path.read_text(encoding='utf-8')))\nprint(f'schemas={len(paths)}')\nPY\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk proxy /tmp/k-slide-ksa37-py312/bin/python - <<'PY'\nimport subprocess\nfrom pathlib import Path\nimport yaml\npaths=sorted(set(Path('.github/workflows').glob('*.yml'))|set(Path('.github/workflows').glob('*.yaml')))\nshell_steps=0\nfor path in paths:\n doc=yaml.safe_load(path.read_text(encoding='utf-8'))\n for job in (doc or {}).get('jobs',{}).values():\n  for step in job.get('steps',[]):\n   run=step.get('run')\n   if isinstance(run,str):\n    subprocess.run(['bash','-n'],input=run,text=True,check=True)\n    shell_steps+=1\nprint(f'workflows={len(paths)} shell_steps={shell_steps}')\nPY\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nimport subprocess\nfrom pathlib import Path\nimport yaml\npaths=sorted(set(Path('.github/workflows').glob('*.yml'))|set(Path('.github/workflows').glob('*.yaml')))\nshell_steps=0\nfor path in paths:\n doc=yaml.safe_load(path.read_text(encoding='utf-8'))\n for job in (doc or {}).get('jobs',{}).values():\n  for step in job.get('steps',[]):\n   run=step.get('run')\n   if isinstance(run,str):\n    subprocess.run(['bash','-n'],input=run,text=True,check=True)\n    shell_steps+=1\nprint(f'workflows={len(paths)} shell_steps={shell_steps}')\nPY\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk git diff --check && rtk git diff --name-only && rtk git status --short --branch'",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk python3.11 --version'",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk /tmp/k-slide-ksa37-py312/bin/python --version'",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nimport json\nfrom pathlib import Path\nchecks=[\n {'name':'focused_ksa38_traceability_tests','command':'rtk python3.11 -m pytest -q tests/test_ksa38_traceability.py','python_version':'3.11.7','status':'PASS','tests_passed':21,'tests_skipped':0,'warnings':0,'details':'21 focused tests passed, including exact semantic crosswalk failures for KSA-04/05 mislinks, unrelated KSA insertion, missing clause links, and false implementation claims.'},\n {'name':'focused_ksa38_traceability_tests','command':'rtk /tmp/k-slide-ksa37-py312/bin/python -m pytest -q tests/test_ksa38_traceability.py','python_version':'3.12.9','status':'PASS','tests_passed':21,'tests_skipped':0,'warnings':0,'details':'21 focused tests passed, including exact semantic crosswalk failures for KSA-04/05 mislinks, unrelated KSA insertion, missing clause links, and false implementation claims.'},\n {'name':'full_repository_python_suite','command':'rtk proxy env PYTHONPATH=src:. python3.11 -m pytest -q','python_version':'3.11.7','status':'PASS','tests_passed':755,'tests_skipped':5,'warnings':1,'details':'Full repository Python suite passed. The one warning is fontTools.misc.py23 DeprecationWarning from the installed fontTools package.'},\n {'name':'full_repository_python_suite','command':'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa37-py312/bin/python -m pytest -q','python_version':'3.12.9','status':'PASS','tests_passed':749,'tests_skipped':11,'warnings':0,'details':'Full repository Python suite passed with 11 environment/version-specific skips and no warnings.'},\n {'name':'exact_subject_change_span_matrix_validation','command':'rtk python3.11 tools/ksa38/validate_traceability.py --check-report --summary-json','python_version':'3.11.7','status':'PASS','tests_passed':None,'tests_skipped':0,'warnings':0,'details':'Observed 35/35 canonical clauses, 37/37 KSA items, 71/71 semantic KSA-clause links, 152 commits, 229 changed paths, 137 requirement-referenced paths, 92 classified paths, and zero unexplained paths.'},\n {'name':'exact_subject_change_span_matrix_validation','command':'rtk /tmp/k-slide-ksa37-py312/bin/python tools/ksa38/validate_traceability.py --check-report --summary-json','python_version':'3.12.9','status':'PASS','tests_passed':None,'tests_skipped':0,'warnings':0,'details':'Observed the same exact subject/span and coverage: 35/35 clauses, 37/37 KSAs, 71/71 links, 152 commits, 229 paths, 137 requirement-referenced, 92 classified, zero unexplained.'},\n {'name':'repository_json_schemas_draft_2020_12','command':'Draft202012Validator.check_schema over every repository schema JSON file','python_version':'3.11.7','status':'PASS','tests_passed':13,'tests_skipped':0,'warnings':0,'details':'All 13 repository JSON schema files passed Draft 2020-12 meta-schema validation.'},\n {'name':'repository_json_schemas_draft_2020_12','command':'Draft202012Validator.check_schema over every repository schema JSON file','python_version':'3.12.9','status':'PASS','tests_passed':13,'tests_skipped':0,'warnings':0,'details':'All 13 repository JSON schema files passed Draft 2020-12 meta-schema validation.'},\n {'name':'runtime_errorcode_parity','command':'rtk proxy env PYTHONPATH=src:. python3.11 -m pytest -q tests/test_chg16_resource_budget.py -k resource_budget_and_telemetry_error_schemas_match_runtime_contract','python_version':'3.11.7','status':'PASS','tests_passed':1,'tests_skipped':0,'warnings':0,'details':'Runtime ErrorCode and schema parity regression passed; 1 test passed, 16 deselected.'},\n {'name':'runtime_errorcode_parity','command':'rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa37-py312/bin/python -m pytest -q tests/test_chg16_resource_budget.py -k resource_budget_and_telemetry_error_schemas_match_runtime_contract','python_version':'3.12.9','status':'PASS','tests_passed':1,'tests_skipped':0,'warnings':0,'details':'Runtime ErrorCode and schema parity regression passed; 1 test passed, 16 deselected.'},\n {'name':'workflow_yaml_and_embedded_shell','command':'PyYAML safe_load for .github/workflows/*.yml and *.yaml; bash -n for each embedded run step','python_version':'3.11.7','status':'PASS','tests_passed':None,'tests_skipped':0,'warnings':0,'details':'All 6 workflow YAML files parsed; all 49 embedded shell blocks passed bash -n.'},\n {'name':'workflow_yaml_and_embedded_shell','command':'PyYAML safe_load for .github/workflows/*.yml and *.yaml; bash -n for each embedded run step','python_version':'3.12.9','status':'PASS','tests_passed':None,'tests_skipped':0,'warnings':0,'details':'All 6 workflow YAML files parsed; all 49 embedded shell blocks passed bash -n.'},\n {'name':'compileall_src_tests_evals_tools_ksa38','command':'rtk proxy python3.11 -m compileall -q src tests evals tools/ksa38','python_version':'3.11.7','status':'PASS','tests_passed':None,'tests_skipped':None,'warnings':0,'details':'Compilation completed for all requested Python trees and the dedicated KSA-38 tools.'},\n {'name':'compileall_src_tests_evals_tools_ksa38','command':'rtk proxy /tmp/k-slide-ksa37-py312/bin/python -m compileall -q src tests evals tools/ksa38','python_version':'3.12.9','status':'PASS','tests_passed':None,'tests_skipped':None,'warnings':0,'details':'Compilation completed for all requested Python trees and the dedicated KSA-38 tools.'},\n {'name':'opencode_host_typescript_regression','command':'Not run because OpenCode host implementation files were not touched by FIX01.','python_version':None,'status':'NOT_REQUIRED','tests_passed':None,'tests_skipped':None,'warnings':0,'details':'No .opencode files, host-adapter implementation files, or host integration regression files were changed by this traceability-only FIX01.'},\n {'name':'git_diff_check','command':'git diff --check and git diff --cached --check','python_version':None,'status':'PASS','tests_passed':None,'tests_skipped':None,'warnings':0,'details':'git diff --check passed after the complete matrix, schema, validator, report, tests, and qualification edits were staged.'}\n]\ndoc={\n 'schema_version':'1.0','project':'k-slide','operation':'FIX',\n 'request':'chg16-requirement-traceability-01-fix01',\n 'product_subject_sha':'23669bacb0392aecc009ae19c7b8c645f1d8c7dd',\n 'change_base_sha':'af5836540304b424289bedbe57a87dbb5d02763f',\n 'work_branch':'codex/k-slide-chg16-requirement-traceability-01-fix01',\n 'predecessor_work_head':'6bad7b23ddfc9525acffb9e169fb65182f9c8764',\n 'checks':checks\n}\nPath('traceability/ksa38/qualification.v1.json').write_text(json.dumps(doc,indent=2,ensure_ascii=False)+'\\\\n')\nprint(f'Wrote FIX01 qualification manifest with {len(checks)} observed check records.')\nPY\nrtk python3.11 -m json.tool traceability/ksa38/qualification.v1.json > /dev/null && rtk git diff --check\"",
-      "exit_code": 0,
-      "test_result": {
-        "exit_code": 0,
-        "framework": "pytest",
-        "outcome": "passed",
-        "summary_detected": false
-      },
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc 'rtk git add tests/test_ksa38_traceability.py tools/ksa38/build_candidate_evidence.py tools/ksa38/build_matrix.py tools/ksa38/traceability.py traceability/ksa38/README.md traceability/ksa38/candidate-evidence.schema.v1.json traceability/ksa38/qualification.schema.v1.json traceability/ksa38/qualification.v1.json traceability/ksa38/ksa-scope-registry.v1.json traceability/ksa38/schema.v1.json traceability/ksa38/traceability.v1.json && rtk git diff --check && rtk git diff --cached --check && rtk git diff --cached --stat && rtk git status --short --branch && rtk git diff --cached --name-only'",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk git commit -m 'fix(k-slide): repair KSA-38 semantic crosswalk'\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk python3.11 tools/ksa38/build_candidate_evidence.py && rtk python3.11 tools/ksa38/build_candidate_evidence.py --validate && rtk git status --short --branch && rtk git rev-parse HEAD && rtk git rev-parse 'HEAD\"'^{tree}'\"' && rtk git rev-parse HEAD\"'^ && rtk git diff --name-only 99063af41106fb26d46f573c5fd0fb52a5352cf7 HEAD'",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk proxy python3.11 - <<'PY'\nimport json\nfrom pathlib import Path\ne=json.loads(Path('.codex-fabric/ksa38/candidate-evidence.json').read_text())\na=json.loads(Path('.codex-fabric/audit.json').read_text())\nprint(json.dumps({\n 'audit_matches_dedicated_evidence':a==e,\n 'project':a['project'],'operation':a['operation'],'request':a['request'],\n 'exact_base':a['exact_base'],'work_branch':a['work_branch'],\n 'predecessor_lineage':a['predecessor_lineage'],\n 'candidate_binding':a['candidate_binding'],\n 'current_execution_identity':a['current_execution_identity'],\n 'fabric_execution_identity':a['fabric_execution_identity'],\n 'coverage':a['coverage'],\n 'qualification_check_count':len(a['qualification_checks']),\n 'artifact_hashes':{k:v['sha256'] for k,v in a['artifacts'].items()},\n},indent=2))\nPY\nrtk git diff --check && rtk git add .codex-fabric/audit.json .codex-fabric/ksa38/candidate-evidence.json && rtk git diff --cached --check && rtk git status --short --branch\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk git commit -m 'evidence(k-slide): bind KSA-38 FIX01 candidate' && rtk python3.11 tools/ksa38/build_candidate_evidence.py --validate && rtk /tmp/k-slide-ksa37-py312/bin/python tools/ksa38/build_candidate_evidence.py --validate && rtk git status --short --branch && rtk git rev-parse HEAD && rtk git rev-parse HEAD\"'^'",
-      "exit_code": 0,
-      "type": "command_execution"
-    },
-    {
-      "command": "/bin/zsh -lc \"rtk git diff --check && rtk git status --short --branch && rtk git log -4 --oneline --decorate --graph && rtk git show --no-patch --format='%H%n%P%n%T%n%s' 34092db009e4701b2c9949b7d644afce9267c08d && rtk git show --no-patch --format='%H%n%P%n%s' HEAD && rtk git diff --name-only 99063af41106fb26d46f573c5fd0fb52a5352cf7 34092db009e4701b2c9949b7d644afce9267c08d && rtk proxy python3.11 - <<'PY'\nimport json\nfrom pathlib import Path\np=Path('.codex-fabric/audit.json')\na=json.loads(p.read_text())\nprint('audit fields:', 'project',a['project'], 'operation',a['operation'], 'request',a['request'])\nprint('candidate:',a['candidate_binding']['commit_sha'],a['candidate_binding']['tree_oid'])\nprint('worktree_clean_at_product_candidate:',a['candidate_binding']['worktree_clean_at_product_candidate'])\nprint('current_job_id:',a['fabric_execution_identity']['fabric_job_id'])\nprint('predecessor_job_id:',a['predecessor_lineage']['native_build_job_id'])\nprint('snapshot:',a['project_os_closure_snapshot']['authority'],len(a['project_os_closure_snapshot']['items']))\nprint('qualification_checks:',len(a['qualification_checks']))\nprint('audit_sha256:',__import__('hashlib').sha256(p.read_bytes()).hexdigest())\nPY\"",
-      "exit_code": 0,
-      "type": "command_execution"
-    }
-  ],
-  "codex": {
-    "cli_version": "codex-cli 0.157.0",
-    "configured_model": "gpt-6-luna",
-    "event_count": 148,
-    "provider_reported_model": null,
-    "reasoning_effort": "xhigh",
-    "terminal_type": "turn.completed",
-    "usage": {
-      "cache_hit_percent": 97.4,
-      "cache_write_input_tokens": 0,
-      "cached_input_tokens": 7649792,
-      "fresh_input_tokens": 204552,
-      "input_tokens": 7854344,
-      "non_reasoning_output_tokens": 30460,
-      "output_tokens": 84397,
-      "reasoning_output_tokens": 53937,
-      "total_processed_tokens": 7938741
-    },
-    "warnings": []
   },
-  "commits": [
-    {
-      "sha": "3538dc1d0c9ac5c255545751662bb08980997f44",
-      "subject": "evidence(k-slide): bind KSA-38 FIX01 candidate"
-    },
-    {
-      "sha": "34092db009e4701b2c9949b7d644afce9267c08d",
-      "subject": "fix(k-slide): repair KSA-38 semantic crosswalk"
-    },
-    {
-      "sha": "99063af41106fb26d46f573c5fd0fb52a5352cf7",
-      "subject": "chore(fabric): publish audit evidence CF-12417898c2198699f08668aa"
-    },
-    {
-      "sha": "6bad7b23ddfc9525acffb9e169fb65182f9c8764",
-      "subject": "fabric: capture completed model changes [CF-12417898c2198699f08668aa]"
-    },
-    {
-      "sha": "b07011b674d165bf8ed28d5b2a96add6e850bd6d",
-      "subject": "build(k-slide): add KSA-38 requirement traceability"
-    }
-  ],
-  "diff": {
-    "additions": 11035,
-    "changed_files": 14,
-    "commit_count": 5,
-    "deletions": 83
-  },
-  "error_code": null,
-  "evidence_manifest": {
-    "count": 13,
+  "project_os_closure_snapshot": {
+    "authority": "PROJECT_OS_BOUND_DISPATCH_SNAPSHOT",
     "items": [
       {
-        "bytes": 14372,
-        "path": ".codex-fabric/audit.json",
-        "sha256": "f8d43f66b032015dce778a7dbc15045ad5cc9450f164e9795e0f44ac03a6b7b4"
+        "ksa_id": "KSA-01",
+        "state": "DONE_INTEGRATED"
       },
       {
-        "bytes": 14372,
-        "path": ".codex-fabric/ksa38/candidate-evidence.json",
-        "sha256": "f8d43f66b032015dce778a7dbc15045ad5cc9450f164e9795e0f44ac03a6b7b4"
+        "ksa_id": "KSA-02",
+        "state": "DONE_INTEGRATED"
       },
       {
-        "bytes": 12281,
-        "path": "tests/test_ksa38_traceability.py",
-        "sha256": "28065757419b0c8230607c10b6891d56a686bd575f037a6e278ce7b465a30a9b"
+        "ksa_id": "KSA-03",
+        "state": "DONE_INTEGRATED"
       },
       {
-        "bytes": 13212,
-        "path": "tools/ksa38/build_candidate_evidence.py",
-        "sha256": "c3eaba28f6c4796b56db33495989272eccfb66a7bf22d9551fe8ee162aeef4c6"
+        "ksa_id": "KSA-04",
+        "state": "QUEUED"
       },
       {
-        "bytes": 42265,
-        "path": "tools/ksa38/traceability.py",
-        "sha256": "eb287a318697995e8352f99ddb777e14915f0af0558a5de24d52926b4bc7d8eb"
+        "ksa_id": "KSA-05",
+        "state": "QUEUED"
       },
       {
-        "bytes": 2080,
-        "path": "tools/ksa38/validate_traceability.py",
-        "sha256": "e6e37c48b40e47f6189887ac10ed820a012af7b51b7e4596f4090c9620a8a4c5"
+        "ksa_id": "KSA-06",
+        "state": "DONE_INTEGRATED"
       },
       {
-        "bytes": 55227,
-        "path": "traceability/ksa38/README.md",
-        "sha256": "d819dd469c78dc93539db7d0841a220165e2b1b83a38804db7fa75b4dfa77840"
+        "ksa_id": "KSA-07",
+        "state": "ACTIVE_VERIFY_REQUIRED"
       },
       {
-        "bytes": 11759,
-        "path": "traceability/ksa38/candidate-evidence.schema.v1.json",
-        "sha256": "fb777d49a22eec0d362b2288617e69125a57dd8d4f17cdcad08aec72bd5023c2"
+        "ksa_id": "KSA-08",
+        "state": "QUEUED"
       },
       {
-        "bytes": 28475,
-        "path": "traceability/ksa38/ksa-scope-registry.v1.json",
-        "sha256": "1a45998acb466a07b51692d8e1c6239cab2aaa1dd7bd8740bfb8a2d4e7e55f4d"
+        "ksa_id": "KSA-09",
+        "state": "QUEUED"
       },
       {
-        "bytes": 2747,
-        "path": "traceability/ksa38/qualification.schema.v1.json",
-        "sha256": "dbede812231907a435d8fe139ec766ae5dd9ad9783b89299155ff91230811a6e"
+        "ksa_id": "KSA-10",
+        "state": "QUEUED"
       },
       {
-        "bytes": 7491,
-        "path": "traceability/ksa38/qualification.v1.json",
-        "sha256": "45f2e48beddd08b39b4903bb07eb773b1d32182d9514332b480ea200b0c3bd9d"
+        "ksa_id": "KSA-11",
+        "state": "QUEUED"
       },
       {
-        "bytes": 20109,
-        "path": "traceability/ksa38/schema.v1.json",
-        "sha256": "f6a65afc17969dbad5e4c3540873acfa82213cc025a7db5f3b1d5a9768f299d1"
+        "ksa_id": "KSA-12",
+        "state": "QUEUED"
       },
       {
-        "bytes": 179853,
-        "path": "traceability/ksa38/traceability.v1.json",
-        "sha256": "4a0ca1394577e4c12e5ae559dde0be0a8871ef4f3593d4a9a360192bea9be884"
+        "ksa_id": "KSA-13",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-14",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-15",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-16",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-17",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-18",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-19",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-20",
+        "state": "ACTIVE"
+      },
+      {
+        "ksa_id": "KSA-21",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-22",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-23",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-24",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-25",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-26",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-27",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-28",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-29",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-30",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-31",
+        "state": "QUEUED"
+      },
+      {
+        "ksa_id": "KSA-32",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-33",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-34",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-35",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-36",
+        "state": "DONE_INTEGRATED"
+      },
+      {
+        "ksa_id": "KSA-37",
+        "state": "DONE_INTEGRATED"
       }
-    ],
-    "version": 1
+    ]
   },
-  "evidence_publisher_release": "1.2.5-dashboard-controls-candidate",
-  "fabric_capture": {
-    "applied": false,
-    "paths_before": 0,
-    "transient_untracked_removed": {
-      "count": 0,
-      "items": []
+  "coverage": {
+    "trace_rows": 35,
+    "canonical_clauses": 35,
+    "contract_families": 8,
+    "ksa_items": 37,
+    "ksa_clause_mappings": 71,
+    "ksa_mapping_state_counts": {
+      "IMPLEMENTED": 18,
+      "PARTIAL": 33,
+      "REUSED_UNCHANGED": 0,
+      "NOT_IMPLEMENTED": 0,
+      "EXTERNAL_ONLY": 20
+    },
+    "ownership_counts": {
+      "REPOSITORY_OWNED": 14,
+      "MIXED_REPOSITORY_AND_EXTERNAL": 20,
+      "EXTERNAL_PRODUCTION_GATE": 1
+    },
+    "implementation_state_counts": {
+      "IMPLEMENTED": 12,
+      "PARTIAL": 22,
+      "REUSED_UNCHANGED": 0,
+      "NOT_IMPLEMENTED": 0,
+      "EXTERNAL_ONLY": 1
+    },
+    "closure_state_counts": {
+      "DONE_INTEGRATED": 17,
+      "ACTIVE_VERIFY_REQUIRED": 1,
+      "ACTIVE": 1,
+      "QUEUED": 18
+    },
+    "gap_classification_counts": {
+      "OPEN_EXTERNAL_PRODUCTION_GATE": 21,
+      "OPEN_PROJECT_OS_RECONCILIATION": 19,
+      "OPEN_REPOSITORY_REQUIREMENT": 2,
+      "ORPHAN_REQUIREMENT": 0
+    },
+    "changed_path_coverage": {
+      "commit_count": 152,
+      "changed_paths": 229,
+      "requirement_referenced_paths": 137,
+      "closed_classification_paths": 92,
+      "historical_paths": 3,
+      "unexplained_paths": 0
     }
   },
-  "fabric_release": "1.2.5-dashboard-controls-candidate",
-  "failure_class": null,
-  "finished_at": "2026-09-27T15:11:54Z",
-  "git": {
-    "base_is_ancestor": true,
-    "base_sha": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd",
-    "branch": "codex/k-slide-chg16-requirement-traceability-01-fix01",
-    "detached_verify": false,
-    "head_sha": "3538dc1d0c9ac5c255545751662bb08980997f44",
-    "remote_exact_head": true,
-    "remote_head_sha": "3538dc1d0c9ac5c255545751662bb08980997f44",
-    "target_branch": "main",
-    "target_drifted_since_acceptance": false,
-    "target_head_observed_after_execution": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd",
-    "work_branch": "codex/k-slide-chg16-requirement-traceability-01-fix01",
-    "worktree_clean": true
+  "qualification_checks": [
+    {
+      "name": "focused_ksa38_traceability_tests",
+      "command": "rtk python3.11 -m pytest -q tests/test_ksa38_traceability.py",
+      "python_version": "3.11.7",
+      "status": "PASS",
+      "tests_passed": 27,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "27 focused KSA-38 tests passed, including stale request, branch, predecessor, candidate-parent, and audit/sidecar mismatch regressions."
+    },
+    {
+      "name": "focused_ksa38_traceability_tests",
+      "command": "rtk /tmp/k-slide-ksa37-py312/bin/python -m pytest -q tests/test_ksa38_traceability.py",
+      "python_version": "3.12.9",
+      "status": "PASS",
+      "tests_passed": 27,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "27 focused KSA-38 tests passed, including stale request, branch, predecessor, candidate-parent, and audit/sidecar mismatch regressions."
+    },
+    {
+      "name": "full_repository_python_suite",
+      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m pytest -q",
+      "python_version": "3.11.7",
+      "status": "PASS",
+      "tests_passed": 761,
+      "tests_skipped": 5,
+      "warnings": 1,
+      "details": "Full repository suite passed. One external fontTools deprecation warning."
+    },
+    {
+      "name": "full_repository_python_suite",
+      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa37-py312/bin/python -m pytest -q",
+      "python_version": "3.12.9",
+      "status": "PASS",
+      "tests_passed": 755,
+      "tests_skipped": 11,
+      "warnings": 0,
+      "details": "Full repository suite passed with 11 environment/version-specific skips."
+    },
+    {
+      "name": "exact_subject_change_span_matrix_validation",
+      "command": "rtk python3.11 tools/ksa38/validate_traceability.py --check-report --summary-json",
+      "python_version": "3.11.7",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Validated 35/35 canonical clauses, 37/37 KSA items, 71/71 semantic links, 152 commits, 229 paths, and zero unexplained paths or orphan requirements; KSA-04/KSA-05 remain queued/open."
+    },
+    {
+      "name": "exact_subject_change_span_matrix_validation",
+      "command": "rtk /tmp/k-slide-ksa37-py312/bin/python tools/ksa38/validate_traceability.py --check-report --summary-json",
+      "python_version": "3.12.9",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Validated 35/35 canonical clauses, 37/37 KSA items, 71/71 semantic links, 152 commits, 229 paths, and zero unexplained paths or orphan requirements; KSA-04/KSA-05 remain queued/open."
+    },
+    {
+      "name": "repository_json_schemas_draft_2020_12",
+      "command": "Draft202012Validator.check_schema over all repository schema JSON files",
+      "python_version": "3.11.7",
+      "status": "PASS",
+      "tests_passed": 13,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "All 13 repository JSON schemas passed Draft 2020-12 meta-schema validation."
+    },
+    {
+      "name": "repository_json_schemas_draft_2020_12",
+      "command": "Draft202012Validator.check_schema over all repository schema JSON files",
+      "python_version": "3.12.9",
+      "status": "PASS",
+      "tests_passed": 13,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "All 13 repository JSON schemas passed Draft 2020-12 meta-schema validation."
+    },
+    {
+      "name": "candidate_evidence_generation_and_validation",
+      "command": "rtk python3.11 tools/ksa38/build_candidate_evidence.py; rtk python3.11 tools/ksa38/build_candidate_evidence.py --validate",
+      "python_version": "3.11.7",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Generated and rederived the FIX03 candidate SHA/tree, request, branch, full predecessor lineage, current coverage and hashes; current Fabric identity remains null."
+    },
+    {
+      "name": "candidate_evidence_generation_and_validation",
+      "command": "rtk /tmp/k-slide-ksa37-py312/bin/python tools/ksa38/build_candidate_evidence.py; rtk /tmp/k-slide-ksa37-py312/bin/python tools/ksa38/build_candidate_evidence.py --validate",
+      "python_version": "3.12.9",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Generated and rederived the same FIX03 binding under Python 3.12; current Fabric identity remains null."
+    },
+    {
+      "name": "runtime_errorcode_parity",
+      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m pytest -q tests/test_chg16_resource_budget.py -k resource_budget_and_telemetry_error_schemas_match_runtime_contract",
+      "python_version": "3.11.7",
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": 16,
+      "warnings": 0,
+      "details": "Runtime ErrorCode and schema parity regression passed."
+    },
+    {
+      "name": "runtime_errorcode_parity",
+      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa37-py312/bin/python -m pytest -q tests/test_chg16_resource_budget.py -k resource_budget_and_telemetry_error_schemas_match_runtime_contract",
+      "python_version": "3.12.9",
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": 16,
+      "warnings": 0,
+      "details": "Runtime ErrorCode and schema parity regression passed."
+    },
+    {
+      "name": "workflow_yaml_and_embedded_shell",
+      "command": "PyYAML safe_load of .github/workflows/*.yml and bash -n for embedded run blocks",
+      "python_version": "3.11.7",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "All 6 workflow YAML files parsed and all 49 embedded shell blocks passed bash -n."
+    },
+    {
+      "name": "workflow_yaml_and_embedded_shell",
+      "command": "PyYAML safe_load of .github/workflows/*.yml and bash -n for embedded run blocks",
+      "python_version": "3.12.9",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "All 6 workflow YAML files parsed and all 49 embedded shell blocks passed bash -n."
+    },
+    {
+      "name": "compileall_src_tests_evals_tools_ksa38",
+      "command": "rtk proxy python3.11 -m compileall -q src tests evals tools/ksa38",
+      "python_version": "3.11.7",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Compilation completed for all requested Python trees and the KSA-38 evidence tools."
+    },
+    {
+      "name": "compileall_src_tests_evals_tools_ksa38",
+      "command": "rtk proxy /tmp/k-slide-ksa37-py312/bin/python -m compileall -q src tests evals tools/ksa38",
+      "python_version": "3.12.9",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Compilation completed for all requested Python trees and the KSA-38 evidence tools."
+    },
+    {
+      "name": "git_diff_check",
+      "command": "rtk git diff --check and rtk git diff --cached --check",
+      "python_version": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Whitespace validation passed; the final worktree is verified separately after the evidence commit."
+    },
+    {
+      "name": "exact_head_k_slide_test_branch_push",
+      "command": "GitHub Actions run 36347993238, job test (3.11)",
+      "python_version": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "PASS at exact candidate SHA e5903b405f116a04f11c1402c75a7bc9d22f32df; branch-push workflow completed successfully."
+    },
+    {
+      "name": "exact_head_k_slide_test_branch_push",
+      "command": "GitHub Actions run 36347993238, job test (3.12)",
+      "python_version": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "PASS at exact candidate SHA e5903b405f116a04f11c1402c75a7bc9d22f32df; branch-push workflow completed successfully."
+    },
+    {
+      "name": "exact_head_phase35_fast_branch_push",
+      "command": "GitHub Actions run 36347993244, job fast (3.11)",
+      "python_version": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "PASS at exact candidate SHA e5903b405f116a04f11c1402c75a7bc9d22f32df; branch-push workflow completed successfully."
+    },
+    {
+      "name": "exact_head_phase35_fast_branch_push",
+      "command": "GitHub Actions run 36347993244, job fast (3.12)",
+      "python_version": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "PASS at exact candidate SHA e5903b405f116a04f11c1402c75a7bc9d22f32df; branch-push workflow completed successfully."
+    },
+    {
+      "name": "exact_head_security_workflow",
+      "command": "GitHub Actions workflow_dispatch run 36347992757, job security",
+      "python_version": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "PASS at exact candidate SHA e5903b405f116a04f11c1402c75a7bc9d22f32df; dependency, secret, and static security scans succeeded."
+    },
+    {
+      "name": "optional_phase35_heavy",
+      "command": "GitHub Actions run 36347993244, job heavy",
+      "python_version": null,
+      "status": "NOT_REQUIRED",
+      "tests_passed": null,
+      "tests_skipped": 0,
+      "warnings": 0,
+      "details": "Skipped by the configured heavy-runtime policy."
+    }
+  ],
+  "candidate_binding": {
+    "commit_sha": "e5903b405f116a04f11c1402c75a7bc9d22f32df",
+    "tree_oid": "01aaf14469213fbb43683cebabcb67dcf4573e29",
+    "parent_sha": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
+    "work_branch": "codex/k-slide-chg16-requirement-traceability-01-fix03",
+    "worktree_clean_at_product_candidate": true
   },
-  "instructions": {
-    "files": [
-      {
-        "bytes": 1930,
-        "path": "AGENTS.md",
-        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
-      }
-    ],
-    "total_bytes": 1930,
-    "warning": null
+  "current_execution_identity": null,
+  "fabric_execution_identity": {
+    "fabric_job_id": null,
+    "owner": "Fabric native publisher post-execution evidence",
+    "status": "PENDING_POST_EXECUTION_PUBLICATION"
   },
-  "job_id": "CF-6a7997ef8068f9a3b6ae02bd",
-  "kind": "codex-fabric-audit-evidence",
-  "locator": {
-    "branch": "codex-fabric/evidence/k-slide/chg16-requirement-traceability-01-fix01",
-    "path": ".codex-fabric/audit.json",
-    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-requirement-traceability-01-fix01"
-  },
-  "operation": "FIX",
-  "policy": {
-    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
-    "fabric_release": "1.2.5-dashboard-controls-candidate",
-    "policy_sha256": "123615bf2f6e57dcac197e49ca98ceac59ada86a55e2c84445ea5d00812c0833",
-    "registry_sha256": "af81b8552f9d6a33847310e3c6bcd2d48401782b963a58efd2993e93570cb4aa"
-  },
-  "project_id": "k-slide",
-  "recovery": {
-    "model_rerun_safe": false,
-    "recovery_required": false,
-    "retry_safe": false,
-    "retry_scope": null,
-    "worktree_retained": true
-  },
-  "request": "chg16-requirement-traceability-01-fix01",
-  "schema_version": 1,
-  "started_at": "2026-09-27T14:36:48Z",
-  "status": "EXECUTED_CHANGE",
-  "timing": {
-    "execution_seconds": 2106,
-    "queue_seconds": 0,
-    "total_seconds": 2106
-  },
-  "transport": {
-    "bytes": 11461,
-    "envelope": "FABRIC/2",
-    "prompt_bytes": 11121,
-    "prompt_sha256": "ea7e6a89c692907de6410937fa550b1632d17755a1846314e0f58816913b622a",
-    "sha256": "6a7997ef8068f9a3b6ae02bdad4c9e5188cd9a75463975233d10dc6b7a8275dd"
+  "scope_boundary": {
+    "notion_mutated": false,
+    "main_moved_or_merged": false,
+    "live_company_infrastructure_mutated": false,
+    "employee_private_pilot_or_canary_work_run": false,
+    "go_champion_production_readiness_or_certification_claimed": false,
+    "project_os_remains_independent_auditor": true
   }
 }
