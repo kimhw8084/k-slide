@@ -4,34 +4,126 @@
   "title": "K-Slide KSA-38 Qualification Record",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "project", "operation", "request", "product_subject_sha", "change_base_sha", "checks"],
+  "required": [
+    "schema_version",
+    "project",
+    "operation",
+    "request",
+    "product_subject_sha",
+    "change_base_sha",
+    "checks",
+    "work_branch",
+    "predecessor_work_head"
+  ],
   "properties": {
-    "schema_version": { "const": "1.0" },
-    "project": { "const": "k-slide" },
-    "operation": { "const": "BUILD" },
-    "request": { "const": "chg16-requirement-traceability-01" },
-    "product_subject_sha": { "const": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd" },
-    "change_base_sha": { "const": "af5836540304b424289bedbe57a87dbb5d02763f" },
+    "schema_version": {
+      "const": "1.0"
+    },
+    "project": {
+      "const": "k-slide"
+    },
+    "operation": {
+      "const": "FIX"
+    },
+    "request": {
+      "const": "chg16-requirement-traceability-01-fix01"
+    },
+    "product_subject_sha": {
+      "const": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd"
+    },
+    "change_base_sha": {
+      "const": "af5836540304b424289bedbe57a87dbb5d02763f"
+    },
     "checks": {
       "type": "array",
       "minItems": 14,
-      "items": { "$ref": "#/$defs/check" }
+      "items": {
+        "$ref": "#/$defs/check"
+      }
+    },
+    "work_branch": {
+      "const": "codex/k-slide-chg16-requirement-traceability-01-fix01"
+    },
+    "predecessor_work_head": {
+      "const": "6bad7b23ddfc9525acffb9e169fb65182f9c8764"
     }
   },
   "$defs": {
     "check": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "command", "python_version", "status", "tests_passed", "tests_skipped", "warnings", "details"],
+      "required": [
+        "name",
+        "command",
+        "python_version",
+        "status",
+        "tests_passed",
+        "tests_skipped",
+        "warnings",
+        "details"
+      ],
       "properties": {
-        "name": { "type": "string", "minLength": 1 },
-        "command": { "type": "string", "minLength": 1 },
-        "python_version": { "oneOf": [{ "type": "null" }, { "type": "string", "pattern": "^3\\.(11|12)\\.[0-9]+$" }] },
-        "status": { "enum": ["PASS", "NOT_REQUIRED"] },
-        "tests_passed": { "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 0 }] },
-        "tests_skipped": { "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 0 }] },
-        "warnings": { "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 0 }] },
-        "details": { "type": "string" }
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "python_version": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^3\\.(11|12)\\.[0-9]+$"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "NOT_REQUIRED"
+          ]
+        },
+        "tests_passed": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        },
+        "tests_skipped": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        },
+        "warnings": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        },
+        "details": {
+          "type": "string"
+        }
       }
     }
   }

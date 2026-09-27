@@ -13,6 +13,7 @@
     "change_span",
     "repository_anchors",
     "project_os_closure_snapshot",
+    "ksa_scope_registry",
     "canonical_contract_families",
     "trace_rows",
     "core_invariants",
@@ -20,38 +21,81 @@
     "summary"
   ],
   "properties": {
-    "schema_version": { "const": "1.0" },
-    "matrix_version": { "const": "1.0" },
-    "project": { "const": "k-slide" },
-    "change_id": { "const": "CHG-16 / KSA-38" },
-    "product_subject": { "$ref": "#/$defs/subject" },
-    "change_span": { "$ref": "#/$defs/changeSpan" },
+    "schema_version": {
+      "const": "1.0"
+    },
+    "matrix_version": {
+      "const": "1.0"
+    },
+    "project": {
+      "const": "k-slide"
+    },
+    "change_id": {
+      "const": "CHG-16 / KSA-38"
+    },
+    "product_subject": {
+      "$ref": "#/$defs/subject"
+    },
+    "change_span": {
+      "$ref": "#/$defs/changeSpan"
+    },
     "repository_anchors": {
       "type": "array",
       "minItems": 2,
       "maxItems": 2,
-      "items": { "$ref": "#/$defs/repositoryAnchor" }
+      "items": {
+        "$ref": "#/$defs/repositoryAnchor"
+      }
     },
-    "project_os_closure_snapshot": { "$ref": "#/$defs/closureSnapshot" },
+    "project_os_closure_snapshot": {
+      "$ref": "#/$defs/closureSnapshot"
+    },
     "canonical_contract_families": {
       "type": "array",
       "minItems": 8,
       "maxItems": 8,
-      "items": { "$ref": "#/$defs/contractFamily" }
+      "items": {
+        "$ref": "#/$defs/contractFamily"
+      }
     },
     "trace_rows": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/traceRow" }
+      "items": {
+        "$ref": "#/$defs/traceRow"
+      }
     },
-    "core_invariants": { "$ref": "#/$defs/coreInvariants" },
-    "evidence_provenance": { "$ref": "#/$defs/evidenceProvenance" },
-    "summary": { "$ref": "#/$defs/summary" }
+    "core_invariants": {
+      "$ref": "#/$defs/coreInvariants"
+    },
+    "evidence_provenance": {
+      "$ref": "#/$defs/evidenceProvenance"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "ksa_scope_registry": {
+      "type": "array",
+      "minItems": 37,
+      "maxItems": 37,
+      "items": {
+        "$ref": "#/$defs/ksaScope"
+      }
+    }
   },
   "$defs": {
-    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
-    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "ksaId": { "type": "string", "pattern": "^KSA-(0[1-9]|[12][0-9]|3[0-8])$" },
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "ksaId": {
+      "type": "string",
+      "pattern": "^KSA-(0[1-9]|[12][0-9]|3[0-8])$"
+    },
     "closureState": {
       "enum": [
         "DONE_INTEGRATED",
@@ -64,40 +108,84 @@
     "locator": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path"],
+      "required": [
+        "path"
+      ],
       "properties": {
-        "path": { "type": "string", "minLength": 1, "pattern": "^[^*]+$" },
-        "symbol": { "type": "string", "minLength": 1 },
-        "historical": { "type": "boolean" }
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^*]+$"
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "historical": {
+          "type": "boolean"
+        }
       }
     },
     "testLocator": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "symbol"],
+      "required": [
+        "path",
+        "symbol"
+      ],
       "properties": {
-        "path": { "type": "string", "minLength": 1, "pattern": "^tests/[^*]+$" },
-        "symbol": { "type": "string", "minLength": 1 }
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^tests/[^*]+$"
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "subject": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["commit_sha", "tree_oid"],
+      "required": [
+        "commit_sha",
+        "tree_oid"
+      ],
       "properties": {
-        "commit_sha": { "$ref": "#/$defs/sha1" },
-        "tree_oid": { "$ref": "#/$defs/sha1" }
+        "commit_sha": {
+          "$ref": "#/$defs/sha1"
+        },
+        "tree_oid": {
+          "$ref": "#/$defs/sha1"
+        }
       }
     },
     "repositoryAnchor": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["role", "commit_sha", "tree_oid", "independently_rederivable"],
+      "required": [
+        "role",
+        "commit_sha",
+        "tree_oid",
+        "independently_rederivable"
+      ],
       "properties": {
-        "role": { "enum": ["PRODUCT_SUBJECT", "CHG16_CHANGE_BASE"] },
-        "commit_sha": { "$ref": "#/$defs/sha1" },
-        "tree_oid": { "$ref": "#/$defs/sha1" },
-        "independently_rederivable": { "const": true }
+        "role": {
+          "enum": [
+            "PRODUCT_SUBJECT",
+            "CHG16_CHANGE_BASE"
+          ]
+        },
+        "commit_sha": {
+          "$ref": "#/$defs/sha1"
+        },
+        "tree_oid": {
+          "$ref": "#/$defs/sha1"
+        },
+        "independently_rederivable": {
+          "const": true
+        }
       }
     },
     "changeSpan": {
@@ -111,33 +199,68 @@
         "changed_path_coverage"
       ],
       "properties": {
-        "change_base_sha": { "$ref": "#/$defs/sha1" },
-        "change_base_tree_oid": { "$ref": "#/$defs/sha1" },
-        "commit_count": { "type": "integer", "minimum": 1 },
-        "changed_path_count": { "type": "integer", "minimum": 1 },
+        "change_base_sha": {
+          "$ref": "#/$defs/sha1"
+        },
+        "change_base_tree_oid": {
+          "$ref": "#/$defs/sha1"
+        },
+        "commit_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "changed_path_count": {
+          "type": "integer",
+          "minimum": 1
+        },
         "changed_path_coverage": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/$defs/changedPath" }
+          "items": {
+            "$ref": "#/$defs/changedPath"
+          }
         }
       }
     },
     "changedPath": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "historical", "coverage_type", "trace_ids", "classification", "reason"],
+      "required": [
+        "path",
+        "historical",
+        "coverage_type",
+        "trace_ids",
+        "classification",
+        "reason"
+      ],
       "properties": {
-        "path": { "type": "string", "minLength": 1, "pattern": "^[^*]+$" },
-        "historical": { "type": "boolean" },
-        "coverage_type": { "enum": ["REQUIREMENT_ROW", "NON_PRODUCT_PATH_CLASSIFICATION"] },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^*]+$"
+        },
+        "historical": {
+          "type": "boolean"
+        },
+        "coverage_type": {
+          "enum": [
+            "REQUIREMENT_ROW",
+            "NON_PRODUCT_PATH_CLASSIFICATION"
+          ]
+        },
         "trace_ids": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "type": "string", "pattern": "^KSA38-TR-[0-9]{3}$" }
+          "items": {
+            "type": "string",
+            "pattern": "^KSA38-TR-[0-9]{3}$"
+          }
         },
         "classification": {
           "oneOf": [
-            { "type": "null" },
+            {
+              "type": "null"
+            },
             {
               "enum": [
                 "TEST",
@@ -150,54 +273,104 @@
             }
           ]
         },
-        "reason": { "type": "string" }
+        "reason": {
+          "type": "string"
+        }
       }
     },
     "closureSnapshot": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["authority", "items"],
+      "required": [
+        "authority",
+        "items"
+      ],
       "properties": {
-        "authority": { "const": "USER_SUPPLIED_AUTHORITATIVE_SNAPSHOT" },
+        "authority": {
+          "const": "PROJECT_OS_BOUND_DISPATCH_SNAPSHOT"
+        },
         "items": {
           "type": "array",
           "minItems": 37,
           "maxItems": 37,
-          "items": { "$ref": "#/$defs/closureItem" }
+          "items": {
+            "$ref": "#/$defs/closureItem"
+          }
         }
       }
     },
     "closureItem": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ksa_id", "state"],
+      "required": [
+        "ksa_id",
+        "state"
+      ],
       "properties": {
-        "ksa_id": { "type": "string", "pattern": "^KSA-(0[1-9]|[12][0-9]|3[0-7])$" },
-        "state": { "enum": ["DONE_INTEGRATED", "ACTIVE_VERIFY_REQUIRED", "ACTIVE", "QUEUED"] }
+        "ksa_id": {
+          "type": "string",
+          "pattern": "^KSA-(0[1-9]|[12][0-9]|3[0-7])$"
+        },
+        "state": {
+          "enum": [
+            "DONE_INTEGRATED",
+            "ACTIVE_VERIFY_REQUIRED",
+            "ACTIVE",
+            "QUEUED"
+          ]
+        }
       }
     },
     "contractFamily": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["family_id", "source_section", "canonical_clause_ids"],
+      "required": [
+        "family_id",
+        "source_section",
+        "canonical_clause_ids"
+      ],
       "properties": {
-        "family_id": { "enum": ["ROUND_1", "ROUND_2", "ROUND_3", "ROUND_4", "ROUND_5", "ROUND_6", "ROUND_7", "ROUND_8"] },
-        "source_section": { "type": "string", "minLength": 1 },
+        "family_id": {
+          "enum": [
+            "ROUND_1",
+            "ROUND_2",
+            "ROUND_3",
+            "ROUND_4",
+            "ROUND_5",
+            "ROUND_6",
+            "ROUND_7",
+            "ROUND_8"
+          ]
+        },
+        "source_section": {
+          "type": "string",
+          "minLength": 1
+        },
         "canonical_clause_ids": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
     "closureLink": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ksa_id", "state"],
+      "required": [
+        "ksa_id",
+        "state"
+      ],
       "properties": {
-        "ksa_id": { "$ref": "#/$defs/ksaId" },
-        "state": { "$ref": "#/$defs/closureState" }
+        "ksa_id": {
+          "$ref": "#/$defs/ksaId"
+        },
+        "state": {
+          "$ref": "#/$defs/closureState"
+        }
       }
     },
     "traceRow": {
@@ -221,96 +394,451 @@
         "next_owner"
       ],
       "properties": {
-        "trace_id": { "type": "string", "pattern": "^KSA38-TR-[0-9]{3}$" },
-        "source_section": { "type": "string", "minLength": 1 },
-        "contract_family": { "enum": ["ROUND_1", "ROUND_2", "ROUND_3", "ROUND_4", "ROUND_5", "ROUND_6", "ROUND_7", "ROUND_8"] },
-        "clause_ids": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
-        "requirement_summary": { "type": "string", "minLength": 12 },
-        "ownership": { "enum": ["REPOSITORY_OWNED", "MIXED_REPOSITORY_AND_EXTERNAL", "EXTERNAL_PRODUCTION_GATE"] },
-        "linked_ksa_items": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/ksaId" } },
-        "project_os_closure": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/closureLink" } },
-        "implementation_state": { "enum": ["IMPLEMENTED", "PARTIAL", "REUSED_UNCHANGED", "NOT_IMPLEMENTED", "EXTERNAL_ONLY"] },
-        "implementation_locators": { "type": "array", "items": { "$ref": "#/$defs/locator" } },
-        "schema_config_locators": { "type": "array", "items": { "$ref": "#/$defs/locator" } },
-        "decisive_test_locators": { "type": "array", "items": { "$ref": "#/$defs/testLocator" } },
-        "repository_evidence_availability": { "enum": ["REPOSITORY_TESTED_ONLY", "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED", "REPOSITORY_LOCATORS_ONLY", "EXTERNAL_EVIDENCE_NOT_SUPPLIED", "NOT_AVAILABLE"] },
-        "gap_classification": { "type": "array", "uniqueItems": true, "items": { "enum": ["OPEN_REPOSITORY_REQUIREMENT", "OPEN_EXTERNAL_PRODUCTION_GATE", "OPEN_PROJECT_OS_RECONCILIATION", "ORPHAN_REQUIREMENT"] } },
-        "next_owner": { "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 3 }] }
+        "trace_id": {
+          "type": "string",
+          "pattern": "^KSA38-TR-[0-9]{3}$"
+        },
+        "source_section": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contract_family": {
+          "enum": [
+            "ROUND_1",
+            "ROUND_2",
+            "ROUND_3",
+            "ROUND_4",
+            "ROUND_5",
+            "ROUND_6",
+            "ROUND_7",
+            "ROUND_8"
+          ]
+        },
+        "clause_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "requirement_summary": {
+          "type": "string",
+          "minLength": 12
+        },
+        "ownership": {
+          "enum": [
+            "REPOSITORY_OWNED",
+            "MIXED_REPOSITORY_AND_EXTERNAL",
+            "EXTERNAL_PRODUCTION_GATE"
+          ]
+        },
+        "linked_ksa_items": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/ksaId"
+          }
+        },
+        "project_os_closure": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/closureLink"
+          }
+        },
+        "implementation_state": {
+          "enum": [
+            "IMPLEMENTED",
+            "PARTIAL",
+            "REUSED_UNCHANGED",
+            "NOT_IMPLEMENTED",
+            "EXTERNAL_ONLY"
+          ]
+        },
+        "implementation_locators": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/locator"
+          }
+        },
+        "schema_config_locators": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/locator"
+          }
+        },
+        "decisive_test_locators": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/testLocator"
+          }
+        },
+        "repository_evidence_availability": {
+          "enum": [
+            "REPOSITORY_TESTED_ONLY",
+            "REPOSITORY_TESTED_EXTERNAL_UNVERIFIED",
+            "REPOSITORY_LOCATORS_ONLY",
+            "EXTERNAL_EVIDENCE_NOT_SUPPLIED",
+            "NOT_AVAILABLE"
+          ]
+        },
+        "gap_classification": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "OPEN_REPOSITORY_REQUIREMENT",
+              "OPEN_EXTERNAL_PRODUCTION_GATE",
+              "OPEN_PROJECT_OS_RECONCILIATION",
+              "ORPHAN_REQUIREMENT"
+            ]
+          }
+        },
+        "next_owner": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 3
+            }
+          ]
+        }
       }
     },
     "coreInvariants": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["production_target_model", "benchmark_user_production_path_equal", "decision_critical_fields", "silent_model_fallback_allowed", "release_state_source", "production_certification_external_gates_separate"],
+      "required": [
+        "production_target_model",
+        "benchmark_user_production_path_equal",
+        "decision_critical_fields",
+        "silent_model_fallback_allowed",
+        "release_state_source",
+        "production_certification_external_gates_separate"
+      ],
       "properties": {
-        "production_target_model": { "const": "google/gemma-4-31b-it" },
-        "benchmark_user_production_path_equal": { "const": true },
+        "production_target_model": {
+          "const": "google/gemma-4-31b-it"
+        },
+        "benchmark_user_production_path_equal": {
+          "const": true
+        },
         "decision_critical_fields": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "enum": ["meaning", "number", "date", "unit", "table", "cardinality", "trend", "owner", "status", "dependency", "risk", "timing", "uncertainty", "terminology", "modality"] }
+          "items": {
+            "enum": [
+              "meaning",
+              "number",
+              "date",
+              "unit",
+              "table",
+              "cardinality",
+              "trend",
+              "owner",
+              "status",
+              "dependency",
+              "risk",
+              "timing",
+              "uncertainty",
+              "terminology",
+              "modality"
+            ]
+          }
         },
-        "silent_model_fallback_allowed": { "const": false },
-        "release_state_source": { "const": "EVIDENCE_DERIVED" },
-        "production_certification_external_gates_separate": { "const": true }
+        "silent_model_fallback_allowed": {
+          "const": false
+        },
+        "release_state_source": {
+          "const": "EVIDENCE_DERIVED"
+        },
+        "production_certification_external_gates_separate": {
+          "const": true
+        }
       }
     },
     "evidenceProvenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["closure_snapshot_source", "historical_fabric_receipts_claimed", "notion_only_locators_claimed", "external_production_evidence_claimed"],
+      "required": [
+        "closure_snapshot_source",
+        "historical_fabric_receipts_claimed",
+        "notion_only_locators_claimed",
+        "external_production_evidence_claimed"
+      ],
       "properties": {
-        "closure_snapshot_source": { "const": "USER_SUPPLIED_PROMPT_SNAPSHOT" },
-        "historical_fabric_receipts_claimed": { "const": false },
-        "notion_only_locators_claimed": { "const": false },
-        "external_production_evidence_claimed": { "const": false }
+        "closure_snapshot_source": {
+          "const": "PROJECT_OS_BOUND_DISPATCH_SNAPSHOT"
+        },
+        "historical_fabric_receipts_claimed": {
+          "const": false
+        },
+        "notion_only_locators_claimed": {
+          "const": false
+        },
+        "external_production_evidence_claimed": {
+          "const": false
+        }
       }
     },
     "countMap": {
       "type": "object",
-      "additionalProperties": { "type": "integer", "minimum": 0 }
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
     },
     "summary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["trace_rows", "rows_by_contract_family", "rows_by_ownership", "rows_by_implementation_state", "trace_links_by_project_os_closure_state", "project_os_ksa_items_by_closure_state", "ksa_coverage", "canonical_clause_coverage", "changed_path_coverage", "rows_by_gap_classification", "orphan_requirement_count"],
+      "required": [
+        "trace_rows",
+        "rows_by_contract_family",
+        "rows_by_ownership",
+        "rows_by_implementation_state",
+        "trace_links_by_project_os_closure_state",
+        "project_os_ksa_items_by_closure_state",
+        "ksa_coverage",
+        "canonical_clause_coverage",
+        "ksa_clause_crosswalk",
+        "changed_path_coverage",
+        "rows_by_gap_classification",
+        "orphan_requirement_count"
+      ],
       "properties": {
-        "trace_rows": { "type": "integer", "minimum": 1 },
-        "rows_by_contract_family": { "$ref": "#/$defs/countMap" },
-        "rows_by_ownership": { "$ref": "#/$defs/countMap" },
-        "rows_by_implementation_state": { "$ref": "#/$defs/countMap" },
-        "trace_links_by_project_os_closure_state": { "$ref": "#/$defs/countMap" },
-        "project_os_ksa_items_by_closure_state": { "$ref": "#/$defs/countMap" },
+        "trace_rows": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "rows_by_contract_family": {
+          "$ref": "#/$defs/countMap"
+        },
+        "rows_by_ownership": {
+          "$ref": "#/$defs/countMap"
+        },
+        "rows_by_implementation_state": {
+          "$ref": "#/$defs/countMap"
+        },
+        "trace_links_by_project_os_closure_state": {
+          "$ref": "#/$defs/countMap"
+        },
+        "project_os_ksa_items_by_closure_state": {
+          "$ref": "#/$defs/countMap"
+        },
         "ksa_coverage": {
-          "type": "object", "additionalProperties": false,
-          "required": ["required_items", "covered_items", "missing_items"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "required_items",
+            "covered_items",
+            "missing_items"
+          ],
           "properties": {
-            "required_items": { "type": "integer", "minimum": 37, "maximum": 37 },
-            "covered_items": { "type": "integer", "minimum": 0, "maximum": 37 },
-            "missing_items": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/ksaId" } }
+            "required_items": {
+              "type": "integer",
+              "minimum": 37,
+              "maximum": 37
+            },
+            "covered_items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 37
+            },
+            "missing_items": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/ksaId"
+              }
+            }
           }
         },
         "canonical_clause_coverage": {
-          "type": "object", "additionalProperties": false,
-          "required": ["required_clauses", "covered_clauses", "missing_clauses"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "required_clauses",
+            "covered_clauses",
+            "missing_clauses"
+          ],
           "properties": {
-            "required_clauses": { "type": "integer", "minimum": 1 },
-            "covered_clauses": { "type": "integer", "minimum": 0 },
-            "missing_clauses": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+            "required_clauses": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "covered_clauses": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "missing_clauses": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
           }
         },
         "changed_path_coverage": {
-          "type": "object", "additionalProperties": false,
-          "required": ["expected_paths", "requirement_referenced_paths", "closed_classification_paths", "unexplained_paths"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "expected_paths",
+            "requirement_referenced_paths",
+            "closed_classification_paths",
+            "unexplained_paths"
+          ],
           "properties": {
-            "expected_paths": { "type": "integer", "minimum": 229, "maximum": 229 },
-            "requirement_referenced_paths": { "type": "integer", "minimum": 0 },
-            "closed_classification_paths": { "type": "integer", "minimum": 0 },
-            "unexplained_paths": { "const": 0 }
+            "expected_paths": {
+              "type": "integer",
+              "minimum": 229,
+              "maximum": 229
+            },
+            "requirement_referenced_paths": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "closed_classification_paths": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unexplained_paths": {
+              "const": 0
+            }
           }
         },
-        "rows_by_gap_classification": { "$ref": "#/$defs/countMap" },
-        "orphan_requirement_count": { "const": 0 }
+        "rows_by_gap_classification": {
+          "$ref": "#/$defs/countMap"
+        },
+        "orphan_requirement_count": {
+          "const": 0
+        },
+        "ksa_clause_crosswalk": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "required_links",
+            "covered_links",
+            "missing_links",
+            "mappings_by_implementation_state"
+          ],
+          "properties": {
+            "required_links": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "covered_links": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "missing_links": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "mappings_by_implementation_state": {
+              "$ref": "#/$defs/countMap"
+            }
+          }
+        }
+      }
+    },
+    "ksaScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ksa_id",
+        "scope",
+        "mappings",
+        "repository_requirement_open",
+        "future_project_os_owner"
+      ],
+      "properties": {
+        "ksa_id": {
+          "type": "string",
+          "pattern": "^KSA-(0[1-9]|[12][0-9]|3[0-7])$"
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 220
+        },
+        "mappings": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/ksaClauseMapping"
+          }
+        },
+        "repository_requirement_open": {
+          "type": "boolean"
+        },
+        "future_project_os_owner": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 20,
+              "maxLength": 180
+            }
+          ]
+        }
+      }
+    },
+    "ksaClauseMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family_id",
+        "clause_id",
+        "mapping_rationale",
+        "implementation_state"
+      ],
+      "properties": {
+        "family_id": {
+          "enum": [
+            "ROUND_1",
+            "ROUND_2",
+            "ROUND_3",
+            "ROUND_4",
+            "ROUND_5",
+            "ROUND_6",
+            "ROUND_7",
+            "ROUND_8"
+          ]
+        },
+        "clause_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "mapping_rationale": {
+          "type": "string",
+          "minLength": 24,
+          "maxLength": 280
+        },
+        "implementation_state": {
+          "enum": [
+            "IMPLEMENTED",
+            "PARTIAL",
+            "REUSED_UNCHANGED",
+            "NOT_IMPLEMENTED",
+            "EXTERNAL_ONLY"
+          ]
+        }
       }
     }
   }

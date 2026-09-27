@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bind observed KSA-38 checks to the clean product-candidate commit."""
+"""Bind observed KSA-38 FIX01 checks to the exact traceability candidate."""
 
 from __future__ import annotations
 
@@ -13,17 +13,34 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-from traceability import CHANGE_BASE_SHA, PRODUCT_SUBJECT_SHA, load_json, validate_matrix
+from traceability import (
+    CHANGE_BASE_SHA,
+    KSA_SCOPE_REGISTRY_PATH,
+    PRODUCT_SUBJECT_SHA,
+    TraceabilityError,
+    load_json,
+    render_report,
+    validate_matrix,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
 MATRIX_PATH = Path("traceability/ksa38/traceability.v1.json")
 MATRIX_SCHEMA_PATH = Path("traceability/ksa38/schema.v1.json")
+SCOPE_REGISTRY_PATH = Path(KSA_SCOPE_REGISTRY_PATH)
 CANDIDATE_SCHEMA_PATH = Path("traceability/ksa38/candidate-evidence.schema.v1.json")
 QUALIFICATION_PATH = Path("traceability/ksa38/qualification.v1.json")
 QUALIFICATION_SCHEMA_PATH = Path("traceability/ksa38/qualification.schema.v1.json")
+REPORT_PATH = Path("traceability/ksa38/README.md")
 OUTPUT_PATH = Path(".codex-fabric/ksa38/candidate-evidence.json")
-WORK_BRANCH = "codex/k-slide-chg16-requirement-traceability-01"
+AUDIT_PATH = Path(".codex-fabric/audit.json")
+WORK_BRANCH = "codex/k-slide-chg16-requirement-traceability-01-fix01"
+PREDECESSOR_WORK_HEAD = "6bad7b23ddfc9525acffb9e169fb65182f9c8764"
+PREDECESSOR_PRODUCT_COMMIT = "b07011b674d165bf8ed28d5b2a96add6e850bd6d"
+PREDECESSOR_EVIDENCE_COMMIT = "99063af41106fb26d46f573c5fd0fb52a5352cf7"
+PREDECESSOR_BUILD_JOB_ID = "CF-12417898c2198699f08668aa"
+CANDIDATE_PARENT = PREDECESSOR_EVIDENCE_COMMIT
+EVIDENCE_PATHS = {OUTPUT_PATH.as_posix(), AUDIT_PATH.as_posix()}
 
 
 class CandidateEvidenceError(ValueError):
@@ -43,7 +60,7 @@ def sha256(path: Path) -> str:
     return hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
 
 
-def _no_tracked_changes() -> bool:
+def _status_paths() -> set[str]:
     result = subprocess.run(
         ["git", "status", "--porcelain", "--untracked-files=no"],
         cwd=ROOT,
@@ -51,20 +68,43 @@ def _no_tracked_changes() -> bool:
         capture_output=True,
         check=True,
     )
-    return not result.stdout.strip()
+    return {line[3:].split(" -> ")[-1] for line in result.stdout.splitlines()}
 
 
-def build_evidence() -> dict[str, Any]:
-    head = git("rev-parse", "HEAD")
-    tree = git("rev-parse", "HEAD^{tree}")
-    parent = git("rev-parse", "HEAD^")
+def _is_ancestor(ancestor: str, descendant: str) -> bool:
+    return subprocess.run(
+        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    ).returncode == 0
+
+
+def _validate_candidate_context(candidate_sha: str) -> tuple[str, str]:
     branch = git("branch", "--show-current")
     if branch != WORK_BRANCH:
         raise CandidateEvidenceError(f"expected work branch {WORK_BRANCH}, found {branch}")
-    if parent != PRODUCT_SUBJECT_SHA:
-        raise CandidateEvidenceError("KSA-38 candidate must directly descend from the exact product subject")
-    if not _no_tracked_changes():
-        raise CandidateEvidenceError("candidate evidence must be generated from a clean committed product candidate")
+    if git("rev-parse", f"{candidate_sha}^{{commit}}") != candidate_sha:
+        raise CandidateEvidenceError("FIX01 candidate SHA is not an exact repository commit")
+    parent = git("rev-parse", f"{candidate_sha}^")
+    if parent != CANDIDATE_PARENT:
+        raise CandidateEvidenceError("FIX01 candidate must preserve the exact predecessor evidence head as its parent")
+
+    head = git("rev-parse", "HEAD")
+    if not _is_ancestor(candidate_sha, head):
+        raise CandidateEvidenceError("FIX01 candidate is not an ancestor of the current work head")
+    later_paths = set(git("diff", "--name-only", candidate_sha, "HEAD").splitlines())
+    if not later_paths <= EVIDENCE_PATHS:
+        raise CandidateEvidenceError("commits above FIX01 candidate include non-evidence paths")
+    if not _status_paths() <= EVIDENCE_PATHS:
+        raise CandidateEvidenceError("candidate worktree contains changes outside the candidate-evidence sidecars")
+    tree = git("rev-parse", f"{candidate_sha}^{{tree}}")
+    return tree, branch
+
+
+def build_evidence(candidate_sha: str | None = None) -> dict[str, Any]:
+    candidate_sha = candidate_sha or git("rev-parse", "HEAD")
+    candidate_tree, branch = _validate_candidate_context(candidate_sha)
 
     matrix = load_json(ROOT / MATRIX_PATH)
     qualification = load_json(ROOT / QUALIFICATION_PATH)
@@ -73,11 +113,21 @@ def build_evidence() -> dict[str, Any]:
     schema = load_json(ROOT / CANDIDATE_SCHEMA_PATH)
     Draft202012Validator.check_schema(schema)
     Draft202012Validator.check_schema(qualification_schema)
-    validate_matrix(ROOT, matrix, matrix_schema)
+    summary = validate_matrix(ROOT, matrix, matrix_schema)
+    if render_report(matrix) != (ROOT / REPORT_PATH).read_text(encoding="utf-8"):
+        raise CandidateEvidenceError("checked-in human report differs from its deterministic KSA crosswalk rendering")
     qualification_errors = list(Draft202012Validator(qualification_schema).iter_errors(qualification))
     if qualification_errors:
         error = qualification_errors[0]
         raise CandidateEvidenceError(f"qualification schema failed at {list(error.absolute_path)}: {error.message}")
+    if (
+        qualification.get("project") != "k-slide"
+        or qualification.get("operation") != "FIX"
+        or qualification.get("request") != "chg16-requirement-traceability-01-fix01"
+        or qualification.get("work_branch") != WORK_BRANCH
+        or qualification.get("predecessor_work_head") != PREDECESSOR_WORK_HEAD
+    ):
+        raise CandidateEvidenceError("qualification record is not bound to this FIX01 request and predecessor")
     if matrix["product_subject"]["commit_sha"] != PRODUCT_SUBJECT_SHA:
         raise CandidateEvidenceError("matrix product subject does not match the immutable product subject")
     if matrix["change_span"]["change_base_sha"] != CHANGE_BASE_SHA:
@@ -89,12 +139,13 @@ def build_evidence() -> dict[str, Any]:
     ):
         raise CandidateEvidenceError("qualification record has missing or failed checks")
 
-    summary = matrix["summary"]
     coverage = {
         "trace_rows": summary["trace_rows"],
         "canonical_clauses": summary["canonical_clause_coverage"]["covered_clauses"],
         "contract_families": len(summary["rows_by_contract_family"]),
         "ksa_items": summary["ksa_coverage"]["covered_items"],
+        "ksa_clause_mappings": summary["ksa_clause_crosswalk"]["covered_links"],
+        "ksa_mapping_state_counts": summary["ksa_clause_crosswalk"]["mappings_by_implementation_state"],
         "ownership_counts": summary["rows_by_ownership"],
         "implementation_state_counts": summary["rows_by_implementation_state"],
         "closure_state_counts": summary["project_os_ksa_items_by_closure_state"],
@@ -112,32 +163,40 @@ def build_evidence() -> dict[str, Any]:
     }
     evidence = {
         "schema_version": "1.0",
-        "evidence_type": "k-slide-ksa38-candidate-evidence",
+        "evidence_type": "k-slide-ksa38-fix01-candidate-evidence",
         "project": "k-slide",
         "issue_id": "CHG-16",
-        "operation": "BUILD",
-        "request": "chg16-requirement-traceability-01",
+        "operation": "FIX",
+        "request": "chg16-requirement-traceability-01-fix01",
         "exact_base": {
             "commit_sha": PRODUCT_SUBJECT_SHA,
             "tree_oid": matrix["product_subject"]["tree_oid"],
         },
-        "work_branch": WORK_BRANCH,
+        "work_branch": branch,
         "product_subject_sha": PRODUCT_SUBJECT_SHA,
         "change_base_sha": CHANGE_BASE_SHA,
+        "predecessor_lineage": {
+            "work_head": PREDECESSOR_WORK_HEAD,
+            "traceability_product_commit": PREDECESSOR_PRODUCT_COMMIT,
+            "native_evidence_commit": PREDECESSOR_EVIDENCE_COMMIT,
+            "native_build_job_id": PREDECESSOR_BUILD_JOB_ID,
+        },
         "artifacts": {
             "matrix": {"path": MATRIX_PATH.as_posix(), "sha256": sha256(MATRIX_PATH), "version": matrix["matrix_version"]},
             "matrix_schema": {"path": MATRIX_SCHEMA_PATH.as_posix(), "sha256": sha256(MATRIX_SCHEMA_PATH), "version": matrix["schema_version"]},
             "candidate_evidence_schema": {"path": CANDIDATE_SCHEMA_PATH.as_posix(), "sha256": sha256(CANDIDATE_SCHEMA_PATH), "version": "1.0"},
             "qualification_manifest": {"path": QUALIFICATION_PATH.as_posix(), "sha256": sha256(QUALIFICATION_PATH), "version": qualification["schema_version"]},
             "qualification_schema": {"path": QUALIFICATION_SCHEMA_PATH.as_posix(), "sha256": sha256(QUALIFICATION_SCHEMA_PATH), "version": qualification["schema_version"]},
+            "scope_registry": {"path": SCOPE_REGISTRY_PATH.as_posix(), "sha256": sha256(SCOPE_REGISTRY_PATH), "version": "1.0"},
+            "human_report": {"path": REPORT_PATH.as_posix(), "sha256": sha256(REPORT_PATH), "version": matrix["matrix_version"]},
         },
         "project_os_closure_snapshot": matrix["project_os_closure_snapshot"],
         "coverage": coverage,
         "qualification_checks": qualification["checks"],
         "candidate_binding": {
-            "commit_sha": head,
-            "tree_oid": tree,
-            "parent_sha": parent,
+            "commit_sha": candidate_sha,
+            "tree_oid": candidate_tree,
+            "parent_sha": CANDIDATE_PARENT,
             "work_branch": branch,
             "worktree_clean_at_product_candidate": True,
         },
@@ -163,36 +222,44 @@ def build_evidence() -> dict[str, Any]:
     return evidence
 
 
-def validate_evidence(evidence: dict[str, Any]) -> None:
+def validate_evidence(evidence: dict[str, Any], audit: dict[str, Any]) -> None:
     schema = load_json(ROOT / CANDIDATE_SCHEMA_PATH)
     Draft202012Validator.check_schema(schema)
-    errors = list(Draft202012Validator(schema).iter_errors(evidence))
-    if errors:
-        error = errors[0]
-        raise CandidateEvidenceError(f"candidate evidence schema failed at {list(error.absolute_path)}: {error.message}")
-    expected = build_evidence()
+    for candidate_document in (evidence, audit):
+        errors = list(Draft202012Validator(schema).iter_errors(candidate_document))
+        if errors:
+            error = errors[0]
+            raise CandidateEvidenceError(f"candidate evidence schema failed at {list(error.absolute_path)}: {error.message}")
+    if audit != evidence:
+        raise CandidateEvidenceError("conventional audit.json differs from dedicated KSA-38 candidate evidence")
+    expected = build_evidence(evidence["candidate_binding"]["commit_sha"])
     if evidence != expected:
-        raise CandidateEvidenceError("candidate evidence differs from rederived matrix hashes, Git identity, closure, coverage, or check data")
+        raise CandidateEvidenceError("candidate evidence differs from rederived FIX01 candidate, hashes, lineage, coverage, or observed checks")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ROOT / OUTPUT_PATH)
+    parser.add_argument("--audit-output", type=Path, default=ROOT / AUDIT_PATH)
     parser.add_argument("--validate", action="store_true")
     args = parser.parse_args()
     try:
         if args.validate:
             evidence = load_json(args.output)
-            validate_evidence(evidence)
-            print("KSA-38 candidate evidence PASS: candidate SHA/tree and artifact hashes rederived; Fabric job ID remains unset.")
+            audit = load_json(args.audit_output)
+            validate_evidence(evidence, audit)
+            print("KSA-38 FIX01 candidate evidence PASS: candidate SHA/tree, predecessor lineage, artifact hashes, and null current Fabric job identity rederived.")
         else:
             evidence = build_evidence()
+            rendered = json.dumps(evidence, ensure_ascii=False, indent=2) + "\n"
             args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-            print(f"Wrote candidate-side evidence to {args.output.relative_to(ROOT)}; Fabric job ID remains unset.")
+            args.audit_output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(rendered, encoding="utf-8")
+            args.audit_output.write_text(rendered, encoding="utf-8")
+            print(f"Wrote FIX01 candidate evidence to {args.output.relative_to(ROOT)} and {args.audit_output.relative_to(ROOT)}; current Fabric job ID remains unset.")
         return 0
-    except (CandidateEvidenceError, OSError) as exc:
-        print(f"KSA-38 candidate evidence FAIL: {exc}", file=sys.stderr)
+    except (CandidateEvidenceError, TraceabilityError, OSError, KeyError) as exc:
+        print(f"KSA-38 FIX01 candidate evidence FAIL: {exc}", file=sys.stderr)
         return 1
 
 

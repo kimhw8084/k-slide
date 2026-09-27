@@ -14,7 +14,9 @@ sys.path.insert(0, str(ROOT / "tools/ksa38"))
 
 from traceability import (  # noqa: E402
     EXPECTED_FAMILIES,
+    EXPECTED_KSA_CLAUSES,
     EXPECTED_KSA_CLOSURE,
+    EXPECTED_OPEN_REPOSITORY_KSAS,
     TraceabilityError,
     load_json,
     render_report,
@@ -51,13 +53,77 @@ class KSA38TraceabilityTests(unittest.TestCase):
         self.assertEqual(actual, {key: list(value) for key, value in EXPECTED_FAMILIES.items()})
         linked = {ksa for row in self.matrix["trace_rows"] for ksa in row["linked_ksa_items"]}
         self.assertEqual(linked, set(EXPECTED_KSA_CLOSURE))
+        actual_crosswalk = {
+            item["ksa_id"]: tuple((link["family_id"], link["clause_id"]) for link in item["mappings"])
+            for item in self.matrix["ksa_scope_registry"]
+        }
+        self.assertEqual(actual_crosswalk, EXPECTED_KSA_CLAUSES)
+        self.check(copy.deepcopy(self.matrix))
 
-    def test_queued_item_can_have_implementation_without_closure_promotion(self) -> None:
+    def test_queued_item_with_open_repository_scope_is_not_fully_implemented(self) -> None:
         row = next(row for row in self.matrix["trace_rows"] if "KSA-04" in row["linked_ksa_items"])
-        self.assertEqual(row["implementation_state"], "IMPLEMENTED")
+        self.assertEqual(row["implementation_state"], "PARTIAL")
+        self.assertIn("OPEN_REPOSITORY_REQUIREMENT", row["gap_classification"])
+        scope = next(item for item in self.matrix["ksa_scope_registry"] if item["ksa_id"] == "KSA-04")
+        self.assertTrue(scope["repository_requirement_open"])
+        self.assertEqual(scope["mappings"][0]["implementation_state"], "PARTIAL")
         closure = next(link for link in row["project_os_closure"] if link["ksa_id"] == "KSA-04")
         self.assertEqual(closure["state"], "QUEUED")
         self.check(copy.deepcopy(self.matrix))
+
+    def _row(self, matrix: dict, clause: str) -> dict:
+        return next(row for row in matrix["trace_rows"] if clause in row["clause_ids"])
+
+    def _set_row_ksas(self, matrix: dict, row: dict, ksa_ids: set[str]) -> None:
+        row["linked_ksa_items"] = sorted(ksa_ids)
+        row["project_os_closure"] = [
+            {"ksa_id": ksa, "state": EXPECTED_KSA_CLOSURE[ksa]}
+            for ksa in sorted(ksa_ids)
+        ]
+
+    def test_ksa04_cannot_be_satisfied_by_immutable_source_clause(self) -> None:
+        invalid = copy.deepcopy(self.matrix)
+        host = self._row(invalid, "employee_workflow_host_parity_native_invocation")
+        source = self._row(invalid, "immutable_source_multifile_evidence_boundaries")
+        self._set_row_ksas(invalid, host, set(host["linked_ksa_items"]) - {"KSA-04"})
+        self._set_row_ksas(invalid, source, set(source["linked_ksa_items"]) | {"KSA-04"})
+        with self.assertRaisesRegex(TraceabilityError, "semantic KSA crosswalk mismatch"):
+            self.check(invalid)
+
+    def test_ksa05_is_required_on_decision_view_clause(self) -> None:
+        invalid = copy.deepcopy(self.matrix)
+        decision = self._row(invalid, "decision_view_reconstruction_review_disclosure_evidence_drilldown")
+        source = self._row(invalid, "immutable_source_multifile_evidence_boundaries")
+        self._set_row_ksas(invalid, decision, {"KSA-19"})
+        self._set_row_ksas(invalid, source, set(source["linked_ksa_items"]) | {"KSA-05"})
+        with self.assertRaisesRegex(TraceabilityError, "semantic KSA crosswalk mismatch"):
+            self.check(invalid)
+
+    def test_unrelated_ksa_cannot_be_inserted_to_keep_id_set_coverage_green(self) -> None:
+        invalid = copy.deepcopy(self.matrix)
+        host = self._row(invalid, "employee_workflow_host_parity_native_invocation")
+        self._set_row_ksas(invalid, host, set(host["linked_ksa_items"]) | {"KSA-19"})
+        with self.assertRaisesRegex(TraceabilityError, "semantic KSA crosswalk mismatch"):
+            self.check(invalid)
+
+    def test_correct_closure_snapshot_does_not_substitute_for_a_required_clause_link(self) -> None:
+        invalid = copy.deepcopy(self.matrix)
+        host = self._row(invalid, "employee_workflow_host_parity_native_invocation")
+        self._set_row_ksas(invalid, host, set(host["linked_ksa_items"]) - {"KSA-04"})
+        self.assertEqual(
+            next(item["state"] for item in invalid["project_os_closure_snapshot"]["items"] if item["ksa_id"] == "KSA-04"),
+            "QUEUED",
+        )
+        with self.assertRaisesRegex(TraceabilityError, "semantic KSA crosswalk mismatch"):
+            self.check(invalid)
+
+    def test_open_queued_scope_cannot_be_marked_fully_implemented(self) -> None:
+        self.assertIn("KSA-04", EXPECTED_OPEN_REPOSITORY_KSAS)
+        invalid = copy.deepcopy(self.matrix)
+        row = self._row(invalid, "employee_workflow_host_parity_native_invocation")
+        row["implementation_state"] = "IMPLEMENTED"
+        with self.assertRaisesRegex(TraceabilityError, "falsely marked fully implemented"):
+            self.check(invalid)
 
     def test_schema_rejects_open_enums_and_unrecognized_fields(self) -> None:
         invalid = copy.deepcopy(self.matrix)
@@ -95,7 +161,7 @@ class KSA38TraceabilityTests(unittest.TestCase):
     def test_project_os_snapshot_cannot_be_changed_by_code_presence(self) -> None:
         invalid = copy.deepcopy(self.matrix)
         invalid["project_os_closure_snapshot"]["items"][3]["state"] = "DONE_INTEGRATED"
-        with self.assertRaisesRegex(TraceabilityError, "differs from the supplied authoritative state"):
+        with self.assertRaisesRegex(TraceabilityError, "differs from the binding-time Project OS state"):
             self.check(invalid)
         invalid = copy.deepcopy(self.matrix)
         row = next(row for row in invalid["trace_rows"] if "KSA-04" in row["linked_ksa_items"])
@@ -157,6 +223,13 @@ class KSA38TraceabilityTests(unittest.TestCase):
         report = render_report(self.matrix)
         self.assertIn("## Open repository and reconciliation work", report)
         self.assertIn("## External production gates", report)
+        self.assertIn("## Closed KSA semantic crosswalk", report)
+        self.assertIn("KSA-04` | first-class Cloud VS Code adapter", report)
+        self.assertIn("KSA-05` | Decision View", report)
+        self.assertIn("OPEN_REPOSITORY_REQUIREMENT", report)
+        self.assertIn("OPEN_EXTERNAL_PRODUCTION_GATE", report)
+        self.assertIn("Project OS KSA-04 owner", report)
+        self.assertIn("`KSA-02` | canonical host-adapter contract and one normal employee workflow | `ROUND_1/employee_workflow_host_parity_native_invocation` (KSA38-TR-001): KSA-02 requires the canonical host adapter to expose one normal employee workflow. | `IMPLEMENTED` | `DONE_INTEGRATED` | None recorded", report)
         self.assertIn("ACTIVE_VERIFY_REQUIRED", report)
         self.assertIn("QUEUED", report)
 

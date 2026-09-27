@@ -16,6 +16,8 @@ from jsonschema import Draft202012Validator
 
 PRODUCT_SUBJECT_SHA = "23669bacb0392aecc009ae19c7b8c645f1d8c7dd"
 CHANGE_BASE_SHA = "af5836540304b424289bedbe57a87dbb5d02763f"
+KSA_SCOPE_REGISTRY_PATH = "traceability/ksa38/ksa-scope-registry.v1.json"
+PROJECT_OS_SNAPSHOT_PROVENANCE = "PROJECT_OS_BOUND_DISPATCH_SNAPSHOT"
 EXPECTED_COMMIT_COUNT = 152
 EXPECTED_CHANGED_PATH_COUNT = 229
 
@@ -84,6 +86,47 @@ EXPECTED_KSA_CLOSURE: dict[str, str] = {
         for n in (4, 5, 8, 9, 10, 11, 12, *range(21, 32))
     },
 }
+
+EXPECTED_KSA_CLAUSES: dict[str, tuple[tuple[str, str], ...]] = {
+    "KSA-01": (("ROUND_2", "durable_resumable_jobs_checkpoint_retry_cancel"),),
+    "KSA-02": (("ROUND_1", "employee_workflow_host_parity_native_invocation"),),
+    "KSA-03": (("ROUND_1", "employee_workflow_host_parity_native_invocation"), ("ROUND_1", "immutable_source_multifile_evidence_boundaries")),
+    "KSA-04": (("ROUND_1", "employee_workflow_host_parity_native_invocation"),),
+    "KSA-05": (("ROUND_1", "employee_workflow_host_parity_native_invocation"), ("ROUND_1", "decision_view_reconstruction_review_disclosure_evidence_drilldown")),
+    "KSA-06": (("ROUND_2", "durable_resumable_jobs_checkpoint_retry_cancel"),),
+    "KSA-07": (("ROUND_2", "pinned_runtime_exact_production_model_no_fallback"), ("ROUND_7", "external_production_qualification_gates")),
+    "KSA-08": (("ROUND_2", "durable_resumable_jobs_checkpoint_retry_cancel"), ("ROUND_7", "external_production_qualification_gates")),
+    "KSA-09": (("ROUND_2", "scoped_persistence_queue_concurrency"), ("ROUND_7", "external_production_qualification_gates")),
+    "KSA-10": (("ROUND_2", "exact_run_runtime_model_ocr_termbase_identity"), ("ROUND_7", "external_production_qualification_gates")),
+    "KSA-11": (("ROUND_3", "three_class_storage"),),
+    "KSA-12": (("ROUND_3", "content_vs_operational_retention"),),
+    "KSA-13": (("ROUND_3", "deletion_expiry_legal_hold"),),
+    "KSA-14": (("ROUND_4", "accesskey_consumption_nonleakage"), ("ROUND_7", "external_production_qualification_gates")),
+    "KSA-15": (("ROUND_4", "accesskey_consumption_nonleakage"),),
+    "KSA-16": (("ROUND_4", "authoritative_classification"), ("ROUND_7", "external_production_qualification_gates")),
+    "KSA-17": (("ROUND_4", "run_scoped_authorization_tenant_isolation"), ("ROUND_7", "external_production_qualification_gates")),
+    "KSA-18": (("ROUND_4", "default_deny_egress"), ("ROUND_7", "external_production_qualification_gates")),
+    "KSA-19": (("ROUND_4", "governed_termbase"), ("ROUND_7", "external_production_qualification_gates")),
+    "KSA-20": (("ROUND_4", "controlled_content_support"), ("ROUND_7", "external_production_qualification_gates")),
+    "KSA-21": (("ROUND_4", "adversarial_security_prompt_injection"), ("ROUND_7", "external_production_qualification_gates")),
+    "KSA-22": (("ROUND_5", "source_fact_interpretation_unresolved_provenance"),),
+    "KSA-23": (("ROUND_5", "conflict_supersession"),),
+    "KSA-24": (("ROUND_5", "mixed_language_table_chart_diagram_modality_fidelity"),),
+    "KSA-25": (("ROUND_5", "unreadable_decorative_cross_document_recovery_law"),),
+    "KSA-26": (("ROUND_6", "four_set_corpus_governance"),),
+    "KSA-27": (("ROUND_6", "hard_gates_floors_repetition_false_done"),),
+    "KSA-28": (("ROUND_6", "hard_gates_floors_repetition_false_done"),),
+    "KSA-29": (("ROUND_6", "bilingual_gold_adjudication"), ("ROUND_7", "external_production_qualification_gates")),
+    "KSA-30": (("ROUND_6", "zero_korean_study"), ("ROUND_7", "external_production_qualification_gates")),
+    "KSA-31": (("ROUND_6", "champion_promotion_scoped_recertification_invalidation"), ("ROUND_7", "external_production_qualification_gates")),
+    "KSA-32": (("ROUND_7", "protected_release_governance"), ("ROUND_7", "external_production_qualification_gates"), ("ROUND_8", "build_completion_traceability_regression_audit_blocker_boundary"), ("ROUND_8", "build_complete_separate_from_production_certified")),
+    "KSA-33": (("ROUND_7", "candidate_bound_security_evidence"), ("ROUND_7", "external_production_qualification_gates"), ("ROUND_8", "build_completion_traceability_regression_audit_blocker_boundary"), ("ROUND_8", "build_complete_separate_from_production_certified")),
+    "KSA-34": (("ROUND_7", "rollout_pilot_canary_controls"), ("ROUND_7", "external_production_qualification_gates"), ("ROUND_8", "build_completion_traceability_regression_audit_blocker_boundary"), ("ROUND_8", "build_complete_separate_from_production_certified")),
+    "KSA-35": (("ROUND_7", "noncontent_telemetry_issue_reporting"), ("ROUND_7", "external_production_qualification_gates"), ("ROUND_8", "build_completion_traceability_regression_audit_blocker_boundary"), ("ROUND_8", "build_complete_separate_from_production_certified")),
+    "KSA-36": (("ROUND_7", "performance_load_budgets"), ("ROUND_7", "external_production_qualification_gates"), ("ROUND_8", "build_completion_traceability_regression_audit_blocker_boundary"), ("ROUND_8", "build_complete_separate_from_production_certified")),
+    "KSA-37": (("ROUND_7", "revocation_kill_switch_drift_response"), ("ROUND_7", "external_production_qualification_gates"), ("ROUND_8", "build_completion_traceability_regression_audit_blocker_boundary"), ("ROUND_8", "build_complete_separate_from_production_certified")),
+}
+EXPECTED_OPEN_REPOSITORY_KSAS = {"KSA-04", "KSA-05"}
 
 GAP_CATEGORIES = {
     "OPEN_REPOSITORY_REQUIREMENT",
@@ -225,6 +268,14 @@ def compute_summary(matrix: dict[str, Any]) -> dict[str, Any]:
         for clause in row["clause_ids"]
     }
     required_clause_count = sum(len(items) for items in EXPECTED_FAMILIES.values())
+    crosswalk_link_count = sum(
+        len(item["mappings"]) for item in matrix["ksa_scope_registry"]
+    )
+    mapping_states = [
+        mapping["implementation_state"]
+        for item in matrix["ksa_scope_registry"]
+        for mapping in item["mappings"]
+    ]
     return {
         "trace_rows": len(rows),
         "rows_by_contract_family": _count_values(
@@ -257,6 +308,12 @@ def compute_summary(matrix: dict[str, Any]) -> dict[str, Any]:
                 for clause in clauses
                 if (family, clause) not in clause_links
             ],
+        },
+        "ksa_clause_crosswalk": {
+            "required_links": sum(len(links) for links in EXPECTED_KSA_CLAUSES.values()),
+            "covered_links": crosswalk_link_count,
+            "missing_links": [],
+            "mappings_by_implementation_state": _count_values(mapping_states, implementation_states),
         },
         "changed_path_coverage": {
             "expected_paths": len(path_rows),
@@ -324,10 +381,41 @@ def validate_matrix(
 
     snapshot = matrix["project_os_closure_snapshot"]
     snapshot_map = {item["ksa_id"]: item["state"] for item in snapshot["items"]}
-    if snapshot["authority"] != "USER_SUPPLIED_AUTHORITATIVE_SNAPSHOT":
-        raise TraceabilityError("Project OS closure snapshot authority is not identified as user-supplied")
+    if snapshot["authority"] != PROJECT_OS_SNAPSHOT_PROVENANCE:
+        raise TraceabilityError("Project OS closure snapshot provenance is not the bound-dispatch snapshot")
     if snapshot_map != EXPECTED_KSA_CLOSURE:
-        raise TraceabilityError("Project OS closure snapshot differs from the supplied authoritative state")
+        raise TraceabilityError("Project OS closure snapshot differs from the binding-time Project OS state")
+    if matrix["evidence_provenance"]["closure_snapshot_source"] != PROJECT_OS_SNAPSHOT_PROVENANCE:
+        raise TraceabilityError("closure snapshot source is not identified as the bound-dispatch snapshot")
+
+    registry_doc = load_json(root / KSA_SCOPE_REGISTRY_PATH)
+    registry = matrix["ksa_scope_registry"]
+    if registry_doc.get("authority") != "PROJECT_OS_BOUND_DISPATCH" or registry_doc.get("items") != registry:
+        raise TraceabilityError("matrix KSA scope registry differs from the checked-in Project OS crosswalk")
+    registry_by_id = {item["ksa_id"]: item for item in registry}
+    if len(registry_by_id) != len(registry) or set(registry_by_id) != set(EXPECTED_KSA_CLOSURE):
+        raise TraceabilityError("KSA scope registry must contain each KSA-01 through KSA-37 exactly once")
+    observed_crosswalk: dict[str, tuple[tuple[str, str], ...]] = {}
+    expected_ksas_by_clause: dict[tuple[str, str], set[str]] = {}
+    for ksa_id, item in registry_by_id.items():
+        mappings = item["mappings"]
+        pairs = tuple((mapping["family_id"], mapping["clause_id"]) for mapping in mappings)
+        if pairs != EXPECTED_KSA_CLAUSES[ksa_id]:
+            raise TraceabilityError(f"{ksa_id} semantic crosswalk does not match its closed canonical scope")
+        if item["repository_requirement_open"] != (ksa_id in EXPECTED_OPEN_REPOSITORY_KSAS):
+            raise TraceabilityError(f"{ksa_id} repository-scope status differs from the closed Project OS registry")
+        if item["repository_requirement_open"] and not item["future_project_os_owner"]:
+            raise TraceabilityError(f"{ksa_id} open repository scope has no future Project OS owner")
+        if item["repository_requirement_open"] and any(
+            mapping["implementation_state"] in {"IMPLEMENTED", "REUSED_UNCHANGED"}
+            for mapping in mappings
+        ):
+            raise TraceabilityError(f"{ksa_id} queued scope is falsely marked fully implemented in its semantic crosswalk")
+        observed_crosswalk[ksa_id] = pairs
+        for family, clause in pairs:
+            expected_ksas_by_clause.setdefault((family, clause), set()).add(ksa_id)
+    if set(observed_crosswalk) != set(EXPECTED_KSA_CLAUSES):
+        raise TraceabilityError("semantic KSA crosswalk does not cover the closed KSA registry")
 
     canonical_families = {
         item["family_id"]: item["canonical_clause_ids"]
@@ -361,8 +449,35 @@ def validate_matrix(
             if pair in seen_clause_pairs:
                 raise TraceabilityError(f"canonical contract clause is multiply assigned: {pair}")
             seen_clause_pairs.add(pair)
+        expected_linked = set().union(*(
+            expected_ksas_by_clause[(row["contract_family"], clause)]
+            for clause in row["clause_ids"]
+        ))
+        actual_linked = set(row["linked_ksa_items"])
+        if actual_linked != expected_linked:
+            raise TraceabilityError(
+                f"{row['trace_id']} semantic KSA crosswalk mismatch; "
+                f"expected={sorted(expected_linked)}, actual={sorted(actual_linked)}"
+            )
         for linked_id in row["linked_ksa_items"]:
             seen_ksa_ids.add(linked_id)
+        if row["gap_classification"] and not row["next_owner"]:
+            raise TraceabilityError(f"{row['trace_id']} has an open gap without a next owner")
+        open_repository_links = actual_linked & EXPECTED_OPEN_REPOSITORY_KSAS
+        if open_repository_links:
+            if row["implementation_state"] not in {"PARTIAL", "NOT_IMPLEMENTED"}:
+                raise TraceabilityError(
+                    f"queued KSA scope {sorted(open_repository_links)} is falsely marked fully implemented in {row['trace_id']}"
+                )
+            required_gaps = {"OPEN_REPOSITORY_REQUIREMENT", "OPEN_PROJECT_OS_RECONCILIATION"}
+            if not required_gaps <= set(row["gap_classification"]):
+                raise TraceabilityError(
+                    f"open KSA repository scope in {row['trace_id']} lacks repository and Project OS gap classifications"
+                )
+            for ksa_id in open_repository_links:
+                owner = registry_by_id[ksa_id]["future_project_os_owner"]
+                if not row["next_owner"] or ksa_id not in row["next_owner"] or "Project OS" not in row["next_owner"] or ksa_id not in owner:
+                    raise TraceabilityError(f"open {ksa_id} scope in {row['trace_id']} lacks its future Project OS owner")
         closure_links = {link["ksa_id"]: link["state"] for link in row["project_os_closure"]}
         if set(closure_links) != set(row["linked_ksa_items"]):
             raise TraceabilityError(f"{row['trace_id']} closure links do not match its KSA links")
@@ -411,9 +526,10 @@ def validate_matrix(
     if seen_clause_pairs != expected_clause_pairs:
         missing = sorted(expected_clause_pairs - seen_clause_pairs)
         raise TraceabilityError(f"canonical contract clause family coverage is incomplete: {missing}")
-    missing_ksa = sorted(set(EXPECTED_KSA_CLOSURE) - seen_ksa_ids)
-    if missing_ksa:
-        raise TraceabilityError(f"KSA-01 through KSA-37 coverage is incomplete: {missing_ksa}")
+    if seen_ksa_ids != set(EXPECTED_KSA_CLOSURE):
+        missing_ksa = sorted(set(EXPECTED_KSA_CLOSURE) - seen_ksa_ids)
+        extra_ksa = sorted(seen_ksa_ids - set(EXPECTED_KSA_CLOSURE))
+        raise TraceabilityError(f"KSA-01 through KSA-37 semantic crosswalk coverage mismatch: missing={missing_ksa}, extra={extra_ksa}")
 
     path_rows = change["changed_path_coverage"]
     coverage_paths = [item["path"] for item in path_rows]
@@ -506,7 +622,7 @@ def render_report(matrix: dict[str, Any]) -> str:
         f"CHG-16 change base: `{matrix['change_span']['change_base_sha']}`",
         f"Span: {matrix['change_span']['commit_count']} commits, {matrix['change_span']['changed_path_count']} changed paths.",
         "",
-        "This report maps the immutable product subject to the supplied Project OS closure snapshot. Code presence and Project OS closure are recorded independently. Repository tests do not establish company or production qualification.",
+        "This report maps the immutable product subject to the binding-time Project OS closure snapshot carried in the accepted dispatch. Code presence and Project OS closure are recorded independently. Repository tests do not establish company or production qualification.",
         "",
         "## Coverage summary",
         "",
@@ -523,6 +639,63 @@ def render_report(matrix: dict[str, Any]) -> str:
     ]
     for state, count in summary["project_os_ksa_items_by_closure_state"].items():
         lines.append(f"| `{state}` | {count} |")
+    lines.extend([
+        "",
+        "## Closed KSA semantic crosswalk",
+        "",
+        "Each KSA scope below is linked only to its reviewed canonical clause set. The rationale is bounded registry data. Implementation state describes repository evidence; Project OS closure remains the binding-time state above.",
+        "",
+        "| KSA | Project OS scope | Mapped canonical clause(s) and rationale | Implementation state | Project OS closure | Open repository gap | External gate | Next owner |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    ])
+    rows_by_pair = {
+        (row["contract_family"], clause): row
+        for row in matrix["trace_rows"]
+        for clause in row["clause_ids"]
+    }
+    closure_by_ksa = {
+        item["ksa_id"]: item["state"]
+        for item in matrix["project_os_closure_snapshot"]["items"]
+    }
+    for item in matrix["ksa_scope_registry"]:
+        ksa_id = item["ksa_id"]
+        mapped_rows = [
+            (mapping, rows_by_pair[(mapping["family_id"], mapping["clause_id"])])
+            for mapping in item["mappings"]
+        ]
+        mapped_labels = "<br>".join(
+            f"`{mapping['family_id']}/{mapping['clause_id']}` ({row['trace_id']}): {mapping['mapping_rationale']}"
+            for mapping, row in mapped_rows
+        )
+        states = ", ".join(sorted({mapping["implementation_state"] for mapping, _ in mapped_rows}))
+        repository_gaps = [row for _, row in mapped_rows] if item["repository_requirement_open"] else []
+        repository_gap = "<br>".join(
+            f"`OPEN_REPOSITORY_REQUIREMENT` ({row['trace_id']}): {row['requirement_summary']}"
+            for row in repository_gaps
+        ) or "None recorded"
+        explicit_external_gates = [
+            row for mapping, row in mapped_rows
+            if mapping["clause_id"] == "external_production_qualification_gates"
+            and "OPEN_EXTERNAL_PRODUCTION_GATE" in row["gap_classification"]
+        ]
+        external_gates = explicit_external_gates or [
+            row for _, row in mapped_rows
+            if "OPEN_EXTERNAL_PRODUCTION_GATE" in row["gap_classification"]
+        ]
+        external_gate = ", ".join(
+            f"`OPEN_EXTERNAL_PRODUCTION_GATE` ({row['trace_id']})"
+            for row in external_gates
+        ) or "None mapped"
+        owners = []
+        if item["repository_requirement_open"] and item["future_project_os_owner"]:
+            owners.append(item["future_project_os_owner"])
+        owners.extend(row["next_owner"] for row in external_gates if row["next_owner"])
+        if closure_by_ksa[ksa_id] in {"ACTIVE", "ACTIVE_VERIFY_REQUIRED", "QUEUED"} and not item["repository_requirement_open"]:
+            owners.append(f"Project OS {ksa_id} owner to reconcile this scope with the accepted binding-time state.")
+        next_owner = "<br>".join(dict.fromkeys(owners)) or "None recorded"
+        lines.append(
+            f"| `{ksa_id}` | {item['scope']} | {mapped_labels} | `{states}` | `{closure_by_ksa[ksa_id]}` | {repository_gap} | {external_gate} | {next_owner} |"
+        )
     lines.extend(["", "### Rows by implementation state", "", "| State | Rows |", "| --- | ---: |"])
     for state, count in summary["rows_by_implementation_state"].items():
         lines.append(f"| `{state}` | {count} |")

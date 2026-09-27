@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://k-slide.invalid/schemas/ksa38-candidate-evidence-v1.schema.json",
-  "title": "K-Slide KSA-38 Candidate Evidence",
+  "title": "K-Slide KSA-38 FIX01 Candidate Evidence",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -15,6 +15,7 @@
     "work_branch",
     "product_subject_sha",
     "change_base_sha",
+    "predecessor_lineage",
     "artifacts",
     "project_os_closure_snapshot",
     "coverage",
@@ -25,69 +26,162 @@
     "scope_boundary"
   ],
   "properties": {
-    "schema_version": { "const": "1.0" },
-    "evidence_type": { "const": "k-slide-ksa38-candidate-evidence" },
-    "project": { "const": "k-slide" },
-    "issue_id": { "const": "CHG-16" },
-    "operation": { "const": "BUILD" },
-    "request": { "const": "chg16-requirement-traceability-01" },
-    "exact_base": { "$ref": "#/$defs/subject" },
-    "work_branch": { "const": "codex/k-slide-chg16-requirement-traceability-01" },
-    "product_subject_sha": { "$ref": "#/$defs/sha1" },
-    "change_base_sha": { "$ref": "#/$defs/sha1" },
-    "artifacts": { "$ref": "#/$defs/artifacts" },
-    "project_os_closure_snapshot": { "$ref": "#/$defs/closureSnapshot" },
-    "coverage": { "$ref": "#/$defs/coverage" },
+    "schema_version": {
+      "const": "1.0"
+    },
+    "evidence_type": {
+      "const": "k-slide-ksa38-fix01-candidate-evidence"
+    },
+    "project": {
+      "const": "k-slide"
+    },
+    "issue_id": {
+      "const": "CHG-16"
+    },
+    "operation": {
+      "const": "FIX"
+    },
+    "request": {
+      "const": "chg16-requirement-traceability-01-fix01"
+    },
+    "exact_base": {
+      "$ref": "#/$defs/subject"
+    },
+    "work_branch": {
+      "const": "codex/k-slide-chg16-requirement-traceability-01-fix01"
+    },
+    "product_subject_sha": {
+      "$ref": "#/$defs/sha1"
+    },
+    "change_base_sha": {
+      "$ref": "#/$defs/sha1"
+    },
+    "artifacts": {
+      "$ref": "#/$defs/artifacts"
+    },
+    "project_os_closure_snapshot": {
+      "$ref": "#/$defs/closureSnapshot"
+    },
+    "coverage": {
+      "$ref": "#/$defs/coverage"
+    },
     "qualification_checks": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/qualificationCheck" }
+      "items": {
+        "$ref": "#/$defs/qualificationCheck"
+      }
     },
-    "candidate_binding": { "$ref": "#/$defs/candidateBinding" },
-    "current_execution_identity": { "type": "null" },
-    "fabric_execution_identity": { "$ref": "#/$defs/fabricIdentity" },
-    "scope_boundary": { "$ref": "#/$defs/scopeBoundary" }
+    "candidate_binding": {
+      "$ref": "#/$defs/candidateBinding"
+    },
+    "current_execution_identity": {
+      "type": "null"
+    },
+    "fabric_execution_identity": {
+      "$ref": "#/$defs/fabricIdentity"
+    },
+    "scope_boundary": {
+      "$ref": "#/$defs/scopeBoundary"
+    },
+    "predecessor_lineage": {
+      "$ref": "#/$defs/predecessorLineage"
+    }
   },
   "$defs": {
-    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
-    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "subject": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["commit_sha", "tree_oid"],
+      "required": [
+        "commit_sha",
+        "tree_oid"
+      ],
       "properties": {
-        "commit_sha": { "const": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd" },
-        "tree_oid": { "$ref": "#/$defs/sha1" }
+        "commit_sha": {
+          "const": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd"
+        },
+        "tree_oid": {
+          "$ref": "#/$defs/sha1"
+        }
       }
     },
     "artifact": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "sha256", "version"],
+      "required": [
+        "path",
+        "sha256",
+        "version"
+      ],
       "properties": {
-        "path": { "type": "string", "minLength": 1 },
-        "sha256": { "$ref": "#/$defs/sha256" },
-        "version": { "type": "string", "minLength": 1 }
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "artifacts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["matrix", "matrix_schema", "candidate_evidence_schema", "qualification_manifest", "qualification_schema"],
+      "required": [
+        "matrix",
+        "matrix_schema",
+        "candidate_evidence_schema",
+        "qualification_manifest",
+        "qualification_schema",
+        "scope_registry",
+        "human_report"
+      ],
       "properties": {
-        "matrix": { "$ref": "#/$defs/artifact" },
-        "matrix_schema": { "$ref": "#/$defs/artifact" },
-        "candidate_evidence_schema": { "$ref": "#/$defs/artifact" },
-        "qualification_manifest": { "$ref": "#/$defs/artifact" },
-        "qualification_schema": { "$ref": "#/$defs/artifact" }
+        "matrix": {
+          "$ref": "#/$defs/artifact"
+        },
+        "matrix_schema": {
+          "$ref": "#/$defs/artifact"
+        },
+        "candidate_evidence_schema": {
+          "$ref": "#/$defs/artifact"
+        },
+        "qualification_manifest": {
+          "$ref": "#/$defs/artifact"
+        },
+        "qualification_schema": {
+          "$ref": "#/$defs/artifact"
+        },
+        "scope_registry": {
+          "$ref": "#/$defs/artifact"
+        },
+        "human_report": {
+          "$ref": "#/$defs/artifact"
+        }
       }
     },
     "closureSnapshot": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["authority", "items"],
+      "required": [
+        "authority",
+        "items"
+      ],
       "properties": {
-        "authority": { "const": "USER_SUPPLIED_AUTHORITATIVE_SNAPSHOT" },
+        "authority": {
+          "const": "PROJECT_OS_BOUND_DISPATCH_SNAPSHOT"
+        },
         "items": {
           "type": "array",
           "minItems": 37,
@@ -95,92 +189,305 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["ksa_id", "state"],
+            "required": [
+              "ksa_id",
+              "state"
+            ],
             "properties": {
-              "ksa_id": { "type": "string", "pattern": "^KSA-(0[1-9]|[12][0-9]|3[0-7])$" },
-              "state": { "enum": ["DONE_INTEGRATED", "ACTIVE_VERIFY_REQUIRED", "ACTIVE", "QUEUED"] }
+              "ksa_id": {
+                "type": "string",
+                "pattern": "^KSA-(0[1-9]|[12][0-9]|3[0-7])$"
+              },
+              "state": {
+                "enum": [
+                  "DONE_INTEGRATED",
+                  "ACTIVE_VERIFY_REQUIRED",
+                  "ACTIVE",
+                  "QUEUED"
+                ]
+              }
             }
           }
         }
       }
     },
-    "countMap": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+    "countMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
     "coverage": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["trace_rows", "canonical_clauses", "contract_families", "ksa_items", "ownership_counts", "implementation_state_counts", "closure_state_counts", "gap_classification_counts", "changed_path_coverage"],
+      "required": [
+        "trace_rows",
+        "canonical_clauses",
+        "contract_families",
+        "ksa_items",
+        "ownership_counts",
+        "implementation_state_counts",
+        "closure_state_counts",
+        "gap_classification_counts",
+        "changed_path_coverage",
+        "ksa_clause_mappings",
+        "ksa_mapping_state_counts"
+      ],
       "properties": {
-        "trace_rows": { "type": "integer", "minimum": 1 },
-        "canonical_clauses": { "type": "integer", "minimum": 1 },
-        "contract_families": { "type": "integer", "minimum": 8, "maximum": 8 },
-        "ksa_items": { "type": "integer", "minimum": 37, "maximum": 37 },
-        "ownership_counts": { "$ref": "#/$defs/countMap" },
-        "implementation_state_counts": { "$ref": "#/$defs/countMap" },
-        "closure_state_counts": { "$ref": "#/$defs/countMap" },
-        "gap_classification_counts": { "$ref": "#/$defs/countMap" },
+        "trace_rows": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "canonical_clauses": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "contract_families": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 8
+        },
+        "ksa_items": {
+          "type": "integer",
+          "minimum": 37,
+          "maximum": 37
+        },
+        "ownership_counts": {
+          "$ref": "#/$defs/countMap"
+        },
+        "implementation_state_counts": {
+          "$ref": "#/$defs/countMap"
+        },
+        "closure_state_counts": {
+          "$ref": "#/$defs/countMap"
+        },
+        "gap_classification_counts": {
+          "$ref": "#/$defs/countMap"
+        },
         "changed_path_coverage": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["commit_count", "changed_paths", "requirement_referenced_paths", "closed_classification_paths", "historical_paths", "unexplained_paths"],
+          "required": [
+            "commit_count",
+            "changed_paths",
+            "requirement_referenced_paths",
+            "closed_classification_paths",
+            "historical_paths",
+            "unexplained_paths"
+          ],
           "properties": {
-            "commit_count": { "const": 152 },
-            "changed_paths": { "const": 229 },
-            "requirement_referenced_paths": { "type": "integer", "minimum": 0 },
-            "closed_classification_paths": { "type": "integer", "minimum": 0 },
-            "historical_paths": { "type": "integer", "minimum": 0 },
-            "unexplained_paths": { "const": 0 }
+            "commit_count": {
+              "const": 152
+            },
+            "changed_paths": {
+              "const": 229
+            },
+            "requirement_referenced_paths": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "closed_classification_paths": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "historical_paths": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unexplained_paths": {
+              "const": 0
+            }
           }
+        },
+        "ksa_clause_mappings": {
+          "type": "integer",
+          "minimum": 71
+        },
+        "ksa_mapping_state_counts": {
+          "$ref": "#/$defs/countMap"
         }
       }
     },
     "qualificationCheck": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "command", "python_version", "status", "tests_passed", "tests_skipped", "warnings", "details"],
+      "required": [
+        "name",
+        "command",
+        "python_version",
+        "status",
+        "tests_passed",
+        "tests_skipped",
+        "warnings",
+        "details"
+      ],
       "properties": {
-        "name": { "type": "string", "minLength": 1 },
-        "command": { "type": "string", "minLength": 1 },
-        "python_version": { "oneOf": [{ "type": "null" }, { "type": "string", "pattern": "^3\\.(11|12)\\.[0-9]+$" }] },
-        "status": { "enum": ["PASS", "NOT_REQUIRED"] },
-        "tests_passed": { "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 0 }] },
-        "tests_skipped": { "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 0 }] },
-        "warnings": { "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 0 }] },
-        "details": { "type": "string" }
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "python_version": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^3\\.(11|12)\\.[0-9]+$"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "NOT_REQUIRED"
+          ]
+        },
+        "tests_passed": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        },
+        "tests_skipped": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        },
+        "warnings": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        },
+        "details": {
+          "type": "string"
+        }
       }
     },
     "candidateBinding": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["commit_sha", "tree_oid", "parent_sha", "work_branch", "worktree_clean_at_product_candidate"],
+      "required": [
+        "commit_sha",
+        "tree_oid",
+        "parent_sha",
+        "work_branch",
+        "worktree_clean_at_product_candidate"
+      ],
       "properties": {
-        "commit_sha": { "$ref": "#/$defs/sha1" },
-        "tree_oid": { "$ref": "#/$defs/sha1" },
-        "parent_sha": { "const": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd" },
-        "work_branch": { "const": "codex/k-slide-chg16-requirement-traceability-01" },
-        "worktree_clean_at_product_candidate": { "const": true }
+        "commit_sha": {
+          "$ref": "#/$defs/sha1"
+        },
+        "tree_oid": {
+          "$ref": "#/$defs/sha1"
+        },
+        "parent_sha": {
+          "const": "99063af41106fb26d46f573c5fd0fb52a5352cf7"
+        },
+        "work_branch": {
+          "const": "codex/k-slide-chg16-requirement-traceability-01-fix01"
+        },
+        "worktree_clean_at_product_candidate": {
+          "const": true
+        }
       }
     },
     "fabricIdentity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["fabric_job_id", "owner", "status"],
+      "required": [
+        "fabric_job_id",
+        "owner",
+        "status"
+      ],
       "properties": {
-        "fabric_job_id": { "type": "null" },
-        "owner": { "const": "Fabric native publisher post-execution evidence" },
-        "status": { "const": "PENDING_POST_EXECUTION_PUBLICATION" }
+        "fabric_job_id": {
+          "type": "null"
+        },
+        "owner": {
+          "const": "Fabric native publisher post-execution evidence"
+        },
+        "status": {
+          "const": "PENDING_POST_EXECUTION_PUBLICATION"
+        }
       }
     },
     "scopeBoundary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["notion_mutated", "main_moved_or_merged", "live_company_infrastructure_mutated", "employee_private_pilot_or_canary_work_run", "go_champion_production_readiness_or_certification_claimed", "project_os_remains_independent_auditor"],
+      "required": [
+        "notion_mutated",
+        "main_moved_or_merged",
+        "live_company_infrastructure_mutated",
+        "employee_private_pilot_or_canary_work_run",
+        "go_champion_production_readiness_or_certification_claimed",
+        "project_os_remains_independent_auditor"
+      ],
       "properties": {
-        "notion_mutated": { "const": false },
-        "main_moved_or_merged": { "const": false },
-        "live_company_infrastructure_mutated": { "const": false },
-        "employee_private_pilot_or_canary_work_run": { "const": false },
-        "go_champion_production_readiness_or_certification_claimed": { "const": false },
-        "project_os_remains_independent_auditor": { "const": true }
+        "notion_mutated": {
+          "const": false
+        },
+        "main_moved_or_merged": {
+          "const": false
+        },
+        "live_company_infrastructure_mutated": {
+          "const": false
+        },
+        "employee_private_pilot_or_canary_work_run": {
+          "const": false
+        },
+        "go_champion_production_readiness_or_certification_claimed": {
+          "const": false
+        },
+        "project_os_remains_independent_auditor": {
+          "const": true
+        }
+      }
+    },
+    "predecessorLineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "work_head",
+        "traceability_product_commit",
+        "native_evidence_commit",
+        "native_build_job_id"
+      ],
+      "properties": {
+        "work_head": {
+          "const": "6bad7b23ddfc9525acffb9e169fb65182f9c8764"
+        },
+        "traceability_product_commit": {
+          "const": "b07011b674d165bf8ed28d5b2a96add6e850bd6d"
+        },
+        "native_evidence_commit": {
+          "const": "99063af41106fb26d46f573c5fd0fb52a5352cf7"
+        },
+        "native_build_job_id": {
+          "const": "CF-12417898c2198699f08668aa"
+        }
       }
     }
   }

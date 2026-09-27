@@ -14,7 +14,10 @@ from traceability import (
     CHANGE_BASE_SHA,
     EXPECTED_FAMILIES,
     EXPECTED_KSA_CLOSURE,
+    EXPECTED_OPEN_REPOSITORY_KSAS,
+    KSA_SCOPE_REGISTRY_PATH,
     PRODUCT_SUBJECT_SHA,
+    PROJECT_OS_SNAPSHOT_PROVENANCE,
     compute_summary,
     render_report,
 )
@@ -418,9 +421,42 @@ TEST_TRACE = {
 
 
 def build() -> dict[str, Any]:
+    registry_document = json.loads((ROOT / KSA_SCOPE_REGISTRY_PATH).read_text(encoding="utf-8"))
+    scope_registry = registry_document["items"]
+    ksa_by_clause: dict[tuple[str, str], list[str]] = {}
+    for item in scope_registry:
+        for mapping in item["mappings"]:
+            ksa_by_clause.setdefault((mapping["family_id"], mapping["clause_id"]), []).append(item["ksa_id"])
+
     for index, item in enumerate(ROWS, start=1):
         item["trace_id"] = f"KSA38-TR-{index:03d}"
     rows_by_number = {int(row["trace_id"][-3:]): row for row in ROWS}
+    for item in ROWS:
+        pair_list = [(item["contract_family"], clause) for clause in item["clause_ids"]]
+        linked = sorted(
+            {ksa for pair in pair_list for ksa in ksa_by_clause.get(pair, [])},
+            key=lambda ksa: int(ksa[-2:]),
+        )
+        item["linked_ksa_items"] = linked
+        item["project_os_closure"] = [
+            {"ksa_id": ksa, "state": EXPECTED_KSA_CLOSURE[ksa]}
+            for ksa in linked
+        ]
+        open_repository_links = [ksa for ksa in linked if ksa in EXPECTED_OPEN_REPOSITORY_KSAS]
+        if open_repository_links:
+            item["implementation_state"] = "PARTIAL"
+            item["gap_classification"] = sorted(set(item["gap_classification"]) | {
+                "OPEN_REPOSITORY_REQUIREMENT",
+                "OPEN_PROJECT_OS_RECONCILIATION",
+            })
+            item["next_owner"] = "; ".join(
+                registry_document["items"][int(ksa[-2:]) - 1]["future_project_os_owner"]
+                for ksa in open_repository_links
+            )
+        elif item["clause_ids"] == ["immutable_source_multifile_evidence_boundaries"]:
+            # This row carried reconciliation gaps only because the predecessor attached KSA-04/05 here.
+            item["gap_classification"] = []
+            item["next_owner"] = None
     row_number_by_ksa: dict[int, int] = {}
     for index, item in enumerate(ROWS, start=1):
         for ksa_id in item["linked_ksa_items"]:
@@ -560,7 +596,7 @@ def build() -> dict[str, Any]:
             },
         ],
         "project_os_closure_snapshot": {
-            "authority": "USER_SUPPLIED_AUTHORITATIVE_SNAPSHOT",
+            "authority": PROJECT_OS_SNAPSHOT_PROVENANCE,
             "items": [
                 {"ksa_id": ksa, "state": state}
                 for ksa, state in sorted(
@@ -568,6 +604,7 @@ def build() -> dict[str, Any]:
                 )
             ],
         },
+        "ksa_scope_registry": scope_registry,
         "canonical_contract_families": canonical,
         "trace_rows": ROWS,
         "core_invariants": {
@@ -579,7 +616,7 @@ def build() -> dict[str, Any]:
             "production_certification_external_gates_separate": True,
         },
         "evidence_provenance": {
-            "closure_snapshot_source": "USER_SUPPLIED_PROMPT_SNAPSHOT",
+            "closure_snapshot_source": PROJECT_OS_SNAPSHOT_PROVENANCE,
             "historical_fabric_receipts_claimed": False,
             "notion_only_locators_claimed": False,
             "external_production_evidence_claimed": False,
