@@ -12,9 +12,11 @@
     "exact_base_sha",
     "product_subject_sha",
     "change_base_sha",
+    "execution_base_sha",
     "work_branch",
     "predecessor_lineage",
     "historical_lineage",
+    "integration_lineage",
     "candidate_binding",
     "coverage_sha256",
     "artifact_hashes",
@@ -32,14 +34,16 @@
       "const": "FIX"
     },
     "request": {
-      "type": "string",
-      "pattern": "^chg16-requirement-traceability-01(?:-fix[0-9]{2})?$"
+      "const": "chg16-requirement-traceability-01-fix04"
     },
     "product_subject_sha": {
       "const": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd"
     },
     "change_base_sha": {
       "const": "af5836540304b424289bedbe57a87dbb5d02763f"
+    },
+    "execution_base_sha": {
+      "const": "8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d"
     },
     "checks": {
       "type": "array",
@@ -49,17 +53,13 @@
       }
     },
     "work_branch": {
-      "type": "string",
-      "pattern": "^codex/k-slide-chg16-requirement-traceability-01(?:-fix[0-9]{2})?$"
-    },
-    "predecessor_work_head": {
-      "const": "6bad7b23ddfc9525acffb9e169fb65182f9c8764"
+      "const": "codex/k-slide-chg16-requirement-traceability-01-fix04"
     },
     "exact_base_sha": {
       "const": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd"
     },
     "predecessor_lineage": {
-      "$ref": "#/$defs/lineageRecord"
+      "$ref": "#/$defs/predecessorLineage"
     },
     "historical_lineage": {
       "type": "array",
@@ -67,6 +67,9 @@
       "items": {
         "$ref": "#/$defs/lineageRecord"
       }
+    },
+    "integration_lineage": {
+      "$ref": "#/$defs/integrationLineage"
     },
     "candidate_binding": {
       "oneOf": [
@@ -201,15 +204,45 @@
           "pattern": "^[0-9a-f]{40}$"
         },
         "parent_sha": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{40}$"
+          "const": "8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d"
         },
         "work_branch": {
-          "type": "string",
-          "pattern": "^codex/k-slide-chg16-requirement-traceability-01(?:-fix[0-9]{2})?$"
+          "const": "codex/k-slide-chg16-requirement-traceability-01-fix04"
         },
         "worktree_clean_at_product_candidate": {
           "const": true
+        }
+      }
+    },
+    "predecessorLineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request",
+        "disposition",
+        "work_head",
+        "traceability_product_commit",
+        "native_evidence_commit",
+        "native_build_job_id"
+      ],
+      "properties": {
+        "request": {
+          "const": "chg16-requirement-traceability-01-fix03"
+        },
+        "disposition": {
+          "const": "ACCEPTED"
+        },
+        "work_head": {
+          "const": "5d48a1ad189e108e2f9fda5fb4fe59805ca944a2"
+        },
+        "traceability_product_commit": {
+          "const": "e5903b405f116a04f11c1402c75a7bc9d22f32df"
+        },
+        "native_evidence_commit": {
+          "const": "defcf1eda11038fad75f825b678f50795eff485c"
+        },
+        "native_build_job_id": {
+          "const": "CF-5138c2009554585799d1357c"
         }
       }
     },
@@ -294,6 +327,34 @@
         "human_report": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "integrationLineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pull_request_number",
+        "merge_commit_sha",
+        "accepted_head_sha",
+        "native_evidence_commit",
+        "native_build_job_id"
+      ],
+      "properties": {
+        "pull_request_number": {
+          "const": 40
+        },
+        "merge_commit_sha": {
+          "const": "8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d"
+        },
+        "accepted_head_sha": {
+          "const": "5d48a1ad189e108e2f9fda5fb4fe59805ca944a2"
+        },
+        "native_evidence_commit": {
+          "const": "defcf1eda11038fad75f825b678f50795eff485c"
+        },
+        "native_build_job_id": {
+          "const": "CF-5138c2009554585799d1357c"
         }
       }
     }

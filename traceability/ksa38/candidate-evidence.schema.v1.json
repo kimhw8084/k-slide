@@ -13,10 +13,12 @@
     "request",
     "exact_base",
     "work_branch",
+    "execution_base_sha",
     "product_subject_sha",
     "change_base_sha",
     "predecessor_lineage",
     "historical_lineage",
+    "integration_lineage",
     "artifacts",
     "project_os_closure_snapshot",
     "coverage",
@@ -43,21 +45,22 @@
       "const": "FIX"
     },
     "request": {
-      "type": "string",
-      "pattern": "^chg16-requirement-traceability-01(?:-fix[0-9]{2})?$"
+      "const": "chg16-requirement-traceability-01-fix04"
     },
     "exact_base": {
       "$ref": "#/$defs/subject"
     },
     "work_branch": {
-      "type": "string",
-      "pattern": "^codex/k-slide-chg16-requirement-traceability-01(?:-fix[0-9]{2})?$"
+      "const": "codex/k-slide-chg16-requirement-traceability-01-fix04"
+    },
+    "execution_base_sha": {
+      "const": "8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d"
     },
     "product_subject_sha": {
       "$ref": "#/$defs/sha1"
     },
     "change_base_sha": {
-      "$ref": "#/$defs/sha1"
+      "const": "af5836540304b424289bedbe57a87dbb5d02763f"
     },
     "artifacts": {
       "$ref": "#/$defs/artifacts"
@@ -96,6 +99,9 @@
       "items": {
         "$ref": "#/$defs/lineageRecord"
       }
+    },
+    "integration_lineage": {
+      "$ref": "#/$defs/integrationLineage"
     }
   },
   "$defs": {
@@ -418,11 +424,10 @@
           "$ref": "#/$defs/sha1"
         },
         "parent_sha": {
-          "$ref": "#/$defs/sha1"
+          "const": "8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d"
         },
         "work_branch": {
-          "type": "string",
-          "pattern": "^codex/k-slide-chg16-requirement-traceability-01(?:-fix[0-9]{2})?$"
+          "const": "codex/k-slide-chg16-requirement-traceability-01-fix04"
         },
         "worktree_clean_at_product_candidate": {
           "const": true
@@ -494,28 +499,22 @@
       ],
       "properties": {
         "request": {
-          "type": "string",
-          "pattern": "^chg16-requirement-traceability-01(?:-fix[0-9]{2})?$"
+          "const": "chg16-requirement-traceability-01-fix03"
         },
         "disposition": {
-          "enum": [
-            "ACCEPTED",
-            "REJECTED",
-            "BUILD_PREDECESSOR"
-          ]
+          "const": "ACCEPTED"
         },
         "work_head": {
-          "$ref": "#/$defs/sha1"
+          "const": "5d48a1ad189e108e2f9fda5fb4fe59805ca944a2"
         },
         "traceability_product_commit": {
-          "$ref": "#/$defs/sha1"
+          "const": "e5903b405f116a04f11c1402c75a7bc9d22f32df"
         },
         "native_evidence_commit": {
-          "$ref": "#/$defs/sha1"
+          "const": "defcf1eda11038fad75f825b678f50795eff485c"
         },
         "native_build_job_id": {
-          "type": "string",
-          "pattern": "^CF-[0-9a-f]{16,32}$"
+          "const": "CF-5138c2009554585799d1357c"
         }
       }
     },
@@ -554,6 +553,34 @@
         "native_build_job_id": {
           "type": "string",
           "pattern": "^CF-[0-9a-f]{16,32}$"
+        }
+      }
+    },
+    "integrationLineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pull_request_number",
+        "merge_commit_sha",
+        "accepted_head_sha",
+        "native_evidence_commit",
+        "native_build_job_id"
+      ],
+      "properties": {
+        "pull_request_number": {
+          "const": 40
+        },
+        "merge_commit_sha": {
+          "const": "8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d"
+        },
+        "accepted_head_sha": {
+          "const": "5d48a1ad189e108e2f9fda5fb4fe59805ca944a2"
+        },
+        "native_evidence_commit": {
+          "const": "defcf1eda11038fad75f825b678f50795eff485c"
+        },
+        "native_build_job_id": {
+          "const": "CF-5138c2009554585799d1357c"
         }
       }
     }
