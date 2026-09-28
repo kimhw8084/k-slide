@@ -55,6 +55,51 @@ REQUEST_PATTERN = re.compile(r"^chg16-requirement-traceability-01(?:-fix[0-9]{2}
 BRANCH_PATTERN = re.compile(r"^codex/k-slide-chg16-requirement-traceability-01(?:-fix[0-9]{2})?$")
 JOB_PATTERN = re.compile(r"^CF-[0-9a-f]{16,32}$")
 SHA1_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+FIX04_REQUEST = "chg16-requirement-traceability-01-fix04"
+FIX04_WORK_BRANCH = "codex/k-slide-chg16-requirement-traceability-01-fix04"
+FIX04_EXECUTION_BASE_SHA = "8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d"
+FIX03_TRACEABILITY_PRODUCT_COMMIT = "e5903b405f116a04f11c1402c75a7bc9d22f32df"
+FIX04_PREDECESSOR_LINEAGE = {
+    "request": "chg16-requirement-traceability-01-fix03",
+    "disposition": "ACCEPTED",
+    "work_head": "5d48a1ad189e108e2f9fda5fb4fe59805ca944a2",
+    "traceability_product_commit": FIX03_TRACEABILITY_PRODUCT_COMMIT,
+    "native_evidence_commit": "defcf1eda11038fad75f825b678f50795eff485c",
+    "native_build_job_id": "CF-5138c2009554585799d1357c",
+}
+FIX04_HISTORICAL_LINEAGE = [
+    {
+        "request": "chg16-requirement-traceability-01-fix02",
+        "disposition": "ACCEPTED",
+        "work_head": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
+        "traceability_product_commit": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
+        "native_evidence_commit": "e71b3465f8943b57dbe2b774212ae6108043c9a8",
+        "native_build_job_id": "CF-959e82d5a93c6227f3e861fb",
+    },
+    {
+        "request": "chg16-requirement-traceability-01-fix01",
+        "disposition": "REJECTED",
+        "work_head": "3538dc1d0c9ac5c255545751662bb08980997f44",
+        "traceability_product_commit": "34092db009e4701b2c9949b7d644afce9267c08d",
+        "native_evidence_commit": "1ea3e8b413bf8ef28ae16c2ddc2c0d7e9d096ce7",
+        "native_build_job_id": "CF-6a7997ef8068f9a3b6ae02bd",
+    },
+    {
+        "request": "chg16-requirement-traceability-01",
+        "disposition": "BUILD_PREDECESSOR",
+        "work_head": "6bad7b23ddfc9525acffb9e169fb65182f9c8764",
+        "traceability_product_commit": "b07011b674d165bf8ed28d5b2a96add6e850bd6d",
+        "native_evidence_commit": "99063af41106fb26d46f573c5fd0fb52a5352cf7",
+        "native_build_job_id": "CF-12417898c2198699f08668aa",
+    },
+]
+FIX04_INTEGRATION_LINEAGE = {
+    "pull_request_number": 40,
+    "merge_commit_sha": FIX04_EXECUTION_BASE_SHA,
+    "accepted_head_sha": FIX04_PREDECESSOR_LINEAGE["work_head"],
+    "native_evidence_commit": FIX04_PREDECESSOR_LINEAGE["native_evidence_commit"],
+    "native_build_job_id": FIX04_PREDECESSOR_LINEAGE["native_build_job_id"],
+}
 
 
 class CandidateEvidenceError(ValueError):
@@ -76,7 +121,7 @@ def sha256(path: Path) -> str:
 
 def _status_paths() -> set[str]:
     result = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=no"],
+        ["git", "status", "--porcelain", "--untracked-files=all"],
         cwd=ROOT,
         text=True,
         capture_output=True,
@@ -98,6 +143,14 @@ def _parents(commit: str) -> list[str]:
     return git("rev-list", "--parents", "-n", "1", commit).split()[1:]
 
 
+def _tree(commit: str) -> str:
+    return git("rev-parse", f"{commit}^{{tree}}")
+
+
+def _same_tree(left: str, right: str) -> bool:
+    return _tree(left) == _tree(right)
+
+
 def _native_audit(commit: str) -> dict[str, Any]:
     try:
         raw = git("show", f"{commit}:.codex-fabric/audit.json")
@@ -115,9 +168,9 @@ def validate_bound_candidate_identity(
     if request != context["request"]:
         raise CandidateEvidenceError("candidate request does not match the bound continuation context")
     if branch != context["work_branch"]:
-        raise CandidateEvidenceError("candidate work branch does not match the bound continuation context")
+        raise CandidateEvidenceError("candidate authored work branch does not match the bound continuation context")
     if parent_sha != context["candidate_parent_sha"]:
-        raise CandidateEvidenceError("candidate parent does not match the bound predecessor work head")
+        raise CandidateEvidenceError("candidate parent does not match the bound execution base")
 
 
 def validate_qualification_identity(
@@ -130,9 +183,11 @@ def validate_qualification_identity(
         "exact_base_sha": context["exact_base_sha"],
         "product_subject_sha": context["exact_base_sha"],
         "change_base_sha": context["change_base_sha"],
+        "execution_base_sha": context["candidate_parent_sha"],
         "work_branch": context["work_branch"],
         "predecessor_lineage": context["predecessor_lineage"],
         "historical_lineage": context["historical_lineage"],
+        "integration_lineage": context["integration_lineage"],
         "closure_snapshot_authority": CLOSURE_AUTHORITY,
     }
     for key, value in expected.items():
@@ -161,13 +216,14 @@ def _validate_context(context: dict[str, Any]) -> None:
         "candidate_parent_sha",
         "predecessor_lineage",
         "historical_lineage",
+        "integration_lineage",
     }
     if set(context) != expected_keys:
         raise CandidateEvidenceError("candidate context has missing or unrecognized fields")
     if context["schema_version"] != "1.0" or context["project"] != "k-slide" or context["operation"] != "FIX":
         raise CandidateEvidenceError("candidate context has an unsupported project or operation")
-    if not REQUEST_PATTERN.fullmatch(context["request"]):
-        raise CandidateEvidenceError("candidate context request has an invalid KSA-38 request identity")
+    if context["request"] != FIX04_REQUEST:
+        raise CandidateEvidenceError("candidate context request is not the bound FIX04 request")
     if context["work_branch"] != f"codex/k-slide-{context['request']}":
         raise CandidateEvidenceError("candidate context request and work branch disagree")
     if not BRANCH_PATTERN.fullmatch(context["work_branch"]):
@@ -178,6 +234,16 @@ def _validate_context(context: dict[str, Any]) -> None:
         raise CandidateEvidenceError("candidate context does not preserve the accepted change base")
     if not SHA1_PATTERN.fullmatch(context["candidate_parent_sha"]):
         raise CandidateEvidenceError("candidate context parent is not an exact commit SHA")
+    if context["work_branch"] != FIX04_WORK_BRANCH:
+        raise CandidateEvidenceError("candidate context work branch is not the bound FIX04 work branch")
+    if context["candidate_parent_sha"] != FIX04_EXECUTION_BASE_SHA:
+        raise CandidateEvidenceError("candidate context execution base is not the fresh FIX04 base")
+    if context["predecessor_lineage"] != FIX04_PREDECESSOR_LINEAGE:
+        raise CandidateEvidenceError("candidate context differs from the accepted FIX03 predecessor lineage")
+    if context["historical_lineage"] != FIX04_HISTORICAL_LINEAGE:
+        raise CandidateEvidenceError("candidate context differs from the recorded historical lineage")
+    if context["integration_lineage"] != FIX04_INTEGRATION_LINEAGE:
+        raise CandidateEvidenceError("candidate context differs from the FIX03 integration lineage")
 
     predecessor = context["predecessor_lineage"]
     history = context["historical_lineage"]
@@ -192,7 +258,7 @@ def _validate_context(context: dict[str, Any]) -> None:
         "native_evidence_commit",
         "native_build_job_id",
     }
-    for index, record in enumerate(records):
+    for record in records:
         if not isinstance(record, dict) or set(record) != required_record_keys:
             raise CandidateEvidenceError("candidate context predecessor record has missing or unrecognized fields")
         if not REQUEST_PATTERN.fullmatch(record["request"]):
@@ -216,17 +282,22 @@ def _validate_context(context: dict[str, Any]) -> None:
             or audit.get("job_id") != record["native_build_job_id"]
         ):
             raise CandidateEvidenceError("native predecessor audit does not match its configured request and job")
-        if index < len(records) - 1:
-            older_evidence = records[index + 1]["native_evidence_commit"]
-            if _parents(record["traceability_product_commit"]) != [older_evidence]:
-                raise CandidateEvidenceError("configured predecessor chain is not contiguous")
-
     if predecessor["disposition"] != "ACCEPTED":
         raise CandidateEvidenceError("current continuation predecessor must be accepted")
-    if context["candidate_parent_sha"] != predecessor["work_head"]:
-        raise CandidateEvidenceError("candidate parent differs from the configured predecessor work head")
+    for index, record in enumerate(records[:-1]):
+        older = records[index + 1]
+        if not _is_ancestor(older["work_head"], record["traceability_product_commit"]):
+            raise CandidateEvidenceError("configured predecessor work-head lineage is not contiguous")
+
+    integration = context["integration_lineage"]
+    if integration["merge_commit_sha"] != context["candidate_parent_sha"]:
+        raise CandidateEvidenceError("integration merge is not the FIX04 execution base")
+    if not _is_ancestor(integration["accepted_head_sha"], integration["merge_commit_sha"]):
+        raise CandidateEvidenceError("accepted FIX03 head is absent from the integration merge ancestry")
+    if not _same_tree(integration["accepted_head_sha"], integration["merge_commit_sha"]):
+        raise CandidateEvidenceError("accepted FIX03 head differs from the integration merge tree")
     if not _is_ancestor(context["exact_base_sha"], context["candidate_parent_sha"]):
-        raise CandidateEvidenceError("configured predecessor does not descend from the immutable product subject")
+        raise CandidateEvidenceError("FIX04 execution base does not descend from the immutable product subject")
 
 
 def _context_path(path: Path) -> Path:
@@ -239,27 +310,35 @@ def _context_path(path: Path) -> Path:
 
 
 def _validate_candidate_context(
-    candidate_sha: str, context: dict[str, Any]
+    candidate_sha: str, context: dict[str, Any], *, require_work_branch: bool
 ) -> tuple[str, str]:
     _validate_context(context)
-    branch = git("branch", "--show-current")
+    if not SHA1_PATTERN.fullmatch(candidate_sha):
+        raise CandidateEvidenceError("candidate SHA is not an exact repository commit SHA")
     candidate_commit = git("rev-parse", f"{candidate_sha}^{{commit}}")
     if candidate_commit != candidate_sha:
         raise CandidateEvidenceError("candidate SHA is not an exact repository commit")
     parent = git("rev-parse", f"{candidate_sha}^")
-    validate_bound_candidate_identity(context["request"], branch, parent, context)
+    validate_bound_candidate_identity(context["request"], context["work_branch"], parent, context)
+    if require_work_branch:
+        runtime_branch = git("branch", "--show-current")
+        if runtime_branch != context["work_branch"]:
+            raise CandidateEvidenceError(
+                "candidate generation requires the bound FIX04 work branch checkout"
+            )
 
     head = git("rev-parse", "HEAD")
     if not _is_ancestor(candidate_sha, head):
         raise CandidateEvidenceError("candidate is not an ancestor of the current work head")
     if not _is_ancestor(context["exact_base_sha"], candidate_sha):
         raise CandidateEvidenceError("candidate does not descend from the immutable product subject")
-    later_paths = set(git("diff", "--name-only", candidate_sha, "HEAD").splitlines())
-    if not later_paths <= EVIDENCE_PATHS:
-        raise CandidateEvidenceError("commits above candidate include non-evidence paths")
-    if not _status_paths() <= EVIDENCE_PATHS:
-        raise CandidateEvidenceError("candidate worktree contains changes outside the evidence sidecars")
-    return git("rev-parse", f"{candidate_sha}^{{tree}}"), branch
+    if require_work_branch:
+        later_paths = set(git("diff", "--name-only", candidate_sha, "HEAD").splitlines())
+        if not later_paths <= EVIDENCE_PATHS:
+            raise CandidateEvidenceError("commits above candidate include non-evidence paths")
+        if not _status_paths() <= EVIDENCE_PATHS:
+            raise CandidateEvidenceError("candidate worktree contains changes outside the evidence sidecars")
+    return _tree(candidate_sha), context["work_branch"]
 
 
 def _coverage(summary: dict[str, Any], matrix: dict[str, Any]) -> dict[str, Any]:
@@ -309,15 +388,20 @@ def _validate_qualification_binding(
             raise CandidateEvidenceError(f"qualification {key} is stale for the current candidate")
 
 
-def build_candidate_artifacts(
-    candidate_sha: str | None = None, context_path: Path = CONTEXT_PATH
+def _derive_candidate_artifacts(
+    candidate_sha: str | None,
+    context_path: Path,
+    *,
+    require_work_branch: bool,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     context_path = _context_path(context_path)
     context = load_json(context_path)
     if not isinstance(context, dict):
         raise CandidateEvidenceError("candidate context is not a JSON object")
     candidate_sha = candidate_sha or git("rev-parse", "HEAD")
-    candidate_tree, branch = _validate_candidate_context(candidate_sha, context)
+    candidate_tree, branch = _validate_candidate_context(
+        candidate_sha, context, require_work_branch=require_work_branch
+    )
 
     matrix = load_json(ROOT / MATRIX_PATH)
     qualification = load_json(ROOT / QUALIFICATION_PATH)
@@ -409,11 +493,13 @@ def build_candidate_artifacts(
             "commit_sha": context["exact_base_sha"],
             "tree_oid": matrix["product_subject"]["tree_oid"],
         },
+        "execution_base_sha": context["candidate_parent_sha"],
         "work_branch": branch,
         "product_subject_sha": context["exact_base_sha"],
         "change_base_sha": context["change_base_sha"],
         "predecessor_lineage": context["predecessor_lineage"],
         "historical_lineage": context["historical_lineage"],
+        "integration_lineage": context["integration_lineage"],
         "artifacts": artifacts,
         "project_os_closure_snapshot": matrix["project_os_closure_snapshot"],
         "coverage": coverage,
@@ -443,6 +529,17 @@ def build_candidate_artifacts(
     return evidence, qualification
 
 
+def build_candidate_artifacts(
+    candidate_sha: str | None = None, context_path: Path = CONTEXT_PATH
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Generate/write mode: bind a candidate only from its authored FIX04 branch."""
+    return _derive_candidate_artifacts(
+        candidate_sha or git("rev-parse", "HEAD"),
+        context_path,
+        require_work_branch=True,
+    )
+
+
 def validate_evidence(
     evidence: dict[str, Any],
     audit: dict[str, Any],
@@ -461,8 +558,10 @@ def validate_evidence(
                 f"candidate evidence schema failed at {list(error.absolute_path)}: {error.message}"
             )
     validate_audit_match(evidence, audit)
-    expected_evidence, expected_qualification = build_candidate_artifacts(
-        evidence["candidate_binding"]["commit_sha"], context_path
+    expected_evidence, expected_qualification = _derive_candidate_artifacts(
+        evidence["candidate_binding"]["commit_sha"],
+        context_path,
+        require_work_branch=False,
     )
     if evidence != expected_evidence:
         raise CandidateEvidenceError(

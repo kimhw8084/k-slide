@@ -2,20 +2,28 @@
   "schema_version": "1.0",
   "project": "k-slide",
   "operation": "FIX",
-  "request": "chg16-requirement-traceability-01-fix03",
-  "work_branch": "codex/k-slide-chg16-requirement-traceability-01-fix03",
+  "request": "chg16-requirement-traceability-01-fix04",
+  "work_branch": "codex/k-slide-chg16-requirement-traceability-01-fix04",
   "exact_base_sha": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd",
   "change_base_sha": "af5836540304b424289bedbe57a87dbb5d02763f",
-  "candidate_parent_sha": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
+  "candidate_parent_sha": "8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d",
   "predecessor_lineage": {
-    "request": "chg16-requirement-traceability-01-fix02",
+    "request": "chg16-requirement-traceability-01-fix03",
     "disposition": "ACCEPTED",
-    "work_head": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
-    "traceability_product_commit": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
-    "native_evidence_commit": "e71b3465f8943b57dbe2b774212ae6108043c9a8",
-    "native_build_job_id": "CF-959e82d5a93c6227f3e861fb"
+    "work_head": "5d48a1ad189e108e2f9fda5fb4fe59805ca944a2",
+    "traceability_product_commit": "e5903b405f116a04f11c1402c75a7bc9d22f32df",
+    "native_evidence_commit": "defcf1eda11038fad75f825b678f50795eff485c",
+    "native_build_job_id": "CF-5138c2009554585799d1357c"
   },
   "historical_lineage": [
+    {
+      "request": "chg16-requirement-traceability-01-fix02",
+      "disposition": "ACCEPTED",
+      "work_head": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
+      "traceability_product_commit": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
+      "native_evidence_commit": "e71b3465f8943b57dbe2b774212ae6108043c9a8",
+      "native_build_job_id": "CF-959e82d5a93c6227f3e861fb"
+    },
     {
       "request": "chg16-requirement-traceability-01-fix01",
       "disposition": "REJECTED",
@@ -32,5 +40,12 @@
       "native_evidence_commit": "99063af41106fb26d46f573c5fd0fb52a5352cf7",
       "native_build_job_id": "CF-12417898c2198699f08668aa"
     }
-  ]
+  ],
+  "integration_lineage": {
+    "pull_request_number": 40,
+    "merge_commit_sha": "8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d",
+    "accepted_head_sha": "5d48a1ad189e108e2f9fda5fb4fe59805ca944a2",
+    "native_evidence_commit": "defcf1eda11038fad75f825b678f50795eff485c",
+    "native_build_job_id": "CF-5138c2009554585799d1357c"
+  }
 }
