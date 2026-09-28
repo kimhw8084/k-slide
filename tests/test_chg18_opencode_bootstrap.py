@@ -8,10 +8,12 @@ import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import textwrap
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from k_slide.errors import ErrorCode, KSlideError
 from k_slide.opencode_bootstrap import (
@@ -155,6 +157,35 @@ def _wait_for_file(path: Path, *, timeout: float = 5.0) -> None:
     raise AssertionError(f"timed out waiting for {path.name}")
 
 
+def _wait_for_integer_file_content(path: Path, *, expected_count: int, timeout: float = 5.0) -> tuple[int, ...]:
+    deadline = time.monotonic() + timeout
+    last_problem = "file does not exist"
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        try:
+            content = path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            last_problem = "file does not exist"
+        except UnicodeDecodeError as exc:
+            last_problem = f"incomplete UTF-8 content ({exc})"
+        else:
+            fields = content.split()
+            if len(fields) != expected_count:
+                last_problem = f"expected {expected_count} integer value(s), found {len(fields)} in {content!r}"
+            else:
+                try:
+                    return tuple(int(field) for field in fields)
+                except ValueError:
+                    last_problem = f"expected {expected_count} integer value(s), found {content!r}"
+        time.sleep(min(0.01, remaining))
+    raise AssertionError(
+        f"timed out waiting for valid integer readiness payload in {path.name}; "
+        f"last observed invalid/incomplete readiness payload: {last_problem}"
+    )
+
+
 def _process_is_running(pid: int) -> bool:
     probe = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True, check=False)
     state = probe.stdout.strip()
@@ -213,6 +244,54 @@ def _write_blocking_group_host(script: Path, state: Path) -> None:
     )
 
 
+class ReadinessFileWaitTests(unittest.TestCase):
+    def test_waits_for_payload_after_file_exists_empty(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            ready = Path(directory) / "ready"
+            ready.touch()
+            empty_read_observed = threading.Event()
+            payload_written = threading.Event()
+            publisher_errors: list[BaseException] = []
+            original_read_text = Path.read_text
+
+            def observe_empty_read(path: Path, *args: object, **kwargs: object) -> str:
+                content = original_read_text(path, *args, **kwargs)
+                if path == ready and not content:
+                    empty_read_observed.set()
+                return content
+
+            def publish_payload() -> None:
+                try:
+                    if not empty_read_observed.wait(timeout=2.0):
+                        raise AssertionError("readiness helper did not inspect the existing empty file")
+                    ready.write_text("12345", encoding="utf-8")
+                    payload_written.set()
+                except BaseException as exc:
+                    publisher_errors.append(exc)
+
+            publisher = threading.Thread(target=publish_payload)
+            publisher.start()
+            try:
+                with patch.object(Path, "read_text", observe_empty_read):
+                    self.assertEqual(_wait_for_integer_file_content(ready, expected_count=1, timeout=3.0), (12345,))
+                self.assertTrue(empty_read_observed.is_set())
+                self.assertTrue(payload_written.is_set())
+            finally:
+                empty_read_observed.set()
+                publisher.join(timeout=2.0)
+            self.assertFalse(publisher.is_alive(), "readiness payload publisher did not stop")
+            self.assertEqual(publisher_errors, [])
+
+    def test_persistent_empty_and_malformed_payloads_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            for name, content in (("empty-ready", ""), ("malformed-ready", "not-a-pid")):
+                with self.subTest(name=name):
+                    ready = Path(directory) / name
+                    ready.write_text(content, encoding="utf-8")
+                    with self.assertRaisesRegex(AssertionError, rf"{name}.*invalid/incomplete readiness payload"):
+                        _wait_for_integer_file_content(ready, expected_count=1, timeout=0.05)
+
+
 class OpenCodeBootstrapTests(unittest.TestCase):
     def test_managed_child_normal_exit_status_is_preserved(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -260,8 +339,7 @@ class OpenCodeBootstrapTests(unittest.TestCase):
             child_pid: int | None = None
             descendant_pid: int | None = None
             try:
-                _wait_for_file(state / "ready")
-                child_pid, descendant_pid = (int(item) for item in (state / "ready").read_text(encoding="utf-8").split())
+                child_pid, descendant_pid = _wait_for_integer_file_content(state / "ready", expected_count=2)
                 self.assertEqual(os.getpgid(child_pid), child_pid)
                 _wait_for_file(state / "descendant-ready")
                 os.kill(launcher.pid, signum)
@@ -269,10 +347,10 @@ class OpenCodeBootstrapTests(unittest.TestCase):
                 self.assertEqual(launcher.returncode, 0, stderr)
                 self.assertEqual(stdout, "")
                 self.assertEqual(stderr, "")
-                _wait_for_file(state / "child-exit")
-                _wait_for_file(state / "descendant-exit")
-                self.assertEqual(int((state / "child-exit").read_text(encoding="utf-8")), signum)
-                self.assertEqual(int((state / "descendant-exit").read_text(encoding="utf-8")), signum)
+                child_exit, = _wait_for_integer_file_content(state / "child-exit", expected_count=1)
+                descendant_exit, = _wait_for_integer_file_content(state / "descendant-exit", expected_count=1)
+                self.assertEqual(child_exit, signum)
+                self.assertEqual(descendant_exit, signum)
                 _wait_for_process_stop(child_pid)
                 _wait_for_process_stop(descendant_pid)
             finally:
@@ -334,8 +412,7 @@ class OpenCodeBootstrapTests(unittest.TestCase):
             )
             child_pid: int | None = None
             try:
-                _wait_for_file(ready)
-                child_pid = int(ready.read_text(encoding="utf-8"))
+                child_pid, = _wait_for_integer_file_content(ready, expected_count=1)
                 os.kill(launcher.pid, signal.SIGTERM)
                 stdout, stderr = launcher.communicate(timeout=8)
                 self.assertNotIn(canary, stdout)
