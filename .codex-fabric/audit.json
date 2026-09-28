@@ -1,561 +1,307 @@
 {
-  "schema_version": "1.0",
-  "evidence_type": "k-slide-ksa38-fix-candidate-evidence",
-  "project": "k-slide",
-  "issue_id": "CHG-16",
-  "operation": "FIX",
-  "request": "chg16-requirement-traceability-01-fix04",
-  "exact_base": {
-    "commit_sha": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd",
-    "tree_oid": "e049fcc0e5d245630c1a47e1ec08d30f6419d6c2"
-  },
-  "execution_base_sha": "8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d",
-  "work_branch": "codex/k-slide-chg16-requirement-traceability-01-fix04",
-  "product_subject_sha": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd",
-  "change_base_sha": "af5836540304b424289bedbe57a87dbb5d02763f",
-  "predecessor_lineage": {
-    "request": "chg16-requirement-traceability-01-fix03",
-    "disposition": "ACCEPTED",
-    "work_head": "5d48a1ad189e108e2f9fda5fb4fe59805ca944a2",
-    "traceability_product_commit": "e5903b405f116a04f11c1402c75a7bc9d22f32df",
-    "native_evidence_commit": "defcf1eda11038fad75f825b678f50795eff485c",
-    "native_build_job_id": "CF-5138c2009554585799d1357c"
-  },
-  "historical_lineage": [
+  "accepted_at": "2026-09-28T01:19:36Z",
+  "changed_files": [],
+  "checks": [
     {
-      "request": "chg16-requirement-traceability-01-fix02",
-      "disposition": "ACCEPTED",
-      "work_head": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
-      "traceability_product_commit": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
-      "native_evidence_commit": "e71b3465f8943b57dbe2b774212ae6108043c9a8",
-      "native_build_job_id": "CF-959e82d5a93c6227f3e861fb"
+      "command": "/bin/zsh -lc 'cat /Users/haewonkim/.codex/RTK.md && cat /Users/haewonkim/.codex/law.md'",
+      "exit_code": 0,
+      "type": "command_execution"
     },
     {
-      "request": "chg16-requirement-traceability-01-fix01",
-      "disposition": "REJECTED",
-      "work_head": "3538dc1d0c9ac5c255545751662bb08980997f44",
-      "traceability_product_commit": "34092db009e4701b2c9949b7d644afce9267c08d",
-      "native_evidence_commit": "1ea3e8b413bf8ef28ae16c2ddc2c0d7e9d096ce7",
-      "native_build_job_id": "CF-6a7997ef8068f9a3b6ae02bd"
+      "command": "/bin/zsh -lc \"rg -n \\\"test_signal_during_access_key_handoff|ready\\\\.read_text|access_key_handoff|access.key|signal\\\" tests/test_chg18_opencode_bootstrap.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
     },
     {
-      "request": "chg16-requirement-traceability-01",
-      "disposition": "BUILD_PREDECESSOR",
-      "work_head": "6bad7b23ddfc9525acffb9e169fb65182f9c8764",
-      "traceability_product_commit": "b07011b674d165bf8ed28d5b2a96add6e850bd6d",
-      "native_evidence_commit": "99063af41106fb26d46f573c5fd0fb52a5352cf7",
-      "native_build_job_id": "CF-12417898c2198699f08668aa"
+      "command": "/bin/zsh -lc 'git status --short --branch && git rev-parse HEAD && git rev-parse HEAD''^{tree} && git show -s --format='\"'%H%n%T%n%P%n%s' c916d36b9882811fad53ee5109d2cd9a56a40716 && git show -s --format='%H%n%T%n%P%n%s' 06a79a5fc47c88a1327a929ac6c68923a116c63b && git merge-base c916d36b9882811fad53ee5109d2cd9a56a40716 06a79a5fc47c88a1327a929ac6c68923a116c63b && git diff --stat 06a79a5fc47c88a1327a929ac6c68923a116c63b c916d36b9882811fad53ee5109d2cd9a56a40716 && git diff --exit-code 06a79a5fc47c88a1327a929ac6c68923a116c63b c916d36b9882811fad53ee5109d2cd9a56a40716\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy sed -n '1,470p' tests/test_chg18_opencode_bootstrap.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy sed -n '1,260p' config/internal/lib/k-slide-access-key.ts\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"ready|pid_file|handoff|access-key|access_key|spawn|kill|SIGTERM|SIGINT\" config tests/test_chg18_opencode_bootstrap.py'",
+      "exit_code": 2,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy rg --files | rg 'ksa|chg16|opencode_bootstrap|Makefile|pyproject.toml|tox.ini|pytest.ini|requirements'\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 2430,
+        "output_sha256": "bf0be62b7ac42b9b4079c9e0f6f44e14ad22cc40336dbc03b6eddf4bfd5caff2",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk rg -n \"handoff|access.key|AccessKey|COMPANY_ACCESS_KEY|SIGTERM|killpg|start_new_session|Popen\" src tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy sed -n '1,320p' src/k_slide/opencode_bootstrap.py && rtk proxy sed -n '1,260p' src/k_slide/access_key.py\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk --version && rtk proxy command -v python3.12 && rtk proxy python3.12 --version && rtk proxy command -v python3.11 && rtk proxy python3.11 --version && rtk proxy git status --porcelain=v1 && rtk proxy rg -n \"KSA-38|ksa.?38|chg16\" tests'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy sed -n '1,150p' .github/workflows/k-slide.yml && rtk proxy sed -n '1,100p' pyproject.toml\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy rg -n \"unittest discover|python-version|3.12|test_ksa38\" .github'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy sed -n '1,180p' src/k_slide/access_key_handoff.py && rtk proxy rg -n \\\"def main|AccessKeyHandoff|start_new_session|def stop|send_signal|killpg|communicate\\\" src/k_slide/opencode_bootstrap.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy pgrep -lf '[b]locking-handoff-host.py' || true; rtk proxy ps -Ao pid=,ppid=,pgid=,stat=,command= | rtk proxy rg '[b]locking-handoff-host.py|[d]escendant_code' || true; rtk proxy git status --short --branch\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy sed -n '700,900p' src/k_slide/opencode_bootstrap.py && rtk proxy sed -n '15,115p' tests/test_chg18_accesskey_handoff.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy zsh -c 'setopt local_options no_unset; out=/tmp/k-slide-chg16-verify-c916d36-exact-py312; mkdir -p \\\"\"'$out\"; passed=0; failed=0; for i in {1..25}; do log=\"$out/iteration-$i.log\"; if PYTHONPATH=src:tests python3.12 -m unittest test_chg18_opencode_bootstrap.OpenCodeBootstrapTests.test_signal_during_access_key_handoff_terminates_group_without_secret_output >\"$log\" 2>&1; then (( passed += 1 )); else (( failed += 1 )); print \"FAIL iteration=$i log=$log\"; cat \"$log\"; fi; done; print \"SUMMARY exact-test python=3.12 passed=$passed failed=$failed log_dir=$out\"'\"' \"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy zsh -c 'setopt local_options no_unset; out=/tmp/k-slide-chg16-verify-c916d36-module-py312; mkdir -p \\\"\"'$out\"; passed=0; failed=0; for i in {1..10}; do log=\"$out/iteration-$i.log\"; if PYTHONPATH=src python3.12 -m unittest discover -s tests -p test_chg18_opencode_bootstrap.py -q >\"$log\" 2>&1; then (( passed += 1 )); else (( failed += 1 )); print \"FAIL iteration=$i log=$log\"; cat \"$log\"; fi; done; print \"SUMMARY bootstrap-suite python=3.12 passed=$passed failed=$failed log_dir=$out\"'\"' \"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy zsh -c 'setopt local_options no_unset; out=/tmp/k-slide-chg16-verify-c916d36-exact-py311; mkdir -p \\\"\"'$out\"; passed=0; failed=0; for i in {1..10}; do log=\"$out/iteration-$i.log\"; if PYTHONPATH=src:tests python3.11 -m unittest test_chg18_opencode_bootstrap.OpenCodeBootstrapTests.test_signal_during_access_key_handoff_terminates_group_without_secret_output >\"$log\" 2>&1; then (( passed += 1 )); else (( failed += 1 )); print \"FAIL iteration=$i log=$log\"; cat \"$log\"; fi; done; print \"SUMMARY exact-test python=3.11 passed=$passed failed=$failed log_dir=$out\"'\"' \"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy zsh -c 'PYTHONPATH=src python3.12 -m unittest discover -s tests -p \\\"test_ksa38*.py\\\" -v' \"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy zsh -c 'python3.11 -c \\\"import jsonschema; print(jsonschema.__version__)\\\" && PYTHONPATH=src python3.11 -m unittest discover -s tests -p \\\"test_ksa38*.py\\\" -v' \"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy zsh -c 'out=/tmp/k-slide-chg16-verify-c916d36-full-py312; wc -l \\\"\"'$out/run-1.log\" 2>/dev/null; tail -n 2 \"$out/run-1.log\" 2>/dev/null; rtk proxy ps -Ao pid=,ppid=,etime=,command= | rtk proxy rg \"python3.12 -m unittest discover|unittest.case\" | rtk proxy head -n 5'\"'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy zsh -c 'out=/tmp/k-slide-chg16-verify-c916d36-full-py312; wc -l \\\"\"'$out/run-1.log\"; tail -n 2 \"$out/run-1.log\"; rtk proxy ps -Ao pid=,ppid=,etime=,command= | rtk proxy rg \"python3.12 -m unittest discover\" | rtk proxy head -n 3'\"'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy zsh -c 'out=/tmp/k-slide-chg16-verify-c916d36-full-py312; wc -l \\\"\"'$out/run-2.log\"; tail -n 1 \"$out/run-2.log\"; rtk proxy ps -Ao pid=,ppid=,etime=,command= | rtk proxy rg \"python3.12 -m unittest discover\" | rtk proxy head -n 2'\"'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy zsh -c 'setopt local_options no_unset; out=/tmp/k-slide-chg16-verify-c916d36-full-py312; mkdir -p \\\"\"'$out\"; for i in {1..2}; do log=\"$out/run-$i.log\"; SECONDS=0; if PYTHONPATH=src python3.12 -m unittest discover -s tests -v >\"$log\" 2>&1; then print \"RUN $i PASS seconds=$SECONDS log=$log\"; tail -n 6 \"$log\"; else print \"RUN $i FAIL exit=$? seconds=$SECONDS log=$log\"; tail -n 45 \"$log\"; fi; done'\"' \"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy zsh -c 'for d in /tmp/k-slide-chg16-verify-c916d36-exact-py312 /tmp/k-slide-chg16-verify-c916d36-module-py312 /tmp/k-slide-chg16-verify-c916d36-exact-py311; do print \\\"\"'$d\"; rtk proxy rg -l \"Traceback|FAILED|ERROR\" \"$d\" || true; done'\"' \"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy zsh -c 'out=/tmp/k-slide-chg16-verify-c916d36-full-py312; for log in \\\"\"'$out/run-1.log\" \"$out/run-2.log\"; do print \"SUMMARY $log\"; rtk proxy rg \"''^(ERROR:|FAIL:|Ran [0-9]+ tests|FAILED '\"\\\\(|OK \\\\()\\\" \\\"\"'$log\"; print \"EXCEPTION CLASSES\"; rtk proxy rg \"ModuleNotFoundError|ImportError|FileNotFoundError|AssertionError\" \"$log\" | rtk proxy sort | rtk proxy uniq -c; done'\"' \"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy zsh -c 'rtk proxy ps -Ao pid=,ppid=,pgid=,stat=,command= | rtk proxy rg \\\"[b]locking-handoff-host.py|[b]locking-opencode-host.py|[d]escendant_exit|[d]escendant_code\\\" || true; rtk proxy pgrep -lf \\\"[b]locking-handoff-host.py\\\" || true; rtk proxy pgrep -lf \\\"[b]locking-opencode-host.py\\\" || true' \"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy nl -ba tests/test_chg18_opencode_bootstrap.py | rtk proxy sed -n '140,180p;298,360p' && rtk proxy nl -ba src/k_slide/access_key_handoff.py | rtk proxy sed -n '55,110p' && rtk proxy nl -ba src/k_slide/opencode_bootstrap.py | rtk proxy sed -n '750,885p'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy sed -n '2295,2340p' tests/test_certification_closure.py && rtk proxy zsh -c 'python3.12 -c \\\"import importlib.util; print(\\\\\\\"PIL\\\\\\\", importlib.util.find_spec(\\\\\\\"PIL\\\\\\\")); print(\\\\\\\"jsonschema\\\\\\\", importlib.util.find_spec(\\\\\\\"jsonschema\\\\\\\"))\\\"; python3.11 -c \\\"import importlib.util; print(\\\\\\\"PIL\\\\\\\", bool(importlib.util.find_spec(\\\\\\\"PIL\\\\\\\"))); print(\\\\\\\"jsonschema\\\\\\\", bool(importlib.util.find_spec(\\\\\\\"jsonschema\\\\\\\")))\\\"' \"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git rev-parse HEAD && rtk proxy git rev-parse HEAD''^{tree} && rtk proxy git rev-parse 06a79a5fc47c88a1327a929ac6c68923a116c63b''^{tree} && rtk proxy git rev-parse c916d36b9882811fad53ee5109d2cd9a56a40716''^{tree} && rtk proxy git merge-base c916d36b9882811fad53ee5109d2cd9a56a40716 06a79a5fc47c88a1327a929ac6c68923a116c63b && rtk proxy git diff --name-status 06a79a5fc47c88a1327a929ac6c68923a116c63b c916d36b9882811fad53ee5109d2cd9a56a40716 && rtk proxy git status --short --untracked-files=all --branch && rtk proxy git diff --exit-code && rtk proxy git diff --cached --exit-code'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git remote -v && rtk proxy git config --get remote.origin.url'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git merge-base --is-ancestor 06a79a5fc47c88a1327a929ac6c68923a116c63b c916d36b9882811fad53ee5109d2cd9a56a40716'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git diff --exit-code'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git diff --cached --exit-code'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy zsh -c 'rtk proxy rg -n \\\"test_signal_during_access_key_handoff|Ran 660 tests|FAILED \\\\(\\\" /tmp/k-slide-chg16-verify-c916d36-full-py312/run-1.log /tmp/k-slide-chg16-verify-c916d36-full-py312/run-2.log' \"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy zsh -c 'for f in /tmp/k-slide-chg16-verify-c916d36-exact-py312/iteration-1.log /tmp/k-slide-chg16-verify-c916d36-module-py312/iteration-1.log /tmp/k-slide-chg16-verify-c916d36-exact-py311/iteration-1.log; do print \\\"\"'$f\"; rtk proxy tail -n 4 \"$f\"; done; print \"leftover test helpers:\"; rtk proxy ps -Ao pid=,ppid=,pgid=,stat=,command= | rtk proxy rg \"[b]locking-handoff-host.py|[b]locking-opencode-host.py\" || true'\"' \"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git status --short --untracked-files=all --branch && rtk proxy git rev-parse HEAD && rtk proxy git rev-parse HEAD''^{tree} && rtk proxy git rev-parse 06a79a5fc47c88a1327a929ac6c68923a116c63b''^{tree} && rtk proxy git rev-parse c916d36b9882811fad53ee5109d2cd9a56a40716''^{tree} && rtk proxy git merge-base c916d36b9882811fad53ee5109d2cd9a56a40716 06a79a5fc47c88a1327a929ac6c68923a116c63b && rtk proxy git diff --stat 06a79a5fc47c88a1327a929ac6c68923a116c63b c916d36b9882811fad53ee5109d2cd9a56a40716'",
+      "exit_code": 0,
+      "type": "command_execution"
     }
   ],
-  "integration_lineage": {
-    "pull_request_number": 40,
-    "merge_commit_sha": "8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d",
-    "accepted_head_sha": "5d48a1ad189e108e2f9fda5fb4fe59805ca944a2",
-    "native_evidence_commit": "defcf1eda11038fad75f825b678f50795eff485c",
-    "native_build_job_id": "CF-5138c2009554585799d1357c"
+  "codex": {
+    "cli_version": "codex-cli 0.157.0",
+    "configured_model": "gpt-6-luna",
+    "event_count": 108,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 94.87,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 2170880,
+      "fresh_input_tokens": 117437,
+      "input_tokens": 2288317,
+      "non_reasoning_output_tokens": 8945,
+      "output_tokens": 34001,
+      "reasoning_output_tokens": 25056,
+      "total_processed_tokens": 2322318
+    },
+    "warnings": []
   },
-  "artifacts": {
-    "candidate_context": {
-      "path": "traceability/ksa38/candidate-context.v1.json",
-      "sha256": "e668ef0a01c44fa97681b9318d1f13d5e3db84c40e8bdd58ef99c43360f9cb74",
-      "version": "1.0"
-    },
-    "matrix": {
-      "path": "traceability/ksa38/traceability.v1.json",
-      "sha256": "4a0ca1394577e4c12e5ae559dde0be0a8871ef4f3593d4a9a360192bea9be884",
-      "version": "1.0"
-    },
-    "matrix_schema": {
-      "path": "traceability/ksa38/schema.v1.json",
-      "sha256": "f6a65afc17969dbad5e4c3540873acfa82213cc025a7db5f3b1d5a9768f299d1",
-      "version": "1.0"
-    },
-    "candidate_evidence_schema": {
-      "path": "traceability/ksa38/candidate-evidence.schema.v1.json",
-      "sha256": "21ed135103ebadb35c4eb7375a7647514455d0054b3889d9074f0cd9a942001c",
-      "version": "1.0"
-    },
-    "qualification_schema": {
-      "path": "traceability/ksa38/qualification.schema.v1.json",
-      "sha256": "8cb25b0a76a78c477666c1b06517d3c9069ecc64b2e9d5180a7e18c1f08fcb5c",
-      "version": "1.0"
-    },
-    "scope_registry": {
-      "path": "traceability/ksa38/ksa-scope-registry.v1.json",
-      "sha256": "1a45998acb466a07b51692d8e1c6239cab2aaa1dd7bd8740bfb8a2d4e7e55f4d",
-      "version": "1.0"
-    },
-    "human_report": {
-      "path": "traceability/ksa38/README.md",
-      "sha256": "d819dd469c78dc93539db7d0841a220165e2b1b83a38804db7fa75b4dfa77840",
-      "version": "1.0"
-    },
-    "qualification_manifest": {
-      "path": "traceability/ksa38/qualification.v1.json",
-      "sha256": "709f796330ab0a8a1c865b91232d395594facfc94f885ca0b74fe83052ca1b01",
-      "version": "1.0"
+  "commits": [],
+  "diff": {
+    "additions": 0,
+    "changed_files": 0,
+    "commit_count": 0,
+    "deletions": 0
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 0,
+    "items": [],
+    "version": 1
+  },
+  "evidence_publisher_release": "1.2.5-dashboard-controls-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
     }
   },
-  "project_os_closure_snapshot": {
-    "authority": "PROJECT_OS_BOUND_DISPATCH_SNAPSHOT",
-    "items": [
+  "fabric_release": "1.2.5-dashboard-controls-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-28T01:33:36Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "c916d36b9882811fad53ee5109d2cd9a56a40716",
+    "branch": "codex/k-slide-chg16-ksa38-fix04-pr41-py312-attribution-verify01",
+    "detached_verify": false,
+    "head_sha": "c916d36b9882811fad53ee5109d2cd9a56a40716",
+    "remote_exact_head": true,
+    "remote_head_sha": "c916d36b9882811fad53ee5109d2cd9a56a40716",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "c916d36b9882811fad53ee5109d2cd9a56a40716",
+    "work_branch": "codex/k-slide-chg16-ksa38-fix04-pr41-py312-attribution-verify01",
+    "worktree_clean": true
+  },
+  "instructions": {
+    "files": [
       {
-        "ksa_id": "KSA-01",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-02",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-03",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-04",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-05",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-06",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-07",
-        "state": "ACTIVE_VERIFY_REQUIRED"
-      },
-      {
-        "ksa_id": "KSA-08",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-09",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-10",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-11",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-12",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-13",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-14",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-15",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-16",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-17",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-18",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-19",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-20",
-        "state": "ACTIVE"
-      },
-      {
-        "ksa_id": "KSA-21",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-22",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-23",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-24",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-25",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-26",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-27",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-28",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-29",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-30",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-31",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-32",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-33",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-34",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-35",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-36",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-37",
-        "state": "DONE_INTEGRATED"
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
       }
-    ]
+    ],
+    "total_bytes": 1930,
+    "warning": null
   },
-  "coverage": {
-    "trace_rows": 35,
-    "canonical_clauses": 35,
-    "contract_families": 8,
-    "ksa_items": 37,
-    "ksa_clause_mappings": 71,
-    "ksa_mapping_state_counts": {
-      "IMPLEMENTED": 18,
-      "PARTIAL": 33,
-      "REUSED_UNCHANGED": 0,
-      "NOT_IMPLEMENTED": 0,
-      "EXTERNAL_ONLY": 20
-    },
-    "ownership_counts": {
-      "REPOSITORY_OWNED": 14,
-      "MIXED_REPOSITORY_AND_EXTERNAL": 20,
-      "EXTERNAL_PRODUCTION_GATE": 1
-    },
-    "implementation_state_counts": {
-      "IMPLEMENTED": 12,
-      "PARTIAL": 22,
-      "REUSED_UNCHANGED": 0,
-      "NOT_IMPLEMENTED": 0,
-      "EXTERNAL_ONLY": 1
-    },
-    "closure_state_counts": {
-      "DONE_INTEGRATED": 17,
-      "ACTIVE_VERIFY_REQUIRED": 1,
-      "ACTIVE": 1,
-      "QUEUED": 18
-    },
-    "gap_classification_counts": {
-      "OPEN_EXTERNAL_PRODUCTION_GATE": 21,
-      "OPEN_PROJECT_OS_RECONCILIATION": 19,
-      "OPEN_REPOSITORY_REQUIREMENT": 2,
-      "ORPHAN_REQUIREMENT": 0
-    },
-    "changed_path_coverage": {
-      "commit_count": 152,
-      "changed_paths": 229,
-      "requirement_referenced_paths": 137,
-      "closed_classification_paths": 92,
-      "historical_paths": 3,
-      "unexplained_paths": 0
-    }
+  "job_id": "CF-911e2c613f791c05c702c5a3",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-ksa38-fix04-pr41-py312-attribution-verify01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-ksa38-fix04-pr41-py312-attribution-verify01"
   },
-  "qualification_checks": [
-    {
-      "name": "focused_ksa38_traceability_tests",
-      "command": "rtk python3.11 -m pytest -q tests/test_ksa38_traceability.py",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": 31,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "31 focused KSA-38 tests passed, including strict write-mode rules and portable read-only validation."
-    },
-    {
-      "name": "focused_ksa38_traceability_tests",
-      "command": "rtk /tmp/k-slide-ksa37-py312/bin/python -m pytest -q tests/test_ksa38_traceability.py",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": 31,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "31 focused KSA-38 tests passed, including strict write-mode rules and portable read-only validation."
-    },
-    {
-      "name": "full_repository_pytest_suite",
-      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m pytest -q",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": 765,
-      "tests_skipped": 5,
-      "warnings": 1,
-      "details": "Full pytest suite passed: 765 passed, 5 skipped; one external fontTools py23 deprecation warning."
-    },
-    {
-      "name": "full_repository_pytest_suite",
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa37-py312/bin/python -m pytest -q",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": 759,
-      "tests_skipped": 11,
-      "warnings": 0,
-      "details": "Full pytest suite passed: 759 passed, 11 environment/version-specific skips."
-    },
-    {
-      "name": "full_repository_unittest_suite",
-      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m unittest discover -s tests -v",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": 770,
-      "tests_skipped": 5,
-      "warnings": 0,
-      "details": "Canonical CI unittest discovery passed: 770 tests, 5 skipped."
-    },
-    {
-      "name": "full_repository_unittest_suite",
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa37-py312/bin/python -m unittest discover -s tests -v",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": 770,
-      "tests_skipped": 11,
-      "warnings": 0,
-      "details": "Canonical CI unittest discovery passed: 770 tests, 11 environment/version-specific skips."
-    },
-    {
-      "name": "exact_subject_change_span_matrix_validation",
-      "command": "rtk python3.11 tools/ksa38/validate_traceability.py --check-report --summary-json",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "Report and matrix passed 35/35 clauses, 37/37 KSA items, 71/71 semantic links, 152 commits, 229 paths, zero unexplained paths or orphan requirements; KSA-04/KSA-05 remain open."
-    },
-    {
-      "name": "exact_subject_change_span_matrix_validation",
-      "command": "rtk /tmp/k-slide-ksa37-py312/bin/python tools/ksa38/validate_traceability.py --check-report --summary-json",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "Report and matrix passed 35/35 clauses, 37/37 KSA items, 71/71 semantic links, 152 commits, 229 paths, zero unexplained paths or orphan requirements; KSA-04/KSA-05 remain open."
-    },
-    {
-      "name": "repository_json_schemas_draft_2020_12",
-      "command": "Draft202012Validator.check_schema on all repository schema JSON files",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": 13,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "All 13 repository JSON schemas passed Draft 2020-12 meta-schema validation."
-    },
-    {
-      "name": "repository_json_schemas_draft_2020_12",
-      "command": "Draft202012Validator.check_schema on all repository schema JSON files",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": 13,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "All 13 repository JSON schemas passed Draft 2020-12 meta-schema validation."
-    },
-    {
-      "name": "runtime_errorcode_parity",
-      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m pytest -q tests/test_chg16_resource_budget.py -k resource_budget_and_telemetry_error_schemas_match_runtime_contract",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": 1,
-      "tests_skipped": 16,
-      "warnings": 0,
-      "details": "Runtime ErrorCode and JSON schema parity regression passed."
-    },
-    {
-      "name": "runtime_errorcode_parity",
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa37-py312/bin/python -m pytest -q tests/test_chg16_resource_budget.py -k resource_budget_and_telemetry_error_schemas_match_runtime_contract",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": 1,
-      "tests_skipped": 16,
-      "warnings": 0,
-      "details": "Runtime ErrorCode and JSON schema parity regression passed."
-    },
-    {
-      "name": "workflow_yaml_and_embedded_shell",
-      "command": "PyYAML safe_load for .github/workflows/*.yml and bash -n for embedded run blocks",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "All 6 workflow YAML files parsed and all 49 embedded shell blocks passed bash -n."
-    },
-    {
-      "name": "workflow_yaml_and_embedded_shell",
-      "command": "PyYAML safe_load for .github/workflows/*.yml and bash -n for embedded run blocks",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "All 6 workflow YAML files parsed and all 49 embedded shell blocks passed bash -n."
-    },
-    {
-      "name": "compileall_src_tests_evals_tools_ksa38",
-      "command": "rtk proxy python3.11 -m compileall -q src tests evals tools/ksa38",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "Compilation completed for src, tests, evals, and tools/ksa38."
-    },
-    {
-      "name": "compileall_src_tests_evals_tools_ksa38",
-      "command": "rtk proxy /tmp/k-slide-ksa37-py312/bin/python -m compileall -q src tests evals tools/ksa38",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "Compilation completed for src, tests, evals, and tools/ksa38."
-    },
-    {
-      "name": "candidate_evidence_generation_on_bound_work_branch",
-      "command": "rtk python3.11 tools/ksa38/build_candidate_evidence.py",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": null,
-      "details": "Generation/write mode passed on the actual FIX04 branch; candidate 7bc6caae95daced67b5714a20149288cfa72faa3 has exact parent execution base 8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d."
-    },
-    {
-      "name": "candidate_evidence_generation_on_bound_work_branch",
-      "command": "rtk /tmp/k-slide-ksa37-py312/bin/python tools/ksa38/build_candidate_evidence.py",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": null,
-      "details": "Generation/write mode passed on the actual FIX04 branch; candidate 7bc6caae95daced67b5714a20149288cfa72faa3 has exact parent execution base 8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d."
-    },
-    {
-      "name": "candidate_evidence_read_only_validation",
-      "command": "rtk python3.11 tools/ksa38/build_candidate_evidence.py --validate",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": null,
-      "details": "Read-only rederivation passed on the work branch; exact candidate SHA/tree/parent, lineage, hashes, coverage, and publisher-owned identity validated."
-    },
-    {
-      "name": "candidate_evidence_read_only_validation",
-      "command": "rtk /tmp/k-slide-ksa37-py312/bin/python tools/ksa38/build_candidate_evidence.py --validate",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": null,
-      "details": "Read-only rederivation passed on the work branch; exact candidate SHA/tree/parent, lineage, hashes, coverage, and publisher-owned identity validated."
-    },
-    {
-      "name": "detached_exact_candidate_read_only_validation",
-      "command": "Isolated detached worktree at exact candidate SHA; Python 3.11 and 3.12 build_candidate_evidence.py --validate",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": null,
-      "details": "Both Python versions passed in an isolated detached checkout at 7bc6caae95daced67b5714a20149288cfa72faa3 with no branch name, using the bound candidate sidecars."
-    },
-    {
-      "name": "integrated_main_like_read_only_validation",
-      "command": "Isolated branch ksa38-fix04-main-like at exact candidate SHA; Python 3.11 build_candidate_evidence.py --validate",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": null,
-      "details": "Passed on branch ksa38-fix04-main-like at 7bc6caae95daced67b5714a20149288cfa72faa3; checkout branch differs from stored authored work_branch."
-    },
-    {
-      "name": "integrated_main_like_read_only_validation",
-      "command": "Isolated branch ksa38-fix04-main-like at exact candidate SHA; Python 3.12 build_candidate_evidence.py --validate",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": null,
-      "details": "Passed on branch ksa38-fix04-main-like at 7bc6caae95daced67b5714a20149288cfa72faa3; checkout branch differs from stored authored work_branch."
-    },
-    {
-      "name": "git_diff_check",
-      "command": "rtk git diff --check and rtk git diff --cached --check",
-      "python_version": null,
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": null,
-      "details": "Whitespace validation passed after the corrected FIX04 candidate and final qualification evidence update."
-    }
-  ],
-  "candidate_binding": {
-    "commit_sha": "7bc6caae95daced67b5714a20149288cfa72faa3",
-    "tree_oid": "6cd599a665a45cb6e60dfd8d036187e525832fad",
-    "parent_sha": "8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d",
-    "work_branch": "codex/k-slide-chg16-requirement-traceability-01-fix04",
-    "worktree_clean_at_product_candidate": true
+  "operation": "VERIFY",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.5-dashboard-controls-candidate",
+    "policy_sha256": "123615bf2f6e57dcac197e49ca98ceac59ada86a55e2c84445ea5d00812c0833",
+    "registry_sha256": "af81b8552f9d6a33847310e3c6bcd2d48401782b963a58efd2993e93570cb4aa"
   },
-  "current_execution_identity": null,
-  "fabric_execution_identity": {
-    "fabric_job_id": null,
-    "owner": "Fabric native publisher post-execution evidence",
-    "status": "PENDING_POST_EXECUTION_PUBLICATION"
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
   },
-  "scope_boundary": {
-    "notion_mutated": false,
-    "main_moved_or_merged": false,
-    "live_company_infrastructure_mutated": false,
-    "employee_private_pilot_or_canary_work_run": false,
-    "go_champion_production_readiness_or_certification_claimed": false,
-    "project_os_remains_independent_auditor": true
+  "request": "chg16-ksa38-fix04-pr41-py312-attribution-verify01",
+  "schema_version": 1,
+  "started_at": "2026-09-28T01:19:36Z",
+  "status": "EXECUTED_NO_CHANGE",
+  "timing": {
+    "execution_seconds": 840,
+    "queue_seconds": 0,
+    "total_seconds": 840
+  },
+  "transport": {
+    "bytes": 6481,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 6119,
+    "prompt_sha256": "23a89c51bbaaacc5a66ae8f93ccbaccb3a2ee180f6df38a786eb465d5ac9a65a",
+    "sha256": "911e2c613f791c05c702c5a377a3121b0eaa5dae5c5a02647cf508e2e5239d7d"
   }
 }
