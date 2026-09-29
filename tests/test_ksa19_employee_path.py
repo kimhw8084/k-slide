@@ -135,8 +135,6 @@ class EmployeeGovernedTermbasePathTests(unittest.TestCase):
             accepted = self._translate(root, run, environment, english="LockedTerm")
             self.assertEqual(accepted["status"], "ACCEPTED")
             _conflict_assess(root, run.name, '{"schema_version":"1.0","candidate_groups":[]}', None, environment)
-            for name, content in {"05_executive_brief.md": "# brief\n", "05_final_report.md": "# report\n", "07_unresolved_items.md": "No unresolved items.\n"}.items():
-                (run / name).write_text(content, encoding="utf-8")
             job = WorkspaceRunStore(run).load(f"job-{run.name}")
             verify_output = StringIO()
             with patch("k_slide.execution.ensure_workspace_environment_compatible", return_value=(job, environment)), redirect_stdout(verify_output):
@@ -154,8 +152,6 @@ class EmployeeGovernedTermbasePathTests(unittest.TestCase):
         holder, root, run, candidate, authority, environment = self._fixture(with_team=False)
         try:
             self._translate(root, run, environment, english="WrongTerm")
-            for name, content in {"05_executive_brief.md": "# brief\n", "05_final_report.md": "# report\n", "07_unresolved_items.md": "No unresolved items.\n"}.items():
-                (run / name).write_text(content, encoding="utf-8")
             result = verify_run(run, environment_identity=environment)
             self.assertFalse(result.passed)
             self.assertIn("KSLIDE_LOCKED_TERM_MISMATCH", {issue.code for issue in result.issues})

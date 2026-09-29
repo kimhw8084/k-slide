@@ -13,7 +13,14 @@ From this project:
 ./scripts/verify_install.sh /path/to/your/project
 ```
 
-Then launch OpenCode in the target project. Attach supported local source files in the composer and run `/k-slide`. For local compatibility, source files may also be placed in:
+Then launch OpenCode in the target project and run `/k-slide`, or install the repository-owned VS Code extension to select the current file or one or more files from Explorer. VS Code packaging and installation use:
+
+```bash
+./scripts/build_vscode_extension.sh /tmp/k-slide.vsix
+./scripts/install_vscode_extension.sh
+```
+
+In Cloud VS Code without a `code` CLI, use **Extensions: Install from VSIX…** with the built package. The project installer copies auditable adapter source into `.vscode/k-slide-extension`; it does not edit VS Code settings or unrelated extensions. For local compatibility, source files may also be placed in:
 
 ```text
 .k-slide-input/
@@ -89,9 +96,11 @@ The project installs:
 
 - `/k-slide`, `/k-slide-continue`, `/k-slide-status`, `/k-slide-doctor`, `/k-slide-audit`, and `/k-slide-help`;
 - one visible `k-slide` agent;
-- typed custom tools: `kslide_prepare`, `kslide_next`, `kslide_evidence`, `kslide_submit`, `kslide_verify`, `kslide_finalize`, `kslide_status`, and `kslide_doctor`.
+- typed custom tools: `kslide_prepare`, `kslide_next`, `kslide_evidence`, `kslide_submit`, `kslide_verify`, `kslide_finalize`, `kslide_presentation`, `kslide_status`, and `kslide_doctor`.
 
 The normal `/k-slide` path has no employee-selectable mode. OpenCode composer attachments and approved workspace-file selections are resolved by the host adapter, validated locally, and copied into an immutable hashed run snapshot. The `.k-slide-input/` folder remains a local compatibility fallback.
+
+Verified and reviewable runs expose the same engine-owned `05_decision_view.json`, `05_decision_view.md`, `05_final_report.md`, `07_unresolved_items.md`, `08_evidence_drilldown.json`, and `09_presentation.json` identities to both hosts. The Decision View is first; reconstruction, review disclosure, and evidence drill-down remain separate follow-on artifacts.
 
 The installed agent does not use model-generated shell commands for K-Slide lifecycle operations. OpenCode compatibility is detected at runtime; the repository was validated against OpenCode `1.3.9` during this implementation pass.
 

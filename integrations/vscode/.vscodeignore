@@ -1,0 +1,8 @@
+src/**
+*.ts
+**/*.test.js
+tsconfig.json
+package-lock.json
+node_modules/**
+.nvmrc
+.vscodeignore

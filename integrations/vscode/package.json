@@ -1,0 +1,82 @@
+{
+  "name": "k-slide-cloud-vscode",
+  "displayName": "K-Slide",
+  "description": "Select local or workspace files and present engine-owned K-Slide artifacts in VS Code.",
+  "version": "0.1.0",
+  "publisher": "k-slide",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kimhw8084/k-slide.git"
+  },
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "extensionKind": ["workspace"],
+  "capabilities": {
+    "virtualWorkspaces": false,
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "K-Slide requires an installed engine inside a trusted workspace."
+    }
+  },
+  "main": "./dist/src/extension.js",
+  "activationEvents": [
+    "onCommand:kSlide.runCurrent",
+    "onCommand:kSlide.runSelectedFiles",
+    "onCommand:kSlide.runExplorerFile",
+    "onCommand:kSlide.openDecisionView",
+    "onCommand:kSlide.openReconstruction",
+    "onCommand:kSlide.openReviewDisclosure",
+    "onCommand:kSlide.openEvidenceDrilldown"
+  ],
+  "contributes": {
+    "commands": [
+      {"command": "kSlide.runCurrent", "title": "K-Slide: Run on Current File", "category": "K-Slide"},
+      {"command": "kSlide.runSelectedFiles", "title": "K-Slide: Run on Selected Files…", "category": "K-Slide"},
+      {"command": "kSlide.runExplorerFile", "title": "K-Slide: Run on This File", "category": "K-Slide"},
+      {"command": "kSlide.openDecisionView", "title": "K-Slide: Open Decision View", "category": "K-Slide"},
+      {"command": "kSlide.openReconstruction", "title": "K-Slide: Open English Reconstruction", "category": "K-Slide"},
+      {"command": "kSlide.openReviewDisclosure", "title": "K-Slide: Open Review Disclosure", "category": "K-Slide"},
+      {"command": "kSlide.openEvidenceDrilldown", "title": "K-Slide: Open Evidence Drill-down", "category": "K-Slide"}
+    ],
+    "menus": {
+      "explorer/context": [
+        {"command": "kSlide.runExplorerFile", "when": "!explorerResourceIsFolder", "group": "navigation@90"}
+      ],
+      "editor/title": [
+        {"command": "kSlide.runCurrent", "group": "navigation@90"}
+      ]
+    },
+    "configuration": {
+      "title": "K-Slide",
+      "properties": {
+        "kSlide.pythonPath": {
+          "type": "string",
+          "default": "python3",
+          "description": "Python executable used to invoke the installed K-Slide engine."
+        },
+        "kSlide.engineRoot": {
+          "type": "string",
+          "default": "",
+          "description": "Optional K-Slide source or installed engine root. Empty uses the selected workspace's installed engine."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "test": "npm run compile && node --test dist/src/hostInvocation.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.0",
+    "@types/vscode": "1.96.0",
+    "@vscode/vsce": "3.2.1",
+    "typescript": "5.9.3"
+  },
+  "packageManager": "npm@10.9.2",
+  "volta": {
+    "node": "22.15.0",
+    "npm": "10.9.2"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://k-slide.local/schemas/presentation-descriptor.v1.schema.json",
+  "title": "K-Slide Host Presentation Descriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "canonical_state_sha256", "actions", "artifact_sha256", "lifecycle_field", "semantic_outcome_field"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "run_id": {"type": "string", "minLength": 1},
+    "canonical_state_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "actions": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action_id", "label", "role", "identity", "path", "media_type", "sha256"],
+        "properties": {
+          "action_id": {"enum": ["decision_view", "reconstruction", "review_disclosure", "evidence_drilldown"]},
+          "label": {"type": "string", "minLength": 1},
+          "role": {"enum": ["first_view", "follow_on"]},
+          "identity": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "minLength": 1},
+          "structured_path": {"type": "string"},
+          "media_type": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        }
+      }
+    },
+    "artifact_sha256": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_view_json", "decision_view_markdown", "reconstruction", "review_disclosure", "evidence_drilldown"],
+      "properties": {
+        "decision_view_json": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "decision_view_markdown": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "reconstruction": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "review_disclosure": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "evidence_drilldown": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "lifecycle_field": {"const": "operational_state"},
+    "semantic_outcome_field": {"const": "semantic_outcome"}
+  }
+}

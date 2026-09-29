@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://k-slide.local/schemas/decision-view.v1.schema.json",
+  "title": "K-Slide Decision View",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "canonical_state_sha256", "verification", "sections", "artifact_contract", "unresolved_warning_count"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "run_id": {"type": "string", "minLength": 1},
+    "canonical_state_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "checked_work_units", "issue_count", "critical_issue_count", "unaccounted_count", "artifact_path"],
+      "properties": {
+        "state": {"enum": ["NOT_RUN", "PASS", "FAIL", "INVALID"]},
+        "checked_work_units": {"type": "integer", "minimum": 0},
+        "issue_count": {"type": "integer", "minimum": 0},
+        "critical_issue_count": {"type": "integer", "minimum": 0},
+        "unaccounted_count": {"type": "integer", "minimum": 0},
+        "artifact_path": {"const": "verification/summary.json"}
+      }
+    },
+    "sections": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["material_context", "key_takeaway", "decisions_and_asks", "key_numbers", "risks_and_dependencies", "timing_and_owners", "conflicts", "unresolved_warnings"],
+      "properties": {
+        "material_context": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "documents", "work_unit_count", "coverage"],
+          "properties": {
+            "state": {"enum": ["established", "not_established"]},
+            "documents": {"type": "array", "items": {"$ref": "#/$defs/document"}},
+            "work_unit_count": {"type": "integer", "minimum": 0},
+            "coverage": {"type": "string"}
+          }
+        },
+        "key_takeaway": {"$ref": "#/$defs/claimSection"},
+        "decisions_and_asks": {"$ref": "#/$defs/claimSection"},
+        "key_numbers": {"$ref": "#/$defs/claimSection"},
+        "risks_and_dependencies": {"$ref": "#/$defs/claimSection"},
+        "timing_and_owners": {"$ref": "#/$defs/claimSection"},
+        "conflicts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "items"],
+          "properties": {
+            "state": {"enum": ["conflicts_present", "none_recorded", "not_assessed"]},
+            "items": {"type": "array", "items": {"$ref": "#/$defs/item"}}
+          }
+        },
+        "unresolved_warnings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "items"],
+          "properties": {
+            "state": {"enum": ["warnings_present", "none_recorded"]},
+            "items": {"type": "array", "items": {"$ref": "#/$defs/item"}}
+          }
+        }
+      }
+    },
+    "artifact_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reconstruction", "review_disclosure", "evidence_drilldown", "presentation_descriptor"],
+      "properties": {
+        "reconstruction": {"const": "05_final_report.md"},
+        "review_disclosure": {"const": "07_unresolved_items.md"},
+        "evidence_drilldown": {"const": "08_evidence_drilldown.json"},
+        "presentation_descriptor": {"const": "09_presentation.json"}
+      }
+    },
+    "unresolved_warning_count": {"type": "integer", "minimum": 0}
+  },
+  "$defs": {
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "display_name", "work_units", "source_inventory_ref"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "display_name": {"type": "string", "minLength": 1},
+        "work_units": {"type": "array", "items": {"type": "string"}},
+        "source_inventory_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["artifact_path", "source_id"],
+          "properties": {"artifact_path": {"const": "RUN_MANIFEST.json"}, "source_id": {"type": "string"}}
+        }
+      }
+    },
+    "claimSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "items"],
+      "properties": {
+        "state": {"enum": ["items_present", "not_established"]},
+        "items": {"type": "array", "items": {"$ref": "#/$defs/item"}}
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["item_id", "kind", "text", "provenance", "uncertainty", "unresolved", "unresolved_reason", "evidence_ids", "source_refs", "canonical_ref"],
+      "properties": {
+        "item_id": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "minLength": 1},
+        "text": {"type": "string"},
+        "provenance": {"enum": ["source_fact", "supported_interpretation", "unresolved"]},
+        "uncertainty": {"enum": ["low", "medium", "high", "unknown"]},
+        "unresolved": {"type": "boolean"},
+        "unresolved_reason": {"type": ["string", "null"]},
+        "evidence_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "source_refs": {"type": "array", "items": {"$ref": "#/$defs/sourceRef"}},
+        "canonical_ref": {"$ref": "#/$defs/canonicalRef"},
+        "assertions": {"type": "array", "items": {"$ref": "#/$defs/assertion"}}
+      }
+    },
+    "sourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_id", "human_reference", "work_unit_id", "semantic_kind", "evidence_ir_path", "bbox_px", "crop_path"],
+      "properties": {
+        "evidence_id": {"type": "string", "minLength": 1},
+        "human_reference": {"type": "string", "minLength": 1},
+        "work_unit_id": {"type": ["string", "null"]},
+        "semantic_kind": {"type": "string", "minLength": 1},
+        "evidence_ir_path": {"type": ["string", "null"]},
+        "bbox_px": {"type": ["array", "null"], "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+        "crop_path": {"type": ["string", "null"]}
+      }
+    },
+    "canonicalRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "work_unit_id": {"type": "string"},
+        "semantic_kind": {"type": "string"},
+        "semantic_id": {"type": "string"},
+        "artifact_path": {"type": ["string", "null"]},
+        "conflict_id": {"type": "string"}
+      }
+    },
+    "assertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assertion_id", "work_unit_id", "text", "evidence_ids", "canonical_path"],
+      "properties": {
+        "assertion_id": {"type": "string"},
+        "work_unit_id": {"type": "string"},
+        "text": {"type": "string"},
+        "evidence_ids": {"type": "array", "items": {"type": "string"}},
+        "canonical_path": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

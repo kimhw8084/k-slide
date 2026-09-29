@@ -208,7 +208,7 @@ def _completion_contract(run_dir: Path | None) -> tuple[bool, dict[str, Any]]:
         state = json.loads((run_dir / "RUN_STATE.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         return False, {"reason": f"run state unavailable: {exc.__class__.__name__}"}
-    required = ("RUN_COMPLETE.md", "05_executive_brief.md", "05_final_report.md", "06_verification.md", "07_unresolved_items.md")
+    required = ("RUN_COMPLETE.md", "05_decision_view.json", "05_decision_view.md", "05_executive_brief.md", "05_final_report.md", "06_verification.md", "07_unresolved_items.md", "08_evidence_drilldown.json", "09_presentation.json")
     missing = [name for name in required if not (run_dir / name).is_file()]
     complete = state.get("phase") == "COMPLETE" and not missing
     return complete, {"run_id": run_dir.name, "phase": state.get("phase"), "missing_artifacts": missing}
