@@ -5,7 +5,9 @@ import json
 import re
 import sys
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 from unittest.mock import patch
 
 from jsonschema import Draft202012Validator
@@ -29,6 +31,9 @@ from traceability import (  # noqa: E402
 
 MATRIX_PATH = ROOT / "traceability/ksa38/traceability.v1.json"
 SCHEMA_PATH = ROOT / "traceability/ksa38/schema.v1.json"
+FIX04_PRODUCT_CANDIDATE = "7bc6caae95daced67b5714a20149288cfa72faa3"
+FIX04_HISTORICAL_FINAL_HEAD = "06a79a5fc47c88a1327a929ac6c68923a116c63b"
+FIX05_WORK_HEAD = "18ab14278e758e3ff48bd50fe6e6341078aafeff"
 
 
 class KSA38TraceabilityTests(unittest.TestCase):
@@ -366,6 +371,37 @@ class KSA38CandidateEvidenceTests(unittest.TestCase):
         qualification = load_json(ROOT / "traceability/ksa38/qualification.v1.json")
         return evidence, audit, qualification
 
+    @contextmanager
+    def _generation_observations(
+        self,
+        *,
+        head_sha: str,
+        branch_name: str,
+        status_paths: set[str] | None = None,
+    ) -> Iterator[None]:
+        original_git = candidate_evidence.git
+
+        def git_with_snapshot(*args: str) -> str:
+            if args == ("branch", "--show-current"):
+                return branch_name
+            if args == ("rev-parse", "HEAD"):
+                return head_sha
+            if len(args) == 4 and args[:2] == ("diff", "--name-only") and args[3] == "HEAD":
+                return original_git("diff", "--name-only", args[2], head_sha)
+            return original_git(*args)
+
+        with (
+            patch.object(candidate_evidence, "git", side_effect=git_with_snapshot),
+            patch.object(candidate_evidence, "_status_paths", return_value=set(status_paths or set())),
+        ):
+            yield
+
+    def _historical_fix04_generation(self):
+        return self._generation_observations(
+            head_sha=FIX04_HISTORICAL_FINAL_HEAD,
+            branch_name=self.context["work_branch"],
+        )
+
     def _branch_override(self, branch_name: str):
         original_git = candidate_evidence.git
 
@@ -379,20 +415,53 @@ class KSA38CandidateEvidenceTests(unittest.TestCase):
     def test_generation_succeeds_for_bound_branch_and_rejects_wrong_branch(self) -> None:
         evidence, _, qualification = self._candidate_documents()
         candidate_sha = evidence["candidate_binding"]["commit_sha"]
-        with self._branch_override(self.context["work_branch"]), patch.object(
-            candidate_evidence, "_status_paths", return_value=set()
-        ):
+        self.assertEqual(candidate_sha, FIX04_PRODUCT_CANDIDATE)
+        self.assertTrue(
+            candidate_evidence._is_ancestor(candidate_sha, FIX04_HISTORICAL_FINAL_HEAD)
+        )
+        historical_tail = set(
+            candidate_evidence.git(
+                "diff", "--name-only", candidate_sha, FIX04_HISTORICAL_FINAL_HEAD
+            ).splitlines()
+        )
+        self.assertEqual(historical_tail, candidate_evidence.EVIDENCE_PATHS)
+        with self._historical_fix04_generation():
             generated, bound_qualification = candidate_evidence.build_candidate_artifacts(candidate_sha)
         self.assertEqual(generated["candidate_binding"], evidence["candidate_binding"])
         self.assertEqual(bound_qualification["candidate_binding"], qualification["candidate_binding"])
-        with self._branch_override("main"):
+        with self._generation_observations(
+            head_sha=FIX04_HISTORICAL_FINAL_HEAD,
+            branch_name="main",
+        ):
             with self.assertRaisesRegex(candidate_evidence.CandidateEvidenceError, "requires the bound FIX04 work branch"):
+                candidate_evidence.build_candidate_artifacts(candidate_sha)
+
+    def test_generation_rejects_later_descendant_with_non_evidence_paths(self) -> None:
+        evidence, _, _ = self._candidate_documents()
+        candidate_sha = evidence["candidate_binding"]["commit_sha"]
+        self.assertTrue(candidate_evidence._is_ancestor(candidate_sha, FIX05_WORK_HEAD))
+        later_tail = set(
+            candidate_evidence.git(
+                "diff", "--name-only", candidate_sha, FIX05_WORK_HEAD
+            ).splitlines()
+        )
+        self.assertIn("tests/test_chg18_opencode_bootstrap.py", later_tail)
+        self.assertFalse(later_tail <= candidate_evidence.EVIDENCE_PATHS)
+        # Keep the valid branch observation so this reaches the strict tail guard.
+        with self._generation_observations(
+            head_sha=FIX05_WORK_HEAD,
+            branch_name=self.context["work_branch"],
+        ):
+            with self.assertRaisesRegex(
+                candidate_evidence.CandidateEvidenceError,
+                "commits above candidate include non-evidence paths",
+            ):
                 candidate_evidence.build_candidate_artifacts(candidate_sha)
 
     def test_generation_rejects_wrong_request_base_and_forged_predecessor(self) -> None:
         evidence, _, _ = self._candidate_documents()
         candidate_sha = evidence["candidate_binding"]["commit_sha"]
-        with self._branch_override(self.context["work_branch"]):
+        with self._historical_fix04_generation():
             original_load = candidate_evidence.load_json
 
             def wrong_request_context(path):
@@ -426,7 +495,11 @@ class KSA38CandidateEvidenceTests(unittest.TestCase):
             with self.assertRaisesRegex(candidate_evidence.CandidateEvidenceError, "candidate parent"):
                 candidate_evidence.build_candidate_artifacts(self.context["candidate_parent_sha"])
 
-            with patch.object(candidate_evidence, "_status_paths", return_value={"unexpected.txt"}):
+            with self._generation_observations(
+                head_sha=FIX04_HISTORICAL_FINAL_HEAD,
+                branch_name=self.context["work_branch"],
+                status_paths={"unexpected.txt"},
+            ):
                 with self.assertRaisesRegex(candidate_evidence.CandidateEvidenceError, "outside the evidence sidecars"):
                     candidate_evidence.build_candidate_artifacts(candidate_sha)
 
