@@ -1,561 +1,393 @@
 {
-  "schema_version": "1.0",
-  "evidence_type": "k-slide-ksa38-fix-candidate-evidence",
-  "project": "k-slide",
-  "issue_id": "CHG-16",
-  "operation": "FIX",
-  "request": "chg16-requirement-traceability-01-fix04",
-  "exact_base": {
-    "commit_sha": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd",
-    "tree_oid": "e049fcc0e5d245630c1a47e1ec08d30f6419d6c2"
-  },
-  "execution_base_sha": "8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d",
-  "work_branch": "codex/k-slide-chg16-requirement-traceability-01-fix04",
-  "product_subject_sha": "23669bacb0392aecc009ae19c7b8c645f1d8c7dd",
-  "change_base_sha": "af5836540304b424289bedbe57a87dbb5d02763f",
-  "predecessor_lineage": {
-    "request": "chg16-requirement-traceability-01-fix03",
-    "disposition": "ACCEPTED",
-    "work_head": "5d48a1ad189e108e2f9fda5fb4fe59805ca944a2",
-    "traceability_product_commit": "e5903b405f116a04f11c1402c75a7bc9d22f32df",
-    "native_evidence_commit": "defcf1eda11038fad75f825b678f50795eff485c",
-    "native_build_job_id": "CF-5138c2009554585799d1357c"
-  },
-  "historical_lineage": [
+  "accepted_at": "2026-09-29T00:52:40Z",
+  "changed_files": [
     {
-      "request": "chg16-requirement-traceability-01-fix02",
-      "disposition": "ACCEPTED",
-      "work_head": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
-      "traceability_product_commit": "6c15efcff2352e43050391c78ea164fa8a5edf8e",
-      "native_evidence_commit": "e71b3465f8943b57dbe2b774212ae6108043c9a8",
-      "native_build_job_id": "CF-959e82d5a93c6227f3e861fb"
+      "additions": 85,
+      "deletions": 8,
+      "path": "tests/test_chg18_opencode_bootstrap.py",
+      "status": "M"
     },
     {
-      "request": "chg16-requirement-traceability-01-fix01",
-      "disposition": "REJECTED",
-      "work_head": "3538dc1d0c9ac5c255545751662bb08980997f44",
-      "traceability_product_commit": "34092db009e4701b2c9949b7d644afce9267c08d",
-      "native_evidence_commit": "1ea3e8b413bf8ef28ae16c2ddc2c0d7e9d096ce7",
-      "native_build_job_id": "CF-6a7997ef8068f9a3b6ae02bd"
-    },
-    {
-      "request": "chg16-requirement-traceability-01",
-      "disposition": "BUILD_PREDECESSOR",
-      "work_head": "6bad7b23ddfc9525acffb9e169fb65182f9c8764",
-      "traceability_product_commit": "b07011b674d165bf8ed28d5b2a96add6e850bd6d",
-      "native_evidence_commit": "99063af41106fb26d46f573c5fd0fb52a5352cf7",
-      "native_build_job_id": "CF-12417898c2198699f08668aa"
+      "additions": 79,
+      "deletions": 6,
+      "path": "tests/test_ksa38_traceability.py",
+      "status": "M"
     }
   ],
-  "integration_lineage": {
-    "pull_request_number": 40,
-    "merge_commit_sha": "8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d",
-    "accepted_head_sha": "5d48a1ad189e108e2f9fda5fb4fe59805ca944a2",
-    "native_evidence_commit": "defcf1eda11038fad75f825b678f50795eff485c",
-    "native_build_job_id": "CF-5138c2009554585799d1357c"
-  },
-  "artifacts": {
-    "candidate_context": {
-      "path": "traceability/ksa38/candidate-context.v1.json",
-      "sha256": "e668ef0a01c44fa97681b9318d1f13d5e3db84c40e8bdd58ef99c43360f9cb74",
-      "version": "1.0"
+  "checks": [
+    {
+      "command": "/bin/zsh -lc 'pwd && cat /Users/haewonkim/.codex/RTK.md && cat /Users/haewonkim/.codex/law.md && git status --short --branch && git remote -v'",
+      "exit_code": 0,
+      "type": "command_execution"
     },
-    "matrix": {
-      "path": "traceability/ksa38/traceability.v1.json",
-      "sha256": "4a0ca1394577e4c12e5ae559dde0be0a8871ef4f3593d4a9a360192bea9be884",
-      "version": "1.0"
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git rev-list --parents -n 1 86fa2040695609202cca42af2de8e1581a59897b'",
+      "exit_code": 0,
+      "type": "command_execution"
     },
-    "matrix_schema": {
-      "path": "traceability/ksa38/schema.v1.json",
-      "sha256": "f6a65afc17969dbad5e4c3540873acfa82213cc025a7db5f3b1d5a9768f299d1",
-      "version": "1.0"
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git show -s --format=%T 86fa2040695609202cca42af2de8e1581a59897b'",
+      "exit_code": 0,
+      "type": "command_execution"
     },
-    "candidate_evidence_schema": {
-      "path": "traceability/ksa38/candidate-evidence.schema.v1.json",
-      "sha256": "21ed135103ebadb35c4eb7375a7647514455d0054b3889d9074f0cd9a942001c",
-      "version": "1.0"
+    {
+      "command": "/bin/zsh -lc \"rtk proxy sh -c 'command -v python3.11; command -v python3.12; python3.11 --version; python3.12 --version'\"",
+      "exit_code": 0,
+      "type": "command_execution"
     },
-    "qualification_schema": {
-      "path": "traceability/ksa38/qualification.schema.v1.json",
-      "sha256": "8cb25b0a76a78c477666c1b06517d3c9069ecc64b2e9d5180a7e18c1f08fcb5c",
-      "version": "1.0"
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git merge-base --is-ancestor c916d36b9882811fad53ee5109d2cd9a56a40716 86fa2040695609202cca42af2de8e1581a59897b; rtk proxy git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
     },
-    "scope_registry": {
-      "path": "traceability/ksa38/ksa-scope-registry.v1.json",
-      "sha256": "1a45998acb466a07b51692d8e1c6239cab2aaa1dd7bd8740bfb8a2d4e7e55f4d",
-      "version": "1.0"
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git ls-remote origin refs/heads/main'",
+      "exit_code": 0,
+      "type": "command_execution"
     },
-    "human_report": {
-      "path": "traceability/ksa38/README.md",
-      "sha256": "d819dd469c78dc93539db7d0841a220165e2b1b83a38804db7fa75b4dfa77840",
-      "version": "1.0"
+    {
+      "command": "/bin/zsh -lc 'rtk proxy ls -a'",
+      "exit_code": 0,
+      "type": "command_execution"
     },
-    "qualification_manifest": {
-      "path": "traceability/ksa38/qualification.v1.json",
-      "sha256": "709f796330ab0a8a1c865b91232d395594facfc94f885ca0b74fe83052ca1b01",
-      "version": "1.0"
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git rev-parse HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy rg --files -g 'pyproject.toml' -g 'tox.ini' -g 'pytest.ini' -g 'setup.cfg' -g 'Makefile' -g '.python-version' -g 'requirements*.txt' -g 'uv.lock'\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 15,
+        "output_sha256": "9b7e55215f559890fa96971f287e75e63b1a210e1e347126083b6d3ec013c101",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git ls-remote origin refs/heads/codex/k-slide-chg16-ksa38-fix06-recurrence-verify01'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy sed -n '1,220p' pyproject.toml\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy rg -n 'test_waits_for_payload_after_file_exists_empty|test_persistent_empty_and_malformed_payloads_fail_closed|test_signal_during_access_key_handoff_terminates_group_without_secret_output|class OpenCodeBootstrapTests' tests/test_chg18_opencode_bootstrap.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy rg -n 'test_waits_for_payload_after_file_exists_empty|test_persistent_empty_and_malformed_payloads_fail_closed' tests\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git reset --hard 86fa2040695609202cca42af2de8e1581a59897b && rtk proxy git status --short --branch && rtk proxy git rev-parse HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy rg -n 'test_waits_for_payload_after_file_exists_empty|test_persistent_empty_and_malformed_payloads_fail_closed' tests\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy ls -l /opt/anaconda3/bin/python3.11 /opt/homebrew/bin/python3.12'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy rg -n 'waits_for_payload_after_file_exists|persistent_empty_and_malformed|malformed_payload' tests\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy sed -n '1,80p' tests/test_chg18_opencode_bootstrap.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy rg -n 'unittest discover|pytest|test_chg18_opencode_bootstrap' .github tests DEVELOPMENT_NOTES.md README.md\"",
+      "exit_code": 0,
+      "test_result": {
+        "exit_code": 0,
+        "framework": "pytest",
+        "outcome": "passed",
+        "output_bytes": 728,
+        "output_sha256": "88df00660bd168036421a374a397bbe9538fcebd93ba79baaaaa798150708b28",
+        "summary_detected": false
+      },
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy env PYTHONPATH=src python3.11 -c 'import tests.test_chg18_opencode_bootstrap'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy env PYTHONPATH=src python3.12 -c 'import tests.test_chg18_opencode_bootstrap'\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3.12 - <<'PY'\nimport json, os, re, subprocess, sys\nfrom pathlib import Path\n\nrepo = Path.cwd()\noutdir = Path(\\\"/tmp/chg16-ksa38-fix06-recurrence-verify01\\\")\noutdir.mkdir(parents=True, exist_ok=True)\nsummary_path = outdir / \\\"summary.json\\\"\nfailure_path = outdir / \\\"first_failure.log\\\"\nsummary = {\n    \\\"request\\\": \\\"chg16-ksa38-fix06-recurrence-verify01\\\",\n    \\\"candidate\\\": \\\"86fa2040695609202cca42af2de8e1581a59897b\\\",\n    \\\"repository\\\": str(repo),\n    \\\"results\\\": [],\n    \\\"failure\\\": None,\n    \\\"verdict\\\": \\\"IN_PROGRESS\\\",\n}\ndef save_summary():\n    tmp = summary_path.with_suffix(\\\".json.tmp\\\")\n    tmp.write_text(json.dumps(summary, indent=2) + \\\"\\\\n\\\", encoding=\\\"utf-8\\\")\n    tmp.replace(summary_path)\n\nenv = os.environ.copy()\nenv[\\\"PYTHONPATH\\\"] = \\\"src\\\" + (os.pathsep + env[\\\"PYTHONPATH\\\"] if env.get(\\\"PYTHONPATH\\\") else \\\"\\\")\nexact = \\\"tests.test_chg18_opencode_bootstrap.OpenCodeBootstrapTests.test_signal_during_access_key_handoff_terminates_group_without_secret_output\\\"\nfocused = [\n    \\\"tests.test_chg18_opencode_bootstrap.OpenCodeBootstrapTests.test_waits_for_payload_after_file_exists_empty\\\",\n    \\\"tests.test_chg18_opencode_bootstrap.OpenCodeBootstrapTests.test_persistent_empty_and_malformed_payloads_fail_closed\\\",\n]\nphases = [\n    (\\\"A_py312_exact\\\", \\\"/opt/homebrew/bin/python3.12\\\", 50, [exact], 1),\n    (\\\"B_py312_module\\\", \\\"/opt/homebrew/bin/python3.12\\\", 20, [\\\"tests.test_chg18_opencode_bootstrap\\\"], None),\n    (\\\"C_py311_exact\\\", \\\"/opt/anaconda3/bin/python3.11\\\", 10, [exact], 1),\n    (\\\"D_py311_focused\\\", \\\"/opt/anaconda3/bin/python3.11\\\", 1, focused, 2),\n    (\\\"D_py312_focused\\\", \\\"/opt/homebrew/bin/python3.12\\\", 1, focused, 2),\n]\nmodule_count = None\nfor phase, interpreter, count, targets, expected_count in phases:\n    print(\\\"START %s (%d execution%s)\\\" % (phase, count, \\\"\\\" if count == 1 else \\\"s\\\"), flush=True)\n    for iteration in range(1, count + 1):\n        command = [interpreter, \\\"-m\\\", \\\"unittest\\\", \\\"-q\\\"] + targets\n        try:\n            proc = subprocess.run(command, cwd=str(repo), env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)\n            rc = proc.returncode\n            output = proc.stdout\n        except Exception as exc:\n            rc = 255\n            output = \\\"runner exception: %r\\\\n\\\" % (exc,)\n        matches = re.findall(r\\\"Ran\\\\\\\\s+(\\\\\\\\d+)\\\\\\\\s+tests?\\\", output)\n        ran = int(matches[-1]) if matches else None\n        ok_marker = re.search(r\\\"\"'^OK(?:'\"\\\\\\\\b|\\\\\\\\s|\\\\\\\\()\\\", output, re.M) is not None\n        count_ok = (ran == expected_count) if expected_count is not None else (ran is not None and ran > 0)\n        if phase == \\\"B_py312_module\\\" and count_ok:\n            if module_count is None:\n                module_count = ran\n            else:\n                count_ok = ran == module_count\n        ok = rc == 0 and count_ok and ok_marker\n        record = {\n            \\\"phase\\\": phase,\n            \\\"iteration\\\": iteration,\n            \\\"interpreter\\\": interpreter,\n            \\\"exit_status\\\": rc,\n            \\\"tests_ran\\\": ran,\n            \\\"passed\\\": ok,\n        }\n        summary[\\\"results\\\"].append(record)\n        if not ok:\n            summary[\\\"failure\\\"] = record\n            summary[\\\"verdict\\\"] = \\\"RECURRENCE_FAIL\\\"\n            failure_path.write_text(\n                \\\"phase=%s\\\\niteration=%d\\\\ninterpreter=%s\\\\ncommand=%r\\\\nexit_status=%d\\\\ntests_ran=%r\\\\n\\\\n%s\\\"\n                % (phase, iteration, interpreter, command, rc, ran, output),\n                encoding=\\\"utf-8\\\",\n            )\n            save_summary()\n            print(\\\"FAIL %s iteration %d exit=%d tests_ran=%r log=%s\\\" % (phase, iteration, rc, ran, failure_path), flush=True)\n            sys.exit(1)\n        if iteration == count or iteration % 5 == 0:\n            print(\\\"PASS %s %d/%d (tests_ran=%d)\\\" % (phase, iteration, count, ran), flush=True)\n        save_summary()\nsummary[\\\"verdict\\\"] = \\\"RECURRENCE_PASS\\\"\nsummary[\\\"module_test_count\\\"] = module_count\nsave_summary()\nprint(\\\"ALL RECURRENCE EXECUTIONS PASSED; summary=%s\\\" % summary_path, flush=True)\n\nPY\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3.12 - <<'PY'\nimport json, os, subprocess, sys\nfrom pathlib import Path\n\nrepo = Path.cwd()\noutdir = Path(\\\"/tmp/chg16-ksa38-fix06-recurrence-verify01\\\")\noutdir.mkdir(parents=True, exist_ok=True)\nsummary_path = outdir / \\\"summary.json\\\"\nfailure_path = outdir / \\\"first_failure.log\\\"\nsummary = {\n    \\\"request\\\": \\\"chg16-ksa38-fix06-recurrence-verify01\\\",\n    \\\"candidate\\\": \\\"86fa2040695609202cca42af2de8e1581a59897b\\\",\n    \\\"repository\\\": str(repo),\n    \\\"results\\\": [],\n    \\\"failure\\\": None,\n    \\\"verdict\\\": \\\"IN_PROGRESS\\\",\n}\ndef save_summary():\n    tmp = summary_path.with_suffix(\\\".json.tmp\\\")\n    tmp.write_text(json.dumps(summary, indent=2) + \\\"\\\\n\\\", encoding=\\\"utf-8\\\")\n    tmp.replace(summary_path)\n\nenv = os.environ.copy()\nenv[\\\"PYTHONPATH\\\"] = \\\"src\\\" + (os.pathsep + env[\\\"PYTHONPATH\\\"] if env.get(\\\"PYTHONPATH\\\") else \\\"\\\")\nexact = \\\"tests.test_chg18_opencode_bootstrap.OpenCodeBootstrapTests.test_signal_during_access_key_handoff_terminates_group_without_secret_output\\\"\nfocused = [\n    \\\"tests.test_chg18_opencode_bootstrap.OpenCodeBootstrapTests.test_waits_for_payload_after_file_exists_empty\\\",\n    \\\"tests.test_chg18_opencode_bootstrap.OpenCodeBootstrapTests.test_persistent_empty_and_malformed_payloads_fail_closed\\\",\n]\nphases = [\n    (\\\"A_py312_exact\\\", \\\"/opt/homebrew/bin/python3.12\\\", 50, [exact], 1),\n    (\\\"B_py312_module\\\", \\\"/opt/homebrew/bin/python3.12\\\", 20, [\\\"tests.test_chg18_opencode_bootstrap\\\"], None),\n    (\\\"C_py311_exact\\\", \\\"/opt/anaconda3/bin/python3.11\\\", 10, [exact], 1),\n    (\\\"D_py311_focused\\\", \\\"/opt/anaconda3/bin/python3.11\\\", 1, focused, 2),\n    (\\\"D_py312_focused\\\", \\\"/opt/homebrew/bin/python3.12\\\", 1, focused, 2),\n]\nmodule_count = None\nfor phase, interpreter, count, targets, expected_count in phases:\n    print(\\\"START %s (%d execution%s)\\\" % (phase, count, \\\"\\\" if count == 1 else \\\"s\\\"), flush=True)\n    for iteration in range(1, count + 1):\n        command = [interpreter, \\\"-m\\\", \\\"unittest\\\", \\\"-q\\\"] + targets\n        try:\n            proc = subprocess.run(command, cwd=str(repo), env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)\n            rc = proc.returncode\n            output = proc.stdout\n        except Exception as exc:\n            rc = 255\n            output = \\\"runner exception: %r\\\\n\\\" % (exc,)\n        ran = None\n        for line in output.splitlines():\n            words = line.split()\n            if len(words) >= 3 and words[0] == \\\"Ran\\\" and words[2].startswith(\\\"test\\\"):\n                try:\n                    ran = int(words[1])\n                except ValueError:\n                    pass\n        ok_marker = any(line.strip() == \\\"OK\\\" or line.strip().startswith(\\\"OK (\\\") for line in output.splitlines())\n        count_ok = (ran == expected_count) if expected_count is not None else (ran is not None and ran > 0)\n        if phase == \\\"B_py312_module\\\" and count_ok:\n            if module_count is None:\n                module_count = ran\n            else:\n                count_ok = ran == module_count\n        ok = rc == 0 and count_ok and ok_marker\n        record = {\n            \\\"phase\\\": phase,\n            \\\"iteration\\\": iteration,\n            \\\"interpreter\\\": interpreter,\n            \\\"exit_status\\\": rc,\n            \\\"tests_ran\\\": ran,\n            \\\"passed\\\": ok,\n        }\n        summary[\\\"results\\\"].append(record)\n        if not ok:\n            summary[\\\"failure\\\"] = record\n            summary[\\\"verdict\\\"] = \\\"RECURRENCE_FAIL\\\"\n            failure_path.write_text(\n                \\\"phase=%s\\\\niteration=%d\\\\ninterpreter=%s\\\\ncommand=%r\\\\nexit_status=%d\\\\ntests_ran=%r\\\\n\\\\n%s\\\"\n                % (phase, iteration, interpreter, command, rc, ran, output),\n                encoding=\\\"utf-8\\\",\n            )\n            save_summary()\n            print(\\\"FAIL %s iteration %d exit=%d tests_ran=%r log=%s\\\" % (phase, iteration, rc, ran, failure_path), flush=True)\n            sys.exit(1)\n        if iteration == count or iteration % 5 == 0:\n            print(\\\"PASS %s %d/%d (tests_ran=%d)\\\" % (phase, iteration, count, ran), flush=True)\n        save_summary()\nsummary[\\\"verdict\\\"] = \\\"RECURRENCE_PASS\\\"\nsummary[\\\"module_test_count\\\"] = module_count\nsave_summary()\nprint(\\\"ALL RECURRENCE EXECUTIONS PASSED; summary=%s\\\" % summary_path, flush=True)\n\nPY\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy cat /tmp/chg16-ksa38-fix06-recurrence-verify01/summary.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy cat /tmp/chg16-ksa38-fix06-recurrence-verify01/first_failure.log'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy sed -n '200,315p' tests/test_chg18_opencode_bootstrap.py\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3.12 - <<'PY'\nimport json, os, subprocess\nfrom pathlib import Path\n\nrepo = Path.cwd()\noutdir = Path(\\\"/tmp/chg16-ksa38-fix06-recurrence-verify01\\\")\nenv = os.environ.copy()\nenv[\\\"PYTHONPATH\\\"] = \\\"src\\\" + (os.pathsep + env[\\\"PYTHONPATH\\\"] if env.get(\\\"PYTHONPATH\\\") else \\\"\\\")\ntargets = [\n    \\\"tests.test_chg18_opencode_bootstrap.ReadinessFileWaitTests.test_waits_for_payload_after_file_exists_empty\\\",\n    \\\"tests.test_chg18_opencode_bootstrap.ReadinessFileWaitTests.test_persistent_empty_and_malformed_payloads_fail_closed\\\",\n]\nruns = []\nfor label, interpreter in [\n    (\\\"D_py311_focused\\\", \\\"/opt/anaconda3/bin/python3.11\\\"),\n    (\\\"D_py312_focused\\\", \\\"/opt/homebrew/bin/python3.12\\\"),\n]:\n    command = [interpreter, \\\"-m\\\", \\\"unittest\\\", \\\"-q\\\"] + targets\n    proc = subprocess.run(command, cwd=str(repo), env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)\n    output = proc.stdout\n    ran = None\n    for line in output.splitlines():\n        words = line.split()\n        if len(words) >= 3 and words[0] == \\\"Ran\\\" and words[2].startswith(\\\"test\\\"):\n            try:\n                ran = int(words[1])\n            except ValueError:\n                pass\n    ok = proc.returncode == 0 and ran == 2 and any(line.strip() == \\\"OK\\\" or line.strip().startswith(\\\"OK (\\\") for line in output.splitlines())\n    record = {\n        \\\"phase\\\": label,\n        \\\"interpreter\\\": interpreter,\n        \\\"command\\\": command,\n        \\\"exit_status\\\": proc.returncode,\n        \\\"tests_ran\\\": ran,\n        \\\"passed\\\": ok,\n        \\\"tests\\\": targets,\n    }\n    runs.append(record)\n    (outdir / (label + \\\".log\\\")).write_text(\n        \\\"command=%r\\\\nexit_status=%d\\\\ntests_ran=%r\\\\n\\\\n%s\\\" % (command, proc.returncode, ran, output),\n        encoding=\\\"utf-8\\\",\n    )\n    print(\\\"%s %s (exit=%d tests_ran=%r)\\\" % (\\\"PASS\\\" if ok else \\\"FAIL\\\", label, proc.returncode, ran), flush=True)\n    if not ok:\n        break\n(outdir / \\\"focused_readiness.json\\\").write_text(json.dumps(runs, indent=2) + \\\"\\\\n\\\", encoding=\\\"utf-8\\\")\nif len(runs) \"'!= 2 or not all(item[\"passed\"] for item in runs):\n    raise SystemExit(1)\n\nPY'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git diff --exit-code'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git ls-files --others --exclude-standard'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git diff --cached --exit-code'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git rev-parse HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git rev-parse HEAD''^{tree}'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3.12 -c \\\"import os, subprocess, json\\\\nrows = subprocess.run([\\\\\\\"ps\\\\\\\", \\\\\\\"-axo\\\\\\\", \\\\\\\"pid=,ppid=,command=\\\\\\\"], capture_output=True, text=True, check=True).stdout.splitlines()\\\\nby_pid = {}\\\\nfor row in rows:\\\\n    bits = row.strip().split(None, 2)\\\\n    if len(bits) == 3:\\\\n        try:\\\\n            by_pid[int(bits[0])] = (int(bits[1]), bits[2])\\\\n        except ValueError:\\\\n            pass\\\\nancestors = set()\\\\npid = os.getpid()\\\\nwhile pid in by_pid and pid not in ancestors:\\\\n    ancestors.add(pid)\\\\n    pid = by_pid[pid][0]\\\\npatterns = [\\\\\\\"blocking-\\\\\\\" + \\\\\\\"handoff-host.py\\\\\\\", \\\\\\\"blocking-\\\\\\\" + \\\\\\\"opencode-host.py\\\\\\\", \\\\\\\"k_slide\\\\\\\" + \\\\\\\".opencode_bootstrap\\\\\\\", \\\\\\\"opencode\\\\\\\" + \\\\\\\"-bootstrap\\\\\\\"]\\\\nmatches = [{\\\\\\\"pid\\\\\\\": p, \\\\\\\"command\\\\\\\": cmd} for p, (_, cmd) in by_pid.items() if p not in ancestors and any(pattern in cmd for pattern in patterns)]\\\\nprint(json.dumps({\\\\\\\"matching_helper_processes\\\\\\\": matches, \\\\\\\"count\\\\\\\": len(matches)}))\\\\n\\\"\"",
+      "exit_code": 1,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git ls-remote origin refs/heads/main'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3.12 - <<'PY'\nimport os, subprocess, json\nrows = subprocess.run([\\\"ps\\\", \\\"-axo\\\", \\\"pid=,ppid=,command=\\\"], capture_output=True, text=True, check=True).stdout.splitlines()\nby_pid = {}\nfor row in rows:\n    bits = row.strip().split(None, 2)\n    if len(bits) == 3:\n        try:\n            by_pid[int(bits[0])] = (int(bits[1]), bits[2])\n        except ValueError:\n            pass\nancestors = set()\npid = os.getpid()\nwhile pid in by_pid and pid not in ancestors:\n    ancestors.add(pid)\n    pid = by_pid[pid][0]\npatterns = [\\\"blocking-\\\" + \\\"handoff-host.py\\\", \\\"blocking-\\\" + \\\"opencode-host.py\\\", \\\"k_slide\\\" + \\\".opencode_bootstrap\\\", \\\"opencode\\\" + \\\"-bootstrap\\\"]\nmatches = [{\\\"pid\\\": p, \\\"command\\\": cmd} for p, (_, cmd) in by_pid.items() if p not in ancestors and any(pattern in cmd for pattern in patterns)]\nprint(json.dumps({\\\"matching_helper_processes\\\": matches, \\\"count\\\": len(matches)}))\n\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git push origin HEAD:refs/heads/codex/k-slide-chg16-ksa38-fix06-recurrence-verify01'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git rev-parse HEAD'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git status --short --branch'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git diff --cached --exit-code'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git diff --exit-code'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git ls-files --others --exclude-standard'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git ls-remote origin refs/heads/codex/k-slide-chg16-ksa38-fix06-recurrence-verify01'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy git ls-remote origin refs/heads/main'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy mv /tmp/chg16-ksa38-fix06-recurrence-verify01/summary.json /tmp/chg16-ksa38-fix06-recurrence-verify01/initial_runner_attempt_summary.json'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rtk proxy mv /tmp/chg16-ksa38-fix06-recurrence-verify01/first_failure.log /tmp/chg16-ksa38-fix06-recurrence-verify01/selector_resolution_error.log'",
+      "exit_code": 0,
+      "type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"rtk proxy python3.12 - <<'PY'\nimport json\nfrom pathlib import Path\n\noutdir = Path(\\\"/tmp/chg16-ksa38-fix06-recurrence-verify01\\\")\nattempt = json.loads((outdir / \\\"initial_runner_attempt_summary.json\\\").read_text(encoding=\\\"utf-8\\\"))\nfocused = json.loads((outdir / \\\"focused_readiness.json\\\").read_text(encoding=\\\"utf-8\\\"))\nvalid = [item for item in attempt[\\\"results\\\"] if item[\\\"passed\\\"]]\nassert len([x for x in valid if x[\\\"phase\\\"] == \\\"A_py312_exact\\\"]) == 50\nassert len([x for x in valid if x[\\\"phase\\\"] == \\\"B_py312_module\\\"]) == 20\nassert len([x for x in valid if x[\\\"phase\\\"] == \\\"C_py311_exact\\\"]) == 10\nassert len(focused) == 2 and all(x[\\\"passed\\\"] and x[\\\"tests_ran\\\"] == 2 for x in focused)\nproof = {\n    \\\"request\\\": \\\"chg16-ksa38-fix06-recurrence-verify01\\\",\n    \\\"repository\\\": \\\"kimhw8084/k-slide\\\",\n    \\\"candidate\\\": \\\"86fa2040695609202cca42af2de8e1581a59897b\\\",\n    \\\"candidate_tree\\\": \\\"26a1c5a45cca98bbc227256f17f6565deb7a4b95\\\",\n    \\\"source_freeze\\\": {\n        \\\"remote_main\\\": \\\"c916d36b9882811fad53ee5109d2cd9a56a40716\\\",\n        \\\"local_verify_branch\\\": \\\"86fa2040695609202cca42af2de8e1581a59897b\\\",\n        \\\"remote_verify_branch\\\": \\\"86fa2040695609202cca42af2de8e1581a59897b\\\"\n    },\n    \\\"A_python312_exact\\\": {\\\"executions\\\": 50, \\\"passed\\\": 50, \\\"failed\\\": 0},\n    \\\"B_python312_module\\\": {\\\"executions\\\": 20, \\\"passed\\\": 20, \\\"failed\\\": 0, \\\"tests_per_execution\\\": 13},\n    \\\"C_python311_exact\\\": {\\\"executions\\\": 10, \\\"passed\\\": 10, \\\"failed\\\": 0},\n    \\\"D_focused_readiness\\\": [\n        {\\\"python\\\": \\\"3.11\\\", \\\"tests\\\": 2, \\\"passed\\\": 2, \\\"failed\\\": 0},\n        {\\\"python\\\": \\\"3.12\\\", \\\"tests\\\": 2, \\\"passed\\\": 2, \\\"failed\\\": 0}\n    ],\n    \\\"excluded_runner_selector_attempt\\\": {\n        \\\"log\\\": str(outdir / \\\"selector_resolution_error.log\\\"),\n        \\\"detail\\\": \\\"Initial D selector used OpenCodeBootstrapTests; requested methods are on ReadinessFileWaitTests. The loader ran no requested methods. Corrected D invocations passed under both interpreters.\\\"\n    },\n    \\\"cleanup\\\": {\\\"matching_helper_processes\\\": 0},\n    \\\"source_readback\\\": {\\\"worktree_clean\\\": True, \\\"index_clean\\\": True, \\\"tracked_diff_empty\\\": True, \\\"untracked_files\\\": 0},\n    \\\"per_iteration_records\\\": valid + focused,\n    \\\"verdict\\\": \\\"RECURRENCE_PASS\\\"\n}\n(outdir / \\\"proof_summary.json\\\").write_text(json.dumps(proof, indent=2) + \\\"\\\\n\\\", encoding=\\\"utf-8\\\")\nprint(json.dumps({\n    \\\"verdict\\\": proof[\\\"verdict\\\"],\n    \\\"A\\\": \\\"50/50\\\",\n    \\\"B\\\": \\\"20/20; 13 tests each\\\",\n    \\\"C\\\": \\\"10/10\\\",\n    \\\"D\\\": \\\"both interpreters, 2/2 tests each\\\",\n    \\\"helper_processes\\\": 0,\n    \\\"source_clean\\\": True,\n    \\\"summary\\\": str(outdir / \\\"proof_summary.json\\\")\n}))\n\nPY\"",
+      "exit_code": 0,
+      "type": "command_execution"
     }
+  ],
+  "codex": {
+    "cli_version": "codex-cli 0.157.0",
+    "configured_model": "gpt-6-luna",
+    "event_count": 106,
+    "provider_reported_model": null,
+    "reasoning_effort": "xhigh",
+    "terminal_type": "turn.completed",
+    "usage": {
+      "cache_hit_percent": 92.72,
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 699648,
+      "fresh_input_tokens": 54914,
+      "input_tokens": 754562,
+      "non_reasoning_output_tokens": 8377,
+      "output_tokens": 23576,
+      "reasoning_output_tokens": 15199,
+      "total_processed_tokens": 778138
+    },
+    "warnings": []
   },
-  "project_os_closure_snapshot": {
-    "authority": "PROJECT_OS_BOUND_DISPATCH_SNAPSHOT",
+  "commits": [
+    {
+      "sha": "86fa2040695609202cca42af2de8e1581a59897b",
+      "subject": "test: isolate historical KSA-38 generation state"
+    },
+    {
+      "sha": "18ab14278e758e3ff48bd50fe6e6341078aafeff",
+      "subject": "test: wait for complete bootstrap readiness payloads"
+    }
+  ],
+  "diff": {
+    "additions": 164,
+    "changed_files": 2,
+    "commit_count": 2,
+    "deletions": 14
+  },
+  "error_code": null,
+  "evidence_manifest": {
+    "count": 1,
     "items": [
       {
-        "ksa_id": "KSA-01",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-02",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-03",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-04",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-05",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-06",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-07",
-        "state": "ACTIVE_VERIFY_REQUIRED"
-      },
-      {
-        "ksa_id": "KSA-08",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-09",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-10",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-11",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-12",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-13",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-14",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-15",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-16",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-17",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-18",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-19",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-20",
-        "state": "ACTIVE"
-      },
-      {
-        "ksa_id": "KSA-21",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-22",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-23",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-24",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-25",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-26",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-27",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-28",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-29",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-30",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-31",
-        "state": "QUEUED"
-      },
-      {
-        "ksa_id": "KSA-32",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-33",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-34",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-35",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-36",
-        "state": "DONE_INTEGRATED"
-      },
-      {
-        "ksa_id": "KSA-37",
-        "state": "DONE_INTEGRATED"
+        "bytes": 30456,
+        "path": "tests/test_ksa38_traceability.py",
+        "sha256": "098065b16df961435bac31aeef5de358c20797d283070e0f954e140892efecac"
       }
-    ]
+    ],
+    "version": 1
   },
-  "coverage": {
-    "trace_rows": 35,
-    "canonical_clauses": 35,
-    "contract_families": 8,
-    "ksa_items": 37,
-    "ksa_clause_mappings": 71,
-    "ksa_mapping_state_counts": {
-      "IMPLEMENTED": 18,
-      "PARTIAL": 33,
-      "REUSED_UNCHANGED": 0,
-      "NOT_IMPLEMENTED": 0,
-      "EXTERNAL_ONLY": 20
-    },
-    "ownership_counts": {
-      "REPOSITORY_OWNED": 14,
-      "MIXED_REPOSITORY_AND_EXTERNAL": 20,
-      "EXTERNAL_PRODUCTION_GATE": 1
-    },
-    "implementation_state_counts": {
-      "IMPLEMENTED": 12,
-      "PARTIAL": 22,
-      "REUSED_UNCHANGED": 0,
-      "NOT_IMPLEMENTED": 0,
-      "EXTERNAL_ONLY": 1
-    },
-    "closure_state_counts": {
-      "DONE_INTEGRATED": 17,
-      "ACTIVE_VERIFY_REQUIRED": 1,
-      "ACTIVE": 1,
-      "QUEUED": 18
-    },
-    "gap_classification_counts": {
-      "OPEN_EXTERNAL_PRODUCTION_GATE": 21,
-      "OPEN_PROJECT_OS_RECONCILIATION": 19,
-      "OPEN_REPOSITORY_REQUIREMENT": 2,
-      "ORPHAN_REQUIREMENT": 0
-    },
-    "changed_path_coverage": {
-      "commit_count": 152,
-      "changed_paths": 229,
-      "requirement_referenced_paths": 137,
-      "closed_classification_paths": 92,
-      "historical_paths": 3,
-      "unexplained_paths": 0
+  "evidence_publisher_release": "1.2.5-dashboard-controls-candidate",
+  "fabric_capture": {
+    "applied": false,
+    "paths_before": 0,
+    "transient_untracked_removed": {
+      "count": 0,
+      "items": []
     }
   },
-  "qualification_checks": [
-    {
-      "name": "focused_ksa38_traceability_tests",
-      "command": "rtk python3.11 -m pytest -q tests/test_ksa38_traceability.py",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": 31,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "31 focused KSA-38 tests passed, including strict write-mode rules and portable read-only validation."
-    },
-    {
-      "name": "focused_ksa38_traceability_tests",
-      "command": "rtk /tmp/k-slide-ksa37-py312/bin/python -m pytest -q tests/test_ksa38_traceability.py",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": 31,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "31 focused KSA-38 tests passed, including strict write-mode rules and portable read-only validation."
-    },
-    {
-      "name": "full_repository_pytest_suite",
-      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m pytest -q",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": 765,
-      "tests_skipped": 5,
-      "warnings": 1,
-      "details": "Full pytest suite passed: 765 passed, 5 skipped; one external fontTools py23 deprecation warning."
-    },
-    {
-      "name": "full_repository_pytest_suite",
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa37-py312/bin/python -m pytest -q",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": 759,
-      "tests_skipped": 11,
-      "warnings": 0,
-      "details": "Full pytest suite passed: 759 passed, 11 environment/version-specific skips."
-    },
-    {
-      "name": "full_repository_unittest_suite",
-      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m unittest discover -s tests -v",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": 770,
-      "tests_skipped": 5,
-      "warnings": 0,
-      "details": "Canonical CI unittest discovery passed: 770 tests, 5 skipped."
-    },
-    {
-      "name": "full_repository_unittest_suite",
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa37-py312/bin/python -m unittest discover -s tests -v",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": 770,
-      "tests_skipped": 11,
-      "warnings": 0,
-      "details": "Canonical CI unittest discovery passed: 770 tests, 11 environment/version-specific skips."
-    },
-    {
-      "name": "exact_subject_change_span_matrix_validation",
-      "command": "rtk python3.11 tools/ksa38/validate_traceability.py --check-report --summary-json",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "Report and matrix passed 35/35 clauses, 37/37 KSA items, 71/71 semantic links, 152 commits, 229 paths, zero unexplained paths or orphan requirements; KSA-04/KSA-05 remain open."
-    },
-    {
-      "name": "exact_subject_change_span_matrix_validation",
-      "command": "rtk /tmp/k-slide-ksa37-py312/bin/python tools/ksa38/validate_traceability.py --check-report --summary-json",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "Report and matrix passed 35/35 clauses, 37/37 KSA items, 71/71 semantic links, 152 commits, 229 paths, zero unexplained paths or orphan requirements; KSA-04/KSA-05 remain open."
-    },
-    {
-      "name": "repository_json_schemas_draft_2020_12",
-      "command": "Draft202012Validator.check_schema on all repository schema JSON files",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": 13,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "All 13 repository JSON schemas passed Draft 2020-12 meta-schema validation."
-    },
-    {
-      "name": "repository_json_schemas_draft_2020_12",
-      "command": "Draft202012Validator.check_schema on all repository schema JSON files",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": 13,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "All 13 repository JSON schemas passed Draft 2020-12 meta-schema validation."
-    },
-    {
-      "name": "runtime_errorcode_parity",
-      "command": "rtk proxy env PYTHONPATH=src:. python3.11 -m pytest -q tests/test_chg16_resource_budget.py -k resource_budget_and_telemetry_error_schemas_match_runtime_contract",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": 1,
-      "tests_skipped": 16,
-      "warnings": 0,
-      "details": "Runtime ErrorCode and JSON schema parity regression passed."
-    },
-    {
-      "name": "runtime_errorcode_parity",
-      "command": "rtk proxy env PYTHONPATH=src:. /tmp/k-slide-ksa37-py312/bin/python -m pytest -q tests/test_chg16_resource_budget.py -k resource_budget_and_telemetry_error_schemas_match_runtime_contract",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": 1,
-      "tests_skipped": 16,
-      "warnings": 0,
-      "details": "Runtime ErrorCode and JSON schema parity regression passed."
-    },
-    {
-      "name": "workflow_yaml_and_embedded_shell",
-      "command": "PyYAML safe_load for .github/workflows/*.yml and bash -n for embedded run blocks",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "All 6 workflow YAML files parsed and all 49 embedded shell blocks passed bash -n."
-    },
-    {
-      "name": "workflow_yaml_and_embedded_shell",
-      "command": "PyYAML safe_load for .github/workflows/*.yml and bash -n for embedded run blocks",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "All 6 workflow YAML files parsed and all 49 embedded shell blocks passed bash -n."
-    },
-    {
-      "name": "compileall_src_tests_evals_tools_ksa38",
-      "command": "rtk proxy python3.11 -m compileall -q src tests evals tools/ksa38",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "Compilation completed for src, tests, evals, and tools/ksa38."
-    },
-    {
-      "name": "compileall_src_tests_evals_tools_ksa38",
-      "command": "rtk proxy /tmp/k-slide-ksa37-py312/bin/python -m compileall -q src tests evals tools/ksa38",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": 0,
-      "warnings": 0,
-      "details": "Compilation completed for src, tests, evals, and tools/ksa38."
-    },
-    {
-      "name": "candidate_evidence_generation_on_bound_work_branch",
-      "command": "rtk python3.11 tools/ksa38/build_candidate_evidence.py",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": null,
-      "details": "Generation/write mode passed on the actual FIX04 branch; candidate 7bc6caae95daced67b5714a20149288cfa72faa3 has exact parent execution base 8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d."
-    },
-    {
-      "name": "candidate_evidence_generation_on_bound_work_branch",
-      "command": "rtk /tmp/k-slide-ksa37-py312/bin/python tools/ksa38/build_candidate_evidence.py",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": null,
-      "details": "Generation/write mode passed on the actual FIX04 branch; candidate 7bc6caae95daced67b5714a20149288cfa72faa3 has exact parent execution base 8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d."
-    },
-    {
-      "name": "candidate_evidence_read_only_validation",
-      "command": "rtk python3.11 tools/ksa38/build_candidate_evidence.py --validate",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": null,
-      "details": "Read-only rederivation passed on the work branch; exact candidate SHA/tree/parent, lineage, hashes, coverage, and publisher-owned identity validated."
-    },
-    {
-      "name": "candidate_evidence_read_only_validation",
-      "command": "rtk /tmp/k-slide-ksa37-py312/bin/python tools/ksa38/build_candidate_evidence.py --validate",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": null,
-      "details": "Read-only rederivation passed on the work branch; exact candidate SHA/tree/parent, lineage, hashes, coverage, and publisher-owned identity validated."
-    },
-    {
-      "name": "detached_exact_candidate_read_only_validation",
-      "command": "Isolated detached worktree at exact candidate SHA; Python 3.11 and 3.12 build_candidate_evidence.py --validate",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": null,
-      "details": "Both Python versions passed in an isolated detached checkout at 7bc6caae95daced67b5714a20149288cfa72faa3 with no branch name, using the bound candidate sidecars."
-    },
-    {
-      "name": "integrated_main_like_read_only_validation",
-      "command": "Isolated branch ksa38-fix04-main-like at exact candidate SHA; Python 3.11 build_candidate_evidence.py --validate",
-      "python_version": "3.11.7",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": null,
-      "details": "Passed on branch ksa38-fix04-main-like at 7bc6caae95daced67b5714a20149288cfa72faa3; checkout branch differs from stored authored work_branch."
-    },
-    {
-      "name": "integrated_main_like_read_only_validation",
-      "command": "Isolated branch ksa38-fix04-main-like at exact candidate SHA; Python 3.12 build_candidate_evidence.py --validate",
-      "python_version": "3.12.9",
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": null,
-      "details": "Passed on branch ksa38-fix04-main-like at 7bc6caae95daced67b5714a20149288cfa72faa3; checkout branch differs from stored authored work_branch."
-    },
-    {
-      "name": "git_diff_check",
-      "command": "rtk git diff --check and rtk git diff --cached --check",
-      "python_version": null,
-      "status": "PASS",
-      "tests_passed": null,
-      "tests_skipped": null,
-      "warnings": null,
-      "details": "Whitespace validation passed after the corrected FIX04 candidate and final qualification evidence update."
-    }
-  ],
-  "candidate_binding": {
-    "commit_sha": "7bc6caae95daced67b5714a20149288cfa72faa3",
-    "tree_oid": "6cd599a665a45cb6e60dfd8d036187e525832fad",
-    "parent_sha": "8fc9d6c9f87e9dec0c0a75075e7137bb9698f86d",
-    "work_branch": "codex/k-slide-chg16-requirement-traceability-01-fix04",
-    "worktree_clean_at_product_candidate": true
+  "fabric_release": "1.2.5-dashboard-controls-candidate",
+  "failure_class": null,
+  "finished_at": "2026-09-29T01:00:57Z",
+  "git": {
+    "base_is_ancestor": true,
+    "base_sha": "c916d36b9882811fad53ee5109d2cd9a56a40716",
+    "branch": "codex/k-slide-chg16-ksa38-fix06-recurrence-verify01",
+    "detached_verify": false,
+    "head_sha": "86fa2040695609202cca42af2de8e1581a59897b",
+    "remote_exact_head": true,
+    "remote_head_sha": "86fa2040695609202cca42af2de8e1581a59897b",
+    "target_branch": "main",
+    "target_drifted_since_acceptance": false,
+    "target_head_observed_after_execution": "c916d36b9882811fad53ee5109d2cd9a56a40716",
+    "work_branch": "codex/k-slide-chg16-ksa38-fix06-recurrence-verify01",
+    "worktree_clean": true
   },
-  "current_execution_identity": null,
-  "fabric_execution_identity": {
-    "fabric_job_id": null,
-    "owner": "Fabric native publisher post-execution evidence",
-    "status": "PENDING_POST_EXECUTION_PUBLICATION"
+  "instructions": {
+    "files": [
+      {
+        "bytes": 1930,
+        "path": "AGENTS.md",
+        "sha256": "b5651fd90b7c23168e11c66854f44adcfd25fe21ca10a42860430670bf00bfcf"
+      }
+    ],
+    "total_bytes": 1930,
+    "warning": null
   },
-  "scope_boundary": {
-    "notion_mutated": false,
-    "main_moved_or_merged": false,
-    "live_company_infrastructure_mutated": false,
-    "employee_private_pilot_or_canary_work_run": false,
-    "go_champion_production_readiness_or_certification_claimed": false,
-    "project_os_remains_independent_auditor": true
+  "job_id": "CF-dc20c7e03e4b45f3eb6f6f00",
+  "kind": "codex-fabric-audit-evidence",
+  "locator": {
+    "branch": "codex-fabric/evidence/k-slide/chg16-ksa38-fix06-recurrence-verify01",
+    "path": ".codex-fabric/audit.json",
+    "ref": "refs/heads/codex-fabric/evidence/k-slide/chg16-ksa38-fix06-recurrence-verify01"
+  },
+  "operation": "VERIFY",
+  "policy": {
+    "environment_policy_sha256": "e077daca74297b3c30bee8989f00f8ca5338f7610b4d016a6c48db524205d064",
+    "fabric_release": "1.2.5-dashboard-controls-candidate",
+    "policy_sha256": "123615bf2f6e57dcac197e49ca98ceac59ada86a55e2c84445ea5d00812c0833",
+    "registry_sha256": "af81b8552f9d6a33847310e3c6bcd2d48401782b963a58efd2993e93570cb4aa"
+  },
+  "project_id": "k-slide",
+  "recovery": {
+    "model_rerun_safe": false,
+    "recovery_required": false,
+    "retry_safe": false,
+    "retry_scope": null,
+    "worktree_retained": true
+  },
+  "request": "chg16-ksa38-fix06-recurrence-verify01",
+  "schema_version": 1,
+  "started_at": "2026-09-29T00:52:41Z",
+  "status": "EXECUTED_CHANGE",
+  "timing": {
+    "execution_seconds": 496,
+    "queue_seconds": 1,
+    "total_seconds": 497
+  },
+  "transport": {
+    "bytes": 6242,
+    "envelope": "FABRIC/2",
+    "prompt_bytes": 5904,
+    "prompt_sha256": "84c84a99b9986e4d8e7617b4c88086b988b0a7b34ca7182aa4e595cc6d65b68a",
+    "sha256": "dc20c7e03e4b45f3eb6f6f0075b5a928c19d12b2a505813499b077ece5ed8785"
   }
 }
