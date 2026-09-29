@@ -159,6 +159,28 @@ class HostInvocation:
     schema_version: str = HOST_ADAPTER_SCHEMA_VERSION
     adapter_version: str = HOST_ADAPTER_VERSION
 
+    def __post_init__(self) -> None:
+        # Every native surface receives the same input order for the same
+        # logical packet, independent of Explorer/attachment selection order.
+        ordered = tuple(sorted(self.input_refs, key=lambda item: (item.logical_name, item.source_kind, item.locator)))
+        object.__setattr__(self, "input_refs", ordered)
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "adapter_version": self.adapter_version,
+            "input_refs": [
+                {
+                    "source_kind": item.source_kind,
+                    "logical_name": item.logical_name,
+                    "locator": item.locator,
+                    "classification": item.classification,
+                    **({"rejection_code": item.rejection_code} if item.rejection_code is not None else {}),
+                }
+                for item in self.input_refs
+            ],
+        }
+
     @classmethod
     def from_json(cls, raw: str | None) -> "HostInvocation | None":
         if not raw:

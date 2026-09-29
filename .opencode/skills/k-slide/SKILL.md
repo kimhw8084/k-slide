@@ -17,6 +17,7 @@ Use the typed lifecycle tools in this order. The normal employee workflow has on
 4. When `kslide_next` returns `CONFLICT_ASSESSMENT_REQUIRED`, call `kslide_conflict_assess`; submit only existing canonical assertion references when needed, otherwise use its empty candidate list so the engine performs its deterministic scan. For each returned conflict ID, call `kslide_conflict_resolve` with only the conflict ID for configured authority, or with current EvidenceIR identities for one explicit `AUTHORITY_SUPERSEDES:<assertion-id>` proof.
 5. Run `kslide_verify`; repair only the exact targets it returns.
 6. Call `kslide_finalize` only after verification passes.
+7. Call `kslide_presentation` for the finalized or reviewable run. Present the engine-owned Decision View first, followed by the descriptor's English Reconstruction, Review / Unresolved Disclosure, and Evidence Drill-down artifacts. Do not rewrite any artifact or infer a different outcome.
 
 Do not invent run paths or IDs. Reuse identifiers returned by tools. `/k-slide-status` and `/k-slide-continue` resolve the current session automatically.
 

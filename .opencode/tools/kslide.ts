@@ -206,6 +206,14 @@ export const evidence = tool({
   },
 })
 
+export const presentation = tool({
+  description: "Return the same engine-owned Decision View first-view and reconstruction, review, and evidence follow-on artifact descriptor used by Cloud VS Code.",
+  args: { run_id: tool.schema.string() },
+  async execute(args, context) {
+    return runCore(context, "presentation", ["--run", args.run_id])
+  },
+})
+
 export const submit = tool({
   description: "Validate and atomically merge one structured TranslationPatch against immutable engine evidence.",
   args: {

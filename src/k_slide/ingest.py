@@ -237,6 +237,7 @@ def _write_compatibility_artifacts(
         {
             "schema_version": SCHEMA_VERSION,
             "required_for_complete": list(COMPLETION_POLICY.required_artifacts),
+            "presentation_contract": {"decision_view_schema_version": "1.0", "presentation_descriptor_schema_version": "1.0", "evidence_drilldown_schema_version": "1.0"},
             "canonical_directories": ["inputs", "normalized", "native", "regions", "evidence", "ir", "verification"],
             "compatibility_artifacts": ["00_run_manifest.md", "00_input_inventory.json", "RUN_STATE.json", "EXECUTION_JOB.json", "RUN_RECOVERY_GUIDE.md"],
         },

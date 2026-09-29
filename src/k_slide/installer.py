@@ -78,6 +78,65 @@ def _copy_owned(source: Path, destination: Path, *, target_root: Path, previous:
     return installed
 
 
+def _preflight_owned(source: Path, destination: Path, *, target_root: Path, previous: dict[str, str]) -> None:
+    """Fail on adapter collisions before installing any other host assets."""
+
+    for source_file in _files(source):
+        relative = source_file.relative_to(source.parent if source.is_file() else source)
+        if source.is_file():
+            relative = Path(source.name)
+        destination_file = destination / relative
+        current = target_root
+        for component in destination_file.relative_to(target_root).parts[:-1]:
+            current = current / component
+            if current.is_symlink():
+                raise KSlideError(
+                    ErrorCode.INSTALL_COLLISION,
+                    "K-Slide refused to install through a symbolic-link VS Code adapter path.",
+                    {"path": str(current.relative_to(target_root)), "guidance": "Review the symbolic link and retry with a normal project folder."},
+                )
+            if current.exists() and not current.is_dir():
+                raise KSlideError(
+                    ErrorCode.INSTALL_COLLISION,
+                    "K-Slide refused to install through a non-directory VS Code adapter path.",
+                    {"path": str(current.relative_to(target_root)), "guidance": "Review the conflicting path and retry with a normal project folder."},
+                )
+        if not destination_file.exists() and not destination_file.is_symlink():
+            continue
+        key = str(destination_file.relative_to(target_root))
+        if destination_file.is_symlink() or not destination_file.is_file():
+            raise KSlideError(
+                ErrorCode.INSTALL_COLLISION,
+                "K-Slide refused to replace a non-file VS Code adapter path.",
+                {"path": key, "guidance": "Review and remove the conflicting VS Code adapter path, then retry."},
+            )
+        existing_hash = _sha(destination_file)
+        source_hash = _sha(source_file)
+        if existing_hash == source_hash:
+            continue
+        if key not in previous:
+            raise KSlideError(
+                ErrorCode.INSTALL_COLLISION,
+                "K-Slide refused to overwrite an unrelated existing file.",
+                {"path": key, "guidance": "Back up or remove the conflicting K-Slide-owned file, then retry."},
+            )
+        if existing_hash != previous[key]:
+            raise KSlideError(
+                ErrorCode.INSTALL_LOCAL_MODIFICATION,
+                "K-Slide refused to overwrite a locally modified owned file.",
+                {"path": key, "guidance": "Restore the installed version or review the change before upgrading."},
+            )
+
+
+def _vscode_owned_parts(source: Path, destination: Path) -> tuple[tuple[Path, Path], ...]:
+    """Select auditable adapter source assets and exclude local build output."""
+
+    return tuple(
+        [(source / name, destination) for name in ("package.json", "package-lock.json", "tsconfig.json", "README.md", ".vscodeignore", ".nvmrc")]
+        + [(source / "src", destination / "src")]
+    )
+
+
 def _remove_legacy_owned_file(path: Path, *, target_root: Path, previous: dict[str, str]) -> None:
     key = str(path.relative_to(target_root))
     expected_hash = previous.get(key)
@@ -104,6 +163,13 @@ def install(source_root: Path, target: Path, *, scope: str = "project") -> Path:
     previous_manifest = _load_manifest(previous_path)
     previous_files = previous_manifest.get("files", {})
     previous = {str(key): str(value) for key, value in previous_files.items()} if isinstance(previous_files, dict) else {}
+    vscode_source = source_root / "integrations" / "vscode"
+    vscode_destination = target / ".vscode" / "k-slide-extension"
+    if scope == "project":
+        if not (vscode_source / "package.json").is_file() or not (vscode_source / "src" / "extension.ts").is_file():
+            raise KSlideError(ErrorCode.INSTALL_INVALID, "K-Slide VS Code adapter source package is incomplete.")
+        for source, destination in _vscode_owned_parts(vscode_source, vscode_destination):
+            _preflight_owned(source, destination, target_root=target, previous=previous)
     files: dict[str, str] = {}
 
     # Project installs live under <project>/.opencode. Global OpenCode installs
@@ -125,6 +191,10 @@ def install(source_root: Path, target: Path, *, scope: str = "project") -> Path:
     files.update(_copy_owned(source_root / "termbase", engine_root / "termbase", target_root=target, previous=previous))
     files.update(_copy_owned(source_root / "constraints-production.txt", engine_root, target_root=target, previous=previous))
     files.update(_copy_owned(source_root / "pyproject.toml", engine_root, target_root=target, previous=previous))
+
+    if scope == "project":
+        for source, destination in _vscode_owned_parts(vscode_source, vscode_destination):
+            files.update(_copy_owned(source, destination, target_root=target, previous=previous))
 
     if scope == "project":
         for directory in (target / ".k-slide-input", target / ".k-slide-runs", target / ".k-slide-config"):
@@ -155,5 +225,9 @@ def verify_install(target: Path, *, scope: str = "project") -> list[tuple[str, b
         ("core", target / (".k-slide-engine" if scope == "project" else "k-slide-engine") / "src" / "k_slide" / "cli.py"),
     ]
     if scope == "project":
-        checks.extend([("input folder", target / ".k-slide-input"), ("run folder", target / ".k-slide-runs")])
+        checks.extend([
+            ("VS Code adapter source", target / ".vscode" / "k-slide-extension" / "package.json"),
+            ("input folder", target / ".k-slide-input"),
+            ("run folder", target / ".k-slide-runs"),
+        ])
     return [(label, path.exists()) for label, path in checks]
