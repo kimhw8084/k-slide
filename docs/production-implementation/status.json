@@ -982,7 +982,7 @@
         "docs/production-implementation/README.md"
       ],
       "remaining": [
-        "Main branch protection applied and reopened through GitHub API: four required checks, strict up-to-date branches, admin enforcement, one code-owner approval, stale-dismissal/last-push approval, conversations resolved, no force pushes/deletions. Only one admin exists; independent reviewer assignment remains."
+        "Main branch protection applied and reopened through GitHub API: five required checks, strict up-to-date branches, admin enforcement, one code-owner approval, stale-dismissal/last-push approval, conversations resolved, no force pushes/deletions. Only one admin exists; independent reviewer assignment remains."
       ]
     },
     {

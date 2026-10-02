@@ -29,9 +29,16 @@
     "required_checks": [
       "test (3.11)",
       "test (3.12)",
+      "security",
       "fast (3.11)",
       "fast (3.12)"
     ],
-    "independent_reviewer": "UNASSIGNED"
+    "independent_reviewer": "UNASSIGNED",
+    "checks_app_id": 15368
+  },
+  "npm_audit": {
+    "result": "PASS",
+    "vulnerabilities": 0,
+    "scope": "VS Code build dependency lock"
   }
 }

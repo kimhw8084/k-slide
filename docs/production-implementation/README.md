@@ -88,7 +88,7 @@ were introduced by the table detector.
   and dense print/page-break inspection remain open. Mac browser controls were
   unavailable during this implementation session; automated structure/security
   checks do not substitute for visual inspection.
-- Main is now protected with four required Python checks, one code-owner PR
+- Main is now protected with five required checks (Python and security), one code-owner PR
   approval, stale-review dismissal, last-push approval, resolved conversations,
   administrator enforcement, and no force pushes/deletions. GitHub currently
   lists only `kimhw8084`; a legitimate independent reviewer must be assigned
