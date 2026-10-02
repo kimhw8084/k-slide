@@ -408,10 +408,11 @@
       "approved": true,
       "status": "partial",
       "evidence": [
-        "docs/production-implementation/README.md"
+        "integrations/vscode/src/extension.ts",
+        "tests/test_recent_runs.py"
       ],
       "remaining": [
-        "Local VS Code preparation is cancellable. Durable progress, reconnect and dispatch require company host/job integration."
+        "Cancellable preparation, saved-run recovery and persisted progress refresh are implemented. Company job cancellation and reconnect journeys still require deployed service integration."
       ]
     },
     {
@@ -432,10 +433,11 @@
       "approved": true,
       "status": "partial",
       "evidence": [
-        "docs/production-implementation/README.md"
+        "integrations/vscode/src/runInfo.ts",
+        "integrations/vscode/src/runInfo.test.ts"
       ],
       "remaining": [
-        "Bounded source-free timeout/cancellation/runtime messages added; deployed recovery journeys remain."
+        "Source-free capability checks and explicit recovery states are implemented. Validate employee recovery actions in the deployed company hosts."
       ]
     },
     {
@@ -466,15 +468,14 @@
       "id": "UX-10",
       "title": "Provide safe recent-run discovery and employee feedback",
       "approved": true,
-      "status": "baseline_regression_passed",
+      "status": "partial",
       "evidence": [
-        "docs/production-implementation/validation.json"
+        "src/k_slide/session.py",
+        "tests/test_recent_runs.py"
       ],
       "remaining": [
-        "A run ID alone never grants access",
-        "Issue reporting does not alter evidence or completion"
-      ],
-      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+        "Saved-run discovery is scoped to the isolated workspace; hosted sessions cannot enumerate another binding. Existing issue reporting remains to qualify with the live operational metadata service."
+      ]
     },
     {
       "id": "HOST-01",
@@ -482,10 +483,11 @@
       "approved": true,
       "status": "partial",
       "evidence": [
-        "docs/production-implementation/README.md"
+        "integrations/vscode/src/extension.ts",
+        "integrations/vscode/src/runtime.ts"
       ],
       "remaining": [
-        "First-class file selection, engine prepare and artifact webview reused/extended. Actual company translation-agent bridge remains."
+        "File preparation, saved runs, progress, diagnostics and result views are implemented. Company translation-agent dispatch remains unbound."
       ]
     },
     {
@@ -494,10 +496,12 @@
       "approved": true,
       "status": "partial",
       "evidence": [
-        "docs/production-implementation/README.md"
+        ".opencode/internal/lib/k-slide-runtime.ts",
+        "scripts/build_opencode_bundle.py",
+        "src/k_slide/opencode_bootstrap.py"
       ],
       "remaining": [
-        "OpenCode consumes the common descriptor and bounded cancellable subprocess transport. Live browser/model journey remains."
+        "Runtime discovery and a preinstalled complete host bundle are implemented; startup rejects missing/writable/unexpected host code. Live browser/model journey remains."
       ]
     },
     {
@@ -518,10 +522,13 @@
       "approved": true,
       "status": "partial",
       "evidence": [
-        "docs/production-implementation/README.md"
+        "src/k_slide/installer.py",
+        "scripts/verify_python_package.sh",
+        "scripts/build_opencode_bundle.py",
+        "tests/test_install_integrity.py"
       ],
       "remaining": [
-        "Pinned Node 22.15.0/npm 10.9.2 clean VSIX verification passed; real company install/upgrade qualification remains."
+        "Clean wheel and preinstalled host packages are built and verified. Both hosts discover installed runtimes; real company image installation/upgrade qualification remains."
       ]
     },
     {
@@ -716,15 +723,14 @@
       "id": "SEC-05",
       "title": "Harden hostile documents and prompt injection",
       "approved": true,
-      "status": "baseline_regression_passed",
+      "status": "partial",
       "evidence": [
-        "docs/production-implementation/validation.json"
+        "src/k_slide/opencode_bootstrap.py",
+        "tests/test_chg18_opencode_bootstrap.py"
       ],
       "remaining": [
-        "Malicious fixtures cannot execute active behavior or invoke forbidden tools",
-        "Any material coverage loss from neutralization is disclosed"
-      ],
-      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+        "Managed startup now binds the complete host bundle and rejects extra auto-discovered code. Hostile-document and prompt-injection qualification still needs the exact deployed candidate."
+      ]
     },
     {
       "id": "SEC-06",
@@ -991,10 +997,12 @@
       "approved": true,
       "status": "partial",
       "evidence": [
-        "docs/production-implementation/README.md"
+        ".github/workflows/k-slide.yml",
+        "scripts/verify_opencode_host.sh",
+        "scripts/verify_python_package.sh"
       ],
       "remaining": [
-        "VS Code tests/package gate reused; code compiled/tested locally. Remote final-head checks and private heavy candidate evidence remain."
+        "Required CI now checks installed wheels and pinned OpenCode host contracts and retains prebuilt host packages. Exact deployed runtime, Gemma and private heavy qualification remain."
       ]
     },
     {
@@ -1045,10 +1053,12 @@
       "approved": true,
       "status": "partial",
       "evidence": [
-        "docs/production-implementation/README.md"
+        "README.md",
+        "deploy/README.md",
+        "integrations/vscode/README.md"
       ],
       "remaining": [
-        "Employee and managed-worker operation/compatibility instructions added. Company operator ownership and deployed runbooks remain."
+        "Employee and administrator instructions are separated. Company operator ownership and actual deployed recovery runbooks remain."
       ]
     },
     {
@@ -1118,5 +1128,5 @@
   ],
   "production_certified": false,
   "build_complete": false,
-  "validation_summary": "788 Python tests passed; 13 VS Code tests and pinned clean VSIX verification passed; OpenCode host attachment regression passed."
+  "validation_summary": "798 Python tests and 19 VS Code tests passed; isolated wheel, pinned VSIX, preinstalled OpenCode host bundle and host regressions passed. Production qualification remains unestablished."
 }

@@ -3,6 +3,11 @@ import assert from "node:assert/strict"
 import {runProcess} from "./process"
 
 const options = {cwd: process.cwd(), env: process.env, timeoutMs: 3_000}
+test("diagnostic exit codes require an explicit caller contract", async () => {
+  const command = ["-e", 'process.stdout.write("{}"); process.stderr.write("secret"); process.exitCode=2']
+  await assert.rejects(runProcess(process.execPath, command, options), /could not complete/)
+  assert.equal(await runProcess(process.execPath, command, {...options, acceptedExitCodes: [0, 2]}), "{}")
+})
 test("large simultaneous pipes cannot deadlock and input stays off argv", async () => {
   const result = await runProcess(process.execPath, ["-e", 'process.stderr.write("x".repeat(200000)); process.stdin.on("data", d=>process.stdout.write(d));'], {...options, input: "private-input"})
   assert.equal(result, "private-input")

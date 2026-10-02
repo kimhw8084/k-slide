@@ -1,9 +1,11 @@
 import * as fs from "node:fs"
 import * as path from "node:path"
 import * as vscode from "vscode"
-import {EngineTarget, invokePrepare, invokePresentation} from "./engine"
+import {EngineTarget, invokeDoctor, invokePrepare, invokePresentation, invokeRuns} from "./engine"
 import {buildHostInvocation, HostSelectionError, HostUri, selectCurrentFileUri, WorkspaceRoot} from "./hostInvocation"
 import {SafeKSlideError} from "./safeError"
+import {resolveEngineTarget} from "./runtime"
+import {progressLabel} from "./runInfo"
 
 const LAST_RUN_KEY = "kSlide.lastRunId"
 const LAST_RUN_CONTEXT_KEY = "kSlide.lastRunContext"
@@ -31,20 +33,12 @@ function workspaceRootPath(): string | undefined {
 }
 
 function engineTarget(root: string): EngineTarget {
-  const configuration = vscode.workspace.getConfiguration("kSlide")
-  const configuredEngineRoot = configuration.get<string>("engineRoot", "").trim()
-  const engineCandidates = [
-    ...(configuredEngineRoot ? [path.resolve(configuredEngineRoot)] : []),
-    path.join(root, ".k-slide-engine"),
-    root,
-  ]
-  const engineRoot = engineCandidates.find((candidate) => fs.existsSync(path.join(candidate, "src", "k_slide", "cli.py")))
-  if (!engineRoot) throw new SafeKSlideError("K-Slide engine is not installed in this workspace. Install the repository-owned K-Slide package or set the K-Slide engine root.")
-  return {
-    root,
-    engineRoot,
-    pythonPath: configuration.get<string>("pythonPath", "python3").trim() || "python3",
-  }
+  const folder = vscode.workspace.workspaceFolders?.find((item) => path.resolve(item.uri.fsPath) === root)
+  const configuration = vscode.workspace.getConfiguration("kSlide", folder?.uri)
+  return resolveEngineTarget(root, {
+    engineRoot: configuration.get<string>("engineRoot", ""),
+    pythonPath: configuration.get<string>("pythonPath", ""),
+  })
 }
 
 function toUris(values: unknown[]): vscode.Uri[] {
@@ -56,20 +50,43 @@ function toUris(values: unknown[]): vscode.Uri[] {
   return result
 }
 
-function currentRunId(context: vscode.ExtensionContext, supplied?: unknown): string | undefined {
-  const value = typeof supplied === "string" ? supplied : context.workspaceState.get<string>(LAST_RUN_KEY)
-  return value && /^[A-Za-z0-9_.:-]{1,128}$/.test(value) ? value : undefined
-}
-
 async function pickRunId(context: vscode.ExtensionContext, supplied?: unknown): Promise<string | undefined> {
-  const known = currentRunId(context, supplied)
-  if (known) return known
-  const value = await vscode.window.showInputBox({
-    title: "Open K-Slide artifacts",
-    prompt: "Enter the run ID returned by K-Slide.",
-    validateInput: (input) => /^[A-Za-z0-9_.:-]{1,128}$/.test(input) ? undefined : "Enter a valid K-Slide run ID.",
+  const folders = (vscode.workspace.workspaceFolders ?? []).filter((folder) => ["file", "vscode-remote"].includes(folder.uri.scheme))
+  if (!folders.length) throw new SafeKSlideError("Open your K-Slide workspace to see saved runs.")
+  const groups = await Promise.allSettled(folders.map(async (folder) => {
+    const root = path.resolve(folder.uri.fsPath)
+    const runs = await invokeRuns(engineTarget(root))
+    return runs.map((run) => ({label: run.runId, description: progressLabel(run),
+      detail: folder.name + " · " + new Date(run.updatedAt).toLocaleString(),
+      runId: run.runId, root, folder}))
+  }))
+  const choices = groups.flatMap((group) => group.status === "fulfilled" ? group.value : [])
+  if (groups.some((group) => group.status === "rejected")) {
+    if (!choices.length) throw new SafeKSlideError("Saved runs could not be read. Use K-Slide: Check Runtime in the original workspace.")
+    void vscode.window.showWarningMessage("Some workspaces could not be checked. Use K-Slide: Check Runtime for missing runs.")
+  }
+  const stored = context.workspaceState.get<Record<string, unknown>>(LAST_RUN_CONTEXT_KEY)
+  const matched = typeof supplied === "string"
+    ? choices.filter((choice) => choice.runId === supplied && (!stored || stored.runId !== supplied || stored.root === choice.root))
+    : []
+  if (typeof supplied === "string" && !matched.length) throw new SafeKSlideError("This run is unavailable in the open workspace. Reopen its original workspace.")
+  if (!choices.length) {
+    void vscode.window.showInformationMessage("No saved K-Slide runs in this workspace. Select a file to begin.")
+    return undefined
+  }
+  const chosen = matched.length === 1 ? matched[0] : await vscode.window.showQuickPick(matched.length ? matched : choices, {
+    title: "K-Slide · Saved runs",
+    placeHolder: "Choose a run to see its progress or open its result",
+    matchOnDescription: true, matchOnDetail: true,
   })
-  return value && /^[A-Za-z0-9_.:-]{1,128}$/.test(value) ? value : undefined
+  if (!chosen) return undefined
+  await Promise.all([
+    context.workspaceState.update(LAST_RUN_KEY, chosen.runId),
+    context.workspaceState.update(LAST_RUN_CONTEXT_KEY, {
+      runId: chosen.runId, root: chosen.root, scheme: chosen.folder.uri.scheme, authority: chosen.folder.uri.authority,
+    }),
+  ])
+  return chosen.runId
 }
 
 function validatePresentation(response: unknown, runId: string): Record<string, unknown> {
@@ -161,6 +178,35 @@ function showSafeError(error: unknown): void {
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("K-Slide")
   context.subscriptions.push(output)
+  const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 30)
+  status.command = "kSlide.recentRuns"
+  status.name = "K-Slide saved progress"
+  status.text = "$(files) K-Slide"
+  status.tooltip = "Open saved K-Slide runs"
+  status.show()
+  context.subscriptions.push(status)
+  let refreshing = false
+  const refreshStatus = async (): Promise<void> => {
+    if (refreshing) return
+    const stored = context.workspaceState.get<{root: string; runId: string}>(LAST_RUN_CONTEXT_KEY)
+    if (!stored || !vscode.workspace.workspaceFolders?.some((folder) => path.resolve(folder.uri.fsPath) === stored.root)) {
+      status.text = "$(files) K-Slide"
+      status.tooltip = "Open saved K-Slide runs"
+      return
+    }
+    refreshing = true
+    try {
+      const run = (await invokeRuns(engineTarget(stored.root))).find((item) => item.runId === stored.runId)
+      status.text = run ? "$(files) K-Slide · " + progressLabel(run) : "$(files) K-Slide"
+      status.tooltip = "Saved progress from the K-Slide engine. Click to reopen a run."
+    } catch {
+      status.text = "$(warning) K-Slide"
+      status.tooltip = "Runtime unavailable. Use K-Slide: Check Runtime for recovery."
+    } finally { refreshing = false }
+  }
+  const timer = setInterval(() => { void refreshStatus() }, 30_000)
+  context.subscriptions.push({dispose: () => clearInterval(timer)})
+  void refreshStatus()
 
   const runSelected = async (uris: vscode.Uri[]): Promise<void> => {
     if (uris.length === 0) {
@@ -201,14 +247,52 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     output.appendLine(`Prepared K-Slide run${summary.runId ? ` ${summary.runId}` : ""}; status ${summary.status ?? "PENDING"}; outcome ${summary.semanticOutcome ?? "PENDING"}.`)
     output.show(true)
+    void refreshStatus()
     if (summary.semanticOutcome === "NEEDS_REVIEW") {
       void vscode.window.showInformationMessage(`K-Slide run ${summary.runId ?? ""} needs review. The engine has not marked it DONE.`)
     } else {
-      void vscode.window.showInformationMessage(`K-Slide run ${summary.runId ?? ""} prepared. Translation and completion remain governed by the K-Slide engine.`)
+      void vscode.window.showInformationMessage(`K-Slide run ${summary.runId ?? ""} prepared. Your workspace needs its managed translation connection to continue.`)
     }
   }
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("kSlide.recentRuns", async (supplied?: unknown) => {
+      try {
+        const runId = await pickRunId(context, supplied)
+        if (!runId) return
+        const stored = context.workspaceState.get<{root: string}>(LAST_RUN_CONTEXT_KEY)
+        if (!stored) return
+        const run = (await invokeRuns(engineTarget(stored.root))).find((item) => item.runId === runId)
+        if (!run) throw new SafeKSlideError("This saved run is unavailable. Refresh the run list.")
+        void refreshStatus()
+        const canOpen = run.progressAvailable && ["COMPLETE", "VERIFIED", "NEEDS_REVIEW"].includes(run.phase)
+        const actions = canOpen ? ["Open result", "Refresh"] : ["Refresh", "Check runtime"]
+        const action = await vscode.window.showInformationMessage(progressLabel(run) + ". Saved progress is retained in this workspace.", ...actions)
+        if (action === "Open result") await openPresentationAction(context, "decision_view", runId)
+        else if (action === "Refresh") await vscode.commands.executeCommand("kSlide.recentRuns", runId)
+        else if (action === "Check runtime") await vscode.commands.executeCommand("kSlide.checkRuntime")
+      } catch (error) { showSafeError(error) }
+    }),
+    vscode.commands.registerCommand("kSlide.checkRuntime", async () => {
+      try {
+        const folders = vscode.workspace.workspaceFolders ?? []
+        const folder = folders.length === 1 ? folders[0] : await vscode.window.showWorkspaceFolderPick({placeHolder: "Choose the K-Slide workspace to check"})
+        if (!folder) return
+        const lines = await vscode.window.withProgress(
+          {location: vscode.ProgressLocation.Notification, title: "Checking K-Slide runtime", cancellable: true},
+          async (_progress, token) => {
+            const controller = new AbortController()
+            const subscription = token.onCancellationRequested(() => controller.abort())
+            if (token.isCancellationRequested) controller.abort()
+            try { return await invokeDoctor(engineTarget(path.resolve(folder.uri.fsPath)), controller.signal) }
+            finally { subscription.dispose() }
+          },
+        )
+        output.clear()
+        for (const line of lines) output.appendLine(line)
+        output.show(true)
+      } catch (error) { showSafeError(error) }
+    }),
     vscode.commands.registerCommand("kSlide.runCurrent", async () => {
       try {
         const editor = vscode.window.activeTextEditor

@@ -217,7 +217,9 @@ def _source_from_mapping(value: Mapping[str, Any], *, label: str, default_scope:
 
 
 def _default_core(root: Path) -> tuple[Path, GovernedTermbaseSource]:
-    package_core = Path(__file__).resolve().parents[2] / "termbase" / "core.json"
+    from .assets import runtime_asset
+
+    package_core = runtime_asset("termbase/core.json")
     for path in (root / "termbase" / "core.json", root / ".k-slide-engine" / "termbase" / "core.json", package_core):
         if path.is_symlink():
             raise _invalid("Termbase core must not be symlinked.")
@@ -297,7 +299,9 @@ def _load_sources(root: Path, governance: TermbaseGovernance) -> tuple[tuple[Gov
     for item in governance.overlays:
         if item.scope == "team" and any(parent.scope == "bu" and parent.scope_ref == item.parent_scope_ref and order_positions[item.identity] <= order_positions[parent.identity] for parent in governance.overlays):
             raise _invalid("Governed team overlay is ordered before its BU parent.")
-    package_core = Path(__file__).resolve().parents[2] / "termbase" / "core.json"
+    from .assets import runtime_asset
+
+    package_core = runtime_asset("termbase/core.json")
     expected_paths: set[Path] = set()
     loaded: list[tuple[GovernedTermbaseSource, Termbase]] = []
     for source in (governance.core, *governance.overlays):
@@ -418,7 +422,9 @@ def materialize_governed_termbase(
     source_root = source_root.expanduser().resolve()
     target_root = target_root.expanduser().resolve()
     governance = _coerce_authority(source_root, authority)
-    package_core = Path(__file__).resolve().parents[2] / "termbase" / "core.json"
+    from .assets import runtime_asset
+
+    package_core = runtime_asset("termbase/core.json")
     materialized: list[Path] = []
     for source in (governance.core, *governance.overlays):
         source_path = _safe_source(source_root, source.path, package_core=package_core)

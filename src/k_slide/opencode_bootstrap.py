@@ -223,10 +223,55 @@ def _require_file(path: Path, *, label: str, expected_hash: str | None = None) -
         raise _invalid(f"OpenCode bootstrap {label} is missing.", path=str(path)) from exc
     if stat.S_ISLNK(mode.st_mode) or not stat.S_ISREG(mode.st_mode):
         raise _invalid(f"OpenCode bootstrap {label} must be a real file.", path=str(path))
+    if mode.st_mode & 0o222:
+        raise _invalid(f"OpenCode bootstrap {label} must be read-only.", path=str(path))
     actual = _sha256_file(path)
     if expected_hash is not None and actual != expected_hash.lower():
         raise _invalid(f"OpenCode bootstrap {label} hash drifted.", path=path.name)
     return actual
+
+
+_HOST_BUNDLE_FILES = (
+    *(f"commands/k-slide{suffix}.md" for suffix in ("", "-audit", "-status", "-continue", "-doctor", "-help", "-view")),
+    "agents/k-slide.md", "tools/kslide.ts", "plugin/k-slide-host.ts",
+    "internal/lib/k-slide-access-key.ts", "internal/lib/k-slide-process.ts", "internal/lib/k-slide-runtime.ts",
+    "skills/k-slide/SKILL.md",
+    *(f"skills/k-slide/references/{name}" for name in ("glossary.seed.json", "output-contract.md", "troubleshooting.md")),
+    *(f"skills/k-slide/bin/{name}.sh" for name in ("prepare_run", "new_run_id", "status_run", "doctor")),
+    "package.json", "package-lock.json",
+)
+
+
+def _host_bundle_identity(config_dir: Path) -> str:
+    """Bind the complete executable host surface, not just its plugin entrypoint."""
+
+    expected = set(_HOST_BUNDLE_FILES)
+    observed = {"package.json", "package-lock.json"}
+    for name in ("agent", "command", "tool", "plugins", "opencode.jsonc"):
+        _require_absent(config_dir / name, label="alternate managed host configuration")
+    for name in ("commands", "agents", "tools", "plugin", "internal", "skills"):
+        directory = config_dir / name
+        _require_directory(directory, label="managed host bundle directory", read_only=True)
+        for candidate in directory.rglob("*"):
+            if candidate.is_symlink():
+                raise _invalid("Managed host bundle must not contain symbolic links.")
+            if candidate.is_dir():
+                _require_directory(candidate, label="managed host bundle directory", read_only=True)
+            else:
+                observed.add(candidate.relative_to(config_dir).as_posix())
+    if observed != expected:
+        raise _invalid("Managed OpenCode host bundle is incomplete or contains unapproved files.")
+    hashes = {name: _require_file(config_dir / name, label="managed host bundle file") for name in sorted(expected)}
+    try:
+        package = json.loads((config_dir / "package.json").read_text(encoding="utf-8"))
+        lock = json.loads((config_dir / "package-lock.json").read_text(encoding="utf-8"))
+        if package != {"dependencies": {"@opencode-ai/plugin": OPENCODE_VERSION}}:
+            raise ValueError("unexpected package")
+        if lock["packages"][""]["dependencies"] != package["dependencies"] or lock["packages"]["node_modules/@opencode-ai/plugin"]["version"] != OPENCODE_VERSION:
+            raise ValueError("unexpected dependency lock")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise _invalid("Managed OpenCode host dependency identity is invalid.") from exc
+    return _sha256_bytes(_canonical(hashes))
 
 
 def _require_empty_directory(path: Path, *, label: str, read_only: bool = False) -> None:
@@ -518,6 +563,7 @@ def load_bootstrap_manifest(path: Path) -> OpenCodeBootstrap:
     config_sha256 = _require_file(config_file, label="config file", expected_hash=str(raw["config_sha256"]))
     plugin_sha256 = _require_file(plugin_file, label="K-Slide plugin", expected_hash=str(raw["plugin_sha256"]))
     access_key_helper_sha256 = _require_file(helper_file, label="K-Slide access-key helper", expected_hash=str(raw["access_key_helper_sha256"]))
+    host_bundle_sha256 = _host_bundle_identity(config_dir)
     ripgrep_path = _resolved_path(raw.get("ripgrep_path"), label="ripgrep binary")
     try:
         ripgrep_mode = ripgrep_path.lstat().st_mode
@@ -543,6 +589,7 @@ def load_bootstrap_manifest(path: Path) -> OpenCodeBootstrap:
         "config_sha256": config_sha256,
         "plugin_sha256": plugin_sha256,
         "access_key_helper_sha256": access_key_helper_sha256,
+        "host_bundle_sha256": host_bundle_sha256,
         "ripgrep_sha256": ripgrep_sha256,
         "config_identity": config_identity,
         "models_catalog": models_identity,

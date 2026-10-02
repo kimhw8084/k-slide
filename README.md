@@ -4,20 +4,53 @@ K-Slide turns Korean or mixed Korean-English business artifacts into evidence-ba
 
 The current implementation is K-Slide `0.3.5`, a Phase 3.5 execution-isolation and heavy-runtime-proof build. It provides immutable engine-owned source evidence, a narrow structured TranslationPatch, globally unique multi-document work units, deterministic reports, source-local semantic scorers, stratified frozen splits with fingerprints, per-attempt OpenCode media assertions, isolated OpenCode diagnostics, fail-closed OCR configuration, and a canonical pinned runtime-artifact contract for LibreOffice/PaddleOCR execution. Full Gemma translation certification is not claimed until the target model and evaluation gates are exercised.
 
-## Quick start
+## Employee quick start
 
-From this project:
+In your company-provisioned OpenCode workspace, attach the supported files and
+run **/k-slide**. The one visible K-Slide agent prepares the files, translates
+each page, verifies the result and opens the Decision View. Use
+**/k-slide-status** for saved progress and **/k-slide-continue** in the original
+session after an interruption. **NEEDS REVIEW** means that unresolved source
+content still needs attention; it is not a completed translation.
+
+In Cloud VS Code, **K-Slide: Open Saved Runs** and the K-Slide status-bar item
+reopen saved work without requiring a run ID. **K-Slide: Check Runtime** gives
+concise diagnostics for your workspace administrator. **Open Decision View**
+opens the verified engine artifact with source images and review disclosures.
+The native file actions currently prepare files; automatic translation dispatch
+still requires the company host/job-service connection.
+
+Employees do not install packages, run setup scripts, enter API keys, or choose
+a model during normal operation. The company deployment must supply the pinned
+runtime, credentials and approved service bindings first.
+
+## Administrator installation
+
+Provision the same approved runtime for both hosts using the
+[managed deployment contract](deploy/README.md). The installed Python wheel
+contains the governed termbase, schemas, prompts and release policy. Both
+hosts support that preinstalled wheel without a source checkout. Administrators
+can set `KSLIDE_PYTHON` to the provisioned interpreter and, for source installs
+only, `KSLIDE_ENGINE_ROOT`. Otherwise, the host discovers the engine/workspace
+`.venv` before falling back to `python3`.
+
+For a source installation:
 
 ```bash
 ./scripts/install_project.sh /path/to/your/project
 ./scripts/verify_install.sh /path/to/your/project
 ```
 
-Then launch OpenCode in the target project and run `/k-slide`, or install the repository-owned VS Code extension to select the current file or one or more files from Explorer. VS Code packaging and installation use:
+Verification checks every installed file against the manifest. Installation
+preflights host and engine collisions before changing files, preserves local
+modifications, and rejects symlink destinations.
+
+Build a VSIX once with the pinned build toolchain; install that prebuilt artifact
+into the managed Cloud VS Code image:
 
 ```bash
 ./scripts/build_vscode_extension.sh /tmp/k-slide.vsix
-./scripts/install_vscode_extension.sh
+./scripts/install_vscode_extension.sh /tmp/k-slide.vsix
 ```
 
 In Cloud VS Code without a `code` CLI, use **Extensions: Install from VSIX…** with the built package. The project installer copies auditable adapter source into `.vscode/k-slide-extension`; it does not edit VS Code settings or unrelated extensions. For local compatibility, source files may also be placed in:
@@ -53,8 +86,10 @@ reconnect, cancellation, checkpoint resume, and bounded retry; live company
 PaaS transport and production qualification are not claimed. The worker uses
 the existing execution/checkpoint/engine boundary and requires an exact
 pinned runtime, model, OCR, and termbase identity binding.
-Managed workers may supply an approved `module:factory` engine binding to the
-same entrypoint; the default reference engine is qualification-only.
+Managed workers require explicit approved `--engine-factory module:factory`
+and `--service-factory module:factory` bindings. They never default to the
+reference engine or service. Reference execution requires `--reference-mode`
+and is qualification-only.
 
 KSA-09 adds an explicit deployment-supplied `AuthorizedScopeContext` to this
 same boundary. The local reference adapter persists admission/control state,
@@ -104,7 +139,9 @@ Verified and reviewable runs expose the same engine-owned `05_decision_view.json
 
 The installed agent does not use model-generated shell commands for K-Slide lifecycle operations. OpenCode compatibility is detected at runtime; the repository was validated against OpenCode `1.3.9` during this implementation pass.
 
-The current local environment reports `ollama/qwen3:14b`, not the target `google/gemma-4-31b-it`. K-Slide records that mismatch as a warning and does not certify the runtime as production-compatible. The target model is the instruction-tuned Gemma 4 31B model documented by [Google](https://ai.google.dev/gemma/docs/core/model_card_4).
+The target model is `google/gemma-4-31b-it`. K-Slide records a different or
+unknown model as a warning and does not certify that runtime as
+production-compatible.
 
 ### Certification candidate resolution
 

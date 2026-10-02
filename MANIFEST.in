@@ -1,0 +1,5 @@
+recursive-include termbase *.json
+recursive-include schemas *.json
+recursive-include prompts *.md
+recursive-include security *.json *.yml
+include constraints-production.txt

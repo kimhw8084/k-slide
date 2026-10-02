@@ -13,6 +13,8 @@
 /.github/CODEOWNERS @kimhw8084
 /constraints-production.txt @kimhw8084
 /pyproject.toml @kimhw8084
+/setup.py @kimhw8084
+/MANIFEST.in @kimhw8084
 /production-slo.yaml @kimhw8084
 /scripts/ @kimhw8084
 /private-evals/ @kimhw8084

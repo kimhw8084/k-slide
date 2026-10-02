@@ -20,6 +20,9 @@ from `8409d5ece97cfdb450a6fa29a3ebb9113896fbb5` was reviewed and reused in
 | UX-01–04, UX-08–09, HOST-01–03, OPT-01 | Shared deterministic Decision View, escaped HTML, native VS Code presentation, faithful table grid, evidence disclosures, review warnings, responsive themes and print CSS. | `tests/test_decision_view.py`, `tests/test_result_html.py`, VS Code compile/tests |
 | HOST-05, RUN-06, SEC-08 | Both host subprocess boundaries drain concurrent pipes, bound output, time out, propagate cancellation, terminate process groups, and suppress raw diagnostics. Source-bearing JSON uses stdin. | VS Code `process.test.ts`, OpenCode host regression suite, Python security/contract tests |
 | HOST-04, REL-02 | Pinned VS Code package build and clean package verification; inherited collision-safe installation and CI host gate | `scripts/verify_vscode_extension.sh`, installer tests |
+| HOST-04, REL-02 | Wheels include runtime data and are tested outside the checkout. Both hosts discover installed wheels or virtual environments. OpenCode ships with a locked, preinstalled SDK bundle; prebuilt VSIX installation requires no Node/npm. | `scripts/verify_python_package.sh`, `scripts/build_opencode_bundle.py`, host runtime tests |
+| HOST-04, SEC-05 | Installer preflights every host/engine destination, atomically replaces owned files and verifies manifest hashes. Managed startup requires the full read-only host bundle, rejects extra plugins and binds instructions/tools to deployment identity. | `tests/test_install_integrity.py`, `tests/test_chg18_opencode_bootstrap.py` |
+| UX-05, UX-07, UX-10 | Native saved-run picker, persisted page progress, status-bar refresh and source-free runtime checks. Session discovery cannot enumerate another binding; interrupted runs remain discoverable for recovery. | `tests/test_recent_runs.py`, VS Code `runInfo.test.ts` |
 
 ## Employee use
 
@@ -35,6 +38,12 @@ script-disabled webview. Source files remain confined to the selected run.
 Preparation alone does not translate a document or certify completion.
 The company's translation-agent bridge and managed execution binding still
 need deployment integration.
+
+**K-Slide: Open Saved Runs** shows the latest 20 runs in each open workspace.
+The status bar refreshes selected-run progress every 30 seconds. **Check
+Runtime** reports the available capabilities without printing raw diagnostic
+details or credentials. The managed runtime is discovered automatically;
+Python/engine settings are administrator overrides.
 
 The HTML file can also be opened locally without a server. Keep it with its
 run directory so relative evidence images remain available. Browser Print
@@ -73,6 +82,14 @@ Old retained presentations need re-rendering and verification before this
 candidate will accept them as current. No historical evidence is rewritten as
 part of installation. No input, EvidenceIR, or TranslationPatch schema changes
 were introduced by the table detector.
+
+VS Code package version 0.2.0 adds saved-run and runtime actions. Its `runs`
+CLI response is source-free and versioned independently from EvidenceIR.
+The stricter OpenCode bootstrap requires all shipped host files and the
+dependency lock, with read-only permissions. Old partial managed installations
+must receive the complete host bundle. The host bundle hash now contributes to
+the environment identity; previous qualification cannot certify changed agent
+instructions or tools.
 
 ## Remaining boundaries
 

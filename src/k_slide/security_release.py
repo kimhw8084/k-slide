@@ -47,7 +47,9 @@ SECURITY_RELEASE_POLICY = {
         "deployed_runtime_identity": "UNQUALIFIED",
     },
 }
-_POLICY_PATH = Path(__file__).resolve().parents[2] / "security" / "release-security-policy.json"
+from .assets import runtime_asset
+
+_POLICY_PATH = runtime_asset("security/release-security-policy.json")
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _HEX40 = re.compile(r"^[0-9a-f]{40}$")

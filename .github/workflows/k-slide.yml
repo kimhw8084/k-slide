@@ -39,11 +39,26 @@ jobs:
         run: python -m compileall -q src tests evals tools
       - name: Unit and integration tests
         run: PYTHONPATH=src python -m unittest discover -s tests -v
+      - name: Clean installed wheel verification
+        run: bash ./scripts/verify_python_package.sh
+      - name: OpenCode host contracts with pinned dependencies
+        run: bash ./scripts/verify_opencode_host.sh
+      - name: Preinstalled OpenCode host package
+        run: python scripts/build_opencode_bundle.py --output "$RUNNER_TEMP/k-slide-opencode.tar.gz"
       - name: VS Code adapter tests and clean package verification
         run: |
           npm ci --no-audit --no-fund --prefix integrations/vscode
           npm test --prefix integrations/vscode
-          ./scripts/verify_vscode_extension.sh
+          ./scripts/verify_vscode_extension.sh "$RUNNER_TEMP/k-slide.vsix"
+      - name: Retain host packages for administrator installation
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: k-slide-host-packages-not-production-certified
+          path: |
+            ${{ runner.temp }}/k-slide.vsix
+            ${{ runner.temp }}/k-slide-opencode.tar.gz
+            ${{ runner.temp }}/k-slide-opencode.tar.gz.json
       - name: Doctor and installer smoke
         run: |
           PYTHONPATH=src python -m k_slide.cli doctor --root . --json

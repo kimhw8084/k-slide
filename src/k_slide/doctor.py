@@ -36,7 +36,7 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
     scratch_root = storage.ensure_root(StoragePlane.EPHEMERAL_PROCESSING_SCRATCH)
     default_engine = root / ".k-slide-engine" if (root / ".k-slide-engine").is_dir() else root
     engine_root = (engine_root or default_engine).resolve()
-    opencode_root = (opencode_root or (root / ".opencode")).resolve()
+    opencode_root = (opencode_root or Path(os.environ.get("OPENCODE_CONFIG_DIR") or root / ".opencode")).resolve()
     runtime = discover_runtime(root)
     checks: list[dict[str, str]] = []
     required = [
@@ -48,6 +48,8 @@ def diagnose(root: Path, *, engine_root: Path | None = None, opencode_root: Path
     ]
     runtime_manifest = engine_root / "runtime" / "runtime-manifest.json"
     source_available = all(path.is_file() for path in required)
+    installed_package = (Path(__file__).resolve().parent / "data" / "termbase" / "core.json").is_file()
+    source_available = source_available or (installed_package and all(path.is_file() for path in required[:-1]))
     source_detail = "Required command, agent, skill, tools, and core files" if source_available else (
         "Installed runtime artifact is present" if runtime_manifest.is_file() else "Required command, agent, skill, tools, and core files"
     )

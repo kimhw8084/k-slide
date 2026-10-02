@@ -2,7 +2,7 @@
   "name": "k-slide-cloud-vscode",
   "displayName": "K-Slide",
   "description": "Select local or workspace files and present engine-owned K-Slide artifacts in VS Code.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "k-slide",
   "license": "UNLICENSED",
   "repository": {
@@ -22,6 +22,9 @@
   },
   "main": "./dist/src/extension.js",
   "activationEvents": [
+    "onStartupFinished",
+    "onCommand:kSlide.recentRuns",
+    "onCommand:kSlide.checkRuntime",
     "onCommand:kSlide.runCurrent",
     "onCommand:kSlide.runSelectedFiles",
     "onCommand:kSlide.runExplorerFile",
@@ -32,6 +35,8 @@
   ],
   "contributes": {
     "commands": [
+      {"command": "kSlide.recentRuns", "title": "K-Slide: Open Saved Runs", "category": "K-Slide"},
+      {"command": "kSlide.checkRuntime", "title": "K-Slide: Check Runtime", "category": "K-Slide"},
       {"command": "kSlide.runCurrent", "title": "K-Slide: Run on Current File", "category": "K-Slide"},
       {"command": "kSlide.runSelectedFiles", "title": "K-Slide: Run on Selected Files…", "category": "K-Slide"},
       {"command": "kSlide.runExplorerFile", "title": "K-Slide: Run on This File", "category": "K-Slide"},
@@ -53,13 +58,15 @@
       "properties": {
         "kSlide.pythonPath": {
           "type": "string",
-          "default": "python3",
-          "description": "Python executable used to invoke the installed K-Slide engine."
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "Administrator override for Python. Empty uses KSLIDE_PYTHON, the installed engine/workspace .venv, or python3 with the preinstalled K-Slide wheel."
         },
         "kSlide.engineRoot": {
           "type": "string",
           "default": "",
-          "description": "Optional K-Slide source or installed engine root. Empty uses the selected workspace's installed engine."
+          "scope": "machine-overridable",
+          "description": "Administrator override for a source engine. Empty discovers KSLIDE_ENGINE_ROOT or the workspace installation; otherwise uses the preinstalled K-Slide wheel."
         }
       }
     }

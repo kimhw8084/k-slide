@@ -1,7 +1,7 @@
 import { tool } from "@opencode-ai/plugin"
 import path from "node:path"
 import { runProcess, SafeKSlideError } from "../internal/lib/k-slide-process.ts"
-import { existsSync } from "node:fs"
+import { discoverEngine } from "../internal/lib/k-slide-runtime.ts"
 import { trustedAccessKey } from "../internal/lib/k-slide-access-key.ts"
 
 type ToolContext = {
@@ -130,40 +130,23 @@ const conflictResolution = tool.schema.object({
   authority_evidence: tool.schema.array(authorityEvidenceInput).optional(),
 }).strict()
 
-function projectAndEngine(context: ToolContext): { root: string; engine: string; opencodeRoot: string } {
-  const candidates = [context.directory, context.worktree]
-  for (const candidate of candidates) {
-    const installed = path.join(candidate, ".k-slide-engine", "src", "k_slide")
-    if (existsSync(installed)) return { root: candidate, engine: path.join(candidate, ".k-slide-engine"), opencodeRoot: path.join(candidate, ".opencode") }
-    const source = path.join(candidate, "src", "k_slide")
-    if (existsSync(source)) return { root: candidate, engine: candidate, opencodeRoot: path.join(candidate, ".opencode") }
-    const nested = path.join(candidate, "k-slide", "src", "k_slide")
-    if (existsSync(nested)) return { root: path.join(candidate, "k-slide"), engine: path.join(candidate, "k-slide"), opencodeRoot: path.join(candidate, "k-slide", ".opencode") }
-  }
-  const globalEngine = path.resolve(import.meta.dir, "..", "k-slide-engine")
-  if (existsSync(path.join(globalEngine, "src", "k_slide"))) {
-    return { root: context.worktree, engine: globalEngine, opencodeRoot: path.resolve(import.meta.dir, "..") }
-  }
-  throw new Error("K-Slide core is not installed for this OpenCode project.")
-}
-
 async function runCore(context: ToolContext, command: string, args: string[] = []): Promise<string> {
-  const project = projectAndEngine(context)
-  const environment: Record<string, string> = { ...process.env, PYTHONPATH: path.join(project.engine, "src") } as Record<string, string>
-  if (trustedAccessKey !== undefined) environment.AccessKey = trustedAccessKey
-  // Never forward stderr across the OpenCode boundary.
-  // Move source-bearing JSON off process arguments and onto bounded stdin.
-  let input: string | undefined
-  const forwarded = [...args]
-  for (const [flag, replacement] of [["--payload-json", "--payload-stdin"], ["--host-inputs-json", "--host-inputs-stdin"]]) {
-    const index = forwarded.indexOf(flag)
-    if (index >= 0) {
-      input = forwarded[index + 1]
-      forwarded.splice(index, 2, replacement)
-    }
-  }
   try {
-    const stdout = await runProcess("python3", ["-m", "k_slide.cli", command, "--root", project.root, "--json", "--host-adapter", "opencode", ...(command === "doctor" ? ["--engine-root", project.engine, "--opencode-root", project.opencodeRoot] : []), ...forwarded], {
+    const project = discoverEngine(context.directory, context.worktree, path.resolve(import.meta.dir, ".."))
+    const environment: Record<string, string> = { ...process.env, ...(project.engine ? {PYTHONPATH: path.join(project.engine, "src")} : {}) } as Record<string, string>
+    if (trustedAccessKey !== undefined) environment.AccessKey = trustedAccessKey
+    // Never forward stderr across the OpenCode boundary.
+    // Move source-bearing JSON off process arguments and onto bounded stdin.
+    let input: string | undefined
+    const forwarded = [...args]
+    for (const [flag, replacement] of [["--payload-json", "--payload-stdin"], ["--host-inputs-json", "--host-inputs-stdin"]]) {
+      const index = forwarded.indexOf(flag)
+      if (index >= 0) {
+        input = forwarded[index + 1]
+        forwarded.splice(index, 2, replacement)
+      }
+    }
+    const stdout = await runProcess(project.python, ["-m", "k_slide.cli", command, "--root", project.root, "--json", "--host-adapter", "opencode", ...(command === "doctor" ? [...(project.engine ? ["--engine-root", project.engine] : []), "--opencode-root", project.opencodeRoot] : []), ...forwarded], {
       cwd: project.root, env: environment, input, signal: context.abort,
     })
     const value: unknown = JSON.parse(stdout)

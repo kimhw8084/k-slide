@@ -3,8 +3,9 @@ set -euo pipefail
 SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/k-slide-vscode-verify.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
-"$SOURCE_ROOT/scripts/build_vscode_extension.sh" "$WORK/k-slide.vsix"
-python3 - "$WORK/k-slide.vsix" <<'PY'
+OUTPUT="${1:-$WORK/k-slide.vsix}"
+"$SOURCE_ROOT/scripts/build_vscode_extension.sh" "$OUTPUT"
+python3 - "$OUTPUT" <<'PY'
 import json
 import sys
 import zipfile

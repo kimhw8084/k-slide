@@ -32,7 +32,7 @@ from .queue import WorkUnitStatus, load_queue, save_queue
 from .runtime import discover_runtime
 from .security import sha256_file
 from .resource_budget import ResourceBudget, estimate_model_input_tokens
-from .session import bind_session, incomplete_runs, resolve_run
+from .session import bind_session, incomplete_runs, recent_runs, resolve_run
 from .state import OPERATIONAL_FAILURE_PHASES, RunPhase, load_state, now_utc, save_state
 from .translation import merge_evidence_patch, parse_translation_patch
 from .rendering import render_run
@@ -972,6 +972,11 @@ def _evidence(
 
 
 def _render_text_status(value: dict[str, Any]) -> str:
+    if isinstance(value.get("runs"), list):
+        return "\n".join(
+            f"{row['run_id']} · {row['phase']} · {row['verified_units']}/{row['total_units']} pages verified"
+            for row in value["runs"]
+        ) or "No saved runs in this workspace."
     lines = [str(value.get("status", "UNKNOWN"))]
     for key in ("run_id", "input_count", "current_work_unit", "phase", "error_code", "error_message", "next_action", "conflict_assessment", "reason"):
         if value.get(key) is not None:
@@ -1010,6 +1015,11 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument("--run")
         command.add_argument("--session-id")
         command.add_argument("--json", action="store_true")
+    runs = sub.add_parser("runs", help="List source-free run progress in the current isolated workspace")
+    runs.add_argument("--root", type=Path, default=Path.cwd())
+    runs.add_argument("--session-id")
+    runs.add_argument("--limit", type=int, choices=range(1, 101), default=20, metavar="1..100")
+    runs.add_argument("--json", action="store_true")
     presentation = sub.add_parser("presentation", help="Read the shared engine-owned presentation descriptor for one run")
     presentation.add_argument("--root", type=Path, default=Path.cwd())
     presentation.add_argument("--run")
@@ -1149,6 +1159,8 @@ def main(argv: list[str] | None = None) -> int:
             value = normalize_run(_find_run(args.root, args.run, args.session_id)).as_dict()
         elif args.command == "extract":
             value = {"status": "EXTRACTED", "work_units": [item.work_unit_id for item in extract_run(_find_run(args.root, args.run, args.session_id))]}
+        elif args.command == "runs":
+            value = {"schema_version": "1.0", "runs": recent_runs(_run_root(args.root), session_id=args.session_id, limit=args.limit)}
         elif args.command == "status":
             value = _status(args.root, args.run, args.session_id)
         elif args.command == "presentation":

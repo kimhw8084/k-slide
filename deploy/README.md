@@ -48,6 +48,27 @@ deployment inputs; this repository does not define a duration default.
 Production requires one isolated workspace/container per user or session. Do
 not share a writable `.k-slide-runs/` directory between employees.
 
+Build the OpenCode host package once with the same Node `22.15.0` and npm
+`10.9.2` used by the VS Code build:
+
+```sh
+python scripts/build_opencode_bundle.py --output /tmp/k-slide-opencode.tar.gz
+```
+
+The package includes all shipped commands, agent instructions, tools, skills,
+internal helpers, and the locked preinstalled OpenCode plugin dependencies.
+It imports the installed SDK during the build and emits an archive hash/file
+manifest. Install it into the isolated managed config directory during image
+provisioning, then add the approved `opencode.json` and local model catalog.
+Keep the resulting config tree read-only. Employees do not run npm or build
+extensions. CI retains both host packages as build artifacts; they are labeled
+as not production-certified.
+
+The bootstrap checks that the complete host bundle is present and read-only,
+rejects additional auto-discovered plugins/tools/agents, and binds the bundle
+hash into its environment identity. Changing an agent instruction or a tool
+therefore changes the deployment identity and requires corresponding evidence.
+
 OpenCode production starts only through the managed pre-start bootstrap. Copy
 `opencode-bootstrap.example.json` into the deployment manifest, materialize a
 read-only isolated `.opencode` directory containing the shipped local

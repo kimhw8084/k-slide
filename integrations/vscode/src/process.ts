@@ -8,6 +8,7 @@ export interface ProcessOptions {
   signal?: AbortSignal
   timeoutMs?: number
   maxBytes?: number
+  acceptedExitCodes?: readonly number[]
 }
 
 /** Drain both pipes concurrently; never disclose interpreter diagnostics. */
@@ -56,7 +57,7 @@ export function runProcess(executable: string, args: string[], options: ProcessO
     })
     child.on("close", (code) => {
       cleanup()
-      if (failure || code !== 0) reject(new SafeKSlideError(failure ?? "K-Slide could not complete this action. Check the run status and input eligibility."))
+      if (failure || code === null || !(options.acceptedExitCodes ?? [0]).includes(code)) reject(new SafeKSlideError(failure ?? "K-Slide could not complete this action. Check the run status and input eligibility."))
       else resolve(Buffer.concat(chunks).toString("utf8"))
     })
     child.stdin.end(options.input)
