@@ -13,12 +13,13 @@ from ..ir import SlideIR
 from ..queue import WorkUnitStatus, load_queue
 from ..semantics import ProvenanceState
 from ..storage import StorageArtifact, storage_path
+from ..decision_view import render_decision_view
 
 
 def _manifest_names(run_dir: Path) -> dict[str, str]:
     try:
         value = read_json(storage_path(run_dir, StorageArtifact.RUN_MANIFEST, "RUN_MANIFEST.json"))
-    except (OSError, ValueError, TypeError):
+    except (KSlideError, OSError, ValueError, TypeError):
         return {}
     inputs = value.get("inputs", []) if isinstance(value, dict) else []
     names: dict[str, str] = {}
@@ -134,6 +135,9 @@ def _unit_sections(run_dir: Path, unit: Any, source_name: str) -> tuple[list[str
         lines.append(f"| `{coverage.source_id}` | {coverage.status} | {coverage.note or ''} |")
     lines.append("")
     review_items: list[dict[str, Any]] = []
+    for index, reason in enumerate(evidence.source.get("layout_review_reasons", []), start=1):
+        lines.extend(["", f"**Source layout requires review:** {reason}"])
+        review_items.append({"work_unit_id": unit.work_unit_id, "source_id": f"{unit.work_unit_id}-layout-{index}", "reason": reason, "evidence_ids": [f"{unit.work_unit_id}-visual-context"], "severity": "CRITICAL", "crop_path": evidence.source.get("context_image_path"), "recommended_action": "Review the whole-page image and re-extract with an approved layout provider."})
     for item in unresolved:
         source_id = item.get("region_id") or item.get("cell_id") or item.get("relation_id") or item.get("claim_id")
         region = next((candidate for candidate in evidence.regions if candidate.region_id == source_id), None)
@@ -252,4 +256,5 @@ def render_run(run_dir: Path) -> dict[str, str]:
     atomic_write_text(storage_path(run_dir, StorageArtifact.REPORT, "05_final_report.md", create_parent=True), "\n".join(final_lines) + "\n")
     atomic_write_text(storage_path(run_dir, StorageArtifact.REPORT, "05_executive_brief.md", create_parent=True), "\n".join(brief_lines) + "\n")
     atomic_write_text(storage_path(run_dir, StorageArtifact.REPORT, "07_unresolved_items.md", create_parent=True), "\n".join(unresolved_lines) + "\n")
-    return {"final_report": str(storage_path(run_dir, StorageArtifact.REPORT, "05_final_report.md")), "executive_brief": str(storage_path(run_dir, StorageArtifact.REPORT, "05_executive_brief.md")), "unresolved": str(storage_path(run_dir, StorageArtifact.REPORT, "07_unresolved_items.md"))}
+    decision_artifacts = render_decision_view(run_dir, review_items=review_items)
+    return {"final_report": str(storage_path(run_dir, StorageArtifact.REPORT, "05_final_report.md")), "executive_brief": str(storage_path(run_dir, StorageArtifact.REPORT, "05_executive_brief.md")), "unresolved": str(storage_path(run_dir, StorageArtifact.REPORT, "07_unresolved_items.md")), **decision_artifacts}

@@ -25,7 +25,8 @@ from .paas import (
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run one or more durable K-Slide PaaS jobs")
-    parser.add_argument("--service-root", type=Path, required=True, help="Reference adapter root; a managed adapter supplies its own service")
+    parser.add_argument("--service-root", type=Path, help="Explicit reference-mode adapter root")
+    parser.add_argument("--service-factory", help="Approved managed job service as module:factory")
     parser.add_argument("--job-id", help="Durable job ID; omit to claim the next active reference job")
     parser.add_argument("--worker-id", required=True)
     parser.add_argument("--runtime-ref", required=True)
@@ -41,26 +42,59 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Explicit non-production KSA-08 reference compatibility mode; excluded from production readiness",
     )
-    parser.add_argument("--engine-factory", help="Approved deployment adapter as module:factory; defaults to the deterministic reference adapter")
+    parser.add_argument("--engine-factory", help="Approved deployment adapter as module:factory; required outside reference mode")
     parser.add_argument("--max-steps", type=int, default=None)
     parser.add_argument("--until-terminal", action="store_true", help="Continue through bounded retries until an operational or semantic terminal result")
     return parser
 
 
-def _load_engine(spec: str | None):
-    if not spec:
-        return ReferenceWorkerEngine()
+def _factory(spec: str):
     module_name, separator, attribute = spec.partition(":")
     if not separator or not module_name or not attribute or ":" in attribute:
         raise KSlideError(ErrorCode.EXECUTION_INVALID, "Approved worker engine factory specification is invalid.")
     try:
         factory = getattr(importlib.import_module(module_name), attribute)
-        engine = factory()
+        if not callable(factory):
+            raise TypeError("Factory is not callable")
+        return factory
+    except Exception as exc:
+        raise KSlideError(ErrorCode.EXECUTION_INVALID, "Approved worker adapter factory is unavailable.") from exc
+
+
+def _load_engine(spec: str | None, *, reference_mode: bool = False):
+    if not spec:
+        if reference_mode:
+            return ReferenceWorkerEngine()
+        raise KSlideError(ErrorCode.EXECUTION_INVALID, "Managed workers require an explicit approved engine factory.")
+    try:
+        engine = _factory(spec)()
     except Exception as exc:
         raise KSlideError(ErrorCode.EXECUTION_INVALID, "Approved worker engine factory is unavailable.") from exc
+    if not reference_mode and isinstance(engine, ReferenceWorkerEngine):
+        raise KSlideError(ErrorCode.EXECUTION_INVALID, "Reference engines require explicit non-production reference mode.")
     if not callable(getattr(engine, "step", None)) and not callable(engine):
         raise KSlideError(ErrorCode.EXECUTION_INVALID, "Approved worker engine factory returned an invalid binding.")
+    if not reference_mode and not callable(getattr(engine, "run_directory", None)):
+        raise KSlideError(ErrorCode.EXECUTION_INVALID, "Managed worker engines must resolve authorized run artifacts for finalization.")
     return engine
+
+
+def _load_service(args, *, scope_context, runtime_identity):
+    if args.reference_mode:
+        if args.service_factory or args.service_root is None:
+            raise KSlideError(ErrorCode.EXECUTION_INVALID, "Reference mode requires a service root and cannot use a managed service factory.")
+        return ReferencePaaSJobService(args.service_root, reference_compatibility=True)
+    if not args.service_factory or args.service_root is not None:
+        raise KSlideError(ErrorCode.EXECUTION_INVALID, "Managed workers require an approved service factory, without a reference service root.")
+    try:
+        service = _factory(args.service_factory)(scope_context=scope_context, runtime_identity=runtime_identity)
+    except Exception as exc:
+        raise KSlideError(ErrorCode.EXECUTION_INVALID, "Approved worker service factory is unavailable.") from exc
+    if isinstance(service, ReferencePaaSJobService) or getattr(service, "reference_compatibility", False):
+        raise KSlideError(ErrorCode.EXECUTION_INVALID, "Reference job services cannot execute managed production work.")
+    if not all(callable(getattr(service, name, None)) for name in ("claim", "open_store")):
+        raise KSlideError(ErrorCode.EXECUTION_INVALID, "Approved worker service factory returned an invalid binding.")
+    return service
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -87,12 +121,13 @@ def main(argv: list[str] | None = None) -> int:
         if not args.reference_mode and not all(value is not None for value in scope_args[:2]):
             raise KSlideError(ErrorCode.EXECUTION_AUTHORIZATION_REQUIRED, "Managed durable worker execution requires an authorized user/workspace scope.")
         scope_context = AuthorizedScopeContext(args.user_ref, args.workspace_ref, args.scope_ref) if all(value is not None for value in scope_args[:2]) else None
-        service = ReferencePaaSJobService(args.service_root, reference_compatibility=args.reference_mode)
+        engine = _load_engine(args.engine_factory, reference_mode=args.reference_mode)
+        service = _load_service(args, scope_context=scope_context, runtime_identity=runtime_identity)
         worker = PaaSWorker(
             service,
             worker_id=args.worker_id,
             runtime_identity=runtime_identity,
-            engine=_load_engine(args.engine_factory),
+            engine=engine,
             scope_context=scope_context,
             reference_mode=args.reference_mode,
         )

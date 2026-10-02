@@ -11,19 +11,29 @@ from . import VERIFICATION_SCHEMA_VERSION
 
 @dataclass(frozen=True)
 class CompletionPolicy:
-    version: str = "1.0"
+    version: str = "2.1"
     required_artifacts: tuple[str, ...] = (
+        "05_decision_view.json",
+        "05_decision_view.md",
+        "05_decision_view.html",
         "05_executive_brief.md",
         "05_final_report.md",
         "06_verification.md",
         "07_unresolved_items.md",
+        "08_evidence_drilldown.json",
+        "09_presentation.json",
         "RUN_COMPLETE.md",
     )
     precompletion_artifacts: tuple[str, ...] = (
+        "05_decision_view.json",
+        "05_decision_view.md",
+        "05_decision_view.html",
         "05_executive_brief.md",
         "05_final_report.md",
         "06_verification.md",
         "07_unresolved_items.md",
+        "08_evidence_drilldown.json",
+        "09_presentation.json",
     )
     required_verifiers: tuple[str, ...] = ("schema", "coverage", "work_queue")
 
@@ -41,7 +51,7 @@ class CompletionPolicy:
         from .storage import StorageArtifact, storage_path
 
         def artifact_for(name: str) -> StorageArtifact:
-            if name.startswith("05_") or name.startswith("07_"):
+            if name.startswith(("05_", "07_", "08_", "09_")):
                 return StorageArtifact.REPORT
             if name.startswith("06_"):
                 return StorageArtifact.VERIFICATION

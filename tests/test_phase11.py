@@ -117,8 +117,6 @@ class Phase11Tests(unittest.TestCase):
             next_value = _next(root, run.name, None, reference_environment())
             _submit(root, run.name, json.dumps(self._payload(run, str(next_value["work_unit_id"]))), None, reference_environment())
             _conflict_assess(root, run.name, '{"schema_version":"1.0","candidate_groups":[]}', None, reference_environment())
-            for name, content in {"05_executive_brief.md": "# brief\n", "05_final_report.md": "# report\n", "07_unresolved_items.md": "No unresolved items.\n"}.items():
-                (run / name).write_text(content)
             self.assertTrue(verify_run(run, environment_identity=reference_environment()).passed)
             finalize_run(run, environment_identity=reference_environment())
             self.assertTrue((run / "RUN_COMPLETE.md").exists())

@@ -3,8 +3,12 @@
 FROM --platform=linux/amd64 docker.io/library/python:3.11-slim@sha256:d1053354624536b044162aaab1e418bd000ea35184fb1ae098ab3166b1072e72 AS kslide-wheel
 
 WORKDIR /build
-COPY pyproject.toml README.md ./
+COPY pyproject.toml setup.py MANIFEST.in README.md constraints-production.txt ./
 COPY src ./src
+COPY termbase ./termbase
+COPY schemas ./schemas
+COPY prompts ./prompts
+COPY security ./security
 RUN python -m pip wheel --disable-pip-version-check --no-cache-dir --no-deps --no-build-isolation --wheel-dir /wheel .
 
 FROM --platform=linux/amd64 docker.io/library/python:3.11-slim@sha256:d1053354624536b044162aaab1e418bd000ea35184fb1ae098ab3166b1072e72

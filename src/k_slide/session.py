@@ -30,13 +30,62 @@ def bind_session(run_root: Path, session_id: str | None, run_id: str) -> str | N
 
 
 def _run_dirs(run_root: Path) -> list[Path]:
-    if not run_root.is_dir():
+    if run_root.is_symlink() or not run_root.is_dir():
         return []
     return sorted(
-        [path for path in run_root.iterdir() if path.is_dir() and path.name != "_sessions" and re.match(r"^k-slide-", path.name)],
+        [path for path in run_root.iterdir() if not path.is_symlink() and path.is_dir() and re.fullmatch(r"k-slide-[A-Za-z0-9_.:-]{1,120}", path.name)],
         key=lambda path: path.stat().st_mtime,
         reverse=True,
     )
+
+
+def recent_runs(run_root: Path, *, session_id: str | None = None, limit: int = 20) -> list[dict]:
+    """Source-free discovery inside the host's already isolated workspace.
+
+    Hosted sessions only see their current binding. No-session access has the
+    same local/operator authority as resolve_run, never company-wide access.
+    Artifact opening still rechecks the presentation and completion contract.
+    """
+
+    from .queue import WorkUnitStatus, load_queue
+
+    if not 1 <= limit <= 100:
+        raise ValueError("Run listing limit must be between 1 and 100.")
+    if run_root.is_symlink():
+        return []
+    if session_id is not None:
+        bound = resolve_run(run_root, session_id=session_id)
+        candidates = [bound] if bound else []
+    else:
+        candidates = _run_dirs(run_root)
+    values = []
+    for candidate in candidates:
+        try:
+            state = load_state(candidate)
+            if state.run_id != candidate.name or state.deletion_fence is not None:
+                continue
+            try:
+                queue = load_queue(candidate)
+                queue_valid = queue.run_id == state.run_id
+            except (KSlideError, KeyError, TypeError, ValueError, OSError):
+                queue = None
+                queue_valid = False
+            units = queue.work_units if queue is not None and queue_valid else ()
+            values.append({
+                "run_id": state.run_id,
+                "phase": state.phase.value,
+                "updated_at": state.updated_at,
+                "input_count": max(0, state.input_count),
+                "progress_available": queue_valid,
+                "total_units": len(units),
+                "verified_units": sum(unit.status is WorkUnitStatus.VERIFIED for unit in units),
+                "review_units": sum(unit.status is WorkUnitStatus.NEEDS_REVIEW for unit in units),
+            })
+        except (KSlideError, KeyError, TypeError, ValueError, OSError):
+            continue
+        if len(values) >= limit:
+            break
+    return values
 
 
 def incomplete_runs(run_root: Path) -> list[Path]:
@@ -61,6 +110,8 @@ def resolve_run(run_root: Path, *, explicit: str | None = None, session_id: str 
     explicit local/operator compatibility path.
     """
 
+    if run_root.is_symlink():
+        return None
     run_root = run_root.resolve()
     bound_run: Path | None = None
     has_session_binding = False

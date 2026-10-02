@@ -94,7 +94,7 @@ class Phase32HarnessTests(unittest.TestCase):
             (run / "RUN_STATE.json").write_text(json.dumps({"phase": "VERIFIED"}), encoding="utf-8")
             self.assertFalse(_completion_contract(run)[0])
             (run / "RUN_STATE.json").write_text(json.dumps({"phase": "COMPLETE"}), encoding="utf-8")
-            for name in ("RUN_COMPLETE.md", "05_executive_brief.md", "05_final_report.md", "06_verification.md", "07_unresolved_items.md"):
+            for name in ("RUN_COMPLETE.md", "05_decision_view.json", "05_decision_view.md", "05_executive_brief.md", "05_final_report.md", "06_verification.md", "07_unresolved_items.md", "08_evidence_drilldown.json", "09_presentation.json"):
                 (run / name).write_text("ok", encoding="utf-8")
             self.assertTrue(_completion_contract(run)[0])
 

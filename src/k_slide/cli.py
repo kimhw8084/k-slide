@@ -32,10 +32,11 @@ from .queue import WorkUnitStatus, load_queue, save_queue
 from .runtime import discover_runtime
 from .security import sha256_file
 from .resource_budget import ResourceBudget, estimate_model_input_tokens
-from .session import bind_session, incomplete_runs, resolve_run
+from .session import bind_session, incomplete_runs, recent_runs, resolve_run
 from .state import OPERATIONAL_FAILURE_PHASES, RunPhase, load_state, now_utc, save_state
 from .translation import merge_evidence_patch, parse_translation_patch
 from .rendering import render_run
+from .decision_view import read_presentation
 from .terminology import load_effective_termbase
 from .verify import finalize_run, verify_run
 from .conflicts import assess_conflicts, conflict_assessment_status, conflict_registry_path, load_conflict_registry, resolve_authoritative_conflict
@@ -624,13 +625,12 @@ def _submit(
         canonical = merge_evidence_patch(evidence, patch, runtime_metadata=runtime, translation_revision=translation_revision)
         atomic_write_json(storage_path(run_dir, StorageArtifact.TRANSLATION_PATCH, f"translations/{unit.work_unit_id}.json", create_parent=True), patch.as_dict(), mode=0o600)
         atomic_write_json(storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json", create_parent=True), canonical.as_dict(), mode=0o600)
-        render_run(run_dir)
         recovery_unresolved = [
             str(item.get("region_id") or item.get("cell_id"))
             for item in canonical.unresolved
             if item.get("recovery_status") == "NEEDS_REVIEW"
         ]
-        unit.status = WorkUnitStatus.NEEDS_REVIEW if recovery_unresolved else WorkUnitStatus.TRANSLATED
+        unit.status = WorkUnitStatus.NEEDS_REVIEW if recovery_unresolved or evidence.source.get("layout_review_reasons") else WorkUnitStatus.TRANSLATED
         unit.translation_revision = translation_revision
         unit.canonical_ir_sha256 = sha256_file(storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json"))
         unit.translation_attempts += 1
@@ -644,6 +644,7 @@ def _submit(
         elif state.phase == RunPhase.NEEDS_REVIEW and not any(item.status is WorkUnitStatus.NEEDS_REVIEW for item in queue.work_units):
             state.transition(RunPhase.TRANSLATING, next_action=state.next_action)
         save_state(run_dir, state)
+        render_run(run_dir)
         return {"status": "NEEDS_REVIEW" if recovery_unresolved else "ACCEPTED", "run_id": state.run_id, "work_unit_id": unit.work_unit_id, "translation_revision": translation_revision, "unresolved_source_ids": recovery_unresolved, "stored": str(storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json").relative_to(root.resolve()))}
 
 
@@ -751,7 +752,7 @@ def _status(
         "RUN_MANIFEST.json": StorageArtifact.RUN_MANIFEST,
         "CONFLICT_REGISTRY.json": StorageArtifact.CANONICAL_IR,
         "RUN_FAILED.md": StorageArtifact.FAILURE_MARKER,
-        **{name: StorageArtifact.REPORT if name.startswith(("05_", "07_")) else StorageArtifact.VERIFICATION if name.startswith("06_") else StorageArtifact.COMPLETION_MARKER for name in COMPLETION_POLICY.required_artifacts},
+        **{name: StorageArtifact.REPORT if name.startswith(("05_", "07_", "08_", "09_")) else StorageArtifact.VERIFICATION if name.startswith("06_") else StorageArtifact.COMPLETION_MARKER for name in COMPLETION_POLICY.required_artifacts},
     }
     artifacts = {name: storage_path(run, artifact_classes[name], name).is_file() for name in artifact_classes}
     conflict_assessment = "LEGACY_NOT_ASSESSED"
@@ -825,6 +826,7 @@ def _next_unsanitized(
     if state.phase == RunPhase.NEEDS_REVIEW:
         queue = load_queue(run)
         if not any(unit.status is WorkUnitStatus.READY for unit in queue.work_units):
+            render_run(run)
             return {"status": "NEEDS_REVIEW", "run_id": state.run_id, "next_action": "Human review or explicit repair is required."}
     ensure_workspace_environment_compatible(run, environment_identity=environment_identity)
     with run_lock(run):
@@ -863,6 +865,7 @@ def _next_unsanitized(
                 state.transition(RunPhase.NEEDS_REVIEW, next_action="Human review is required after bounded automatic repair attempts.")
                 save_queue(run, queue)
                 save_state(run, state)
+                render_run(run)
                 return {"status": "NEEDS_REVIEW", "run_id": state.run_id, "work_unit_id": unit.work_unit_id, "next_action": "Review 07_unresolved_items.md or provide an explicit repair."}
             unit.status = WorkUnitStatus.REPAIRING
             unit.repair_attempts += 1
@@ -878,6 +881,7 @@ def _next_unsanitized(
                 return {"status": "CONFLICT_ASSESSMENT_REQUIRED", "run_id": state.run_id, "next_action": "kslide_conflict_assess"}
             return {"status": "ALL_TRANSLATED", "run_id": state.run_id, "next_action": "kslide_verify"}
         if queue_status == "NEEDS_REVIEW":
+            render_run(run)
             return {"status": "NEEDS_REVIEW", "run_id": state.run_id, "next_action": "Human review or explicit repair is required."}
         return {
             "status": "NOT_READY",
@@ -968,6 +972,11 @@ def _evidence(
 
 
 def _render_text_status(value: dict[str, Any]) -> str:
+    if isinstance(value.get("runs"), list):
+        return "\n".join(
+            f"{row['run_id']} · {row['phase']} · {row['verified_units']}/{row['total_units']} pages verified"
+            for row in value["runs"]
+        ) or "No saved runs in this workspace."
     lines = [str(value.get("status", "UNKNOWN"))]
     for key in ("run_id", "input_count", "current_work_unit", "phase", "error_code", "error_message", "next_action", "conflict_assessment", "reason"):
         if value.get(key) is not None:
@@ -995,6 +1004,7 @@ def build_parser() -> argparse.ArgumentParser:
     prepare = sub.add_parser("prepare")
     prepare.add_argument("--root", type=Path, default=Path.cwd())
     prepare.add_argument("--host-inputs-json", help=argparse.SUPPRESS)
+    prepare.add_argument("--host-inputs-stdin", action="store_true", help=argparse.SUPPRESS)
     prepare.add_argument("--host-worktree", type=Path, help=argparse.SUPPRESS)
     prepare.add_argument("--session-id")
     prepare.add_argument("--json", action="store_true")
@@ -1005,6 +1015,16 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument("--run")
         command.add_argument("--session-id")
         command.add_argument("--json", action="store_true")
+    runs = sub.add_parser("runs", help="List source-free run progress in the current isolated workspace")
+    runs.add_argument("--root", type=Path, default=Path.cwd())
+    runs.add_argument("--session-id")
+    runs.add_argument("--limit", type=int, choices=range(1, 101), default=20, metavar="1..100")
+    runs.add_argument("--json", action="store_true")
+    presentation = sub.add_parser("presentation", help="Read the shared engine-owned presentation descriptor for one run")
+    presentation.add_argument("--root", type=Path, default=Path.cwd())
+    presentation.add_argument("--run")
+    presentation.add_argument("--session-id")
+    presentation.add_argument("--json", action="store_true")
     for name in ("normalize", "extract"):
         command = sub.add_parser(name)
         command.add_argument("--root", type=Path, default=Path.cwd())
@@ -1014,19 +1034,25 @@ def build_parser() -> argparse.ArgumentParser:
     submit = sub.add_parser("submit")
     submit.add_argument("--root", type=Path, default=Path.cwd())
     submit.add_argument("--run", required=True)
-    submit.add_argument("--payload-json", required=True)
+    submit_transport = submit.add_mutually_exclusive_group(required=True)
+    submit_transport.add_argument("--payload-json")
+    submit_transport.add_argument("--payload-stdin", action="store_true")
     submit.add_argument("--session-id")
     submit.add_argument("--json", action="store_true")
     conflicts = sub.add_parser("conflict-assess")
     conflicts.add_argument("--root", type=Path, default=Path.cwd())
     conflicts.add_argument("--run", required=True)
-    conflicts.add_argument("--payload-json", required=True)
+    conflicts_transport = conflicts.add_mutually_exclusive_group(required=True)
+    conflicts_transport.add_argument("--payload-json")
+    conflicts_transport.add_argument("--payload-stdin", action="store_true")
     conflicts.add_argument("--session-id")
     conflicts.add_argument("--json", action="store_true")
     resolve = sub.add_parser("conflict-resolve")
     resolve.add_argument("--root", type=Path, default=Path.cwd())
     resolve.add_argument("--run", required=True)
-    resolve.add_argument("--payload-json", required=True)
+    resolve_transport = resolve.add_mutually_exclusive_group(required=True)
+    resolve_transport.add_argument("--payload-json")
+    resolve_transport.add_argument("--payload-stdin", action="store_true")
     resolve.add_argument("--session-id")
     resolve.add_argument("--json", action="store_true")
     verify = sub.add_parser("verify")
@@ -1094,14 +1120,30 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _read_bounded_stdin() -> str:
+    # Transport ceiling; the run-specific model budget still applies at submit.
+    limit = 8 * 1024 * 1024
+    value = sys.stdin.read(limit + 1)
+    if len(value.encode("utf-8")) > limit:
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Input payload exceeds the host transport limit.")
+    return value
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     started_ns = time.monotonic_ns()
     try:
+        if getattr(args, "payload_stdin", False):
+            args.payload_json = _read_bounded_stdin()
         if args.command == "runtime":
             value = discover_runtime().as_dict()
         elif args.command == "prepare":
-            invocation = HostInvocation.from_json(args.host_inputs_json)
+            host_inputs_json = args.host_inputs_json
+            if args.host_inputs_stdin:
+                if host_inputs_json is not None:
+                    raise KSlideError(ErrorCode.SCHEMA_INVALID, "Host input JSON may use only one transport.")
+                host_inputs_json = _read_bounded_stdin()
+            invocation = HostInvocation.from_json(host_inputs_json)
             run = prepare_run(
                 args.root,
                 explicit_paths=args.paths,
@@ -1110,13 +1152,24 @@ def main(argv: list[str] | None = None) -> int:
                 host_input_refs=invocation.input_refs if invocation is not None else (),
                 approved_root=args.host_worktree or args.root,
             )
+            if storage_path(run, StorageArtifact.WORK_QUEUE, "WORK_QUEUE.json").is_file():
+                render_run(run)
             value = _status(args.root, run.name, args.session_id)
         elif args.command == "normalize":
             value = normalize_run(_find_run(args.root, args.run, args.session_id)).as_dict()
         elif args.command == "extract":
             value = {"status": "EXTRACTED", "work_units": [item.work_unit_id for item in extract_run(_find_run(args.root, args.run, args.session_id))]}
+        elif args.command == "runs":
+            value = {"schema_version": "1.0", "runs": recent_runs(_run_root(args.root), session_id=args.session_id, limit=args.limit)}
         elif args.command == "status":
             value = _status(args.root, args.run, args.session_id)
+        elif args.command == "presentation":
+            run = _find_run(args.root, args.run, args.session_id)
+            descriptor = read_presentation(run)
+            from .io import read_json
+
+            decision_view = read_json(storage_path(run, StorageArtifact.REPORT, "05_decision_view.json"))
+            value = {"presentation": descriptor, "decision_view": decision_view}
         elif args.command == "next":
             value = _next(args.root, args.run, args.session_id)
         elif args.command == "evidence":

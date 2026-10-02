@@ -99,9 +99,46 @@ class Phase1Tests(unittest.TestCase):
             self.assertEqual(host_agents.read_text(), "host-owned instructions\n")
             self.assertTrue((target / ".opencode" / "tools" / "kslide.ts").is_file())
             self.assertTrue((target / ".k-slide-engine" / "src" / "k_slide" / "cli.py").is_file())
+            self.assertTrue((target / ".vscode" / "k-slide-extension" / "package.json").is_file())
+            self.assertFalse((target / ".vscode" / "k-slide-extension" / "node_modules").exists())
+            self.assertFalse((target / ".vscode" / "k-slide-extension" / "dist").exists())
             self.assertTrue(all(passed for _, passed in verify_install(target)))
             install(source_root, target)
             self.assertEqual(host_agents.read_text(), "host-owned instructions\n")
+
+    def test_vscode_install_preflights_collisions_and_modified_owned_files(self) -> None:
+        source_root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "host"
+            target.mkdir()
+            vscode_path = target / ".vscode"
+            vscode_path.write_text("host-owned file\n")
+            with self.assertRaises(KSlideError) as raised:
+                install(source_root, target)
+            self.assertEqual(raised.exception.code, ErrorCode.INSTALL_COLLISION)
+            self.assertEqual(vscode_path.read_text(), "host-owned file\n")
+            self.assertFalse((target / ".opencode").exists())
+
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "host"
+            manifest_path = target / ".vscode" / "k-slide-extension" / "package.json"
+            manifest_path.parent.mkdir(parents=True)
+            manifest_path.write_text("host-owned VS Code package\n")
+            with self.assertRaises(KSlideError) as raised:
+                install(source_root, target)
+            self.assertEqual(raised.exception.code, ErrorCode.INSTALL_COLLISION)
+            self.assertEqual(manifest_path.read_text(), "host-owned VS Code package\n")
+            self.assertFalse((target / ".opencode").exists())
+
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "host"
+            install(source_root, target)
+            source = target / ".vscode" / "k-slide-extension" / "src" / "extension.ts"
+            source.write_text(source.read_text(encoding="utf-8") + "\nlocal change\n", encoding="utf-8")
+            with self.assertRaises(KSlideError) as raised:
+                install(source_root, target)
+            self.assertEqual(raised.exception.code, ErrorCode.INSTALL_LOCAL_MODIFICATION)
+            self.assertIn("local change", source.read_text(encoding="utf-8"))
 
     def test_installer_refuses_unowned_collision(self) -> None:
         source_root = Path(__file__).resolve().parents[1]
@@ -156,9 +193,6 @@ class Phase1Tests(unittest.TestCase):
             accepted = _submit(root, run_dir.name, json.dumps(payload), None, reference_environment())
             self.assertEqual(accepted["status"], "ACCEPTED")
             _conflict_assess(root, run_dir.name, '{"schema_version":"1.0","candidate_groups":[]}', None, reference_environment())
-            (run_dir / "05_executive_brief.md").write_text("# Executive brief\n")
-            (run_dir / "05_final_report.md").write_text("# Source-faithful reconstruction\n")
-            (run_dir / "07_unresolved_items.md").write_text("No unresolved items.\n")
             result = verify_run(run_dir, environment_identity=reference_environment())
             self.assertTrue(result.passed)
             self.assertEqual(load_state(run_dir).phase, RunPhase.VERIFIED)

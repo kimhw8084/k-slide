@@ -1,0 +1,1132 @@
+{
+  "schema_version": 1,
+  "base_commit": "9089cd8415d16402efe5ac561e936540a22a6c19",
+  "branch": "codex/k-slide-production-implementation",
+  "approval": {
+    "approved_at": "2026-10-02T02:04:10.476250+00:00",
+    "authority": "Explicit user message in this conversation",
+    "instruction": "all aprpoved, kill the server. proceed with the development.",
+    "plan_id": "k-slide-production-approval-v1",
+    "plan_sha256": "29bc54da719b77b8d73f9ffa43d7d53807340f62c46a0e935668c07b3cdc5201",
+    "approved_ids": [
+      "CORE-01",
+      "CORE-02",
+      "CORE-03",
+      "CORE-04",
+      "CORE-05",
+      "EVD-01",
+      "EVD-02",
+      "EVD-03",
+      "EVD-04",
+      "EVD-05",
+      "EVD-06",
+      "EVD-07",
+      "EVD-08",
+      "SEM-01",
+      "SEM-02",
+      "SEM-03",
+      "SEM-04",
+      "SEM-05",
+      "SEM-06",
+      "SEM-07",
+      "UX-01",
+      "UX-02",
+      "UX-03",
+      "UX-04",
+      "UX-05",
+      "UX-06",
+      "UX-07",
+      "UX-08",
+      "UX-09",
+      "UX-10",
+      "HOST-01",
+      "HOST-02",
+      "HOST-03",
+      "HOST-04",
+      "HOST-05",
+      "RUN-01",
+      "RUN-02",
+      "RUN-03",
+      "RUN-04",
+      "RUN-05",
+      "RUN-06",
+      "RUN-07",
+      "RUN-08",
+      "RUN-09",
+      "SEC-01",
+      "SEC-02",
+      "SEC-03",
+      "SEC-04",
+      "SEC-05",
+      "SEC-06",
+      "SEC-07",
+      "SEC-08",
+      "OPS-01",
+      "OPS-02",
+      "OPS-03",
+      "OPS-04",
+      "OPS-05",
+      "OPS-06",
+      "OPS-07",
+      "QA-01",
+      "QA-02",
+      "QA-03",
+      "QA-04",
+      "QA-05",
+      "QA-06",
+      "QA-07",
+      "QA-08",
+      "REL-01",
+      "REL-02",
+      "REL-03",
+      "REL-04",
+      "REL-05",
+      "REL-06",
+      "REL-07",
+      "OPT-01",
+      "OPT-02",
+      "OPT-03",
+      "OPT-04"
+    ],
+    "preserve_item_feedback": true
+  },
+  "items": [
+    {
+      "id": "CORE-01",
+      "title": "Bind the work to the current repository and approved contract",
+      "approved": true,
+      "status": "implemented_local",
+      "evidence": [
+        "docs/production-implementation/approved-plan.json"
+      ],
+      "remaining": []
+    },
+    {
+      "id": "CORE-02",
+      "title": "Preserve one engine and the evidence ownership boundary",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Host-specific paths cannot bypass engine checks",
+        "Adversarial patches cannot redefine source evidence"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "CORE-03",
+      "title": "Version public contracts and compatibility rules",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "Optional presentation HTML fields and completion policy 2.1 added; broader migration review remains."
+      ]
+    },
+    {
+      "id": "CORE-04",
+      "title": "Make complex backend boundaries easier to maintain",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "Bounded layout and process transport concerns extracted into focused modules; no blanket rewrite."
+      ]
+    },
+    {
+      "id": "CORE-05",
+      "title": "Define product readiness and accountable owners",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Readiness states are evidence-derived",
+        "Open external dependencies remain visible and cannot be marked complete by code tests"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "EVD-01",
+      "title": "Harden intake and immutable source snapshots",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Unsafe input is rejected before processing",
+        "Snapshots, hashes and IDs remain stable under retries"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "EVD-02",
+      "title": "Reconstruct raster and PDF tables as actual tables",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "Ruled PNG/PDF tables, blank cells and rectangular merges covered. Borderless, rotated and low-contrast structures remain."
+      ]
+    },
+    {
+      "id": "EVD-03",
+      "title": "Prove whole-page coverage beyond detected OCR text",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "Ink missed by OCR inside detected cells now requires review. Whole-page independent recall is not yet established."
+      ]
+    },
+    {
+      "id": "EVD-04",
+      "title": "Qualify Korean OCR and bounded recovery",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "OCR assets work without network access",
+        "Unrecoverable text stays unresolved and is never completed from model familiarity"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "EVD-05",
+      "title": "Preserve PDF rendering and extraction fidelity",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "Native PDF spans retain separate cell locations; raster PDF table regression passes. Representative fidelity qualification remains."
+      ]
+    },
+    {
+      "id": "EVD-06",
+      "title": "Preserve PPTX shapes, tables, groups and render fidelity",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Native-versus-render disagreements are disclosed",
+        "Representative real PPTX files retain all business-relevant content"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "EVD-07",
+      "title": "Preserve charts, processes and visual relationships",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Trend reversals and invented dependencies fail verification/evaluation",
+        "Unlabeled graphics do not become fabricated exact values"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "EVD-08",
+      "title": "Guarantee required media delivery and evidence navigation",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Each submission has the required per-attempt media trace",
+        "Broken/missing media blocks work with a recovery action"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "SEM-01",
+      "title": "Prove numeric, date and unit integrity",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Zero observed critical numeric/date/unit defects in required qualification",
+        "Every decision-facing value links to a source fact"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "SEM-02",
+      "title": "Preserve commitment and business modality",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Adjudicated modality cases pass without critical failures",
+        "Executive language does not overstate source commitment"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "SEM-03",
+      "title": "Enforce evidence-backed claims and provenance",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Unsupported critical claims cannot reach DONE",
+        "No summary loses the source uncertainty or provenance"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "SEM-04",
+      "title": "Make source conflicts explicit across documents",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "False conflict resolution fails critical gates",
+        "A later file alone is not treated as authority"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "SEM-05",
+      "title": "Deploy governed company terminology and mixed-language fidelity",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Unauthorized local terms cannot alter another user’s output",
+        "Effective termbase identity is reproducible for every run"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "SEM-06",
+      "title": "Make repair targeted, bounded and resumable",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Repair cannot rewrite immutable evidence",
+        "Exhausted or ambiguous repairs yield actionable NEEDS REVIEW"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "SEM-07",
+      "title": "Verify the final artifacts independently of model claims",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "Managed completion reopens retained patches and canonical artifacts; current finalizer and presentation checks pass."
+      ]
+    },
+    {
+      "id": "UX-01",
+      "title": "Create the compact Decision View",
+      "approved": true,
+      "status": "implemented_local",
+      "evidence": [
+        "src/k_slide/decision_view.py",
+        "tests/test_decision_view.py"
+      ],
+      "remaining": []
+    },
+    {
+      "id": "UX-02",
+      "title": "Make faithful reconstruction readable and navigable",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "Readable reconstruction and actual HTML table grid added; dense mixed-format visual audit remains."
+      ]
+    },
+    {
+      "id": "UX-03",
+      "title": "Build evidence drill-down and source comparison",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "Whole-page images and region crops available in shared HTML; deployed authorization/media journey remains."
+      ]
+    },
+    {
+      "id": "UX-04",
+      "title": "Make NEEDS REVIEW useful to a non-Korean reader",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "Review warnings and source-layout uncertainty are visible and block completion; human usability validation remains."
+      ]
+    },
+    {
+      "id": "UX-05",
+      "title": "Design clear progress, cancellation and return-to-work",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "integrations/vscode/src/extension.ts",
+        "tests/test_recent_runs.py"
+      ],
+      "remaining": [
+        "Cancellable preparation, saved-run recovery and persisted progress refresh are implemented. Company job cancellation and reconnect journeys still require deployed service integration."
+      ]
+    },
+    {
+      "id": "UX-06",
+      "title": "Polish file selection and packet intake",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "Native file/current-editor/Explorer selection reused and tested; actual company host intake remains to qualify."
+      ]
+    },
+    {
+      "id": "UX-07",
+      "title": "Provide actionable errors and recovery messages",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "integrations/vscode/src/runInfo.ts",
+        "integrations/vscode/src/runInfo.test.ts"
+      ],
+      "remaining": [
+        "Source-free capability checks and explicit recovery states are implemented. Validate employee recovery actions in the deployed company hosts."
+      ]
+    },
+    {
+      "id": "UX-08",
+      "title": "Meet keyboard, screen-reader and visual accessibility needs",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "Semantic HTML, focus states, keyboard details, responsive layouts and reduced motion implemented; assistive-technology and visual inspection remain."
+      ]
+    },
+    {
+      "id": "UX-09",
+      "title": "Create consistent host-native visual polish",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "Shared themed HTML and script-disabled native VS Code webview added; visual/host acceptance remains."
+      ]
+    },
+    {
+      "id": "UX-10",
+      "title": "Provide safe recent-run discovery and employee feedback",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "src/k_slide/session.py",
+        "tests/test_recent_runs.py"
+      ],
+      "remaining": [
+        "Saved-run discovery is scoped to the isolated workspace; hosted sessions cannot enumerate another binding. Existing issue reporting remains to qualify with the live operational metadata service."
+      ]
+    },
+    {
+      "id": "HOST-01",
+      "title": "Ship the first-class Cloud VS Code adapter",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "integrations/vscode/src/extension.ts",
+        "integrations/vscode/src/runtime.ts"
+      ],
+      "remaining": [
+        "File preparation, saved runs, progress, diagnostics and result views are implemented. Company translation-agent dispatch remains unbound."
+      ]
+    },
+    {
+      "id": "HOST-02",
+      "title": "Finish the OpenCode Web product surface",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        ".opencode/internal/lib/k-slide-runtime.ts",
+        "scripts/build_opencode_bundle.py",
+        "src/k_slide/opencode_bootstrap.py"
+      ],
+      "remaining": [
+        "Runtime discovery and a preinstalled complete host bundle are implemented; startup rejects missing/writable/unexpected host code. Live browser/model journey remains."
+      ]
+    },
+    {
+      "id": "HOST-03",
+      "title": "Prove cross-host behavioral parity",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "Shared versioned descriptor, reconstruction/review/evidence references and contract tests pass; real cross-host journey remains."
+      ]
+    },
+    {
+      "id": "HOST-04",
+      "title": "Package, install and upgrade both hosts safely",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "src/k_slide/installer.py",
+        "scripts/verify_python_package.sh",
+        "scripts/build_opencode_bundle.py",
+        "tests/test_install_integrity.py"
+      ],
+      "remaining": [
+        "Clean wheel and preinstalled host packages are built and verified. Both hosts discover installed runtimes; real company image installation/upgrade qualification remains."
+      ]
+    },
+    {
+      "id": "HOST-05",
+      "title": "Harden the host-to-engine subprocess boundary",
+      "approved": true,
+      "status": "implemented_local",
+      "evidence": [
+        "integrations/vscode/src/process.test.ts",
+        ".opencode/internal/lib/k-slide-process.ts",
+        "tests/test_chg16_opencode_plugin.ts"
+      ],
+      "remaining": []
+    },
+    {
+      "id": "RUN-01",
+      "title": "Eliminate worker false DONE and implicit reference execution",
+      "approved": true,
+      "status": "implemented_local",
+      "evidence": [
+        "tests/test_production_worker.py"
+      ],
+      "remaining": []
+    },
+    {
+      "id": "RUN-02",
+      "title": "Wire the durable worker to the real product pipeline",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "A real queued artifact reaches verified output through the managed worker",
+        "Reference adapters cannot qualify production transport or persistence"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "RUN-03",
+      "title": "Prove durable checkpoints and restart recovery",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Kill/restart tests cover every material pipeline boundary",
+        "Recovery neither loses committed work nor fabricates completion"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "RUN-04",
+      "title": "Separate safe retries from semantic repair",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Failure injection proves bounded attempts and stable output ownership",
+        "Semantic failures never trigger unbounded whole-run regeneration"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "RUN-05",
+      "title": "Qualify queue admission, fairness and concurrency",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Load tests preserve per-scope ordering and isolation",
+        "No two workers can commit conflicting results for one operation"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "RUN-06",
+      "title": "Make cancellation and timeouts terminate actual work",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "Host process groups receive cancellation and bounded escalation; actual managed job/OCR/provider cancellation qualification remains."
+      ]
+    },
+    {
+      "id": "RUN-07",
+      "title": "Enforce stale-write, duplicate-submit and artifact consistency rules",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Two-client and interrupted-write tests preserve one canonical result",
+        "Replayed submissions cannot mutate a completed revision"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "RUN-08",
+      "title": "Make upgrades and resume respect bound environments",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Rolling upgrades do not mix environments within an evidence chain",
+        "Changed factors invalidate affected results and certification"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "RUN-09",
+      "title": "Prove large-deck and multi-document execution",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Large runs complete or stop with exact recoverable work remaining",
+        "No cross-document ID/path collisions or silent unit omissions"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "SEC-01",
+      "title": "Qualify company AccessKey and approved service transport",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "AccessKey never enters prompts, files, telemetry or support output",
+        "Wrong endpoints and unusable credentials are rejected before inference"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "SEC-02",
+      "title": "Prove workspace authorization and tenant isolation",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Cross-user and cross-team access tests fail closed",
+        "Every reattached request is authorized again"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "SEC-03",
+      "title": "Enforce source classification and model data-use approval",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Company approval covers the actual route and intended data",
+        "Policy mismatch blocks execution instead of downgrading classification"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "SEC-04",
+      "title": "Enforce default-deny egress in the actual deployment",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Observed network traces match the approved policy",
+        "Source URLs never become permission to fetch arbitrary content"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "SEC-05",
+      "title": "Harden hostile documents and prompt injection",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "src/k_slide/opencode_bootstrap.py",
+        "tests/test_chg18_opencode_bootstrap.py"
+      ],
+      "remaining": [
+        "Managed startup now binds the complete host bundle and rejects extra auto-discovered code. Hostile-document and prompt-injection qualification still needs the exact deployed candidate."
+      ]
+    },
+    {
+      "id": "SEC-06",
+      "title": "Prove retention, deletion, expiry and legal hold",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Deletion is idempotent and verified across every storage plane",
+        "Only approved source-free audit records remain after expiry"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "SEC-07",
+      "title": "Operationalize controlled support access",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "No hidden universal admin read path exists",
+        "Support approvals cannot broaden into other runs or artifacts"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "SEC-08",
+      "title": "Verify non-leakage across every diagnostic surface",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "HTML injection/media confinement and safe subprocess diagnostics tested; live credential canary/scanner gates remain."
+      ]
+    },
+    {
+      "id": "OPS-01",
+      "title": "Build and verify one pinned production runtime",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Fresh runtime starts and processes supported files offline where required",
+        "Installed inventories and assets match the candidate exactly"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "OPS-02",
+      "title": "Deploy approved scoped storage and recovery",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Durable restoration preserves hashes, scope and progress",
+        "Restoration cannot resurrect expired or unauthorized content"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "OPS-03",
+      "title": "Enforce resource and cost budgets",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Boundary and overload tests demonstrate the limits",
+        "No fallback model, omitted OCR or skipped evidence is used to fit a budget"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "OPS-04",
+      "title": "Measure performance and tune the actual bottlenecks",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Pre-pilot latency/capacity budgets have repeatable measurements",
+        "Performance changes preserve critical fidelity gates"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "OPS-05",
+      "title": "Connect source-free observability and alerts",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "An injected failure produces the expected alert and trace",
+        "Telemetry contracts reject content-bearing fields"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "OPS-06",
+      "title": "Add deployment health, readiness and operational runbooks",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Readiness fails for unavailable or stale critical dependencies",
+        "A second operator can execute the recovery playbooks"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "OPS-07",
+      "title": "Qualify backup, disaster recovery and safe configuration changes",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Recovery drill meets agreed objectives without content leakage",
+        "Configuration rollback cannot silently revive a revoked candidate"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "QA-01",
+      "title": "Add decisive regressions for the two reproduced defects",
+      "approved": true,
+      "status": "implemented_local",
+      "evidence": [
+        "tests/test_production_worker.py",
+        "tests/test_raster_tables.py"
+      ],
+      "remaining": []
+    },
+    {
+      "id": "QA-02",
+      "title": "Strengthen contract, property and fault-injection tests",
+      "approved": true,
+      "status": "baseline_regression_passed",
+      "evidence": [
+        "docs/production-implementation/validation.json"
+      ],
+      "remaining": [
+        "Tests demonstrate invariant failures rather than mirroring code",
+        "Required suites run on supported Python/host versions"
+      ],
+      "note": "Existing implementation passed the complete regression suite; this is not closure of every proposed hardening/qualification acceptance criterion."
+    },
+    {
+      "id": "QA-03",
+      "title": "Govern representative, challenge and held-out corpora",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Frozen identities are reproducible and candidate-bound",
+        "Held-out content never becomes prompt/rule tuning data"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "QA-04",
+      "title": "Run authoritative Gemma evaluations through the user path",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "No non-target model result can certify quality",
+        "Any required critical failure blocks candidate promotion"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "QA-05",
+      "title": "Conduct bilingual adjudication on complete outputs",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "No adjudicated critical defects remain in the qualification sample",
+        "Non-critical thresholds satisfy the approved policy"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "QA-06",
+      "title": "Validate zero-Korean decision correctness and usability",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Meet the approved non-inferiority criterion and hard safety gates",
+        "Usability fixes are rechecked for semantic fidelity"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "QA-07",
+      "title": "Exercise real end-to-end journeys in both company hosts",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Core journeys pass without developer-only shortcuts",
+        "Host presentation does not fabricate state or bypass policy"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "QA-08",
+      "title": "Run security and reliability qualification on the exact candidate",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Evidence rederives against exact candidate and runtime identities",
+        "Unresolved critical security/reliability findings block release"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "REL-01",
+      "title": "Enforce protected branch and independent review rules",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "Main branch protection applied and reopened through GitHub API: five required checks, strict up-to-date branches, admin enforcement, one code-owner approval, stale-dismissal/last-push approval, conversations resolved, no force pushes/deletions. Only one admin exists; independent reviewer assignment remains."
+      ]
+    },
+    {
+      "id": "REL-02",
+      "title": "Make CI and release pipelines certify the intended subject",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        ".github/workflows/k-slide.yml",
+        "scripts/verify_opencode_host.sh",
+        "scripts/verify_python_package.sh"
+      ],
+      "remaining": [
+        "Required CI now checks installed wheels and pinned OpenCode host contracts and retains prebuilt host packages. Exact deployed runtime, Gemma and private heavy qualification remain."
+      ]
+    },
+    {
+      "id": "REL-03",
+      "title": "Assemble the real production candidate and release evidence",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Production doctor passes for the exact deployed candidate",
+        "Hand-edited readiness flags cannot promote a release"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "REL-04",
+      "title": "Operationalize drift detection, revocation and scoped recertification",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "A revoked/stale candidate cannot start new approved work",
+        "Old evidence cannot silently certify a changed environment"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "REL-05",
+      "title": "Run a named pilot and canary rollout",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "No critical semantic/security/privacy incident is ignored",
+        "Every expansion has retained candidate-bound evidence"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "REL-06",
+      "title": "Deliver operator and employee documentation with ownership",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "README.md",
+        "deploy/README.md",
+        "integrations/vscode/README.md"
+      ],
+      "remaining": [
+        "Employee and administrator instructions are separated. Company operator ownership and actual deployed recovery runbooks remain."
+      ]
+    },
+    {
+      "id": "REL-07",
+      "title": "Reconcile final implementation and production acceptance",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Every approved item has acceptance evidence or an explicit blocker",
+        "BUILD COMPLETE and PRODUCTION CERTIFIED remain distinct claims"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "OPT-01",
+      "title": "Add a polished printable result packet",
+      "approved": true,
+      "status": "partial",
+      "evidence": [
+        "docs/production-implementation/README.md"
+      ],
+      "remaining": [
+        "Deterministic HTML print stylesheet added; dense layout/page-break visual audit and classification/retention export review remain."
+      ]
+    },
+    {
+      "id": "OPT-02",
+      "title": "Enable explicitly authorized team result sharing",
+      "approved": true,
+      "status": "external_dependency",
+      "evidence": [
+        "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+      ],
+      "remaining": [
+        "Sharing cannot bypass classification, scope or retention",
+        "Revocation removes access to both result and evidence"
+      ],
+      "dependency": "Approved company runtime/service configuration, accountable owners, and candidate-bound deployment or human evidence are not available in this checkout."
+    },
+    {
+      "id": "OPT-03",
+      "title": "Reuse safe deterministic preprocessing within approved scopes",
+      "approved": true,
+      "status": "conditional",
+      "evidence": [],
+      "remaining": [
+        "No cross-user history/content inference is possible",
+        "Cache hits preserve byte-equivalent evidence and environment identity"
+      ],
+      "dependency": "The approved measurement or pilot prerequisite has not occurred."
+    },
+    {
+      "id": "OPT-04",
+      "title": "Add an administrator operations view if pilots demonstrate need",
+      "approved": true,
+      "status": "conditional",
+      "evidence": [],
+      "remaining": [
+        "The view solves a demonstrated operator workflow",
+        "No privileged content-read capability is introduced"
+      ],
+      "dependency": "The approved measurement or pilot prerequisite has not occurred."
+    }
+  ],
+  "production_certified": false,
+  "build_complete": false,
+  "validation_summary": "798 Python tests and 19 VS Code tests passed; isolated wheel, pinned VSIX, preinstalled OpenCode host bundle and host regressions passed. Production qualification remains unestablished."
+}

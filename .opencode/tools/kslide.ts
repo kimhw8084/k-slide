@@ -1,10 +1,12 @@
 import { tool } from "@opencode-ai/plugin"
 import path from "node:path"
-import { existsSync } from "node:fs"
+import { runProcess, SafeKSlideError } from "../internal/lib/k-slide-process.ts"
+import { discoverEngine } from "../internal/lib/k-slide-runtime.ts"
 import { trustedAccessKey } from "../internal/lib/k-slide-access-key.ts"
 
 type ToolContext = {
   sessionID: string
+  abort?: AbortSignal
   messageID?: string
   directory: string
   worktree: string
@@ -128,47 +130,33 @@ const conflictResolution = tool.schema.object({
   authority_evidence: tool.schema.array(authorityEvidenceInput).optional(),
 }).strict()
 
-function projectAndEngine(context: ToolContext): { root: string; engine: string; opencodeRoot: string } {
-  const candidates = [context.directory, context.worktree]
-  for (const candidate of candidates) {
-    const installed = path.join(candidate, ".k-slide-engine", "src", "k_slide")
-    if (existsSync(installed)) return { root: candidate, engine: path.join(candidate, ".k-slide-engine"), opencodeRoot: path.join(candidate, ".opencode") }
-    const source = path.join(candidate, "src", "k_slide")
-    if (existsSync(source)) return { root: candidate, engine: candidate, opencodeRoot: path.join(candidate, ".opencode") }
-    const nested = path.join(candidate, "k-slide", "src", "k_slide")
-    if (existsSync(nested)) return { root: path.join(candidate, "k-slide"), engine: path.join(candidate, "k-slide"), opencodeRoot: path.join(candidate, "k-slide", ".opencode") }
-  }
-  const globalEngine = path.resolve(import.meta.dir, "..", "k-slide-engine")
-  if (existsSync(path.join(globalEngine, "src", "k_slide"))) {
-    return { root: context.worktree, engine: globalEngine, opencodeRoot: path.resolve(import.meta.dir, "..") }
-  }
-  throw new Error("K-Slide core is not installed for this OpenCode project.")
-}
-
 async function runCore(context: ToolContext, command: string, args: string[] = []): Promise<string> {
-  const project = projectAndEngine(context)
-  const environment: Record<string, string> = { ...process.env, PYTHONPATH: path.join(project.engine, "src") } as Record<string, string>
-  if (trustedAccessKey !== undefined) environment.AccessKey = trustedAccessKey
-  const child = Bun.spawn(
-    ["python3", "-m", "k_slide.cli", command, "--root", project.root, "--json", "--host-adapter", "opencode", ...(command === "doctor" ? ["--engine-root", project.engine, "--opencode-root", project.opencodeRoot] : []), ...args],
-    {
-      cwd: project.root,
-      env: environment,
-      stdout: "pipe",
-      stderr: "pipe",
-    },
-  )
-  const stdout = await new Response(child.stdout).text()
-  const stderr = await new Response(child.stderr).text()
-  const exitCode = await child.exited
-  if (stdout.trim()) return stdout.trim()
-  // A crashed/empty core response may contain arbitrary interpreter or
-  // dependency text. Never forward stderr across the OpenCode boundary.
-  return JSON.stringify(
-    exitCode === 0
-      ? { status: "OK" }
-      : { status: "FAILED", error: { code: "KSLIDE_INTERNAL", message: "K-Slide core failed before producing a safe response." } },
-  )
+  try {
+    const project = discoverEngine(context.directory, context.worktree, path.resolve(import.meta.dir, ".."))
+    const environment: Record<string, string> = { ...process.env, ...(project.engine ? {PYTHONPATH: path.join(project.engine, "src")} : {}) } as Record<string, string>
+    if (trustedAccessKey !== undefined) environment.AccessKey = trustedAccessKey
+    // Never forward stderr across the OpenCode boundary.
+    // Move source-bearing JSON off process arguments and onto bounded stdin.
+    let input: string | undefined
+    const forwarded = [...args]
+    for (const [flag, replacement] of [["--payload-json", "--payload-stdin"], ["--host-inputs-json", "--host-inputs-stdin"]]) {
+      const index = forwarded.indexOf(flag)
+      if (index >= 0) {
+        input = forwarded[index + 1]
+        forwarded.splice(index, 2, replacement)
+      }
+    }
+    const stdout = await runProcess(project.python, ["-m", "k_slide.cli", command, "--root", project.root, "--json", "--host-adapter", "opencode", ...(command === "doctor" ? [...(project.engine ? ["--engine-root", project.engine] : []), "--opencode-root", project.opencodeRoot] : []), ...forwarded], {
+      cwd: project.root, env: environment, input, signal: context.abort,
+    })
+    const value: unknown = JSON.parse(stdout)
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid response")
+    return JSON.stringify(value)
+  } catch (error) {
+    return JSON.stringify({status: "FAILED", error: {code: "KSLIDE_INTERNAL", message: error instanceof SafeKSlideError ? error.message : context.abort?.aborted
+      ? "K-Slide action was canceled. Check saved run progress before resuming."
+      : "K-Slide core could not complete this action. Check the run status and runtime health before retrying."}})
+  }
 }
 
 export const prepare = tool({
@@ -203,6 +191,14 @@ export const evidence = tool({
   args: { run_id: tool.schema.string().optional() },
   async execute(args, context) {
     return runCore(context, "evidence", ["--session-id", context.sessionID, ...(args.run_id ? ["--run", args.run_id] : [])])
+  },
+})
+
+export const presentation = tool({
+  description: "Return the same engine-owned Decision View first-view and reconstruction, review, and evidence follow-on artifact descriptor used by Cloud VS Code.",
+  args: { run_id: tool.schema.string() },
+  async execute(args, context) {
+    return runCore(context, "presentation", ["--run", args.run_id])
   },
 })
 

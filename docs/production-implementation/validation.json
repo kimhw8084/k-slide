@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-01",
+  "python": "3.11.7 (local development interpreter, not production runtime)",
+  "python_tests": {
+    "count": 798,
+    "result": "PASS",
+    "command": "PYTHONPATH=src:.:tests python -B -m unittest discover -s tests",
+    "log": "/tmp/k-slide-turnkey-python-tests.log"
+  },
+  "vscode": {
+    "tests": 19,
+    "result": "PASS",
+    "node": "22.15.0",
+    "npm": "10.9.2",
+    "clean_package": "PASS",
+    "version": "0.2.0",
+    "log": "/tmp/k-slide-turnkey-vscode-tests.log"
+  },
+  "opencode": {
+    "result": "PASS",
+    "suite": "tests/test_chg16_opencode_plugin.ts",
+    "bun": "1.3.9",
+    "suites": [
+      "tests/test_chg16_opencode_plugin.ts",
+      "tests/test_host_runtime.ts"
+    ],
+    "locked_dependencies": true
+  },
+  "visual_inspection": {
+    "result": "UNAVAILABLE",
+    "reason": "CUA browser surfaces unavailable; Chrome native capture reports cgWindowNotFound"
+  },
+  "production_certification": "NOT_ESTABLISHED",
+  "github_main_protection": {
+    "protected": true,
+    "required_checks": [
+      "test (3.11)",
+      "test (3.12)",
+      "security",
+      "fast (3.11)",
+      "fast (3.12)"
+    ],
+    "independent_reviewer": "UNASSIGNED",
+    "checks_app_id": 15368
+  },
+  "npm_audit": {
+    "result": "PASS",
+    "vulnerabilities": 0,
+    "scope": "VS Code build dependency lock",
+    "opencode_host_dependencies": {
+      "result": "PASS",
+      "vulnerabilities": 0
+    }
+  },
+  "clean_wheel": {
+    "result": "PASS",
+    "method": "Fresh virtual environment outside checkout, isolated Python without PYTHONPATH; asset hashes, governed termbase and policy, CLI and worker imports",
+    "log": "/tmp/k-slide-turnkey-wheel-tests.log"
+  },
+  "opencode_host_bundle": {
+    "result": "PASS",
+    "sdk_import": "PASS",
+    "repeat_build_bytes": "IDENTICAL",
+    "production_certified": false
+  }
+}

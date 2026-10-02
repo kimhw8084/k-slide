@@ -198,9 +198,11 @@ class KSA21PromptAndAuthorityTests(unittest.TestCase):
             self.assertIn(f"  {denied}: deny", permission)
         tools = (ROOT / ".opencode" / "tools" / "kslide.ts").read_text(encoding="utf-8")
         self.assertGreaterEqual(tools.count("}).strict()"), 8)
-        self.assertIn('"python3", "-m", "k_slide.cli"', tools)
+        self.assertIn('runProcess(project.python, ["-m", "k_slide.cli"', tools)
+        self.assertIn('discoverEngine(context.directory, context.worktree', tools)
         for forbidden in ('"bash"', '"webfetch"', '"websearch"', '"task"'):
             self.assertNotIn(f"Bun.spawn([{forbidden}", tools)
+            self.assertNotIn(f"runProcess({forbidden}", tools)
 
     def test_exact_provider_model_endpoint_contract_is_not_source_selectable(self) -> None:
         self.assertEqual(APPROVED_MODEL, "google/gemma-4-31b-it")

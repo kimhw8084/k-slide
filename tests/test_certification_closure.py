@@ -141,6 +141,8 @@ def _write_opencode_bootstrap(root: Path) -> Path:
     ripgrep_file.parent.mkdir()
     ripgrep_file.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     ripgrep_file.chmod(0o555)
+    from tests.host_bundle_fixtures import install_readonly_host_bundle
+    install_readonly_host_bundle(config_dir)
     for file_path in (config_file, plugin_file, helper_file, models_file):
         file_path.chmod(0o444)
     config_dir.chmod(0o555)
