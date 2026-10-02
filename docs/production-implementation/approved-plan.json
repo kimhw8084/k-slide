@@ -1,0 +1,2680 @@
+{
+  "schema_version": 1,
+  "plan_id": "k-slide-production-approval-v1",
+  "title": "K-Slide production plan",
+  "reviewed_git_sha": "9089cd8415d16402efe5ac561e936540a22a6c19",
+  "local_checkout_sha": "af5836540304b424289bedbe57a87dbb5d02763f",
+  "requested_model": "gpt-6-astra",
+  "requested_reasoning_effort": "xhigh",
+  "model_note": "Requested for future implementation. This approval board does not change or verify the active model.",
+  "purpose": "Choose the production implementation scope. Yes approves this item’s stated scope for follow-up work; No excludes it; Undecided is not approval. External items still need the named company prerequisites. No implementation starts from this board alone: tell Codex done when your review is ready.",
+  "reviewed_evidence": "Current-main code and Notion production contract; 150 focused tests passed; two isolated defect probes reproduced. External production qualification has not been established.",
+  "effort_note": "S / M / L are relative scope estimates, not delivery-time commitments.",
+  "waves": [
+    {
+      "id": 0,
+      "title": "Repair the foundation"
+    },
+    {
+      "id": 1,
+      "title": "Make execution and evidence trustworthy"
+    },
+    {
+      "id": 2,
+      "title": "Complete the employee product"
+    },
+    {
+      "id": 3,
+      "title": "Qualify the exact deployment"
+    },
+    {
+      "id": 4,
+      "title": "Pilot, release and hand off"
+    }
+  ],
+  "groups": [
+    {
+      "id": "CORE",
+      "title": "Scope & architecture",
+      "description": "Keep one product contract and make the approved work executable."
+    },
+    {
+      "id": "EVD",
+      "title": "Source & visual fidelity",
+      "description": "Everything visible has an honest, engine-owned representation."
+    },
+    {
+      "id": "SEM",
+      "title": "Meaning & verification",
+      "description": "Preserve the business decision, with traceable uncertainty."
+    },
+    {
+      "id": "UX",
+      "title": "Employee experience",
+      "description": "A clear first answer, faithful detail, and useful recovery."
+    },
+    {
+      "id": "HOST",
+      "title": "VS Code & OpenCode",
+      "description": "Native host surfaces backed by the same engine."
+    },
+    {
+      "id": "RUN",
+      "title": "Backend & execution",
+      "description": "Durable, bounded, recoverable work with truthful completion."
+    },
+    {
+      "id": "SEC",
+      "title": "Security & privacy",
+      "description": "Company identity, confidential content, and isolation by construction."
+    },
+    {
+      "id": "OPS",
+      "title": "Runtime & operations",
+      "description": "A reproducible deployment that can be measured and supported."
+    },
+    {
+      "id": "QA",
+      "title": "Quality & qualification",
+      "description": "Test the real employee path, including human understanding."
+    },
+    {
+      "id": "REL",
+      "title": "Release & rollout",
+      "description": "Promote only proven candidates and recover safely from incidents."
+    },
+    {
+      "id": "OPT",
+      "title": "Optional improvements",
+      "description": "Useful extensions to decide separately from the production baseline."
+    }
+  ],
+  "items": [
+    {
+      "id": "CORE-01",
+      "group": "CORE",
+      "title": "Bind the work to the current repository and approved contract",
+      "outcome": "Implement against the right code and a decision record you can audit.",
+      "scope": [
+        "Refresh exact main before implementation; preserve local work",
+        "Map approved IDs to small changes, dependencies and validation",
+        "Record changes to scope instead of silently expanding it"
+      ],
+      "acceptance": [
+        "Every implementation change traces to an approved item",
+        "No approval is inferred from an undecided item"
+      ],
+      "kind": "Delivery foundation",
+      "priority": "P0",
+      "wave": 0,
+      "owner": "Codex",
+      "effort": "S",
+      "dependencies": [],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Local checkout was 168 commits behind verified main at assessment time.",
+      "sources": [
+        {
+          "label": "AGENTS.md",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/AGENTS.md"
+        }
+      ]
+    },
+    {
+      "id": "CORE-02",
+      "group": "CORE",
+      "title": "Preserve one engine and the evidence ownership boundary",
+      "outcome": "Both hosts use the same trusted source facts, translation contract and completion rules.",
+      "scope": [
+        "Keep /k-slide and one visible translation agent",
+        "Keep geometry, tables, numbers and coverage engine-owned",
+        "Keep source content untrusted and normal translation tools narrowly scoped"
+      ],
+      "acceptance": [
+        "Host-specific paths cannot bypass engine checks",
+        "Adversarial patches cannot redefine source evidence"
+      ],
+      "kind": "Harden existing",
+      "priority": "P0",
+      "wave": 0,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "CORE-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/translation.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/translation.py"
+        }
+      ]
+    },
+    {
+      "id": "CORE-03",
+      "group": "CORE",
+      "title": "Version public contracts and compatibility rules",
+      "outcome": "Schema changes and upgrades fail clearly instead of corrupting older runs.",
+      "scope": [
+        "Maintain JSON/Python/TypeScript contract parity",
+        "Document compatible run, artifact and tool versions",
+        "Add explicit migrations only where needed"
+      ],
+      "acceptance": [
+        "Unsupported versions produce actionable errors",
+        "Approved migrations preserve evidence identity and historical artifacts"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "CORE-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "schemas/translation-patch.schema.json",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/schemas/translation-patch.schema.json"
+        }
+      ]
+    },
+    {
+      "id": "CORE-04",
+      "group": "CORE",
+      "title": "Make complex backend boundaries easier to maintain",
+      "outcome": "Reduce change risk around lifecycle, policy and certification without a rewrite.",
+      "scope": [
+        "Refactor only measured coupling or duplication touched by approved work",
+        "Keep I/O adapters separate from domain decisions",
+        "Add focused typing and lint checks for changed boundaries"
+      ],
+      "acceptance": [
+        "Behavior remains covered by decisive regression tests",
+        "No abstraction is introduced without an actual caller or need"
+      ],
+      "kind": "Harden existing",
+      "priority": "P2",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "CORE-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Large lifecycle and certification modules warrant targeted maintainability work; no whole-codebase rewrite is proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/cli.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/cli.py"
+        }
+      ]
+    },
+    {
+      "id": "CORE-05",
+      "group": "CORE",
+      "title": "Define product readiness and accountable owners",
+      "outcome": "Everyone can distinguish implemented code from demonstrated production readiness.",
+      "scope": [
+        "Define release-blocking criteria and supported formats/topologies",
+        "Assign product, runtime, security and quality responsibilities",
+        "Record company prerequisites with explicit owners"
+      ],
+      "acceptance": [
+        "Readiness states are evidence-derived",
+        "Open external dependencies remain visible and cannot be marked complete by code tests"
+      ],
+      "kind": "External qualification",
+      "priority": "P1",
+      "wave": 0,
+      "owner": "Shared",
+      "effort": "S",
+      "dependencies": [
+        "CORE-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    },
+    {
+      "id": "EVD-01",
+      "group": "EVD",
+      "title": "Harden intake and immutable source snapshots",
+      "outcome": "Only supported, authorized, unchanged inputs enter a run.",
+      "scope": [
+        "Validate content signatures, archive relationships and path boundaries",
+        "Cover duplicate names, symlinks and source changes during intake",
+        "Preserve document-namespaced IDs and deterministic packet order"
+      ],
+      "acceptance": [
+        "Unsafe input is rejected before processing",
+        "Snapshots, hashes and IDs remain stable under retries"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "CORE-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/ingest.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/ingest.py"
+        }
+      ]
+    },
+    {
+      "id": "EVD-02",
+      "group": "EVD",
+      "title": "Reconstruct raster and PDF tables as actual tables",
+      "outcome": "Screenshots and PDFs retain rows, columns, headers, blank cells and units.",
+      "scope": [
+        "Add engine-owned layout/table extraction for non-native inputs",
+        "Handle merged cells, footnotes and ambiguous boundaries",
+        "Route uncertain table structure to review before completion"
+      ],
+      "acceptance": [
+        "Equivalent PNG/PDF/PPTX tables preserve identical cardinality and meaning",
+        "Missing table structure cannot be accepted as ordinary paragraphs"
+      ],
+      "kind": "Confirmed defect",
+      "priority": "P0",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "L",
+      "dependencies": [
+        "EVD-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Reproduced: a visible 2×2 PNG table with four correctly recognized cells produced zero EvidenceIR tables and accepted an empty table patch.",
+      "sources": [
+        {
+          "label": "src/k_slide/extraction.py#L299",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/extraction.py#L299"
+        }
+      ]
+    },
+    {
+      "id": "EVD-03",
+      "group": "EVD",
+      "title": "Prove whole-page coverage beyond detected OCR text",
+      "outcome": "Text or business structure missed by OCR cannot disappear from the coverage baseline.",
+      "scope": [
+        "Compare layout/visual regions against native and OCR inventories",
+        "Track low-text, cropped, occluded and unexplained areas",
+        "Keep decorative classification policy-controlled"
+      ],
+      "acceptance": [
+        "Dropped text/callouts are caught by independent gold and coverage checks",
+        "Material unknown areas block DONE rather than shrinking the expected inventory"
+      ],
+      "kind": "Harden existing",
+      "priority": "P0",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "L",
+      "dependencies": [
+        "EVD-01",
+        "EVD-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Engine inventories are central to coverage; strengthen independent evidence that the inventory itself is complete.",
+      "sources": [
+        {
+          "label": "src/k_slide/evidence_ir.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/evidence_ir.py"
+        }
+      ]
+    },
+    {
+      "id": "EVD-04",
+      "group": "EVD",
+      "title": "Qualify Korean OCR and bounded recovery",
+      "outcome": "Small, rotated, low-contrast and mixed-language content receives measured recovery.",
+      "scope": [
+        "Pin local OCR models and configuration",
+        "Tune deterministic deskew, crop and scaling against representative artifacts",
+        "Retain competing candidates and stop after bounded recovery"
+      ],
+      "acceptance": [
+        "OCR assets work without network access",
+        "Unrecoverable text stays unresolved and is never completed from model familiarity"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "L",
+      "dependencies": [
+        "EVD-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/ocr/paddle.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/ocr/paddle.py"
+        }
+      ]
+    },
+    {
+      "id": "EVD-05",
+      "group": "EVD",
+      "title": "Preserve PDF rendering and extraction fidelity",
+      "outcome": "PDF page geometry, fonts, reading order and visible annotations remain aligned.",
+      "scope": [
+        "Cover scanned and native PDFs, page rotations and mixed layouts",
+        "Verify text-to-render coordinates and clipping",
+        "Reject or neutralize unsafe active/external content"
+      ],
+      "acceptance": [
+        "Crops point to the correct visible source locations",
+        "Golden PDFs preserve material footnotes and text order"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "EVD-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/normalization.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/normalization.py"
+        }
+      ]
+    },
+    {
+      "id": "EVD-06",
+      "group": "EVD",
+      "title": "Preserve PPTX shapes, tables, groups and render fidelity",
+      "outcome": "The extracted native structure agrees with what an employee sees.",
+      "scope": [
+        "Qualify LibreOffice rendering and font fallback",
+        "Cover grouped shapes, merged tables and chart data",
+        "Document unsupported or altered visual constructs"
+      ],
+      "acceptance": [
+        "Native-versus-render disagreements are disclosed",
+        "Representative real PPTX files retain all business-relevant content"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "EVD-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/normalization.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/normalization.py"
+        }
+      ]
+    },
+    {
+      "id": "EVD-07",
+      "group": "EVD",
+      "title": "Preserve charts, processes and visual relationships",
+      "outcome": "Arrows, legends, labels and trends retain evidence-backed meaning.",
+      "scope": [
+        "Cover chart axes, units, legends and series",
+        "Handle raster diagrams as well as native connectors",
+        "Keep observed facts separate from interpretation"
+      ],
+      "acceptance": [
+        "Trend reversals and invented dependencies fail verification/evaluation",
+        "Unlabeled graphics do not become fabricated exact values"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "L",
+      "dependencies": [
+        "EVD-03",
+        "EVD-05",
+        "EVD-06"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/modality.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/modality.py"
+        }
+      ]
+    },
+    {
+      "id": "EVD-08",
+      "group": "EVD",
+      "title": "Guarantee required media delivery and evidence navigation",
+      "outcome": "The model and employee can reach the correct page and required crops.",
+      "scope": [
+        "Bind each context image/crop to its work unit and source hash",
+        "Enforce media budgets without silently skipping required inputs",
+        "Verify host-readable paths and expiring access"
+      ],
+      "acceptance": [
+        "Each submission has the required per-attempt media trace",
+        "Broken/missing media blocks work with a recovery action"
+      ],
+      "kind": "Harden existing",
+      "priority": "P0",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "EVD-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/model.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/model.py"
+        }
+      ]
+    },
+    {
+      "id": "SEM-01",
+      "group": "SEM",
+      "title": "Prove numeric, date and unit integrity",
+      "outcome": "Critical values survive extraction, translation and executive presentation unchanged.",
+      "scope": [
+        "Cover Korean scales, currencies, percentages and percentage points",
+        "Distinguish zero, blank, unavailable, ranges and approximation",
+        "Check conversions and localized dates against source facts"
+      ],
+      "acceptance": [
+        "Zero observed critical numeric/date/unit defects in required qualification",
+        "Every decision-facing value links to a source fact"
+      ],
+      "kind": "Harden existing",
+      "priority": "P0",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "EVD-02",
+        "EVD-04"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/numeric.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/numeric.py"
+        }
+      ]
+    },
+    {
+      "id": "SEM-02",
+      "group": "SEM",
+      "title": "Preserve commitment and business modality",
+      "outcome": "Review, possibility, plan, forecast and decision retain their original strength.",
+      "scope": [
+        "Cover regional/cell-level Korean cues and mixed English",
+        "Prevent both escalation and inappropriate hedging",
+        "Use closed semantic enums with source support"
+      ],
+      "acceptance": [
+        "Adjudicated modality cases pass without critical failures",
+        "Executive language does not overstate source commitment"
+      ],
+      "kind": "Harden existing",
+      "priority": "P0",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "EVD-04"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/semantics.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/semantics.py"
+        }
+      ]
+    },
+    {
+      "id": "SEM-03",
+      "group": "SEM",
+      "title": "Enforce evidence-backed claims and provenance",
+      "outcome": "Readers can distinguish source facts, supported interpretations and unresolved content.",
+      "scope": [
+        "Validate every substantive claim against allowed source IDs",
+        "Reject invented causes, owners, dates and approval states",
+        "Carry provenance into all presentation layers"
+      ],
+      "acceptance": [
+        "Unsupported critical claims cannot reach DONE",
+        "No summary loses the source uncertainty or provenance"
+      ],
+      "kind": "Harden existing",
+      "priority": "P0",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "CORE-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/translation.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/translation.py"
+        }
+      ]
+    },
+    {
+      "id": "SEM-04",
+      "group": "SEM",
+      "title": "Make source conflicts explicit across documents",
+      "outcome": "Conflicting dates, numbers or commitments remain visible until authorized evidence resolves them.",
+      "scope": [
+        "Ground each document before cross-document synthesis",
+        "Show both claims and source locations",
+        "Require authoritative supersession and retain its history"
+      ],
+      "acceptance": [
+        "False conflict resolution fails critical gates",
+        "A later file alone is not treated as authority"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "SEM-03"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/conflicts.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/conflicts.py"
+        }
+      ]
+    },
+    {
+      "id": "SEM-05",
+      "group": "SEM",
+      "title": "Deploy governed company terminology and mixed-language fidelity",
+      "outcome": "Approved terminology stays consistent while original English retains its meaning.",
+      "scope": [
+        "Bind central core and authorized BU/team overlays",
+        "Preserve source-English spans and approved Korean retention",
+        "Qualify abbreviations, entity names and ambiguous business terms"
+      ],
+      "acceptance": [
+        "Unauthorized local terms cannot alter another user’s output",
+        "Effective termbase identity is reproducible for every run"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "CORE-03"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/governed_terminology.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/governed_terminology.py"
+        }
+      ]
+    },
+    {
+      "id": "SEM-06",
+      "group": "SEM",
+      "title": "Make repair targeted, bounded and resumable",
+      "outcome": "Fix only failing evidence-backed units without hiding repeated failure.",
+      "scope": [
+        "Use exact repair targets and current revisions",
+        "Bound semantic repairs separately from transport retries",
+        "Retain previous attempts and their media traces"
+      ],
+      "acceptance": [
+        "Repair cannot rewrite immutable evidence",
+        "Exhausted or ambiguous repairs yield actionable NEEDS REVIEW"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "SEM-01",
+        "SEM-02",
+        "SEM-03"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/verify.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/verify.py"
+        }
+      ]
+    },
+    {
+      "id": "SEM-07",
+      "group": "SEM",
+      "title": "Verify the final artifacts independently of model claims",
+      "outcome": "DONE means the current persisted outputs satisfy the complete contract.",
+      "scope": [
+        "Revalidate all units, reports, source hashes and required artifacts",
+        "Check stale/deleted/tampered content and partial runs",
+        "Require locked finalization and current RUN_COMPLETE.md"
+      ],
+      "acceptance": [
+        "A stale status flag or worker counter cannot establish completion",
+        "Tampering after verification invalidates finalization"
+      ],
+      "kind": "Harden existing",
+      "priority": "P0",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "RUN-01",
+        "CORE-03"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/verify.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/verify.py"
+        }
+      ]
+    },
+    {
+      "id": "UX-01",
+      "group": "UX",
+      "title": "Create the compact Decision View",
+      "outcome": "Give a zero-Korean employee the useful first answer immediately.",
+      "scope": [
+        "Show context, takeaway, decisions/asks, numbers, risks, owners/timing and warnings",
+        "Use deterministic engine-owned content, with truthful empty sections",
+        "Link every substantive item to evidence"
+      ],
+      "acceptance": [
+        "Both hosts expose equivalent Decision View content",
+        "Uncertainty and conflicts survive every summary"
+      ],
+      "kind": "Missing feature",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "L",
+      "dependencies": [
+        "SEM-03",
+        "SEM-04"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Current renderer has reconstruction, executive brief and unresolved reports; the closed shared Decision View contract is missing.",
+      "sources": [
+        {
+          "label": "src/k_slide/rendering/reports.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/rendering/reports.py"
+        }
+      ]
+    },
+    {
+      "id": "UX-02",
+      "group": "UX",
+      "title": "Make faithful reconstruction readable and navigable",
+      "outcome": "Users can move from the overview to complete document/page/table detail.",
+      "scope": [
+        "Retain original organization, bullets and meaningful ordering",
+        "Render usable tables with headers and overflow handling",
+        "Provide page navigation and clear source references"
+      ],
+      "acceptance": [
+        "Dense real business artifacts remain readable without omitted content",
+        "Reading order and table relationships survive narrow layouts"
+      ],
+      "kind": "Product completion",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "EVD-02",
+        "UX-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/rendering/reports.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/rendering/reports.py"
+        }
+      ]
+    },
+    {
+      "id": "UX-03",
+      "group": "UX",
+      "title": "Build evidence drill-down and source comparison",
+      "outcome": "One action explains exactly where a claim came from.",
+      "scope": [
+        "Open the correct page and highlight the linked region/cell",
+        "Support zoom, crops and return-to-claim navigation",
+        "Keep raw technical IDs out of the normal reading flow"
+      ],
+      "acceptance": [
+        "All claim/review links resolve to the correct retained source",
+        "Expired or unauthorized evidence fails visibly without leakage"
+      ],
+      "kind": "Missing feature",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "L",
+      "dependencies": [
+        "EVD-08",
+        "UX-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    },
+    {
+      "id": "UX-04",
+      "group": "UX",
+      "title": "Make NEEDS REVIEW useful to a non-Korean reader",
+      "outcome": "An unresolved result explains the impact and the next useful action.",
+      "scope": [
+        "Show location, reason, business impact and suggested recovery",
+        "Separate ambiguous content from operational errors",
+        "Allow safe resume or source replacement with preserved history"
+      ],
+      "acceptance": [
+        "Users can identify what is unsafe to conclude",
+        "A warning cannot be dismissed into a fabricated DONE"
+      ],
+      "kind": "Product completion",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "SEM-06",
+        "UX-03"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    },
+    {
+      "id": "UX-05",
+      "group": "UX",
+      "title": "Design clear progress, cancellation and return-to-work",
+      "outcome": "Users can leave and return without guessing whether work was lost.",
+      "scope": [
+        "Show queued/running/retrying/canceled/failed separately from semantic results",
+        "Report stage and completed work honestly; avoid invented ETAs",
+        "Offer cancel, reconnect and resume where supported"
+      ],
+      "acceptance": [
+        "Browser closure does not terminate durable jobs",
+        "Progress and final state match authoritative backend state"
+      ],
+      "kind": "Product completion",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "RUN-03",
+        "RUN-05",
+        "RUN-06"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    },
+    {
+      "id": "UX-06",
+      "group": "UX",
+      "title": "Polish file selection and packet intake",
+      "outcome": "Starting a run is obvious from the active file or selected workspace artifacts.",
+      "scope": [
+        "Preview selected filenames, ordering, page counts and supported types",
+        "Explain invalid input and resource limits before expensive work",
+        "Use workspace references without unnecessary upload"
+      ],
+      "acceptance": [
+        "Equivalent selections yield deterministic document order",
+        "No routine model/OCR/configuration decisions are pushed onto employees"
+      ],
+      "kind": "Product completion",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "EVD-01",
+        "HOST-01",
+        "HOST-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    },
+    {
+      "id": "UX-07",
+      "group": "UX",
+      "title": "Provide actionable errors and recovery messages",
+      "outcome": "Failure messages tell users what happened and what they can do next.",
+      "scope": [
+        "Use consistent short error titles, next actions and safe support IDs",
+        "Distinguish authentication, capacity, provider and source failures",
+        "Preserve partial progress without presenting it as final"
+      ],
+      "acceptance": [
+        "Common failures have tested recovery journeys",
+        "Errors reveal no credentials, source content or internal stack traces"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "RUN-04",
+        "SEC-01",
+        "SEC-08"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    },
+    {
+      "id": "UX-08",
+      "group": "UX",
+      "title": "Meet keyboard, screen-reader and visual accessibility needs",
+      "outcome": "The product is usable at laptop scale, high zoom and with assistive technology.",
+      "scope": [
+        "Use semantic headings, tables, focus order and labeled actions",
+        "Test keyboard-only navigation, visible focus and contrast",
+        "Respect reduced motion and avoid color-only status"
+      ],
+      "acceptance": [
+        "Core journeys pass manual keyboard and screen-reader checks",
+        "At 200% zoom, essential actions and evidence remain reachable"
+      ],
+      "kind": "Product completion",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "UX-01",
+        "UX-02",
+        "UX-03"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    },
+    {
+      "id": "UX-09",
+      "group": "UX",
+      "title": "Create consistent host-native visual polish",
+      "outcome": "Both surfaces feel coherent, legible and calm in daily use.",
+      "scope": [
+        "Define spacing, type, density, status and interaction conventions",
+        "Support host light/dark themes and narrow panels",
+        "Test loading, empty, long-text, error and completed states"
+      ],
+      "acceptance": [
+        "Representative dense results work in both host themes",
+        "No clipping, overlap or inaccessible primary controls"
+      ],
+      "kind": "Product completion",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "HOST-01",
+        "HOST-02",
+        "UX-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    },
+    {
+      "id": "UX-10",
+      "group": "UX",
+      "title": "Provide safe recent-run discovery and employee feedback",
+      "outcome": "Users can find their own work and report a problem without sharing confidential content.",
+      "scope": [
+        "Expose authorized active/recent runs using existing storage policies",
+        "Show retention/expiry and resume availability",
+        "Connect source-free issue reporting to a run and item"
+      ],
+      "acceptance": [
+        "A run ID alone never grants access",
+        "Issue reporting does not alter evidence or completion"
+      ],
+      "kind": "Product completion",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "RUN-03",
+        "SEC-02",
+        "SEC-06"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/telemetry.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/telemetry.py"
+        }
+      ]
+    },
+    {
+      "id": "HOST-01",
+      "group": "HOST",
+      "title": "Ship the first-class Cloud VS Code adapter",
+      "outcome": "Active-file and Explorer selection become native K-Slide actions.",
+      "scope": [
+        "Build a thin repository-owned extension with pinned tooling",
+        "Invoke the shared host/CLI contract and presentation descriptor",
+        "Support remote/ephemeral workspaces without machine-specific paths"
+      ],
+      "acceptance": [
+        "Active and multi-file selection pass real adapter tests",
+        "No host code duplicates translation, OCR or policy enforcement"
+      ],
+      "kind": "Missing feature",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "L",
+      "dependencies": [
+        "CORE-02",
+        "CORE-03"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Current main has a host-neutral boundary but no repository-owned VS Code integration package.",
+      "sources": [
+        {
+          "label": "src/k_slide/host_adapter.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/host_adapter.py"
+        }
+      ]
+    },
+    {
+      "id": "HOST-02",
+      "group": "HOST",
+      "title": "Finish the OpenCode Web product surface",
+      "outcome": "The existing /k-slide flow presents the complete employee journey.",
+      "scope": [
+        "Preserve native attachments, workspace references and typed tools",
+        "Expose Decision View, reconstruction, review and evidence actions",
+        "Keep one visible agent and narrow permissions"
+      ],
+      "acceptance": [
+        "The actual /k-slide workflow completes on the pinned supported runtime",
+        "No hidden alternate model or forbidden tool path"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "CORE-02",
+        "UX-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": ".opencode/tools/kslide.ts",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/.opencode/tools/kslide.ts"
+        }
+      ]
+    },
+    {
+      "id": "HOST-03",
+      "group": "HOST",
+      "title": "Prove cross-host behavioral parity",
+      "outcome": "The host does not change the meaning or safety of the result.",
+      "scope": [
+        "Share ordered input references and output descriptors",
+        "Exercise DONE, NEEDS REVIEW, failures and reconnects on both hosts",
+        "Compare canonical artifacts and permission boundaries"
+      ],
+      "acceptance": [
+        "Identical immutable inputs/state produce equivalent presentations",
+        "Neither adapter can bypass verification or classification"
+      ],
+      "kind": "Product completion",
+      "priority": "P1",
+      "wave": 3,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "HOST-01",
+        "HOST-02",
+        "UX-03",
+        "UX-04"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    },
+    {
+      "id": "HOST-04",
+      "group": "HOST",
+      "title": "Package, install and upgrade both hosts safely",
+      "outcome": "Clean installation and upgrades are repeatable for company administrators.",
+      "scope": [
+        "Build versioned extension/plugin artifacts with compatibility metadata",
+        "Keep collision-safe installation and detect local modifications",
+        "Verify installation and provide rollback instructions"
+      ],
+      "acceptance": [
+        "Clean install, repeated install and upgrade tests pass",
+        "Unrelated host settings/assets are never overwritten"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "HOST-01",
+        "HOST-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/installer.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/installer.py"
+        }
+      ]
+    },
+    {
+      "id": "HOST-05",
+      "group": "HOST",
+      "title": "Harden the host-to-engine subprocess boundary",
+      "outcome": "A blocked or crashed child cannot hang the employee session indefinitely.",
+      "scope": [
+        "Drain stdout/stderr concurrently with bounded buffers",
+        "Propagate cancellation and enforce timeouts with process cleanup",
+        "Use safe structured transport instead of oversized payload command arguments"
+      ],
+      "acceptance": [
+        "Large stderr, hung children and cancellation are covered by tests",
+        "No orphan processes or source/credential leakage in errors"
+      ],
+      "kind": "Code hardening",
+      "priority": "P0",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "CORE-03"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Current bridge reads stdout then stderr and has no explicit timeout/cancellation handling in runCore.",
+      "sources": [
+        {
+          "label": ".opencode/tools/kslide.ts#L148",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/.opencode/tools/kslide.ts#L148"
+        }
+      ]
+    },
+    {
+      "id": "RUN-01",
+      "group": "RUN",
+      "title": "Eliminate worker false DONE and implicit reference execution",
+      "outcome": "Production entrypoints cannot pretend to translate by advancing counters.",
+      "scope": [
+        "Require an explicit approved engine binding for managed execution",
+        "Allow reference execution only behind explicit development mode",
+        "Tie semantic completion to the real finalizer and artifact checks"
+      ],
+      "acceptance": [
+        "The reproduced no-factory scoped-worker case fails closed",
+        "DONE requires valid TranslationPatch, canonical output and RUN_COMPLETE.md"
+      ],
+      "kind": "Confirmed defect",
+      "priority": "P0",
+      "wave": 0,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "CORE-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Reproduced: scoped worker without --reference-mode or --engine-factory returned DONE with no patches and no RUN_COMPLETE.md.",
+      "sources": [
+        {
+          "label": "src/k_slide/worker.py#L50",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/worker.py#L50"
+        }
+      ]
+    },
+    {
+      "id": "RUN-02",
+      "group": "RUN",
+      "title": "Wire the durable worker to the real product pipeline",
+      "outcome": "Heavy jobs execute the same engine, model path and verification as the employee command.",
+      "scope": [
+        "Implement the approved WorkerEngine binding and company job-service adapter",
+        "Carry authorized run references and immutable environment identity",
+        "Use the same source/media/patch/finalizer path"
+      ],
+      "acceptance": [
+        "A real queued artifact reaches verified output through the managed worker",
+        "Reference adapters cannot qualify production transport or persistence"
+      ],
+      "kind": "Production integration",
+      "priority": "P0",
+      "wave": 1,
+      "owner": "Shared",
+      "effort": "L",
+      "dependencies": [
+        "RUN-01",
+        "CORE-02",
+        "SEC-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/paas.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/paas.py"
+        }
+      ]
+    },
+    {
+      "id": "RUN-03",
+      "group": "RUN",
+      "title": "Prove durable checkpoints and restart recovery",
+      "outcome": "Completed work survives worker, browser and workspace loss.",
+      "scope": [
+        "Commit state and outputs atomically at explicit stage boundaries",
+        "Reattach using persisted work queues and authorized run identity",
+        "Recover interrupted writes without accepting partial artifacts"
+      ],
+      "acceptance": [
+        "Kill/restart tests cover every material pipeline boundary",
+        "Recovery neither loses committed work nor fabricates completion"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "L",
+      "dependencies": [
+        "RUN-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/execution.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/execution.py"
+        }
+      ]
+    },
+    {
+      "id": "RUN-04",
+      "group": "RUN",
+      "title": "Separate safe retries from semantic repair",
+      "outcome": "Transient failures recover within a budget; invalid content does not loop.",
+      "scope": [
+        "Classify retryable provider/storage faults and permanent failures",
+        "Use bounded backoff, attempt/time budgets and idempotency keys",
+        "Avoid duplicate model charges/results after ambiguous responses"
+      ],
+      "acceptance": [
+        "Failure injection proves bounded attempts and stable output ownership",
+        "Semantic failures never trigger unbounded whole-run regeneration"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "RUN-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/execution.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/execution.py"
+        }
+      ]
+    },
+    {
+      "id": "RUN-05",
+      "group": "RUN",
+      "title": "Qualify queue admission, fairness and concurrency",
+      "outcome": "Load is controlled without mixing users or skipping correctness checks.",
+      "scope": [
+        "Default to one heavy active run per user/workspace",
+        "Queue additional work with capacity limits and explicit admission",
+        "Test duplicate delivery, competing claims and abandoned workers"
+      ],
+      "acceptance": [
+        "Load tests preserve per-scope ordering and isolation",
+        "No two workers can commit conflicting results for one operation"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 1,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "RUN-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/paas.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/paas.py"
+        }
+      ]
+    },
+    {
+      "id": "RUN-06",
+      "group": "RUN",
+      "title": "Make cancellation and timeouts terminate actual work",
+      "outcome": "Cancel stops further inference and cleans up children while preserving recoverable state.",
+      "scope": [
+        "Propagate cancellation through host, queue, worker, OCR and model calls",
+        "Use safe boundaries and bounded process-group termination",
+        "Define late-result handling and prevent post-cancel completion"
+      ],
+      "acceptance": [
+        "Cancellation works before claim, during inference and during finalization",
+        "Orphans and late callbacks cannot revive a canceled job"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "RUN-02",
+        "HOST-05"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/worker.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/worker.py"
+        }
+      ]
+    },
+    {
+      "id": "RUN-07",
+      "group": "RUN",
+      "title": "Enforce stale-write, duplicate-submit and artifact consistency rules",
+      "outcome": "Concurrency cannot overwrite a newer translation or mix evidence versions.",
+      "scope": [
+        "Use compare-and-swap revisions across queue, patch and checkpoint commits",
+        "Retain idempotent operation receipts and exact artifact hashes",
+        "Fail clearly on stale or conflicting updates"
+      ],
+      "acceptance": [
+        "Two-client and interrupted-write tests preserve one canonical result",
+        "Replayed submissions cannot mutate a completed revision"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "CORE-03",
+        "RUN-03"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/queue.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/queue.py"
+        }
+      ]
+    },
+    {
+      "id": "RUN-08",
+      "group": "RUN",
+      "title": "Make upgrades and resume respect bound environments",
+      "outcome": "A resumed run uses a compatible model/runtime/OCR/termbase identity.",
+      "scope": [
+        "Bind exact environment factors at creation",
+        "Keep old compatible runtimes available where policy permits",
+        "Fail closed or explicitly rederive when compatibility is unavailable"
+      ],
+      "acceptance": [
+        "Rolling upgrades do not mix environments within an evidence chain",
+        "Changed factors invalidate affected results and certification"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "CORE-03",
+        "RUN-03",
+        "OPS-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/environment.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/environment.py"
+        }
+      ]
+    },
+    {
+      "id": "RUN-09",
+      "group": "RUN",
+      "title": "Prove large-deck and multi-document execution",
+      "outcome": "Long packets remain bounded, ordered and recoverable.",
+      "scope": [
+        "Exercise 10–20 and 50+ slide decks plus mixed-format packets",
+        "Bound memory, disk, media and token usage per unit and run",
+        "Retain document identity before packet-level synthesis"
+      ],
+      "acceptance": [
+        "Large runs complete or stop with exact recoverable work remaining",
+        "No cross-document ID/path collisions or silent unit omissions"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 3,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "RUN-03",
+        "RUN-05",
+        "EVD-03"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "production-slo.yaml",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/production-slo.yaml"
+        }
+      ]
+    },
+    {
+      "id": "SEC-01",
+      "group": "SEC",
+      "title": "Qualify company AccessKey and approved service transport",
+      "outcome": "Use the company’s existing authentication without introducing a second credential system.",
+      "scope": [
+        "Implement approved transport and fail closed on absent/expired credentials",
+        "Restrict credential delivery to the approved endpoint",
+        "Test bootstrap, worker handoff, redirects and error paths"
+      ],
+      "acceptance": [
+        "AccessKey never enters prompts, files, telemetry or support output",
+        "Wrong endpoints and unusable credentials are rejected before inference"
+      ],
+      "kind": "External qualification",
+      "priority": "P0",
+      "wave": 1,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "CORE-05"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/authentication.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/authentication.py"
+        }
+      ]
+    },
+    {
+      "id": "SEC-02",
+      "group": "SEC",
+      "title": "Prove workspace authorization and tenant isolation",
+      "outcome": "Knowing another run ID or path grants no access.",
+      "scope": [
+        "Bind all source, result, crop, status and delete access to company authority",
+        "Give workers run-scoped least-privilege references",
+        "Test sharing, revocation, guessed IDs and cross-scope cache access"
+      ],
+      "acceptance": [
+        "Cross-user and cross-team access tests fail closed",
+        "Every reattached request is authorized again"
+      ],
+      "kind": "External qualification",
+      "priority": "P0",
+      "wave": 1,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "SEC-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/run_store.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/run_store.py"
+        }
+      ]
+    },
+    {
+      "id": "SEC-03",
+      "group": "SEC",
+      "title": "Enforce source classification and model data-use approval",
+      "outcome": "Only approved company data reaches the certified inference route.",
+      "scope": [
+        "Preserve authoritative classification labels",
+        "Bind exact endpoint/provider and data-handling policy",
+        "Reject unapproved data classes before media or text leaves the runtime"
+      ],
+      "acceptance": [
+        "Company approval covers the actual route and intended data",
+        "Policy mismatch blocks execution instead of downgrading classification"
+      ],
+      "kind": "External qualification",
+      "priority": "P0",
+      "wave": 1,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "SEC-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/classification_policy.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/classification_policy.py"
+        }
+      ]
+    },
+    {
+      "id": "SEC-04",
+      "group": "SEC",
+      "title": "Enforce default-deny egress in the actual deployment",
+      "outcome": "Only approved inference, storage/control and non-content telemetry destinations are reachable.",
+      "scope": [
+        "Apply runtime/network controls beyond application allowlists",
+        "Keep OCR/rendering offline",
+        "Test redirects, DNS changes and document-embedded external resources"
+      ],
+      "acceptance": [
+        "Observed network traces match the approved policy",
+        "Source URLs never become permission to fetch arbitrary content"
+      ],
+      "kind": "External qualification",
+      "priority": "P0",
+      "wave": 1,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "SEC-03",
+        "OPS-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/egress_policy.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/egress_policy.py"
+        }
+      ]
+    },
+    {
+      "id": "SEC-05",
+      "group": "SEC",
+      "title": "Harden hostile documents and prompt injection",
+      "outcome": "Untrusted files cannot change tool authority, runtime policy or evidence ownership.",
+      "scope": [
+        "Cover macros, external relationships, archive bombs and malformed images/PDFs",
+        "Exercise Korean/English instruction attacks in source and OCR text",
+        "Sandbox renderers with resource and filesystem limits"
+      ],
+      "acceptance": [
+        "Malicious fixtures cannot execute active behavior or invoke forbidden tools",
+        "Any material coverage loss from neutralization is disclosed"
+      ],
+      "kind": "Harden existing",
+      "priority": "P0",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "EVD-01",
+        "CORE-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/security.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/security.py"
+        }
+      ]
+    },
+    {
+      "id": "SEC-06",
+      "group": "SEC",
+      "title": "Prove retention, deletion, expiry and legal hold",
+      "outcome": "Content is removed completely according to company policy.",
+      "scope": [
+        "Configure content and operational metadata retention separately",
+        "Delete snapshots, crops, OCR, evidence, translations and durable copies",
+        "Honor only authoritative legal holds and prevent deleted-run resurrection"
+      ],
+      "acceptance": [
+        "Deletion is idempotent and verified across every storage plane",
+        "Only approved source-free audit records remain after expiry"
+      ],
+      "kind": "External qualification",
+      "priority": "P0",
+      "wave": 2,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "SEC-02",
+        "OPS-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/deletion.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/deletion.py"
+        }
+      ]
+    },
+    {
+      "id": "SEC-07",
+      "group": "SEC",
+      "title": "Operationalize controlled support access",
+      "outcome": "Normal support remains source-free; content access is explicit, narrow and temporary.",
+      "scope": [
+        "Bind support roles, purpose, approved references and expiry",
+        "Reauthorize each content access and record an audit trail",
+        "Ensure revocation and expiry close previously issued access"
+      ],
+      "acceptance": [
+        "No hidden universal admin read path exists",
+        "Support approvals cannot broaden into other runs or artifacts"
+      ],
+      "kind": "External qualification",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "SEC-02",
+        "SEC-06"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/content_support.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/content_support.py"
+        }
+      ]
+    },
+    {
+      "id": "SEC-08",
+      "group": "SEC",
+      "title": "Verify non-leakage across every diagnostic surface",
+      "outcome": "Credentials and confidential content stay out of operational output.",
+      "scope": [
+        "Exercise logs, exceptions, subprocess failures, telemetry and bundles",
+        "Use allowlisted diagnostic schemas and centrally tested redaction",
+        "Scan stored artifacts and crash paths with synthetic secret/content canaries"
+      ],
+      "acceptance": [
+        "Canary scans find no prohibited material in non-content surfaces",
+        "Source-bearing diagnostics require the controlled support path"
+      ],
+      "kind": "Harden existing",
+      "priority": "P0",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "SEC-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/redaction.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/redaction.py"
+        }
+      ]
+    },
+    {
+      "id": "OPS-01",
+      "group": "OPS",
+      "title": "Build and verify one pinned production runtime",
+      "outcome": "The evaluated image is the image employees and workers actually run.",
+      "scope": [
+        "Pin Python, system libraries, LibreOffice, fonts, OCR and host compatibility",
+        "Build from approved dependency locks and verified offline assets",
+        "Publish immutable image/package identities and SBOM"
+      ],
+      "acceptance": [
+        "Fresh runtime starts and processes supported files offline where required",
+        "Installed inventories and assets match the candidate exactly"
+      ],
+      "kind": "External qualification",
+      "priority": "P0",
+      "wave": 1,
+      "owner": "Shared",
+      "effort": "L",
+      "dependencies": [
+        "CORE-05"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "deploy/runtime/Dockerfile",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/deploy/runtime/Dockerfile"
+        }
+      ]
+    },
+    {
+      "id": "OPS-02",
+      "group": "OPS",
+      "title": "Deploy approved scoped storage and recovery",
+      "outcome": "Active evidence survives restarts without being shared globally.",
+      "scope": [
+        "Bind scratch, durable content and non-content telemetry planes",
+        "Set permissions, encryption and storage lifecycle through company infrastructure",
+        "Test restoration, partial outages and deletion behavior"
+      ],
+      "acceptance": [
+        "Durable restoration preserves hashes, scope and progress",
+        "Restoration cannot resurrect expired or unauthorized content"
+      ],
+      "kind": "External qualification",
+      "priority": "P0",
+      "wave": 1,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "SEC-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/storage.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/storage.py"
+        }
+      ]
+    },
+    {
+      "id": "OPS-03",
+      "group": "OPS",
+      "title": "Enforce resource and cost budgets",
+      "outcome": "Capacity pressure remains explicit and cannot degrade correctness silently.",
+      "scope": [
+        "Enforce file/page/pixel/archive/disk/media/token/run-duration limits",
+        "Connect concurrency and model-call budgets to real admission",
+        "Expose operational capacity failures with recovery actions"
+      ],
+      "acceptance": [
+        "Boundary and overload tests demonstrate the limits",
+        "No fallback model, omitted OCR or skipped evidence is used to fit a budget"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "RUN-05",
+        "OPS-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/resource_budget.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/resource_budget.py"
+        }
+      ]
+    },
+    {
+      "id": "OPS-04",
+      "group": "OPS",
+      "title": "Measure performance and tune the actual bottlenecks",
+      "outcome": "Latency targets come from the real company path and representative artifacts.",
+      "scope": [
+        "Measure stage p50/p95, queue delay, memory and model usage",
+        "Benchmark screenshots, typical decks and 50+ slide packets",
+        "Optimize only measured expensive stages without changing meaning"
+      ],
+      "acceptance": [
+        "Pre-pilot latency/capacity budgets have repeatable measurements",
+        "Performance changes preserve critical fidelity gates"
+      ],
+      "kind": "External qualification",
+      "priority": "P1",
+      "wave": 3,
+      "owner": "Shared",
+      "effort": "L",
+      "dependencies": [
+        "RUN-09",
+        "QA-04"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "evals/performance_load.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/evals/performance_load.py"
+        }
+      ]
+    },
+    {
+      "id": "OPS-05",
+      "group": "OPS",
+      "title": "Connect source-free observability and alerts",
+      "outcome": "Operators can detect stuck jobs, failures and drift without reading business content.",
+      "scope": [
+        "Emit stage timing, counts, safe error codes and identity metadata",
+        "Connect dashboards/alerts to approved company monitoring",
+        "Track review rates, false-DONE reports and resource saturation"
+      ],
+      "acceptance": [
+        "An injected failure produces the expected alert and trace",
+        "Telemetry contracts reject content-bearing fields"
+      ],
+      "kind": "External qualification",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "SEC-08",
+        "RUN-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/telemetry.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/telemetry.py"
+        }
+      ]
+    },
+    {
+      "id": "OPS-06",
+      "group": "OPS",
+      "title": "Add deployment health, readiness and operational runbooks",
+      "outcome": "Operators know when the service can accept real work and how to recover it.",
+      "scope": [
+        "Distinguish liveness from model/OCR/storage/candidate readiness",
+        "Document install, upgrade, rollback, outage, capacity and credential procedures",
+        "Test graceful shutdown and degraded dependencies"
+      ],
+      "acceptance": [
+        "Readiness fails for unavailable or stale critical dependencies",
+        "A second operator can execute the recovery playbooks"
+      ],
+      "kind": "External qualification",
+      "priority": "P1",
+      "wave": 3,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "OPS-01",
+        "OPS-02",
+        "OPS-05"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/production.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/production.py"
+        }
+      ]
+    },
+    {
+      "id": "OPS-07",
+      "group": "OPS",
+      "title": "Qualify backup, disaster recovery and safe configuration changes",
+      "outcome": "Operational recovery preserves authorization and certification boundaries.",
+      "scope": [
+        "Agree recovery objectives with company owners",
+        "Test restoring run/control state and runtime artifacts",
+        "Audit configuration changes and invalidate affected candidate evidence"
+      ],
+      "acceptance": [
+        "Recovery drill meets agreed objectives without content leakage",
+        "Configuration rollback cannot silently revive a revoked candidate"
+      ],
+      "kind": "External qualification",
+      "priority": "P1",
+      "wave": 3,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "OPS-02",
+        "RUN-08",
+        "REL-04"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    },
+    {
+      "id": "QA-01",
+      "group": "QA",
+      "title": "Add decisive regressions for the two reproduced defects",
+      "outcome": "Future changes cannot reintroduce false completion or flattened screenshot tables.",
+      "scope": [
+        "Preserve independent fixtures for scoped-worker fallback",
+        "Test raster/PDF/native table equivalence from real source files",
+        "Assert final artifact behavior instead of source-string patterns"
+      ],
+      "acceptance": [
+        "Both probes fail on the reviewed baseline and pass after repair",
+        "Regression tests run on every relevant change"
+      ],
+      "kind": "Confirmed defect",
+      "priority": "P0",
+      "wave": 1,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "RUN-01",
+        "EVD-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "tests/test_chg16_paas_worker.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/tests/test_chg16_paas_worker.py"
+        }
+      ]
+    },
+    {
+      "id": "QA-02",
+      "group": "QA",
+      "title": "Strengthen contract, property and fault-injection tests",
+      "outcome": "Malformed inputs and interrupted operations exercise the real boundaries.",
+      "scope": [
+        "Check schema parity, parser limits and unsupported enum combinations",
+        "Cover revision races, retries, tampering and crash windows",
+        "Fuzz adversarial parsers and representative generated documents where useful"
+      ],
+      "acceptance": [
+        "Tests demonstrate invariant failures rather than mirroring code",
+        "Required suites run on supported Python/host versions"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "CORE-03",
+        "RUN-07",
+        "SEC-05"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "tests/",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/tests/"
+        }
+      ]
+    },
+    {
+      "id": "QA-03",
+      "group": "QA",
+      "title": "Govern representative, challenge and held-out corpora",
+      "outcome": "Qualification samples reflect actual employee work and remain independent of tuning.",
+      "scope": [
+        "Maintain public, private representative, high-risk and sealed held-out sets",
+        "Version source/gold membership and contamination decisions",
+        "Cover each supported format, business scenario and difficult visual pattern"
+      ],
+      "acceptance": [
+        "Frozen identities are reproducible and candidate-bound",
+        "Held-out content never becomes prompt/rule tuning data"
+      ],
+      "kind": "External qualification",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Shared",
+      "effort": "L",
+      "dependencies": [
+        "CORE-05",
+        "SEC-03"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/corpus_governance.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/corpus_governance.py"
+        }
+      ]
+    },
+    {
+      "id": "QA-04",
+      "group": "QA",
+      "title": "Run authoritative Gemma evaluations through the user path",
+      "outcome": "Quality claims come from actual host/worker execution and persisted artifacts.",
+      "scope": [
+        "Prove effective google/gemma-4-31b-it identity and vision/media execution",
+        "Run required repeats and hard gates on every declared format/category",
+        "Measure source reconstruction, claims, modality, numbers and false DONE"
+      ],
+      "acceptance": [
+        "No non-target model result can certify quality",
+        "Any required critical failure blocks candidate promotion"
+      ],
+      "kind": "External qualification",
+      "priority": "P0",
+      "wave": 3,
+      "owner": "Shared",
+      "effort": "L",
+      "dependencies": [
+        "RUN-02",
+        "HOST-03",
+        "QA-03",
+        "OPS-01"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "evals/model_eval.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/evals/model_eval.py"
+        }
+      ]
+    },
+    {
+      "id": "QA-05",
+      "group": "QA",
+      "title": "Conduct bilingual adjudication on complete outputs",
+      "outcome": "Human business-language expertise establishes certification truth.",
+      "scope": [
+        "Use independent Korean/English reviewers and disagreement adjudication",
+        "Evaluate complete outputs against original artifacts",
+        "Bind error taxonomy, reviewers and results to the candidate"
+      ],
+      "acceptance": [
+        "No adjudicated critical defects remain in the qualification sample",
+        "Non-critical thresholds satisfy the approved policy"
+      ],
+      "kind": "External qualification",
+      "priority": "P1",
+      "wave": 3,
+      "owner": "Company",
+      "effort": "L",
+      "dependencies": [
+        "QA-04"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/bilingual_adjudication.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/bilingual_adjudication.py"
+        }
+      ]
+    },
+    {
+      "id": "QA-06",
+      "group": "QA",
+      "title": "Validate zero-Korean decision correctness and usability",
+      "outcome": "Employees can make the right business decisions and recognize uncertainty.",
+      "scope": [
+        "Run the predeclared, powered comparison to expert English references",
+        "Include dense, ambiguous, conflicting and unreadable material",
+        "Measure decision accuracy, misleading outcomes and excessive over-review"
+      ],
+      "acceptance": [
+        "Meet the approved non-inferiority criterion and hard safety gates",
+        "Usability fixes are rechecked for semantic fidelity"
+      ],
+      "kind": "External qualification",
+      "priority": "P1",
+      "wave": 3,
+      "owner": "Company",
+      "effort": "L",
+      "dependencies": [
+        "QA-05",
+        "UX-08"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "docs/zero-korean-human-study.md",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/docs/zero-korean-human-study.md"
+        }
+      ]
+    },
+    {
+      "id": "QA-07",
+      "group": "QA",
+      "title": "Exercise real end-to-end journeys in both company hosts",
+      "outcome": "Qualification includes actual UI, media permissions, lifecycle and recovery.",
+      "scope": [
+        "Test start → progress → output → evidence → review/resume",
+        "Exercise reconnect, cancellation, expiry and authorization changes",
+        "Capture visual/interaction evidence on supported company clients"
+      ],
+      "acceptance": [
+        "Core journeys pass without developer-only shortcuts",
+        "Host presentation does not fabricate state or bypass policy"
+      ],
+      "kind": "External qualification",
+      "priority": "P1",
+      "wave": 3,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "HOST-03",
+        "UX-05",
+        "UX-10",
+        "OPS-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    },
+    {
+      "id": "QA-08",
+      "group": "QA",
+      "title": "Run security and reliability qualification on the exact candidate",
+      "outcome": "A green unit suite is backed by deployed-runtime evidence.",
+      "scope": [
+        "Run dependency/image/secret/static scanning and vulnerability disposition",
+        "Exercise default-deny egress, tenant isolation and credential canaries",
+        "Run load, worker failure and recovery drills"
+      ],
+      "acceptance": [
+        "Evidence rederives against exact candidate and runtime identities",
+        "Unresolved critical security/reliability findings block release"
+      ],
+      "kind": "External qualification",
+      "priority": "P0",
+      "wave": 3,
+      "owner": "Shared",
+      "effort": "L",
+      "dependencies": [
+        "SEC-04",
+        "SEC-08",
+        "OPS-04"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/security_release.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/security_release.py"
+        }
+      ]
+    },
+    {
+      "id": "REL-01",
+      "group": "REL",
+      "title": "Enforce protected branch and independent review rules",
+      "outcome": "Repository governance is active on GitHub, not just described in validators.",
+      "scope": [
+        "Enable effective rulesets/required checks and protected release controls",
+        "Assign legitimate independent code-owner/reviewer coverage",
+        "Capture authoritative current-head governance facts"
+      ],
+      "acceptance": [
+        "Merge cannot precede required terminal checks",
+        "Required independent approvals and protections are verifiable"
+      ],
+      "kind": "Observed deployment gap",
+      "priority": "P0",
+      "wave": 1,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "CORE-05"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Live assessment found main unprotected, no repository rulesets, and a single listed owner.",
+      "sources": [
+        {
+          "label": ".github/CODEOWNERS",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/.github/CODEOWNERS"
+        }
+      ]
+    },
+    {
+      "id": "REL-02",
+      "group": "REL",
+      "title": "Make CI and release pipelines certify the intended subject",
+      "outcome": "Checks and artifacts correspond to the exact code and environment being released.",
+      "scope": [
+        "Run required tests, host builds and scanner gates on the final head",
+        "Separate development smoke from heavy/private certification jobs",
+        "Verify artifact provenance, dependency identity and required non-skipped gates"
+      ],
+      "acceptance": [
+        "Skipped heavy/model qualification cannot count as a pass",
+        "Candidate promotion reopens and rederives its retained evidence"
+      ],
+      "kind": "Harden existing",
+      "priority": "P1",
+      "wave": 2,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "REL-01",
+        "OPS-01",
+        "QA-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": ".github/workflows/k-slide-release.yml",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/.github/workflows/k-slide-release.yml"
+        }
+      ]
+    },
+    {
+      "id": "REL-03",
+      "group": "REL",
+      "title": "Assemble the real production candidate and release evidence",
+      "outcome": "Replace unresolved deployment placeholders only with verified company inputs.",
+      "scope": [
+        "Bind provider route, runtime, OCR, termbase, policies and corpus identities",
+        "Retain evidence under the approved release root",
+        "Generate production manifest/profile/SBOM from evidence"
+      ],
+      "acceptance": [
+        "Production doctor passes for the exact deployed candidate",
+        "Hand-edited readiness flags cannot promote a release"
+      ],
+      "kind": "External qualification",
+      "priority": "P0",
+      "wave": 3,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "QA-04",
+        "QA-05",
+        "QA-06",
+        "QA-08",
+        "REL-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "evals/production-candidate.yaml",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/evals/production-candidate.yaml"
+        }
+      ]
+    },
+    {
+      "id": "REL-04",
+      "group": "REL",
+      "title": "Operationalize drift detection, revocation and scoped recertification",
+      "outcome": "Material changes or critical defects invalidate affected production approval.",
+      "scope": [
+        "Connect candidate drift/revocation to admission and running work policy",
+        "Scope requalification to actual affected dependencies",
+        "Test rollback and anti-replay protections"
+      ],
+      "acceptance": [
+        "A revoked/stale candidate cannot start new approved work",
+        "Old evidence cannot silently certify a changed environment"
+      ],
+      "kind": "External qualification",
+      "priority": "P0",
+      "wave": 3,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "RUN-08",
+        "REL-02"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/candidate_revocation.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/candidate_revocation.py"
+        }
+      ]
+    },
+    {
+      "id": "REL-05",
+      "group": "REL",
+      "title": "Run a named pilot and canary rollout",
+      "outcome": "Expand only after observing the real user path under controlled company use.",
+      "scope": [
+        "Select approved cohorts across business functions and both hosts",
+        "Set explicit entry, stop, rollback and expansion criteria",
+        "Monitor semantic incidents, review burden, latency and support load"
+      ],
+      "acceptance": [
+        "No critical semantic/security/privacy incident is ignored",
+        "Every expansion has retained candidate-bound evidence"
+      ],
+      "kind": "External qualification",
+      "priority": "P1",
+      "wave": 4,
+      "owner": "Company",
+      "effort": "L",
+      "dependencies": [
+        "REL-03",
+        "REL-04",
+        "QA-07"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "src/k_slide/rollout.py",
+          "url": "https://github.com/kimhw8084/k-slide/blob/9089cd8415d16402efe5ac561e936540a22a6c19/src/k_slide/rollout.py"
+        }
+      ]
+    },
+    {
+      "id": "REL-06",
+      "group": "REL",
+      "title": "Deliver operator and employee documentation with ownership",
+      "outcome": "The product is supportable after implementation handoff.",
+      "scope": [
+        "Write concise employee start/review/resume guidance",
+        "Document approved formats, limitations and incident escalation",
+        "Assign maintenance, review and release responsibilities"
+      ],
+      "acceptance": [
+        "A new user can finish a normal task without setup scripts",
+        "Operators can diagnose and recover common failures from the runbook"
+      ],
+      "kind": "Product completion",
+      "priority": "P1",
+      "wave": 3,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "UX-07",
+        "HOST-04",
+        "OPS-06"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    },
+    {
+      "id": "REL-07",
+      "group": "REL",
+      "title": "Reconcile final implementation and production acceptance",
+      "outcome": "Close approved work with evidence and an honest list of remaining gates.",
+      "scope": [
+        "Audit approved IDs against source, UI behavior, tests and deployed facts",
+        "Reconcile Project OS records after accepted implementation",
+        "Record any rejected launch prerequisite and its consequence"
+      ],
+      "acceptance": [
+        "Every approved item has acceptance evidence or an explicit blocker",
+        "BUILD COMPLETE and PRODUCTION CERTIFIED remain distinct claims"
+      ],
+      "kind": "External qualification",
+      "priority": "P1",
+      "wave": 4,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "REL-05",
+        "REL-06",
+        "CORE-05"
+      ],
+      "required": true,
+      "recommendation": "Yes",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    },
+    {
+      "id": "OPT-01",
+      "group": "OPT",
+      "title": "Add a polished printable result packet",
+      "outcome": "Readers can retain an approved portable Decision View and reconstruction.",
+      "scope": [
+        "Create a deterministic print/PDF layout from verified artifacts",
+        "Carry provenance, warnings, classification and retention context",
+        "Validate tables and page breaks on dense documents"
+      ],
+      "acceptance": [
+        "Export matches the canonical result without new model interpretation",
+        "No overflow or missing warnings in representative exports"
+      ],
+      "kind": "Optional enhancement",
+      "priority": "P2",
+      "wave": 4,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "UX-01",
+        "UX-02",
+        "UX-03"
+      ],
+      "required": false,
+      "recommendation": "Optional",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    },
+    {
+      "id": "OPT-02",
+      "group": "OPT",
+      "title": "Enable explicitly authorized team result sharing",
+      "outcome": "A company-approved group can collaborate on a result without public links.",
+      "scope": [
+        "Use existing platform authorization and company policy",
+        "Handle revoked members, link expiry and audit",
+        "Preserve source/evidence scope and deletion semantics"
+      ],
+      "acceptance": [
+        "Sharing cannot bypass classification, scope or retention",
+        "Revocation removes access to both result and evidence"
+      ],
+      "kind": "Optional enhancement",
+      "priority": "P2",
+      "wave": 4,
+      "owner": "Shared",
+      "effort": "L",
+      "dependencies": [
+        "SEC-02",
+        "SEC-03",
+        "SEC-06"
+      ],
+      "required": false,
+      "recommendation": "Optional",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    },
+    {
+      "id": "OPT-03",
+      "group": "OPT",
+      "title": "Reuse safe deterministic preprocessing within approved scopes",
+      "outcome": "Repeated source processing can be faster when measurement justifies caching.",
+      "scope": [
+        "Cache only immutable-hash-bound permitted preprocessing",
+        "Scope cache keys/access and apply retention/deletion policy",
+        "Measure benefit before expanding the cache"
+      ],
+      "acceptance": [
+        "No cross-user history/content inference is possible",
+        "Cache hits preserve byte-equivalent evidence and environment identity"
+      ],
+      "kind": "Optional enhancement",
+      "priority": "P2",
+      "wave": 4,
+      "owner": "Codex",
+      "effort": "M",
+      "dependencies": [
+        "OPS-04",
+        "SEC-02",
+        "SEC-06"
+      ],
+      "required": false,
+      "recommendation": "Optional",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    },
+    {
+      "id": "OPT-04",
+      "group": "OPT",
+      "title": "Add an administrator operations view if pilots demonstrate need",
+      "outcome": "Administrators can act on non-content operational signals in one place.",
+      "scope": [
+        "Expose health, queue pressure, safe failures and candidate status",
+        "Reuse company monitoring and access controls where sufficient",
+        "Keep business content and normal-user configuration out of this view"
+      ],
+      "acceptance": [
+        "The view solves a demonstrated operator workflow",
+        "No privileged content-read capability is introduced"
+      ],
+      "kind": "Optional enhancement",
+      "priority": "P2",
+      "wave": 4,
+      "owner": "Shared",
+      "effort": "M",
+      "dependencies": [
+        "OPS-05",
+        "OPS-06",
+        "REL-05"
+      ],
+      "required": false,
+      "recommendation": "Optional",
+      "basis": "Production contract; implementation and qualification work proposed.",
+      "sources": [
+        {
+          "label": "Notion production contract",
+          "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "label": "Reviewed GitHub main",
+      "url": "https://github.com/kimhw8084/k-slide/tree/9089cd8415d16402efe5ac561e936540a22a6c19"
+    },
+    {
+      "label": "Notion production contract",
+      "url": "https://www.notion.so/3d9c564c8d04818a9251f1724340b1fb"
+    }
+  ]
+}

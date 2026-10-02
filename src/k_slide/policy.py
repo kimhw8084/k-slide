@@ -11,10 +11,11 @@ from . import VERIFICATION_SCHEMA_VERSION
 
 @dataclass(frozen=True)
 class CompletionPolicy:
-    version: str = "2.0"
+    version: str = "2.1"
     required_artifacts: tuple[str, ...] = (
         "05_decision_view.json",
         "05_decision_view.md",
+        "05_decision_view.html",
         "05_executive_brief.md",
         "05_final_report.md",
         "06_verification.md",
@@ -26,6 +27,7 @@ class CompletionPolicy:
     precompletion_artifacts: tuple[str, ...] = (
         "05_decision_view.json",
         "05_decision_view.md",
+        "05_decision_view.html",
         "05_executive_brief.md",
         "05_final_report.md",
         "06_verification.md",

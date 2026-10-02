@@ -469,7 +469,7 @@ def _build_drilldown(run_dir: Path, queue: Any, source_names: dict[str, str], it
 
 def _presentation_descriptor(run_dir: Path, run_id: str, canonical_state_sha256: str) -> dict[str, Any]:
     artifacts = [
-        {"action_id": "decision_view", "label": "Decision View", "role": "first_view", "identity": "decision-view.v1", "path": "05_decision_view.md", "structured_path": "05_decision_view.json", "media_type": "text/markdown"},
+        {"action_id": "decision_view", "label": "Decision View", "role": "first_view", "identity": "decision-view.v1", "path": "05_decision_view.md", "html_path": "05_decision_view.html", "structured_path": "05_decision_view.json", "media_type": "text/markdown"},
         {"action_id": "reconstruction", "label": "Faithful English Reconstruction", "role": "follow_on", "identity": "english-reconstruction.v1", "path": "05_final_report.md", "media_type": "text/markdown"},
         {"action_id": "review_disclosure", "label": "Review / Unresolved Disclosure", "role": "follow_on", "identity": "review-disclosure.v1", "path": "07_unresolved_items.md", "media_type": "text/markdown"},
         {"action_id": "evidence_drilldown", "label": "Evidence Drill-down", "role": "follow_on", "identity": "evidence-drilldown.v1", "path": "08_evidence_drilldown.json", "media_type": "application/json"},
@@ -482,6 +482,7 @@ def _presentation_descriptor(run_dir: Path, run_id: str, canonical_state_sha256:
     for key, name in (
         ("decision_view_json", "05_decision_view.json"),
         ("decision_view_markdown", "05_decision_view.md"),
+        ("decision_view_html", "05_decision_view.html"),
         ("reconstruction", "05_final_report.md"),
         ("review_disclosure", "07_unresolved_items.md"),
         ("evidence_drilldown", "08_evidence_drilldown.json"),
@@ -564,9 +565,14 @@ def render_decision_view(run_dir: Path, *, items_by_unit: list[tuple[str, list[d
     atomic_write_json(view_json, value, mode=0o600)
     atomic_write_text(view_markdown, _markdown_view(value), mode=0o600)
     atomic_write_json(drilldown_path, drilldown, mode=0o600)
+    from .rendering.decision_html import decision_html
+
+    html_path = storage_path(run_dir, StorageArtifact.REPORT, "05_decision_view.html", create_parent=True)
+    atomic_write_text(html_path, decision_html(run_dir, value), mode=0o600)
     atomic_write_json(presentation_path, _presentation_descriptor(run_dir, queue.run_id, canonical_state_sha256), mode=0o600)
     return {
         "decision_view": str(view_markdown),
+        "decision_view_html": str(html_path),
         "decision_view_contract": str(view_json),
         "evidence_drilldown": str(drilldown_path),
         "presentation_descriptor": str(presentation_path),

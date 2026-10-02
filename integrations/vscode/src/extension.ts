@@ -104,10 +104,11 @@ async function openPresentationAction(context: vscode.ExtensionContext, actionId
   const descriptor = validatePresentation(response, runId)
   const actions = descriptor.actions as Record<string, unknown>[]
   const action = actions.find((item) => item.action_id === actionId)
-  const expectedFile = ACTION_FILE[actionId]
+  let expectedFile = ACTION_FILE[actionId]
   if (!action || action.path !== expectedFile || action.role !== (actionId === "decision_view" ? "first_view" : "follow_on")) {
     throw new SafeKSlideError("K-Slide presentation action does not match the engine-owned artifact contract.")
   }
+  if (actionId === "decision_view" && action.html_path === "05_decision_view.html") expectedFile = "05_decision_view.html"
   const runRoot = path.resolve(root, ".k-slide-runs", runId)
   const artifactPath = path.resolve(runRoot, expectedFile)
   const relative = path.relative(runRoot, artifactPath)
@@ -122,6 +123,30 @@ async function openPresentationAction(context: vscode.ExtensionContext, actionId
   const artifactUri = scheme === "file"
     ? vscode.Uri.file(realArtifactPath)
     : vscode.Uri.from({scheme, authority, path: realArtifactPath})
+  if (expectedFile.endsWith(".html")) {
+    const panel = vscode.window.createWebviewPanel("kSlide.decisionView", "K-Slide · Decision View", vscode.ViewColumn.Active, {
+      enableScripts: false, localResourceRoots: [vscode.Uri.file(realRunRoot)],
+    })
+    const html = await fs.promises.readFile(realArtifactPath, "utf8")
+    // The engine emits escaped text and relative image references only. Resolve
+    // each image independently; symlinks must remain inside the current run.
+    const sources = [...html.matchAll(/src="([^"]+)"/g)]
+    let rendered = html
+    for (const match of sources) {
+      const decoded = decodeURIComponent(match[1])
+      const mediaPath = await fs.promises.realpath(path.resolve(realRunRoot, decoded))
+      const relativeMedia = path.relative(realRunRoot, mediaPath)
+      if (relativeMedia.startsWith(`..${path.sep}`) || relativeMedia === ".." || path.isAbsolute(relativeMedia)) {
+        panel.dispose()
+        throw new SafeKSlideError("K-Slide source image is outside this run.")
+      }
+      rendered = rendered.replaceAll(match[0], `src="${panel.webview.asWebviewUri(vscode.Uri.file(mediaPath))}"`)
+    }
+    rendered = rendered.replace("img-src 'self' data:", `img-src ${panel.webview.cspSource} data:`)
+    panel.webview.html = rendered
+    context.subscriptions.push(panel)
+    return
+  }
   const document = await vscode.workspace.openTextDocument(artifactUri)
   await vscode.window.showTextDocument(document, {preview: true})
 }
@@ -152,8 +177,14 @@ export function activate(context: vscode.ExtensionContext): void {
     const built = buildHostInvocation(uris, workspaceRoots())
     const target = engineTarget(built.root)
     const summary = await vscode.window.withProgress(
-      {location: vscode.ProgressLocation.Notification, title: "K-Slide is preparing the selected files", cancellable: false},
-      () => invokePrepare(target, built),
+      {location: vscode.ProgressLocation.Notification, title: "K-Slide is preparing the selected files", cancellable: true},
+      async (_progress, token) => {
+        const controller = new AbortController()
+        const subscription = token.onCancellationRequested(() => controller.abort())
+        if (token.isCancellationRequested) controller.abort()
+        try { return await invokePrepare(target, built, controller.signal) }
+        finally { subscription.dispose() }
+      },
     )
     if (summary.runId) {
       const folder = vscode.workspace.workspaceFolders?.find((item) => path.resolve(item.uri.fsPath) === path.resolve(built.root))

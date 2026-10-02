@@ -135,6 +135,9 @@ def _unit_sections(run_dir: Path, unit: Any, source_name: str) -> tuple[list[str
         lines.append(f"| `{coverage.source_id}` | {coverage.status} | {coverage.note or ''} |")
     lines.append("")
     review_items: list[dict[str, Any]] = []
+    for index, reason in enumerate(evidence.source.get("layout_review_reasons", []), start=1):
+        lines.extend(["", f"**Source layout requires review:** {reason}"])
+        review_items.append({"work_unit_id": unit.work_unit_id, "source_id": f"{unit.work_unit_id}-layout-{index}", "reason": reason, "evidence_ids": [f"{unit.work_unit_id}-visual-context"], "severity": "CRITICAL", "crop_path": evidence.source.get("context_image_path"), "recommended_action": "Review the whole-page image and re-extract with an approved layout provider."})
     for item in unresolved:
         source_id = item.get("region_id") or item.get("cell_id") or item.get("relation_id") or item.get("claim_id")
         region = next((candidate for candidate in evidence.regions if candidate.region_id == source_id), None)

@@ -457,6 +457,8 @@ def _validate_slide(run_dir: Path, work_unit_id: str, result: VerificationResult
             _issue(result, "KSLIDE_SCHEMA_INVALID", Severity.CRITICAL, "SlideIR schema version is missing or unsupported.", target=work_unit_id)
             return
         evidence = load_evidence(run_dir, work_unit_id)
+        if evidence.source.get("layout_review_reasons"):
+            _issue(result, "KSLIDE_LAYOUT_REVIEW_REQUIRED", Severity.CRITICAL, "Engine-owned source layout remains unresolved. Review the whole-page image before completion.", target=work_unit_id)
         source_texts = _source_evidence_texts(evidence)
         slide = SlideIR.from_dict(value, evidence=evidence)
         result.checked_slides += 1
@@ -626,7 +628,8 @@ def _validate_conflict_registry(run_dir: Path, result: VerificationResult) -> No
         )
 
 
-def _verify_unlocked(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | None = None, termbase: Termbase | None = None, termbase_authority: Any | None = None) -> VerificationResult:
+def _verify_unlocked(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | None = None, termbase: Termbase | None = None, termbase_authority: Any | None = None, require_patches: bool = False) -> VerificationResult:
+    require_patches = require_patches or (environment_identity is not None and environment_identity.ocr_provider != "reference")
     state = load_state(run_dir)
     result = VerificationResult(status="PASS", run_id=state.run_id)
     try:
@@ -640,6 +643,16 @@ def _verify_unlocked(run_dir: Path, *, environment_identity: RunEnvironmentIdent
         _issue(result, "KSLIDE_NO_WORK_UNITS", Severity.CRITICAL, "No engine-defined work units exist.", scope="RUN_LEVEL_POLICY_FAILURE")
     for unit in queue.work_units:
         before = len(result.issues)
+        if require_patches:
+            from .translation import parse_translation_patch
+
+            try:
+                patch = parse_translation_patch(read_json(storage_path(run_dir, StorageArtifact.TRANSLATION_PATCH, f"translations/{unit.work_unit_id}.json")))
+                patch.validate_against(load_evidence(run_dir, unit.work_unit_id))
+                if patch.revision() != unit.translation_revision:
+                    raise ValueError("Patch revision mismatch")
+            except (KSlideError, OSError, ValueError, TypeError, KeyError):
+                _issue(result, "KSLIDE_TRANSLATION_PATCH_INVALID", Severity.CRITICAL, "The retained translation patch is missing, invalid, or stale.", target=unit.work_unit_id)
         if unit.status is WorkUnitStatus.NEEDS_REVIEW:
             result.unit_status[unit.work_unit_id] = "NEEDS_REVIEW"
             _issue(result, "KSLIDE_REVIEW_REQUIRED", Severity.CRITICAL, "Work unit requires human review or a bounded repair before final certification.", target=unit.work_unit_id, scope="RUN_LEVEL_POLICY_FAILURE")
@@ -736,7 +749,7 @@ def verify_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | 
         return result
 
 
-def finalize_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | None = None, termbase_authority: Any | None = None) -> VerificationResult:
+def finalize_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity | None = None, termbase_authority: Any | None = None, require_patches: bool = False) -> VerificationResult:
     from .execution import ensure_workspace_environment_compatible
 
     _, effective_environment = ensure_workspace_environment_compatible(run_dir, environment_identity=environment_identity)
@@ -753,7 +766,7 @@ def finalize_run(run_dir: Path, *, environment_identity: RunEnvironmentIdentity 
             save_state(run_dir, state)
         if any(storage_path(run_dir, StorageArtifact.CANONICAL_IR, "ir").glob("*.json")):
             render_run(run_dir)
-        result = _verify_unlocked(run_dir, environment_identity=effective_environment, termbase=effective_termbase)
+        result = _verify_unlocked(run_dir, environment_identity=effective_environment, termbase=effective_termbase, require_patches=require_patches)
         _persist_verification(run_dir, result)
         if any(storage_path(run_dir, StorageArtifact.CANONICAL_IR, "ir").glob("*.json")):
             render_run(run_dir)

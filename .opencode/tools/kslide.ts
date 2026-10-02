@@ -1,10 +1,12 @@
 import { tool } from "@opencode-ai/plugin"
 import path from "node:path"
+import { runProcess, SafeKSlideError } from "../internal/lib/k-slide-process.ts"
 import { existsSync } from "node:fs"
 import { trustedAccessKey } from "../internal/lib/k-slide-access-key.ts"
 
 type ToolContext = {
   sessionID: string
+  abort?: AbortSignal
   messageID?: string
   directory: string
   worktree: string
@@ -149,26 +151,29 @@ async function runCore(context: ToolContext, command: string, args: string[] = [
   const project = projectAndEngine(context)
   const environment: Record<string, string> = { ...process.env, PYTHONPATH: path.join(project.engine, "src") } as Record<string, string>
   if (trustedAccessKey !== undefined) environment.AccessKey = trustedAccessKey
-  const child = Bun.spawn(
-    ["python3", "-m", "k_slide.cli", command, "--root", project.root, "--json", "--host-adapter", "opencode", ...(command === "doctor" ? ["--engine-root", project.engine, "--opencode-root", project.opencodeRoot] : []), ...args],
-    {
-      cwd: project.root,
-      env: environment,
-      stdout: "pipe",
-      stderr: "pipe",
-    },
-  )
-  const stdout = await new Response(child.stdout).text()
-  const stderr = await new Response(child.stderr).text()
-  const exitCode = await child.exited
-  if (stdout.trim()) return stdout.trim()
-  // A crashed/empty core response may contain arbitrary interpreter or
-  // dependency text. Never forward stderr across the OpenCode boundary.
-  return JSON.stringify(
-    exitCode === 0
-      ? { status: "OK" }
-      : { status: "FAILED", error: { code: "KSLIDE_INTERNAL", message: "K-Slide core failed before producing a safe response." } },
-  )
+  // Never forward stderr across the OpenCode boundary.
+  // Move source-bearing JSON off process arguments and onto bounded stdin.
+  let input: string | undefined
+  const forwarded = [...args]
+  for (const [flag, replacement] of [["--payload-json", "--payload-stdin"], ["--host-inputs-json", "--host-inputs-stdin"]]) {
+    const index = forwarded.indexOf(flag)
+    if (index >= 0) {
+      input = forwarded[index + 1]
+      forwarded.splice(index, 2, replacement)
+    }
+  }
+  try {
+    const stdout = await runProcess("python3", ["-m", "k_slide.cli", command, "--root", project.root, "--json", "--host-adapter", "opencode", ...(command === "doctor" ? ["--engine-root", project.engine, "--opencode-root", project.opencodeRoot] : []), ...forwarded], {
+      cwd: project.root, env: environment, input, signal: context.abort,
+    })
+    const value: unknown = JSON.parse(stdout)
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid response")
+    return JSON.stringify(value)
+  } catch (error) {
+    return JSON.stringify({status: "FAILED", error: {code: "KSLIDE_INTERNAL", message: error instanceof SafeKSlideError ? error.message : context.abort?.aborted
+      ? "K-Slide action was canceled. Check saved run progress before resuming."
+      : "K-Slide core could not complete this action. Check the run status and runtime health before retrying."}})
+  }
 }
 
 export const prepare = tool({

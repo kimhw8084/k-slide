@@ -630,7 +630,7 @@ def _submit(
             for item in canonical.unresolved
             if item.get("recovery_status") == "NEEDS_REVIEW"
         ]
-        unit.status = WorkUnitStatus.NEEDS_REVIEW if recovery_unresolved else WorkUnitStatus.TRANSLATED
+        unit.status = WorkUnitStatus.NEEDS_REVIEW if recovery_unresolved or evidence.source.get("layout_review_reasons") else WorkUnitStatus.TRANSLATED
         unit.translation_revision = translation_revision
         unit.canonical_ir_sha256 = sha256_file(storage_path(run_dir, StorageArtifact.CANONICAL_IR, f"ir/{unit.work_unit_id}.json"))
         unit.translation_attempts += 1
@@ -1024,19 +1024,25 @@ def build_parser() -> argparse.ArgumentParser:
     submit = sub.add_parser("submit")
     submit.add_argument("--root", type=Path, default=Path.cwd())
     submit.add_argument("--run", required=True)
-    submit.add_argument("--payload-json", required=True)
+    submit_transport = submit.add_mutually_exclusive_group(required=True)
+    submit_transport.add_argument("--payload-json")
+    submit_transport.add_argument("--payload-stdin", action="store_true")
     submit.add_argument("--session-id")
     submit.add_argument("--json", action="store_true")
     conflicts = sub.add_parser("conflict-assess")
     conflicts.add_argument("--root", type=Path, default=Path.cwd())
     conflicts.add_argument("--run", required=True)
-    conflicts.add_argument("--payload-json", required=True)
+    conflicts_transport = conflicts.add_mutually_exclusive_group(required=True)
+    conflicts_transport.add_argument("--payload-json")
+    conflicts_transport.add_argument("--payload-stdin", action="store_true")
     conflicts.add_argument("--session-id")
     conflicts.add_argument("--json", action="store_true")
     resolve = sub.add_parser("conflict-resolve")
     resolve.add_argument("--root", type=Path, default=Path.cwd())
     resolve.add_argument("--run", required=True)
-    resolve.add_argument("--payload-json", required=True)
+    resolve_transport = resolve.add_mutually_exclusive_group(required=True)
+    resolve_transport.add_argument("--payload-json")
+    resolve_transport.add_argument("--payload-stdin", action="store_true")
     resolve.add_argument("--session-id")
     resolve.add_argument("--json", action="store_true")
     verify = sub.add_parser("verify")
@@ -1104,10 +1110,21 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _read_bounded_stdin() -> str:
+    # Transport ceiling; the run-specific model budget still applies at submit.
+    limit = 8 * 1024 * 1024
+    value = sys.stdin.read(limit + 1)
+    if len(value.encode("utf-8")) > limit:
+        raise KSlideError(ErrorCode.SCHEMA_INVALID, "Input payload exceeds the host transport limit.")
+    return value
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     started_ns = time.monotonic_ns()
     try:
+        if getattr(args, "payload_stdin", False):
+            args.payload_json = _read_bounded_stdin()
         if args.command == "runtime":
             value = discover_runtime().as_dict()
         elif args.command == "prepare":
@@ -1115,7 +1132,7 @@ def main(argv: list[str] | None = None) -> int:
             if args.host_inputs_stdin:
                 if host_inputs_json is not None:
                     raise KSlideError(ErrorCode.SCHEMA_INVALID, "Host input JSON may use only one transport.")
-                host_inputs_json = sys.stdin.read()
+                host_inputs_json = _read_bounded_stdin()
             invocation = HostInvocation.from_json(host_inputs_json)
             run = prepare_run(
                 args.root,

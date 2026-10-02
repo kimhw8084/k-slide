@@ -25,6 +25,7 @@ from .storage import StorageArtifact, storage_path
 from .state import RunPhase, load_state, save_state
 from .redaction import safe_diagnostic_text_or_placeholder
 from .modality import classify_source_language, source_english_spans
+from .layout import ruled_table_items
 
 
 CROP_PADDING = 0.10
@@ -94,9 +95,11 @@ def _unit_native(run_dir: Path, unit: Any) -> list[dict[str, Any]]:
             if block.get("type") != 0:
                 continue
             lines = block.get("lines", [])
-            text = "\n".join(span.get("text", "") for line in lines for span in line.get("spans", []))
-            if text.strip():
-                bbox = block.get("bbox", [0, 0, 1, 1])
+            for span in (span for line in lines for span in line.get("spans", [])):
+                text = span.get("text", "")
+                if not text.strip():
+                    continue
+                bbox = span.get("bbox", block.get("bbox", [0, 0, 1, 1]))
                 if unit.render_dpi:
                     scale = float(unit.render_dpi) / 72.0
                     bbox = [round(float(value) * scale) for value in bbox]
@@ -190,14 +193,15 @@ def _tables(unit: Any, native_items: list[dict[str, Any]]) -> tuple[tuple[Eviden
             raw_text = cell.get("text")
             is_spanned = bool(cell.get("is_spanned", False))
             is_origin = bool(cell.get("is_merge_origin", False))
-            is_blank = False if is_spanned else (bool(cell.get("is_blank", False)) or not isinstance(raw_text, str) or not raw_text.strip())
-            text = None if is_spanned else ("" if is_blank else raw_text)
+            unknown = cell.get("cell_state") == "unknown"
+            is_blank = False if is_spanned or unknown else (bool(cell.get("is_blank", False)) or not isinstance(raw_text, str) or not raw_text.strip())
+            text = None if is_spanned or unknown else ("" if is_blank else raw_text)
             cell_facts = extract_numeric_facts(text, source_object_id=cell_id, source_table_id=table_id, source_cell_id=cell_id)
             if not _table_header_cell(table_value, cell):
                 for fact in cell_facts:
                     _bind_table_unit(fact, unit_text)
             facts.extend(cell_facts)
-            state = "merge_continuation" if is_spanned else ("merge_origin" if is_origin else ("blank" if is_blank else str(cell.get("cell_state") or "nonblank")))
+            state = "merge_continuation" if is_spanned else ("unknown" if unknown else ("merge_origin" if is_origin else ("blank" if is_blank else str(cell.get("cell_state") or "nonblank"))))
             cell_values.append(EvidenceTableCell(
                 cell_id=cell_id,
                 row=int(cell["row"]),
@@ -212,6 +216,7 @@ def _tables(unit: Any, native_items: list[dict[str, Any]]) -> tuple[tuple[Eviden
                 is_spanned=is_spanned,
                 is_blank=is_blank,
                 is_header=cell.get("is_header"),
+                evidence_region_ids=tuple(cell.get("evidence_region_ids", [])),
                 numeric_fact_ids=tuple(item["fact_id"] for item in cell_facts),
                 required_for_translation=True,
             ))
@@ -231,7 +236,7 @@ def _tables(unit: Any, native_items: list[dict[str, Any]]) -> tuple[tuple[Eviden
             notes = tuple(str(value) for value in notes_value if isinstance(value, str) and value.strip())
         else:
             notes = ()
-        tables.append(EvidenceTable(table_id=table_id, row_count=row_count, column_count=column_count, headers=headers, header_rows=header_rows, header_columns=header_columns, unit=unit_text, source_notes=notes, cells=cells))
+        tables.append(EvidenceTable(table_id=table_id, bbox_px=tuple(item.get("bbox_px", (0, 0, 0, 0))), row_count=row_count, column_count=column_count, headers=headers, header_rows=header_rows, header_columns=header_columns, unit=unit_text, source_notes=notes, cells=cells))
     return tuple(tables), facts
 
 
@@ -296,8 +301,8 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None, ocr_p
                     raise
                 except (OSError, ValueError) as exc:
                     raise KSlideError(ErrorCode.OCR_UNAVAILABLE, "Configured OCR provider failed.", {"work_unit_id": unit.work_unit_id, "reason": type(exc).__name__}) from exc
-                if not native_items and ocr_result.regions:
-                    native_items = [
+                if ocr_result.regions:
+                    native_items += [
                         {
                             "source_id": f"{unit.work_unit_id}-ocr-{index:04d}",
                             "text": region.text,
@@ -306,7 +311,14 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None, ocr_p
                             "evidence_source": "ocr",
                         }
                         for index, region in enumerate(sorted(ocr_result.regions, key=lambda item: (item.bbox_px[1], item.bbox_px[0], item.reading_order)), start=1)
-                        if region.text.strip()
+                        if region.text.strip() and not any(
+                            str(item.get("text") or "").strip() and item.get("bbox_px")
+                            and item["bbox_px"][0] <= region.bbox_px[0] + 4
+                            and item["bbox_px"][1] <= region.bbox_px[1] + 4
+                            and item["bbox_px"][2] >= region.bbox_px[2] - 4
+                            and item["bbox_px"][3] >= region.bbox_px[3] - 4
+                            for item in native_items
+                        )
                     ]
                 regions = _crop_regions(run_dir, unit, native_items)
                 ocr_by_region: dict[str, list[dict[str, Any]]] = {region.region_id: [] for region in regions}
@@ -401,8 +413,12 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None, ocr_p
                     if region.evidence_state not in RISKY_LITERAL_STATES:
                         facts.extend(extract_numeric_facts(region.selected_literal_candidate, source_region_id=region.region_id))
                 fact_ids = {fact["fact_id"] for fact in facts}
-                regions = [EvidenceRegion(**{**region.__dict__, "numeric_fact_ids": tuple(fact_id for fact_id in fact_ids if fact_id.startswith(region.region_id + "-"))}) for region in regions]
-                tables, table_facts = _tables(unit, native_items)
+                regions = [EvidenceRegion(**{**region.__dict__, "numeric_fact_ids": tuple(sorted(fact_id for fact_id in fact_ids if fact_id.startswith(region.region_id + "-")))}) for region in regions]
+                layout_items, layout_review = ruled_table_items(
+                    storage_path(run_dir, StorageArtifact.NORMALIZED_RENDER, unit.canonical_render_path),
+                    unit.work_unit_id, regions, native_items,
+                )
+                tables, table_facts = _tables(unit, native_items + layout_items)
                 facts.extend(table_facts)
                 required_source_ids = [region.region_id for region in regions]
                 required_source_ids.extend(table.table_id for table in tables)
@@ -438,6 +454,8 @@ def _extract_run_locked(run_dir: Path, *, ocr_provider: Any | None = None, ocr_p
                 visual_elements = tuple(visual_values)
                 required_source_ids.append(context_id)
                 source = {"input_id": unit.input_id, "document_id": document.document_id, "classification": input_classifications.get(unit.input_id, DEFAULT_CLASSIFICATION), "input_sha256": document.source_sha256, "page_or_slide_index": unit.source_index, "width_px": unit.width_px, "height_px": unit.height_px, "canonical_render_sha256": unit.render_sha256, "canonical_render_path": unit.canonical_render_path, "context_image_path": unit.canonical_render_path, "context_image_sha256": unit.render_sha256, "source_language_policy": "unicode-script-v1", "ocr_policy_requested": selection.requested, "ocr_provider_effective": selection.effective, "ocr_provider_version": selection.version}
+                source["layout_policy"] = "ruled-grid-v1"
+                source["layout_review_reasons"] = layout_review
                 evidence = EvidenceIR(document.document_id, unit.work_unit_id, source, tuple(regions), tables, tuple(facts), visual_elements, tuple(unit.native_evidence), tuple(required_source_ids)).with_revision()
                 save_evidence(run_dir, evidence)
                 evidence_values.append(evidence)

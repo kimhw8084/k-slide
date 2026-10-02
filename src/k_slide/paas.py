@@ -2085,6 +2085,27 @@ class PaaSWorker:
         if self.scope_context is None and not self.reference_mode:
             raise _authorization_required()
 
+        # Reference services exercise the queue protocol in tests; they cannot
+        # qualify managed execution. Managed services must finalize real runs.
+        self.require_finalization = not self.reference_mode and not isinstance(service, ReferencePaaSJobService)
+        if self.require_finalization and (
+            isinstance(engine, ReferenceWorkerEngine)
+            or not callable(getattr(engine, "run_directory", None))
+        ):
+            raise _invalid("Managed worker engines must resolve authorized run artifacts for finalization.")
+
+    def _verify_completion(self, job: ExecutionJob) -> None:
+        if not self.require_finalization:
+            return
+        from .queue import load_queue
+        from .state import load_state
+        from .verify import finalize_run
+
+        run_dir = Path(self.engine.run_directory(job))
+        if load_state(run_dir).run_id != job.run_id or load_queue(run_dir).run_id != job.run_id:
+            raise KSlideError(ErrorCode.COMPLETION_BLOCKED, "Worker artifacts do not belong to the claimed run.")
+        finalize_run(run_dir, environment_identity=self.runtime_identity.environment(), require_patches=True)
+
     def _engine_operation_id(self, job: ExecutionJob) -> str:
         operation = getattr(self.engine, "operation_id", None)
         value = operation(job) if callable(operation) else f"{job.execution_id}-step-{job.checkpoint.revision + 1}"
@@ -2121,6 +2142,10 @@ class PaaSWorker:
             return WorkerResult(acknowledged.status.value, acknowledged.job, engine_called=engine_called, references=references)
         if current.lifecycle in {OperationalLifecycle.RUNNING, OperationalLifecycle.RETRYING}:
             if current.checkpoint.engine_phase == RunPhase.COMPLETE.value:
+                try:
+                    self._verify_completion(current)
+                except Exception as exc:
+                    return self._record_failure(store, current, exc, references=references)
                 committed = store.transition_operational(current.job_id, expected_revision=current.revision, lifecycle=OperationalLifecycle.COMPLETED, terminal_outcome=TerminalOutcome.DONE, resume_eligibility=ResumeEligibility.NOT_ELIGIBLE)
                 if committed.accepted:
                     return WorkerResult("DONE", committed.job, engine_called=engine_called, references=references)
@@ -2180,6 +2205,8 @@ class PaaSWorker:
         raise_environment_mismatch(job.environment_identity, self.runtime_identity.environment())
         terminal = self._terminal_status(job)
         if terminal is not None:
+            if terminal == "DONE":
+                self._verify_completion(job)
             return WorkerResult(terminal, job, references=claim.references)
         if job.lifecycle is OperationalLifecycle.COMPLETED and job.terminal_outcome is TerminalOutcome.NEEDS_REVIEW:
             resumed = store.transition_operational(job.job_id, expected_revision=job.revision, lifecycle=OperationalLifecycle.RETRYING)

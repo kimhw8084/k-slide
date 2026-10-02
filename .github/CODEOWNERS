@@ -1,6 +1,7 @@
 # Production-sensitive K-Slide paths require review by the repository owner.
 /AGENTS.md @kimhw8084
 /src/ @kimhw8084
+/integrations/ @kimhw8084
 /.opencode/ @kimhw8084
 /schemas/ @kimhw8084
 /evals/ @kimhw8084

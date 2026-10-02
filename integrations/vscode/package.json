@@ -66,7 +66,7 @@
   },
   "scripts": {
     "compile": "tsc -p .",
-    "test": "npm run compile && node --test dist/src/hostInvocation.test.js"
+    "test": "npm run compile && node --test dist/src/*.test.js"
   },
   "devDependencies": {
     "@types/node": "20.19.0",
