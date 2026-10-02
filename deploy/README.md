@@ -66,7 +66,9 @@ as not production-certified.
 
 The bootstrap checks that the complete host bundle is present and read-only,
 rejects additional auto-discovered plugins/tools/agents, and binds the bundle
-hash into its environment identity. Changing an agent instruction or a tool
+hash, including installed dependency files, into its environment identity.
+Missing, writable or version-mismatched dependencies block startup.
+Changing an agent instruction, dependency file or tool
 therefore changes the deployment identity and requires corresponding evidence.
 
 OpenCode production starts only through the managed pre-start bootstrap. Copy

@@ -269,6 +269,25 @@ def _host_bundle_identity(config_dir: Path) -> str:
             raise ValueError("unexpected package")
         if lock["packages"][""]["dependencies"] != package["dependencies"] or lock["packages"]["node_modules/@opencode-ai/plugin"]["version"] != OPENCODE_VERSION:
             raise ValueError("unexpected dependency lock")
+        dependency_paths = {"node_modules/@opencode-ai/plugin", "node_modules/@opencode-ai/sdk", "node_modules/zod"}
+        if set(lock["packages"]) != {"", *dependency_paths}:
+            raise ValueError("unexpected dependency surface")
+        modules = config_dir / "node_modules"
+        _require_directory(modules, label="preinstalled host dependencies", read_only=True)
+        for relative in sorted(dependency_paths):
+            installed = config_dir / relative / "package.json"
+            _require_file(installed, label="preinstalled host dependency")
+            metadata = json.loads(installed.read_text(encoding="utf-8"))
+            if not isinstance(metadata, dict) or metadata.get("version") != lock["packages"][relative]["version"]:
+                raise ValueError("installed dependency differs from lock")
+        for candidate in sorted(modules.rglob("*")):
+            if candidate.is_symlink():
+                raise _invalid("Managed host dependencies must not contain symbolic links.")
+            if candidate.is_dir():
+                _require_directory(candidate, label="preinstalled host dependency directory", read_only=True)
+            else:
+                relative = candidate.relative_to(config_dir).as_posix()
+                hashes[relative] = _require_file(candidate, label="preinstalled host dependency file")
     except (OSError, ValueError, KeyError, TypeError) as exc:
         raise _invalid("Managed OpenCode host dependency identity is invalid.") from exc
     return _sha256_bytes(_canonical(hashes))

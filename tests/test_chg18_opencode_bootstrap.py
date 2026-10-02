@@ -296,7 +296,7 @@ class ReadinessFileWaitTests(unittest.TestCase):
 
 class OpenCodeBootstrapTests(unittest.TestCase):
     def test_missing_agent_or_tool_dependency_cannot_start_managed_host(self) -> None:
-        for relative in ("agents/k-slide.md", "tools/kslide.ts", "internal/lib/k-slide-process.ts"):
+        for relative in ("agents/k-slide.md", "tools/kslide.ts", "internal/lib/k-slide-process.ts", "node_modules/@opencode-ai/plugin/package.json"):
             with self.subTest(relative=relative), tempfile.TemporaryDirectory() as directory:
                 manifest = _write_bootstrap(Path(directory))
                 contract = load_bootstrap_manifest(manifest)
@@ -318,6 +318,14 @@ class OpenCodeBootstrapTests(unittest.TestCase):
             target.write_text(target.read_text() + "\nchanged instruction\n")
             target.chmod(0o444)
             self.assertNotEqual(load_bootstrap_manifest(manifest).identity, contract.identity)
+            dependency = contract.config_dir / "node_modules" / "@opencode-ai" / "plugin" / "index.js"
+            updated = load_bootstrap_manifest(manifest).identity
+            dependency.chmod(0o644)
+            with self.assertRaises(KSlideError):
+                load_bootstrap_manifest(manifest)
+            dependency.write_text("// modified dependency\n")
+            dependency.chmod(0o444)
+            self.assertNotEqual(load_bootstrap_manifest(manifest).identity, updated)
 
     def test_unlisted_plugin_cannot_enter_autodiscovery(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
